@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>花月 Flower Moon</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
+</head>
+
+<body>
+    <!-- 卡片堆疊容器 (Card Container) -->
+    <div id="cardContainer">
+        <!-- JavaScript 會將卡片動態插入到這裡 -->
+    </div>
+
+    <!-- 單張卡片的模板 (Template) -->
+    <template id="cardTemplate">
+        <div class="card">
+            <!-- 左欄：節日與 Logo -->
+            <div class="col-left">
+                <div class="holidays-container"></div>
+                <!-- 移至左側的補充資訊 (Title & Author) -->
+                <div class="poem-meta-vertical-left">
+                    <div class="poem-title"></div>
+                    <div class="poem-author"></div>
+                </div>
+                <div class="brand-logo">花月</div>
+            </div>
+
+            <!-- 中欄：主要內容 (包含日期、宜忌、詩詞) -->
+            <div class="col-center">
+                <div class="date-header">
+                    <div class="year-month"></div>
+                    <div class="day-number"></div>
+                    <div class="weekday"></div>
+                </div>
+
+                <div class="lucky-unlucky">
+                    <div class="activity good">
+                        <span class="label">宜</span>
+                        <span class="value"></span>
+                    </div>
+                    <div class="activity bad">
+                        <span class="label">忌</span>
+                        <span class="value"></span>
+                    </div>
+                </div>
+
+                <div class="poem-section">
+                    <div class="poem-body vertical-text"></div>
+                </div>
+
+
+            </div>
+
+            <!-- 右欄：農曆資訊 -->
+            <div class="col-right">
+                <div class="lunar-info vertical-text"></div>
+            </div>
+        </div>
+    </template>
+
+    <!-- 載入資料 (Data) 與 程式邏輯 (Script) -->
+    <script src="data/poems.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

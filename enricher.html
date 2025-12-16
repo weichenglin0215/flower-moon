@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <title>詩詞資料自動標註工具</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            padding: 2rem;
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1,
+        h2 {
+            color: #2c3e50;
+        }
+
+        .step {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            font-family: monospace;
+        }
+
+        button {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        button:hover {
+            background: #219150;
+        }
+
+        button.secondary {
+            background: #7f8c8d;
+        }
+
+        pre {
+            background: #2c3e50;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            height: 300px;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .flex-col {
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>詩詞資料自動標註工具 (Tag Enricher)</h1>
+
+        <div class="step">
+            <h2>第 1 步：載入詩詞資料</h2>
+            <p>請將 <code>data/poems.js</code> 的內容 (包含 <code>const POEMS = ...</code>) 貼在下方，或確認已載入。</p>
+            <!-- We try to load it automatically if file exists relative to this -->
+            <script src="data/poems.js"></script>
+            <div id="status">檢查中...</div>
+            <script>
+                window.onload = function () {
+                    if (typeof POEMS !== 'undefined') {
+                        document.getElementById('status').innerHTML = "✅ 成功載入 " + POEMS.length + " 首詩詞。";
+                    } else {
+                        document.getElementById('status').innerHTML = "❌ 無法自動載入 poems.js，請手動貼上。";
+                    }
+                }
+            </script>
+        </div>
+
+        <div class="step">
+            <h2>第 2 步：載入關鍵字庫 (可編輯)</h2>
+            <div class="flex-row">
+                <div class="flex-col">
+                    <label>Tags (標籤)</label>
+                    <textarea id="tagsArea"></textarea>
+                </div>
+                <div class="flex-col">
+                    <label>宜 (Lucky)</label>
+                    <textarea id="luckyArea"></textarea>
+                </div>
+                <div class="flex-col">
+                    <label>忌 (Unlucky)</label>
+                    <textarea id="unluckyArea"></textarea>
+                </div>
+            </div>
+            <button class="secondary" onclick="loadPools()">從檔案重新載入預設值</button>
+        </div>
+
+        <div class="step">
+            <h2>第 3 步：執行自動標註</h2>
+            <p>程式將會分析詩詞內容，自動匹配 Tags，並隨機分配宜/忌。</p>
+            <button onclick="distributeTags()">開始標註</button>
+        </div>
+
+        <div class="step">
+            <h2>第 4 步：輸出結果</h2>
+            <p>複製下方內容，覆蓋 <code>data/poems.js</code>。</p>
+            <pre id="outputArea">// 等待執行...</pre>
+            <button onclick="copyOutput()">複製代碼</button>
+        </div>
+    </div>
+
+    <script>
+        // Default text loading function
+        function loadPools() {
+            Promise.all([
+                fetch('data/tags_pool.txt').then(r => r.text()),
+                fetch('data/lucky_pool.txt').then(r => r.text()),
+                fetch('data/unlucky_pool.txt').then(r => r.text())
+            ]).then(([tags, lucky, unlucky]) => {
+                document.getElementById('tagsArea').value = tags;
+                document.getElementById('luckyArea').value = lucky;
+                document.getElementById('unluckyArea').value = unlucky;
+            }).catch(e => alert("載入失敗 (可能是 CORS 限制，請直接開啟檔案複製內容): " + e));
+        }
+
+        // Auto load on start
+        setTimeout(loadPools, 500);
+
+        function distributeTags() {
+            if (typeof POEMS === 'undefined') {
+                alert("請先確認詩詞資料已載入");
+                return;
+            }
+
+            const tagsPool = parsePool('tagsArea');
+            const luckyPool = parsePool('luckyArea');
+            const unluckyPool = parsePool('unluckyArea');
+
+            const enrichedPoems = POEMS.map(poem => {
+                // 1. Analyze Tags
+                // Simple keyword matching: if poem content contains tag char/word
+                const poemText = poem.content.join('');
+
+                // Keep existing tags if any, distinct
+                let newTags = new Set(poem.tags || []);
+
+                // Heuristic: Check each tag in pool
+                tagsPool.forEach(tag => {
+                    if (poemText.includes(tag)) {
+                        newTags.add(tag);
+                    }
+                    // Special Synonyms Logic (Example)
+                    if (tag === '思鄉' && (poemText.includes('故鄉') || poemText.includes('家'))) newTags.add(tag);
+                    if (tag === '送別' && (poemText.includes('送') || poemText.includes('別'))) newTags.add(tag);
+                    if (tag === '月亮' && (poemText.includes('月'))) newTags.add(tag);
+                });
+
+                // Pick 3-5 random ones if none found?
+                // Or limit to top 3?
+
+                // 2. Assign Lucky/Unlucky
+                // Randomly pick 3 items
+                const newLucky = pickRandom(luckyPool, 1)[0] || "寫詩";
+                const newUnlucky = pickRandom(unluckyPool, 1)[0] || "庸俗";
+
+                return {
+                    ...poem,
+                    tags: Array.from(newTags),
+                    lucky: newLucky,
+                    unlucky: newUnlucky
+                };
+            });
+
+            // Output
+            const jsonString = JSON.stringify(enrichedPoems, null, 2);
+            document.getElementById('outputArea').textContent = `const POEMS = ${jsonString};`;
+        }
+
+        function parsePool(elementId) {
+            return document.getElementById(elementId).value
+                .split('\n')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+        }
+
+        function pickRandom(arr, count) {
+            const shuffled = [...arr].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, count);
+        }
+
+        function copyOutput() {
+            const range = document.createRange();
+            range.selectNode(document.getElementById('outputArea'));
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            alert('已複製！');
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <title>詩詞資料轉換器 (Excel to JSON)</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            padding: 2rem;
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        button {
+            background: #c0392b;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        button:hover {
+            background: #a93226;
+        }
+
+        pre {
+            background: #2c3e50;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .instructions {
+            background: #e8f8f5;
+            padding: 1rem;
+            border-left: 4px solid #1abc9c;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>詩詞資料轉換器</h1>
+
+        <div class="instructions">
+            <h3>如何使用：</h3>
+            <ol>
+                <li>打開您的 Excel 檔案。</li>
+                <li>選取並複製包含資料的區域 (包括兩行一組的詩詞)。<br>
+                    <strong>注意：</strong>請確保格式為：<br>
+                    第一行：年代 | 類型 | 編號 | 作者 | 總評 | 詩句1 | 詩句2...<br>
+                    第二行：(空白) | (空白) | (空白) | (空白) | (空白) | 評分1 | 評分2...
+                </li>
+                <li>貼上到下方的文字框中。</li>
+                <li>按下「轉換」按鈕。</li>
+                <li>複製下方的結果，貼到 <code>data/poems.js</code> 中。</li>
+            </ol>
+        </div>
+
+        <textarea id="inputArea" placeholder="在此貼上 Excel 資料..."></textarea>
+        <button onclick="convert()">轉換成程式碼格式</button>
+
+        <h3>轉換結果：</h3>
+        <pre id="outputArea">// 等待輸入...</pre>
+    </div>
+
+    <script>
+        function convert() {
+            const input = document.getElementById('inputArea').value;
+            const lines = input.trim().split('\n');
+            const poems = [];
+
+            // Excel copy-paste is tab-separated
+            for (let i = 0; i < lines.length; i++) {
+                const row = lines[i].split('\t').map(s => s.trim());
+
+                // Skip empty lines or pure rating lines (checked inside loop)
+                // We expect Row 1 = Metadata + Content, Row 2 = Ratings
+
+                // Heuristic: Check if this row has metadata (columns 0-3 are not empty)
+                // Adjust index based on user's exact columns. 
+                // User said: 年代、類型、編號、作者名、詩評價、後續...
+                // Idx: 0, 1, 2, 3, 4, 5...
+
+                if (!row[0] && !row[3]) continue; // Skip lines that look like rating-only lines or empty
+
+                const poem = {
+                    id: parseInt(row[2]) || Date.now(), // Use Excel ID or fallback
+                    dynasty: row[0],
+                    type: row[1],
+                    author: row[3],
+                    rating: parseInt(row[4]) || 0,
+                    content: [],
+                    line_ratings: [],
+                    tags: [] // Placeholder
+                };
+
+                // Extract poem lines (starting from index 5)
+                for (let j = 5; j < row.length; j++) {
+                    if (row[j]) poem.content.push(row[j]);
+                }
+
+                // Check for next row (Ratings)
+                if (i + 1 < lines.length) {
+                    const nextRow = lines[i + 1].split('\t').map(s => s.trim());
+                    // Verify if this is indeed a rating row (Metadata columns should be empty)
+                    if (!nextRow[0] && !nextRow[3]) {
+                        // It's a rating row
+                        for (let j = 5; j < row.length; j++) { // Use length of content row to align
+                            const rate = parseInt(nextRow[j]);
+                            poem.line_ratings.push(isNaN(rate) ? 0 : rate);
+                        }
+                        i++; // Skip this row in next iteration
+                    }
+                }
+
+                // Fill default ratings if missing
+                if (poem.line_ratings.length === 0) {
+                    poem.line_ratings = new Array(poem.content.length).fill(0);
+                }
+
+                poems.push(poem);
+            }
+
+            const jsonString = JSON.stringify(poems, null, 2);
+            // Wrap in variable for simple JS file usage
+            const output = `const POEMS = ${jsonString};`;
+
+            document.getElementById('outputArea').textContent = output;
+        }
+    </script>
+</body>
+
+</html>

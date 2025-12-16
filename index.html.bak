@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>唐詩日曆</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Load Lunar Date Library -->
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
+</head>
+
+<body>
+
+    <div class="calendar-container">
+        <!-- Navigation Buttons -->
+        <button id="prevBtn" class="nav-btn prev-btn">❮</button>
+        <button id="nextBtn" class="nav-btn next-btn">❯</button>
+
+        <!-- Date Header -->
+        <header class="date-header">
+            <div id="solarDate" class="solar-date">16</div>
+            <div class="lunar-info" id="lunarInfo">
+                <!-- Javascript will populate this -->
+                <!-- Example: 乙巳年 十一月 廿六 -->
+            </div>
+        </header>
+
+        <!-- Poem Display -->
+        <main class="poem-content" id="poemContent">
+            <!-- Javascript will populate this -->
+            <div class="poem-title" id="poemTitle"></div>
+            <div class="poem-author" id="poemAuthor"></div>
+            <div class="poem-body" id="poemBody">
+                <!-- Lines go here -->
+            </div>
+        </main>
+
+        <!-- Footer Guidance -->
+        <footer class="daily-guidance">
+            <div class="guidance-item">
+                <span class="label-good">宜</span>
+                <span id="goodActivity">寫詩</span>
+            </div>
+            <div class="guidance-item">
+                <span class="label-bad">忌</span>
+                <span id="badActivity">俗氣</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Load Data Locally (for simple file:// access without CORS issues) -->
+    <script src="data/poems.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
