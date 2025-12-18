@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>卡片(默背) - 花月 Flower Moon</title>
+    <link rel="stylesheet" href="cards.css">
+    <link rel="stylesheet" href="menu.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- 選單會由 menu.js 動態插入 -->
+
+    <!-- 卡片容器 -->
+    <div id="cardContainer">
+        <!-- JavaScript 會將卡片動態插入到這裡 -->
+    </div>
+
+    <!-- 單張卡片的模板 -->
+    <template id="cardTemplate">
+        <div class="card">
+            <!-- 左欄：詩詞名與作者，品牌標誌 -->
+            <div class="col-left">
+                <div class="poem-meta-vertical">
+                    <div class="poem-title"></div>
+                    <div class="poem-author"></div>
+                    <div class="brand-logo">花月</div>
+                </div>
+            </div>
+
+            <!-- 中欄：詩詞名句 -->
+            <div class="col-center">
+                <div class="poem-content">
+                    <!-- 詩句會動態插入 -->
+                </div>
+            </div>
+
+            <!-- 右欄： -->
+            <div class="col-right">
+
+            </div>
+        </div>
+    </template>
+
+    <!-- 載入資料與程式邏輯 -->
+    <script src="menu.js"></script>
+    <script src="data/poems.js"></script>
+    <script src="cards.js"></script>
+</body>
+
+</html>

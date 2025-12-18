@@ -72,8 +72,8 @@
                 <li>打開您的 Excel 檔案。</li>
                 <li>選取並複製包含資料的區域 (包括兩行一組的詩詞)。<br>
                     <strong>注意：</strong>請確保格式為：<br>
-                    第一行：年代 | 類型 | 編號 | 作者 | 總評 | 詩句1 | 詩句2...<br>
-                    第二行：(空白) | (空白) | (空白) | (空白) | (空白) | 評分1 | 評分2...
+                    第一行：年代 | 類型 | 編號 | 作者 | 詩名 | 注音 | 總評 | 詩句1 | 詩句2...<br>
+                    第二行：(空白) | (空白) | (空白) | (空白) | (空白) | (空白) | (空白) | 評分1 | 評分2...
                 </li>
                 <li>貼上到下方的文字框中。</li>
                 <li>按下「轉換」按鈕。</li>
@@ -91,56 +91,61 @@
     <script>
         function convert() {
             const input = document.getElementById('inputArea').value;
-            const lines = input.trim().split('\n');
+            // Use custom TSV parser to handle quotes and newlines within cells
+            const lines = parseTSV(input);
             const poems = [];
 
             // Excel copy-paste is tab-separated
             for (let i = 0; i < lines.length; i++) {
-                const row = lines[i].split('\t').map(s => s.trim());
+                const row = lines[i]; // This is already an array of cells
 
-                // Skip empty lines or pure rating lines (checked inside loop)
-                // We expect Row 1 = Metadata + Content, Row 2 = Ratings
+                // Skip empty lines
+                // Format:
+                // Row 1: Dynasty(0) | Type(1) | ID(2) | Author(3) | Title(4) | Zhuyin(5) | Rating(6) | Content(7)...
+                // Row 2: Empty......                                                           | Ratings(7)...
 
                 // Heuristic: Check if this row has metadata (columns 0-3 are not empty)
-                // Adjust index based on user's exact columns. 
-                // User said: 年代、類型、編號、作者名、詩評價、後續...
-                // Idx: 0, 1, 2, 3, 4, 5...
-
-                if (!row[0] && !row[3]) continue; // Skip lines that look like rating-only lines or empty
+                if (!row[0] && !row[3]) continue; 
 
                 const poem = {
-                    id: parseInt(row[2]) || Date.now(), // Use Excel ID or fallback
+                    id: parseInt(row[2]) || Date.now(), 
                     dynasty: row[0],
                     type: row[1],
                     author: row[3],
-                    rating: parseInt(row[4]) || 0,
+                    title: row[4] || '',
+                    zhuyin: row[5] || '', // Parser already handles quotes
+                    rating: parseInt(row[6]) || 0, // Column 6 is Rating (Total Review Score)
                     content: [],
                     line_ratings: [],
-                    tags: [] // Placeholder
+                    tags: [] 
                 };
 
-                // Extract poem lines (starting from index 5)
-                for (let j = 5; j < row.length; j++) {
-                    if (row[j]) poem.content.push(row[j]);
-                }
-
-                // Check for next row (Ratings)
+                // Prepare to read ratings from next row if available
+                let nextRow = null;
                 if (i + 1 < lines.length) {
-                    const nextRow = lines[i + 1].split('\t').map(s => s.trim());
+                    const candidate = lines[i + 1];
                     // Verify if this is indeed a rating row (Metadata columns should be empty)
-                    if (!nextRow[0] && !nextRow[3]) {
-                        // It's a rating row
-                        for (let j = 5; j < row.length; j++) { // Use length of content row to align
-                            const rate = parseInt(nextRow[j]);
-                            poem.line_ratings.push(isNaN(rate) ? 0 : rate);
-                        }
-                        i++; // Skip this row in next iteration
+                    // We check a few columns to be sure
+                    if (!candidate[0] && !candidate[3] && !candidate[4]) {
+                        nextRow = candidate;
+                        i++; // Advance main loop index as we consumed this row
                     }
                 }
 
-                // Fill default ratings if missing
-                if (poem.line_ratings.length === 0) {
-                    poem.line_ratings = new Array(poem.content.length).fill(0);
+                // Extract poem lines AND ratings simultaneously to ensure alignment
+                // We iterate through columns starting from 7
+                for (let j = 7; j < row.length; j++) {
+                    if (row[j]) { // Only handle if there is actual content
+                        poem.content.push(row[j]);
+
+                        // Extract corresponding rating
+                        let rate = 0;
+                        if (nextRow && nextRow[j]) {
+                            rate = parseInt(nextRow[j]);
+                            if (isNaN(rate)) rate = 0;
+                        }
+                        poem.line_ratings.push(rate);
+                    }
                 }
 
                 poems.push(poem);
@@ -151,6 +156,57 @@
             const output = `const POEMS = ${jsonString};`;
 
             document.getElementById('outputArea').textContent = output;
+        }
+
+        // Custom TSV Parser to handle Excel pasted data
+        function parseTSV(input) {
+            const rows = [];
+            let currentRow = [];
+            let currentCell = '';
+            let inQuote = false;
+            
+            // Normalize line endings to \n
+            input = input.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+            for (let i = 0; i < input.length; i++) {
+                const char = input[i];
+                const nextChar = input[i + 1];
+                
+                if (inQuote) {
+                    if (char === '"') {
+                        if (nextChar === '"') {
+                            // Escaped quote ("") -> quote (")
+                            currentCell += '"';
+                            i++;
+                        } else {
+                            // End of quote
+                            inQuote = false;
+                        }
+                    } else {
+                        currentCell += char;
+                    }
+                } else {
+                    if (char === '"') {
+                        inQuote = true;
+                    } else if (char === '\t') {
+                        currentRow.push(currentCell);
+                        currentCell = '';
+                    } else if (char === '\n') {
+                        currentRow.push(currentCell);
+                        rows.push(currentRow);
+                        currentRow = [];
+                        currentCell = '';
+                    } else {
+                        currentCell += char;
+                    }
+                }
+            }
+            // Handle last cell/row if not empty
+            if (currentCell || currentRow.length > 0) {
+                currentRow.push(currentCell);
+                rows.push(currentRow);
+            }
+            return rows;
         }
     </script>
 </body>

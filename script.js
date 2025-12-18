@@ -103,12 +103,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const poemIndex = Math.floor(seededRandom(2) * POEMS.length);
         const poem = POEMS[poemIndex];
 
-        // 3. 宜忌 (獨立於詩詞，基於日期)
-        // 為了確保每天的宜忌固定，我們使用隨機數種子來選擇，
-        // 而不是使用詩詞本身的 lucky 欄位 (除非詩詞庫很大且固定)
-        // 這裡我們暫時沿用 poem 的資料以確保穩定性，如果 poem 資料不足再 fallback
-        const luckyText = poem.lucky || "讀書";
-        const unluckyText = poem.unlucky || "發呆";
+        // 3. 宜忌 (基於節氣與農曆)
+        let luckyText = "讀書";
+        let unluckyText = "發呆";
+        let solarTerm = "";
+        let lunarMonth = 1;
+
+        if (window.Lunar) {
+            const lunar = Lunar.fromDate(date);
+            solarTerm = lunar.getJieQi() || lunar.getPrevJieQi().getName(); // 當前或最近的節氣
+            lunarMonth = lunar.getMonth(); // 農曆月份 (1-12)
+        }
+
+        // 根據節氣與農曆月份決定性選擇宜忌
+        const luckyUnlucky = getLuckyUnluckyBySolarTerm(solarTerm, lunarMonth, seed);
+        luckyText = luckyUnlucky.lucky;
+        unluckyText = luckyUnlucky.unlucky;
 
         // --- 渲染 DOM (Render DOM) ---
         // 日期標題
@@ -118,8 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
         cardInner.querySelector('.weekday').textContent = weekdays[date.getDay()];
 
         // 內容填充
-        cardInner.querySelector('.poem-title').textContent = poem.title || "無題";
-        cardInner.querySelector('.poem-author').textContent = `${poem.dynasty || ''} · ${poem.author || '佚名'}`;
+        const titleEl = cardInner.querySelector('.poem-title');
+        const authorEl = cardInner.querySelector('.poem-author');
+        titleEl.textContent = poem.title || "無題";
+        authorEl.textContent = `${poem.dynasty || ''} · ${poem.author || '佚名'}`;
+        titleEl.setAttribute('data-poem-id', poem.id);
+        authorEl.setAttribute('data-poem-id', poem.id);
 
         cardInner.querySelector('.activity.good .value').textContent = luckyText;
         cardInner.querySelector('.activity.bad .value').textContent = unluckyText;
@@ -136,12 +150,24 @@ document.addEventListener('DOMContentLoaded', () => {
             poemBody.appendChild(div);
         });
 
-        // 農曆 (Lunar)
+        // 農曆 (Lunar) - 更新顯示邏輯
         if (window.Lunar) {
             const lunar = Lunar.fromDate(date);
             let lunarHtml = `${lunar.getYearInGanZhi()}${lunar.getYearShengXiao()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}日`;
-            const jieQi = lunar.getJieQi();
-            if (jieQi) lunarHtml += ` · 近${jieQi}`;
+
+            // 節氣顯示邏輯
+            const currentJieQi = lunar.getJieQi();
+            if (currentJieQi) {
+                // 當天就是節氣
+                lunarHtml += ` · ${currentJieQi}`;
+            } else {
+                // 顯示最近的下一個節氣
+                const nextJieQi = lunar.getNextJieQi();
+                if (nextJieQi) {
+                    lunarHtml += ` · 近${nextJieQi.getName()}`;
+                }
+            }
+
             cardInner.querySelector('.lunar-info').textContent = lunarHtml;
         }
 
@@ -322,6 +348,240 @@ document.addEventListener('DOMContentLoaded', () => {
         if (m === 5 && d === 1) return "勞動節";
         if (m === 10 && d === 10) return "國慶日";
         return "";
+    }
+
+    // 根據節氣與農曆月份選擇宜忌
+    function getLuckyUnluckyBySolarTerm(solarTerm, lunarMonth, seed) {
+        // 宜忌資料池 (內嵌) - 擴充版本以增加變化性
+        const luckyPool = [
+            "已讀不回",
+            "手抄詩詞",
+            "月下獨酌",
+            "享受孤獨",
+            "看恐怖電影",
+            "半夜寫小說",
+            "古裝自拍",
+            "手寫情書告白",
+            "吃冰淇淋",
+            "吃荔枝",
+            "發早安圖",
+            "圖書館補眠",
+            "刪掉社交軟體",
+            "改同事暱稱",
+            "考試折紙飛機",
+            "手機調成靜音",
+            "電視音量開最大",
+            "把鬧鐘砸了",
+            "投稿匿名詩",
+            "取消追蹤",
+            "咖啡廳裝忙",
+            "自己逛夜市",
+            "念詩給貓聽",
+            "拒絕加班",
+            "放空一整天",
+            "放風箏",
+            "湖上泛舟",
+            "泡茶聽平劇",
+            "泡溫泉發限動",
+            "爬山發限動",
+            "竹杖芒鞋輕勝馬",
+            "挑戰素食",
+            "上山看雪",
+            "發呆看雲",
+            "罵老闆",
+            "背包客窮遊",
+            "換手機",
+            "家族群組靜音",
+            "送手寫卡片",
+            "採菊東籬",
+            "報名爵士舞",
+            "尋仙訪聖",
+            "登高望遠",
+            "結伴翹班",
+            "買書不看",
+            "買新衣",
+            "視訊會議露下巴",
+            "開會時發呆",
+            "陽台發呆",
+            "約閨蜜",
+            "準時下班",
+            "浮生半日閒",
+            "睡到自然醒",
+            "偷吃雞排",
+            "跳廣場舞",
+            "訪故人",
+            "窩沙發",
+            "裸辭追夢",
+            "寫日記",
+            "寫詩作畫",
+            "練字",
+            "賞荷",
+            "學冷門技能",
+            "斷捨離",
+            "整理舊書",
+            "舉杯邀明月",
+            "靜坐觀心",
+            "煮泡麵",
+            "舊城區漫遊",
+            "離線模式",
+            "騎單車",
+            "關閉通知",
+            "看星星",
+            "聽雨",
+            "聽琴品茗",
+            "曬書",
+            "賞花"
+        ];
+
+        const unluckyPool = [
+            "雨天沒帶傘",
+            "已讀不回",
+            "分手快樂",
+            "分組被丟包",
+            "午睡流口水",
+            "裝逼",
+            "比較IG限動",
+            "加班到半夜",
+            "打卡書店",
+            "打卡網美景點",
+            "發現白髮",
+            "請沒生病假",
+            "吃微波食品",
+            "試吃吃到飽",
+            "老眼昏花",
+            "收好人卡",
+            "告白選節日",
+            "忘記密碼",
+            "沒酒了",
+            "刷短影音",
+            "孤枕難眠",
+            "拍馬屁",
+            "出差",
+            "相信購物專家",
+            "穿新鞋被踩",
+            "音樂節人擠人",
+            "通勤地獄",
+            "借酒澆愁",
+            "借筆記給學霸",
+            "借錢給同事",
+            "被催婚",
+            "迷路",
+            "吃土",
+            "二倍速追劇",
+            "耍帥裝逼",
+            "叫外送",
+            "古典樂",
+            "前任婚禮",
+            "深夜回訊息",
+            "猜另一半心思",
+            "聊政治毀友情",
+            "藕斷絲連",
+            "小人纏身",
+            "報復性消費",
+            "復合又後悔",
+            "背唐詩裝文青",
+            "等不到人",
+            "買琴當家具",
+            "週一提離職",
+            "想家",
+            "群發訊息",
+            "落榜",
+            "修理遙控器",
+            "跟老闆撞衫",
+            "看經典文學",
+            "不懂流行語",
+            "買參考書",
+            "買基金",
+            "斷食法",
+            "跟酸民吵架",
+            "無效社交",
+            "遇到強盜",
+            "團建尬聊",
+            "團購美食",
+            "夢醒了",
+            "網購解憂",
+            "寫詩不押韻",
+            "模仿簽名",
+            "熬夜K書",
+            "獨愴涕下",
+            "薪水微薄",
+            "失戀/單相思",
+            "懷才不遇",
+            "看藝術展",
+            "邊吃邊回",
+            "戀愛腦"
+        ];
+
+        // 節氣對應的宜忌索引範圍 (根據節氣特性選擇) - 擴大範圍以增加變化
+        const solarTermMap = {
+            "立春": { luckyStart: 0, luckyCount: 8, unluckyStart: 0, unluckyCount: 6 },
+            "雨水": { luckyStart: 7, luckyCount: 8, unluckyStart: 5, unluckyCount: 6 },
+            "驚蟄": { luckyStart: 14, luckyCount: 8, unluckyStart: 10, unluckyCount: 6 },
+            "春分": { luckyStart: 21, luckyCount: 8, unluckyStart: 15, unluckyCount: 6 },
+            "清明": { luckyStart: 28, luckyCount: 8, unluckyStart: 20, unluckyCount: 6 },
+            "穀雨": { luckyStart: 35, luckyCount: 8, unluckyStart: 25, unluckyCount: 6 },
+            "立夏": { luckyStart: 0, luckyCount: 8, unluckyStart: 30, unluckyCount: 6 },
+            "小滿": { luckyStart: 7, luckyCount: 8, unluckyStart: 35, unluckyCount: 6 },
+            "芒種": { luckyStart: 14, luckyCount: 8, unluckyStart: 40, unluckyCount: 6 },
+            "夏至": { luckyStart: 21, luckyCount: 8, unluckyStart: 0, unluckyCount: 6 },
+            "小暑": { luckyStart: 28, luckyCount: 8, unluckyStart: 5, unluckyCount: 6 },
+            "大暑": { luckyStart: 35, luckyCount: 8, unluckyStart: 10, unluckyCount: 6 },
+            "立秋": { luckyStart: 0, luckyCount: 8, unluckyStart: 15, unluckyCount: 6 },
+            "處暑": { luckyStart: 7, luckyCount: 8, unluckyStart: 20, unluckyCount: 6 },
+            "白露": { luckyStart: 14, luckyCount: 8, unluckyStart: 25, unluckyCount: 6 },
+            "秋分": { luckyStart: 21, luckyCount: 8, unluckyStart: 30, unluckyCount: 6 },
+            "寒露": { luckyStart: 28, luckyCount: 8, unluckyStart: 35, unluckyCount: 6 },
+            "霜降": { luckyStart: 35, luckyCount: 8, unluckyStart: 40, unluckyCount: 6 },
+            "立冬": { luckyStart: 0, luckyCount: 8, unluckyStart: 0, unluckyCount: 6 },
+            "小雪": { luckyStart: 7, luckyCount: 8, unluckyStart: 5, unluckyCount: 6 },
+            "大雪": { luckyStart: 14, luckyCount: 8, unluckyStart: 10, unluckyCount: 6 },
+            "冬至": { luckyStart: 21, luckyCount: 8, unluckyStart: 15, unluckyCount: 6 },
+            "小寒": { luckyStart: 28, luckyCount: 8, unluckyStart: 20, unluckyCount: 6 },
+            "大寒": { luckyStart: 35, luckyCount: 8, unluckyStart: 25, unluckyCount: 6 }
+        };
+
+        // 獲取節氣配置，如果沒有則使用預設
+        const config = solarTermMap[solarTerm] || { luckyStart: 0, luckyCount: 8, unluckyStart: 0, unluckyCount: 6 };
+
+        // 使用種子、農曆月份和日期分組來增加變化性
+        // 將日期除以 3，讓宜忌大約每 3 天變化一次
+        const dayGroup = Math.floor(seed / 100 / 3);
+
+        function seededRandom(offset = 0) {
+            const x = Math.sin(dayGroup * 1000 + offset + lunarMonth * 100 + seed) * 10000;
+            return x - Math.floor(x);
+        }
+
+        // 從指定範圍選擇宜忌，使用更大的範圍以增加變化
+        const luckyItems = [];
+        const unluckyItems = [];
+
+        // 選擇 2-3 條宜
+        const luckyCount = Math.floor(seededRandom(10) * 2) + 2; // 2-3 條
+        const luckyStartOffset = Math.floor(seededRandom(5) * 5); // 增加起始偏移
+
+        for (let i = 0; i < luckyCount; i++) {
+            const idx = (config.luckyStart + luckyStartOffset + Math.floor(seededRandom(20 + i * 7) * config.luckyCount)) % luckyPool.length;
+            if (!luckyItems.includes(luckyPool[idx])) {
+                luckyItems.push(luckyPool[idx]);
+            }
+        }
+
+        // 選擇 2-3 條忌
+        const unluckyCount = Math.floor(seededRandom(30) * 2) + 2; // 2-3 條
+        const unluckyStartOffset = Math.floor(seededRandom(35) * 5); // 增加起始偏移
+
+        for (let i = 0; i < unluckyCount; i++) {
+            const idx = (config.unluckyStart + unluckyStartOffset + Math.floor(seededRandom(40 + i * 7) * config.unluckyCount)) % unluckyPool.length;
+            if (!unluckyItems.includes(unluckyPool[idx])) {
+                unluckyItems.push(unluckyPool[idx]);
+            }
+        }
+
+        return {
+            lucky: luckyItems.join(' · ') || "讀書",
+            unlucky: unluckyItems.join(' · ') || "發呆"
+        };
     }
 
     function getBestLines(poem, maxLines) {

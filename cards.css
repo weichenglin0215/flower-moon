@@ -1,0 +1,179 @@
+/* =========================================
+   卡片（默背）頁面樣式（cards.html）
+   - 僅更新必要部分，避免覆蓋既有調整
+   - 漢堡選單樣式請見 menu.css
+   ========================================= */
+:root {
+    --bg-color: #5d1818;
+    --font-main: 'Noto Serif TC', serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+body {
+    background-color: var(--bg-color);
+    font-family: var(--font-main);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#cardContainer {
+    position: relative;
+    width: 90vw;
+    height: 90vh;
+    max-width: 450px;
+    max-height: 800px;
+    perspective: 1000px;
+}
+
+/* 卡片樣式 */
+.card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    --card-hue: 0;
+    background-color: hsl(var(--card-hue), 18%, 72%);
+    --main-text-color: hsl(var(--card-hue), 20%, 20%);
+    color: var(--main-text-color);
+
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    padding: 32px;
+    transition: transform 0.1s linear, opacity 0.3s ease;
+    cursor: grab;
+    will-change: transform;
+}
+
+.card:active {
+    cursor: grabbing;
+}
+
+/* 三欄布局 */
+.col-left,
+.col-right {
+    flex: 0 0 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.col-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 直式文字 */
+.vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.3em;
+}
+
+/* 左欄：詩詞元資訊 */
+.poem-meta-vertical {
+    writing-mode: vertical-rl;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--main-text-color);
+}
+
+.poem-title {
+    font-size: 1.5rem;
+    /*font-weight: bold;*/
+    letter-spacing: 0.3em;
+}
+
+.poem-author {
+    font-size: 1.5rem;
+    opacity: 1;
+    letter-spacing: 0.2em;
+}
+
+.poem-title, .poem-author { cursor: pointer; }
+
+/* 中欄：詩詞內容 */
+.poem-content {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.3em;
+    font-size: 3.3rem;
+    /*font-weight: bold;*/
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    max-height: 90%;
+    /* 水平壓縮 0.8 倍 → 變窄長方形 */
+    transform: scaleX(0.8);
+}
+
+.poem-line {
+    position: relative;
+    display: inline-block;
+}
+
+/* 左邊第一句詩往上移半個字高 */
+.poem-line:first-child {
+    transform: translateY(-2rem);
+}
+
+/* 字符逐漸顯示效果 */
+.char {
+    display: inline-block;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+    /* 長方形字符：寬度為高度的80% */
+    /*width: 0.8em;*/
+    text-align: center;
+}
+
+.char.visible {
+    opacity: 1;
+}
+
+/* 花月商標BRAND LOGO */
+.brand-logo {
+    writing-mode: vertical-rl;
+    font-size: 1.5rem;
+    font-weight: bold;
+    letter-spacing: 0.5em;
+    margin-top: auto;
+    /* Adhere to rule 3: Main Text Color */
+    color: var(--main-text-color);
+}
+
+/* 動畫類別 */
+.animate-recoil {
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.animate-flyout {
+    transition: transform 0.4s cubic-bezier(0.5, 0, 1, 0.5), opacity 0.4s ease;
+}
+
+/* 漢堡選單樣式由 menu.css 統一管理 */

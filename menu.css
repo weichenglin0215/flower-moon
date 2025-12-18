@@ -1,0 +1,296 @@
+/* ========================================
+   漢堡選單唯一樣式來源（全站共用）
+   - 所有頁面請共用本檔，避免重複樣式
+   - 後續僅針對必要區塊做最小幅度調整
+   ======================================== */
+/* ========================================
+   漢堡選單統一樣式
+   ======================================== */
+
+/* 漢堡按鈕 */
+.hamburger-btn {
+    position: fixed;
+    top: 2vh;
+    left: 2vh;
+    width: calc(100vh / 15);
+    height: calc(100vh / 15);
+    max-width: 60px;
+    max-height: 60px;
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: calc(100vh / 60);
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.hamburger-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.hamburger-btn:active {
+    transform: scale(0.95);
+}
+
+/* 漢堡線條 */
+.hamburger-line {
+    width: 60%;
+    height: 3px;
+    background-color: #f4e4a0;
+    border-radius: 2px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 選單打開時的動畫 */
+.hamburger-btn.active .hamburger-line:nth-child(1) {
+    transform: translateY(calc(100vh / 60 + 3px)) rotate(45deg);
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(3) {
+    transform: translateY(calc(-100vh / 60 - 3px)) rotate(-45deg);
+}
+
+/* 選單面板 */
+.menu-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(135deg, rgba(93, 24, 24, 0.95), rgba(70, 18, 18, 0.95));
+    backdrop-filter: blur(20px);
+    padding: calc(100vh / 12 + 4vh) 0 2vh 0;
+    transform: translateX(-100%);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 999;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.menu-panel.active {
+    transform: translateX(0);
+}
+
+/* 選單項目 */
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem 2rem;
+    color: #f4e4a0;
+    font-size: 1.3rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, #f4e4a0, #d4c480);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding-left: 2.5rem;
+}
+
+.menu-item:hover::before {
+    transform: scaleY(1);
+}
+
+.menu-item:active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* 禁用的選單項目 */
+.menu-item-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.menu-item-disabled:hover {
+    background-color: transparent;
+    padding-left: 2rem;
+}
+
+.menu-item-disabled:hover::before {
+    transform: scaleY(0);
+}
+
+.menu-item-disabled .menu-number {
+    background: linear-gradient(135deg, #999, #777);
+    color: #333;
+}
+
+/* 選單編號 */
+.menu-number {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #f4e4a0, #d4c480);
+    color: #5d1818;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(244, 228, 160, 0.3);
+}
+
+/* 選單文字 */
+.menu-text {
+    font-family: 'Noto Serif TC', serif;
+    letter-spacing: 0.1em;
+}
+
+/* 遮罩層 (點擊關閉選單) */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 998;
+}
+
+.menu-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 響應式調整 */
+@media (max-width: 480px) {
+    .menu-panel {
+        width: 240px;
+    }
+
+    .menu-item {
+        padding: 1.2rem 1.5rem;
+        font-size: 1.1rem;
+        gap: 1.2rem;
+    }
+
+    .menu-number {
+        width: 28px;
+        height: 28px;
+        font-size: 1rem;
+    }
+}
+
+/* 詩詞資料覆蓋層 */
+.poem-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3vh;
+    box-sizing: border-box;
+}
+
+.poem-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.poem-dialog {
+    width: 100%;
+    max-width: 860px;
+    max-height: calc(100vh - 6vh);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.poem-dialog-header {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+}
+
+.poem-dialog-header .nav-btn {
+    padding: 8px 16px;
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Noto Serif TC', serif;
+    letter-spacing: 0.05em;
+}
+
+.poem-dialog-header .nav-btn:hover { background-color: #2980b9; }
+.poem-dialog-header .close-btn { background-color: #c0392b; }
+.poem-dialog-header .close-btn:hover { background-color: #a93226; }
+
+.poem-dialog-body {
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.poem-type {
+    display: inline-block;
+    background-color: #e0e0e0;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 12px;
+}
+
+.poem-dialog .poem-title { font-size: 2em; margin: 6px 0; color: #2c3e50; }
+.poem-dialog .poem-meta { color: #666; font-size: 1.1em; margin-bottom: 16px; }
+.poem-dialog .poem-content { font-size: 1.3em; line-height: 2; letter-spacing: 0.08em; text-align: center; }
+.poem-dialog .poem-line { margin: 8px 0; }
+.poem-dialog .famous-lines { background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid #e74c3c; margin-top: 16px; }
+.poem-dialog .famous-line-item { font-size: 1.1em; margin: 6px 0; color: #c0392b; }
+.poem-dialog .section-title { font-size: 1.1em; color: #888; margin-top: 20px; border-left: 4px solid #3498db; padding-left: 10px; }
+.poem-dialog .placeholder-text { color: #999; font-style: italic; }
+
+@media (max-width: 480px) {
+    .poem-dialog-body { padding: 16px; }
+    .poem-dialog .poem-title { font-size: 1.6em; }
+    .poem-dialog .poem-content { font-size: 1.1em; }
+}
