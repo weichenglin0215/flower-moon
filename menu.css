@@ -80,6 +80,7 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+    overflow-y: auto;
 }
 
 .menu-panel.active {
@@ -236,7 +237,7 @@
     max-height: calc(100vh - 6vh);
     background: #fff;
     border-radius: 12px;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -261,9 +262,17 @@
     letter-spacing: 0.05em;
 }
 
-.poem-dialog-header .nav-btn:hover { background-color: #2980b9; }
-.poem-dialog-header .close-btn { background-color: #c0392b; }
-.poem-dialog-header .close-btn:hover { background-color: #a93226; }
+.poem-dialog-header .nav-btn:hover {
+    background-color: #2980b9;
+}
+
+.poem-dialog-header .close-btn {
+    background-color: #c0392b;
+}
+
+.poem-dialog-header .close-btn:hover {
+    background-color: #a93226;
+}
 
 .poem-dialog-body {
     padding: 24px;
@@ -280,17 +289,66 @@
     margin-bottom: 12px;
 }
 
-.poem-dialog .poem-title { font-size: 2em; margin: 6px 0; color: #2c3e50; }
-.poem-dialog .poem-meta { color: #666; font-size: 1.1em; margin-bottom: 16px; }
-.poem-dialog .poem-content { font-size: 1.3em; line-height: 2; letter-spacing: 0.08em; text-align: center; }
-.poem-dialog .poem-line { margin: 8px 0; }
-.poem-dialog .famous-lines { background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid #e74c3c; margin-top: 16px; }
-.poem-dialog .famous-line-item { font-size: 1.1em; margin: 6px 0; color: #c0392b; }
-.poem-dialog .section-title { font-size: 1.1em; color: #888; margin-top: 20px; border-left: 4px solid #3498db; padding-left: 10px; }
-.poem-dialog .placeholder-text { color: #999; font-style: italic; }
+.poem-dialog .poem-title {
+    font-size: 2em;
+    margin: 6px 0;
+    color: #2c3e50;
+}
+
+.poem-dialog .poem-meta {
+    color: #666;
+    font-size: 1.1em;
+    margin-bottom: 16px;
+}
+
+.poem-dialog .poem-content {
+    font-size: 1.3em;
+    line-height: 2;
+    letter-spacing: 0.08em;
+    text-align: center;
+}
+
+.poem-dialog .poem-line {
+    margin: 8px 0;
+}
+
+.poem-dialog .famous-lines {
+    background: #f9f9f9;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #e74c3c;
+    margin-top: 16px;
+}
+
+.poem-dialog .famous-line-item {
+    font-size: 1.1em;
+    margin: 6px 0;
+    color: #c0392b;
+}
+
+.poem-dialog .section-title {
+    font-size: 1.1em;
+    color: #888;
+    margin-top: 20px;
+    border-left: 4px solid #3498db;
+    padding-left: 10px;
+}
+
+.poem-dialog .placeholder-text {
+    color: #999;
+    font-style: italic;
+}
 
 @media (max-width: 480px) {
-    .poem-dialog-body { padding: 16px; }
-    .poem-dialog .poem-title { font-size: 1.6em; }
-    .poem-dialog .poem-content { font-size: 1.1em; }
+    .poem-dialog-body {
+        padding: 16px;
+    }
+
+    .poem-dialog .poem-title {
+        font-size: 1.6em;
+    }
+
+    .poem-dialog .poem-content {
+        font-size: 1.1em;
+    }
 }

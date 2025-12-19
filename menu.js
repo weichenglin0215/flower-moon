@@ -76,6 +76,10 @@
                 <span class="menu-number">10</span>
                 <span class="menu-text">詩詞資料</span>
             </div>
+            <div class="menu-item" data-page="fullscreen">
+                <span class="menu-number">11</span>
+                <span class="menu-text">全螢幕切換</span>
+            </div>
         `;
 
         // 創建遮罩層
@@ -271,6 +275,17 @@
                     if (typeof POEMS !== 'undefined' && POEMS.length) {
                         const start = Math.floor(Math.random() * POEMS.length);
                         openPoemDialogByIndex(start);
+                    }
+                    break;
+                case 'fullscreen':
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                        });
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
                     }
                     break;
             }
