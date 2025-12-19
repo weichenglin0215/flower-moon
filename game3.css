@@ -23,12 +23,21 @@
 
 /* 遊戲頂部資訊列（分數與控制） */
 .game-header {
-    padding: 20px;
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
     z-index: 10;
+}
+
+.game-sub-header {
+    padding: 10px 20px;
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .score-board {
@@ -39,7 +48,8 @@
 .hearts {
     display: flex;
     gap: 8px;
-    margin-left: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
 .heart {
@@ -80,16 +90,16 @@
 
 /* 按鍵樣式（字按鈕） */
 .ladder-btn {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
+    width: 90px;
+    height: 90px;
+    border-radius: 15%;
     background: rgba(255, 255, 255, 0.9);
     border: none;
     font-size: 48px;
     font-family: 'Noto Serif TC', serif;
     color: #333;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
     transition: transform 0.2s, background 0.2s;
     display: flex;
     align-items: center;
@@ -157,6 +167,101 @@
     border-radius: 24px;
     font-size: 1rem;
     cursor: pointer;
+}
+
+/* 難度選擇按鈕容器 */
+.difficulty-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+/* 難度按鈕基本樣式 */
+.diff-btn {
+    background: #fff;
+    color: #333;
+    border: 2px solid #333;
+    padding: 15px 10px;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.diff-btn:hover {
+    background: #333;
+    color: #fff;
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* 直排文字 */
+.v-text {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    letter-spacing: 0.2rem;
+}
+
+/* 難度按鈕個別顏色 */
+.diff-btn[data-level="幼稚園"] {
+    border-color: #f1c40f;
+    color: #d4ac0d;
+    background: rgba(241, 196, 15, 0.1);
+}
+
+.diff-btn[data-level="幼稚園"]:hover {
+    background: #f1c40f;
+    color: #fff;
+}
+
+.diff-btn[data-level="小學"] {
+    border-color: #2ecc71;
+    color: #27ae60;
+    background: rgba(46, 204, 113, 0.1);
+}
+
+.diff-btn[data-level="小學"]:hover {
+    background: #2ecc71;
+    color: #fff;
+}
+
+.diff-btn[data-level="中學"] {
+    border-color: #3498db;
+    color: #2980b9;
+    background: rgba(52, 152, 219, 0.1);
+}
+
+.diff-btn[data-level="中學"]:hover {
+    background: #3498db;
+    color: #fff;
+}
+
+.diff-btn[data-level="大學"] {
+    border-color: #9b59b6;
+    color: #8e44ad;
+    background: rgba(155, 89, 182, 0.1);
+}
+
+.diff-btn[data-level="大學"]:hover {
+    background: #9b59b6;
+    color: #fff;
+}
+
+.diff-btn[data-level="研究所"] {
+    border-color: #e74c3c;
+    color: #c0392b;
+    background: rgba(231, 76, 60, 0.1);
+}
+
+.diff-btn[data-level="研究所"]:hover {
+    background: #e74c3c;
+    color: #fff;
 }
 
 /* 錯誤搖晃動畫 */

@@ -15,7 +15,18 @@
         timerBar: null,
         timerText: null,
 
+        loadCSS: function () {
+            if (!document.getElementById('game1-css')) {
+                const link = document.createElement('link');
+                link.id = 'game1-css';
+                link.rel = 'stylesheet';
+                link.href = 'game1.css';
+                document.head.appendChild(link);
+            }
+        },
+
         init: function () {
+            this.loadCSS();
             if (!document.getElementById('game1-container')) {
                 this.createDOM();
             }

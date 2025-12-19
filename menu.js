@@ -247,8 +247,11 @@
                     }
                     break;
                 case 'game2':
-                    console.log('切換到飛花令頁面 - 待實作');
-                    // TODO: window.location.href = 'game2.html';
+                    if (window.Game2) {
+                        window.Game2.show();
+                    } else {
+                        window.location.href = 'index.html?game=2';
+                    }
                     break;
                 case 'game3':
                     if (window.Game3) {
