@@ -13,7 +13,7 @@
         container: null,
         gameArea: null,
         mistakeCount: 0,
-        btnHeight: 90,
+        btnHeight: 72,
         btnColor: 'rgba(240, 230, 210, 0.9)',
         btnColorRight: 'rgba(120, 230, 150, 0.9)',
         btnColorWrong: 'rgba(230, 120, 150, 0.9)',
@@ -239,7 +239,7 @@
 
             // 生成每一行
             //let currentY = window.innerHeight; // 從螢幕下方開始
-            let currentY = 700; // 從game-area下方開始
+            let currentY = 560; // 從game-area下方開始
 
             chars.forEach((char, index) => {
                 // 難度控制：根據設定決定按鈕數量
@@ -261,7 +261,7 @@
                 this.gameArea.appendChild(row.element);
 
                 // 行距：按鈕高度 + 10px
-                currentY += this.btnHeight + 10;
+                currentY += this.btnHeight + 16;
             });
         },
 

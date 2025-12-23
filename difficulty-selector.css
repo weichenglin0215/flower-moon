@@ -25,11 +25,11 @@
 /* 难度选择器容器 */
 .difficulty-selector-container {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 50px 40px;
+    padding: 2rem 1rem; /* 內部邊框*/
     border-radius: 24px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     text-align: center;
-    max-width: 450px;
+    max-width: 360px;
     width: 90%;
     animation: slideIn 0.3s ease-out;
 }
@@ -47,8 +47,8 @@
 
 .difficulty-selector-container h2 {
     color: white;
-    font-size: 2.5rem;
-    margin-bottom: 40px;
+    font-size: 2rem;
+    margin-bottom: 0.8rem;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     letter-spacing: 0.1em;
 }
@@ -57,7 +57,7 @@
 .difficulty-buttons {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 1rem;
     flex-wrap: wrap;
 }
 
@@ -66,13 +66,14 @@
     background: rgba(255, 255, 255, 0.95);
     color: #333;
     border: 3px solid transparent;
-    padding: 20px 10px;
-    border-radius: 16px;
+    margin: auto;
+    padding: 1rem 0.3rem;
+    border-radius: 0.8rem;
     font-size: 1.4rem;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s;
-    min-width: 50px;
+    min-width: 1rem;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     
     /* 竖排文字 */
@@ -134,24 +135,24 @@
 }
 
 /* 响应式适配 */
-@media (max-width: 600px) {
+@media (max-width: 480px) {
     .difficulty-selector-container {
-        padding: 40px 30px;
+        padding: 32px 6px;
     }
     
     .difficulty-selector-container h2 {
         font-size: 2rem;
-        margin-bottom: 30px;
+        margin-bottom: 24px;
     }
     
     .difficulty-btn {
         font-size: 1.2rem;
-        padding: 15px 12px;
-        min-width: 60px;
+        padding: 0.3rem 0.6rem;
+        min-width: 1rem;
     }
     
     .difficulty-buttons {
-        gap: 15px;
+        gap: 0.3rem;
     }
 }
 
