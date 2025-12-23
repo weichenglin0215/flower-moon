@@ -58,7 +58,7 @@ body {
     border-radius: 1rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     display: flex;
-    padding: 1.5rem 1rem;
+    padding: 1.5rem 0.5rem;
     transition: transform 0.1s linear, opacity 0.3s ease;
     cursor: grab;
     will-change: transform;
@@ -85,7 +85,12 @@ body {
     align-items: center;
     padding: 0 1rem;
     position: relative;
-    overflow: hidden;
+        white-space: nowrap;
+            /* 防止换列 */
+            overflow: hidden;
+            /* 隐藏超出部分 */
+            text-overflow: ellipsis;
+            /* 超出显示省略号 */
 }
 
 /* 直式文字 */
@@ -105,18 +110,36 @@ body {
     justify-content: center;
     height: 100%;
     color: var(--main-text-color);
+        white-space: nowrap;
+            /* 防止换列 */
+            overflow: hidden;
+            /* 隐藏超出部分 */
+            text-overflow: ellipsis;
+            /* 超出显示省略号 */
 }
 
 .poem-title {
     font-size: 1.2rem;
-    /*font-weight: bold;*/
+    font-weight: bold;
     letter-spacing: 0.3rem;
+        white-space: nowrap;
+            /* 防止换列 */
+            overflow: hidden;
+            /* 隐藏超出部分 */
+            text-overflow: ellipsis;
+            /* 超出显示省略号 */
 }
 
 .poem-author {
     font-size: 1.2rem;
     opacity: 1;
     letter-spacing: 0.2rem;
+        white-space: nowrap;
+            /* 防止换列 */
+            overflow: hidden;
+            /* 隐藏超出部分 */
+            text-overflow: ellipsis;
+            /* 超出显示省略号 */
 }
 
 .poem-title, .poem-author { cursor: pointer; }
@@ -126,7 +149,7 @@ body {
     writing-mode: vertical-rl;
     text-orientation: mixed;
     letter-spacing: 0.8rem;
-    font-size: 2.8rem;
+    font-size: 2.4rem;
     /*font-weight: bold;*/
     line-height: 1.6;
     display: flex;
@@ -141,7 +164,7 @@ body {
 
 .poem-line {
     position: relative;
-    display: inline-block;
+    /*display: inline-block;*/
 }
 
 /* 左邊第一句詩往上移半個字高 */
