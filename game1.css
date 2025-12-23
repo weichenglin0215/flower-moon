@@ -4,17 +4,15 @@
    ========================================= */
 
 .game1-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    /* position, top, left 由 responsive.css 的 .aspect-5-8 处理 */
     background-color: #dfd4b5;
     /* 淺色紙張感 */
-    z-index: 2500;
+    z-index: 2000;
     display: flex;
     flex-direction: column;
-    color: #333;
+    align-items: center;
+    justify-content: center;
+    color: whitesmoke;
     font-family: 'Noto Serif TC', serif;
 }
 
@@ -23,46 +21,88 @@
     display: none !important;
 }
 
-/* 遊戲頂部資訊列 (重新開始、離開) */
+/* 遊戲頂部資訊列（分數與控制） */
 .game1-header {
-    padding: 15px 20px;
+    padding: 8px 16px;
     display: flex;
-    /*justify-content: space-between;*/
-    justify-content: right;
+    justify-content: space-between;
     align-items: center;
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.3);
     z-index: 10;
+    width: 100%;
+    max-width: 500px;
+    max-height: 50px;
+    min-width: 500px;
+    min-height: 50px;
 }
 
-.game1-header .nav-btn {
-    padding: 8px 18px;
+.game1-sub-header {
+    padding: 6px 16px;
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    width: 100%;
+    max-width: 500px;
+    max-height: 50px;
+    min-width: 500px;
+    min-height: 50px;
+}
+
+.score-board {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.hearts {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.heart {
+    color: #f44336;
+    font-size: 1.6rem;
+}
+
+.heart.empty {
+    opacity: 0.5;
+}
+
+/* 控制按鈕（重新開始／退出） */
+.game1-controls .nav-btn {
+    margin-left: 10px;
+    padding: 4px 16px;
     background: #8b4513;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.4);
     color: white;
     border-radius: 20px;
+    font-size: 1.2rem;
     cursor: pointer;
-    font-size: 1rem;
-    transition: background 0.3s;
-    margin-left: 20px;
 }
 
-.game1-header .nav-btn:hover {
-    background: #a0522d;
+.game1-controls .nav-btn:hover {
+    background: #c96a3e;
 }
 
-.game1-header .close-btn {
+.game1-controls .close-btn {
     background: #555;
 }
-
 /* 遊戲主內容區域 */
-.game1-main {
+.game1-area {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-around;
-    padding: 20px;
+    padding: 10px;
     position: relative;
+    max-width: 500px;
+    max-height: 700px;
+    min-width: 500px;
+    min-height: 700px;
 }
 
 /* 計時圓環容器 */
@@ -73,6 +113,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    margin: 0 auto; /* 水平居中 */
+    align-self: center; /* 在 flex 容器中居中 */
 }
 
 .timer-svg {
@@ -104,49 +146,52 @@
 /* 問題區域 */
 .question-area {
     text-align: center;
-    max-width: 500px;
-    margin: 20px 0;
+    width: 100%;
+    margin: 10px 0;
+    color: #462909;
 }
 
 .poem-lines {
     font-size: 2.5rem;
     font-weight: bold;
-    line-height: 1.6;
+    line-height: 1.4;
     margin-bottom: 10px;
 }
 
 .poem-line {
     margin: 10px 0;
-    letter-spacing: 0.2rem;
+    letter-spacing: 0.3rem;
 }
 
 .poem-info {
     text-align: right;
     font-size: 1.3rem;
-    color: #666;
+    color: #555;
     margin-top: 5px;
 }
 
 /* 答案區域 */
 .options-area {
-    width: 100%;
-    max-width: 400px;
-    min-width: 360px;
+    width: 90%;
+    max-width: 90%;
+    margin: 10px 20px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .option-btn {
-    padding: 3px 3px;
+    padding: 10px 20px;
     background: #fff9dd;
-    border: 2px solid #ddd;
-    border-radius: 12px;
+    border: 3px solid #ddd;
+    border-radius: 15px;
     font-size: 2rem;
+        letter-spacing: 0.5rem;
+    min-height: 60px;
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.5);
 }
 
 .option-btn:hover {
@@ -179,7 +224,8 @@
     text-align: center;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     z-index: 100;
-    min-width: 280px;
+    width: 80%;
+    max-width: 400px;
     border: 1px solid #ddd;
 }
 
@@ -228,13 +274,13 @@
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 500px) {
     .poem-lines {
         font-size: 2.5rem;
     }
 
     .option-btn {
         font-size: 2rem;
-        padding: 12px;
+        padding: 20px 20px;
     }
 }

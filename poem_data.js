@@ -52,8 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const reviewDiv = reviewSection.querySelector('.poem-review');
             if (poem.rating) {
                 reviewDiv.textContent = poem.rating;
-                reviewDiv.style.lineHeight = '1.6';
-                reviewDiv.style.fontSize = '1.1em';
             } else {
                 reviewDiv.innerHTML = '<p class="placeholder-text">（暫無總評）</p>';
             }
@@ -87,11 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
             phoneticSection.appendChild(h2);
             
             const p = document.createElement('div');
+            p.className = 'zhuyin-content';
             p.textContent = poem.zhuyin;
-            p.style.marginTop = '10px';
-            p.style.fontSize = '1.1em';
-            p.style.lineHeight = '1.8';
-            p.style.whiteSpace = 'pre-wrap'; // Preserve newlines if any
             phoneticSection.appendChild(p);
         } else {
              const h2 = phoneticSection.querySelector('h2');

@@ -17,7 +17,7 @@
         btnColor: 'rgba(240, 230, 210, 0.9)',
         btnColorRight: 'rgba(120, 230, 150, 0.9)',
         btnColorWrong: 'rgba(230, 120, 150, 0.9)',
-        btnFontSize: 66,
+        //btnFontSize: 66,
         currentRowFontColor: 'rgba(24, 23, 0, 1)',
         nextRowFontColor: 'rgba(24, 23, 0, 0.5)',
         // 常用字庫 (用於生成干擾項)
@@ -66,12 +66,15 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game3-container';
-            div.className = 'game-overlay hidden';
+            div.className = 'game-overlay aspect-5-8 hidden';
             div.innerHTML = `
+                <!-- 调试边框 -->
+                <div class="debug-frame"></div>
+                
                 <div class="game-header">
                     <div class="score-board">分數: <span id="game3-score">0</span></div>
                     <div class="game-controls">
-                        <button id="game3-restart-btn" class="nav-btn">重新開始</button>
+                        <button id="game3-restart-btn" class="nav-btn">重來</button>
                         <button id="game3-close-btn" class="nav-btn close-btn">退出</button>
                     </div>
                 </div>
@@ -80,16 +83,6 @@
                 </div>
                 <div id="game3-area" class="game-area">
                     <!-- 遊戲內容將在此生成 -->
-                </div>
-                <div id="game3-difficulty-selector" class="game-message">
-                    <h2>請選擇難度</h2>
-                    <div class="difficulty-buttons">
-                        <button class="diff-btn v-text" data-level="幼稚園">幼稚園</button>
-                        <button class="diff-btn v-text" data-level="小學">小學</button>
-                        <button class="diff-btn v-text" data-level="中學">中學</button>
-                        <button class="diff-btn v-text" data-level="大學">大學</button>
-                        <button class="diff-btn v-text" data-level="研究所">研究所</button>
-                    </div>
                 </div>
                 <div id="game3-message" class="game-message hidden">
                     <h2 id="game3-msg-title">遊戲結束</h2>
@@ -104,22 +97,13 @@
                 this.showDifficultySelector();
             });
 
-            // 難度按鈕事件綁定
-            const diffButtons = document.querySelectorAll('.diff-btn');
-            diffButtons.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    this.difficulty = e.target.getAttribute('data-level');
-                    document.getElementById('game3-difficulty-selector').classList.add('hidden');
-                    this.restartGame();
-                });
-            });
             this.renderHearts();
         },
 
         show: function () {
             this.init(); // 確保 DOM 存在
-            this.container.classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; // 禁止背景捲動
+            
+            // 显示难度选择器
             this.showDifficultySelector();
         },
 
@@ -128,7 +112,47 @@
             if (this.animationId) cancelAnimationFrame(this.animationId);
             this.gameArea.innerHTML = '';
             document.getElementById('game3-message').classList.add('hidden');
-            document.getElementById('game3-difficulty-selector').classList.remove('hidden');
+            
+            // 隐藏主页和其他游戏
+            this.hideOtherContents();
+            
+            // 使用全局难度选择器
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('游戏三：字爬梯', (selectedLevel) => {
+                    this.difficulty = selectedLevel;
+                    this.container.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    document.body.classList.add('overlay-active');
+                    if (window.updateResponsiveLayout) {
+                        window.updateResponsiveLayout();
+                    }
+                    this.restartGame();
+                });
+            } else {
+                console.warn('[Game3] DifficultySelector not found');
+            }
+        },
+
+        hideOtherContents: function () {
+            // 隐藏主页容器
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = 'none';
+            }
+            
+            // 隐藏其他游戏
+            const game1 = document.getElementById('game1-container');
+            const game2 = document.getElementById('game2-container');
+            if (game1) game1.classList.add('hidden');
+            if (game2) game2.classList.add('hidden');
+        },
+
+        showOtherContents: function () {
+            // 恢复主页容器
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = '';
+            }
         },
 
         stopGame: function () {
@@ -138,6 +162,9 @@
             }
             this.container.classList.add('hidden');
             document.body.style.overflow = '';
+            document.body.classList.remove('overlay-active');
+            // 恢复其他内容
+            this.showOtherContents();
         },
 
         restartGame: function () {
@@ -211,7 +238,8 @@
             this.poemChars = chars;
 
             // 生成每一行
-            let currentY = window.innerHeight; // 從螢幕下方開始
+            //let currentY = window.innerHeight; // 從螢幕下方開始
+            let currentY = 700; // 從game-area下方開始
 
             chars.forEach((char, index) => {
                 // 難度控制：根據設定決定按鈕數量

@@ -2,8 +2,10 @@
     const Game2 = {
         isActive: false,
         difficulty: '幼稚園',
+        score: 0,
+        mistakeCount: 0,
         selectedKeyword: '花',
-        keywords: ['花', '月', '清', '春', '酒', '愛', '恨', '雲', '雨', '山', '水', '夢'],
+        keywords: ['花', '月', '清', '雲', '玉', '霞', '國', '家', '酒', '愛', '恨', '雲', '雨', '山', '水', '夢'],
 
         // 遊戲狀態
         currentPoem: null,
@@ -13,12 +15,15 @@
         timeLeft: 40,
         timerInterval: null,
 
+        container: null,
+        gameArea: null,
+
         difficultySettings: {
-            '幼稚園': { grid: [3, 3], time: 40, minRating: 3 },
-            '小學': { grid: [4, 3], time: 30, minRating: 3 },
-            '中學': { grid: [4, 4], time: 25, minRating: 2 },
-            '大學': { grid: [5, 4], time: 20, minRating: 1 },
-            '研究所': { grid: [5, 4], time: 10, minRating: 0 }
+            '幼稚園': { grid: [3, 3], time: 40, minRating: 3, maxMistakeCount: 8 },
+            '小學': { grid: [4, 3], time: 30, minRating: 3, maxMistakeCount: 6 },
+            '中學': { grid: [4, 4], time: 25, minRating: 2, maxMistakeCount: 5 },
+            '大學': { grid: [5, 4], time: 20, minRating: 1, maxMistakeCount: 4 },
+            '研究所': { grid: [5, 4], time: 10, minRating: 0, maxMistakeCount: 3 }
         },
 
         decoyChars: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長",
@@ -39,74 +44,66 @@
                 this.createDOM();
             }
             this.container = document.getElementById('game2-container');
-            this.showDifficultySelector();
+            this.gameArea = document.getElementById('game2-area');
         },
 
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game2-container';
-            div.className = 'game-overlay hidden';
+            div.className = 'game-overlay aspect-5-8 hidden';
             div.innerHTML = `
+                <!-- 调试边框 -->
+                <div class="debug-frame"></div>
+                
                 <div class="game-header">
-                    <button id="game2-restart-btn" class="nav-btn">重新開始</button>
-                    <button id="game2-close-btn" class="nav-btn">離開</button>
-                </div>
-                <div class="keyword-selector" id="game2-keywords">
-                    <!-- 主字按鈕將在此生成 -->
-                </div>
-                <div class="question-area" id="game2-question">
-                    <div id="game2-line1" class="poem-line"></div>
-                    <div id="game2-line2" class="poem-line"></div>
-                    <div class="poem-info" id="game2-info"></div>
-                </div>
-                <div class="answer-section">
-                    <div class="grid-container" id="game2-grid-container">
-                        <svg id="timer-ring">
-                            <rect id="timer-path" x="4" y="4"></rect>
-                        </svg>
-                        <div class="answer-grid" id="game2-grid"></div>
+                    <div class="score-board">分數: <span id="game2-score">0</span></div>
+                    <div class="game2-controls">
+                        <button id="game2-restart-btn" class="nav-btn">重來</button>
+                        <button id="game2-close-btn" class="nav-btn close-btn">退出</button>
                     </div>
                 </div>
-                
-                <div id="game2-difficulty-selector" class="game-message">
-                    <h2 style="color:#f0e6d2">請選擇難度</h2>
-                    <div class="difficulty-buttons">
-                        <button class="diff-btn" data-level="幼稚園">幼稚園</button>
-                        <button class="diff-btn" data-level="小學">小學</button>
-                        <button class="diff-btn" data-level="中學">中學</button>
-                        <button class="diff-btn" data-level="大學">大學</button>
-                        <button class="diff-btn" data-level="研究所">研究所</button>
+                <div class="game-sub-header">
+                    <div id="game2-hearts" class="hearts"></div>
+                </div>
+                <div id="game2-area" class="game-area">
+                    <!-- 遊戲內容將在此生成 -->
+                    <div class="keyword-selector" id="game2-keywords">
+                        <!-- 主字按鈕將在此生成 -->
+                    </div>
+                    <div class="question-area" id="game2-question">
+                        <div id="game2-line1" class="poem-line"></div>
+                        <div id="game2-line2" class="poem-line"></div>
+                        <div class="poem-info" id="game2-info"></div>
+                    </div>
+                    <div class="answer-section">
+                        <div class="grid-container" id="game2-grid-container">
+                            <svg id="timer-ring">
+                                <rect id="timer-path" x="4" y="4"></rect>
+                            </svg>
+                            <div class="answer-grid" id="game2-grid"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div id="game2-result" class="game-message hidden">
-                    <h2 id="game2-res-title"></h2>
-                    <p id="game2-res-content" style="color:#f0e6d2"></p>
-                    <button id="game2-res-btn" class="nav-btn" style="margin-top:20px">再來一局</button>
+                <div id="game2-message" class="game-message hidden">
+                    <h2 id="game2-msg-title">遊戲結束</h2>
+                    <p id="game2-msg-content"></p>
+                    <button id="game2-msg-btn" class="nav-btn">再來一局</button>
                 </div>
             `;
             document.body.appendChild(div);
 
             // 綁定事件
-            document.getElementById('game2-close-btn').addEventListener('click', () => this.hide());
+            document.getElementById('game2-close-btn').addEventListener('click', () => this.stopGame());
             document.getElementById('game2-restart-btn').addEventListener('click', () => this.restartGame());
-            document.getElementById('game2-res-btn').addEventListener('click', () => {
-                document.getElementById('game2-result').classList.add('hidden');
+            document.getElementById('game2-msg-btn').addEventListener('click', () => {
+                document.getElementById('game2-message').classList.add('hidden');
                 this.showDifficultySelector();
-            });
-
-            // 難度選擇
-            const diffBtns = div.querySelectorAll('#game2-difficulty-selector .diff-btn');
-            diffBtns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    this.difficulty = e.target.getAttribute('data-level');
-                    document.getElementById('game2-difficulty-selector').classList.add('hidden');
-                    this.startGame();
-                });
             });
 
             // 初始化主字按鈕
             this.renderKeywords();
+            this.renderHearts();
         },
 
         renderKeywords: function () {
@@ -128,27 +125,77 @@
 
         show: function () {
             this.init();
-            this.container.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            
+            // 显示难度选择器
+            this.showDifficultySelector();
         },
 
-        hide: function () {
+        stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
             this.container.classList.add('hidden');
             document.body.style.overflow = '';
+            document.body.classList.remove('overlay-active');
+            // 恢复其他内容
+            this.showOtherContents();
         },
 
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            document.getElementById('game2-difficulty-selector').classList.remove('hidden');
-            document.getElementById('game2-result').classList.add('hidden');
+            document.getElementById('game2-message').classList.add('hidden');
+            
+            // 隐藏主页和其他游戏
+            this.hideOtherContents();
+            
+            // 使用全局难度选择器
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('游戏二：飞花令', (selectedLevel) => {
+                    this.difficulty = selectedLevel;
+                    this.container.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    document.body.classList.add('overlay-active');
+                    if (window.updateResponsiveLayout) {
+                        window.updateResponsiveLayout();
+                    }
+                    this.restartGame();
+                });
+            } else {
+                console.warn('[Game2] DifficultySelector not found');
+            }
         },
 
-        startGame: function () {
+        hideOtherContents: function () {
+            // 隐藏主页容器
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = 'none';
+            }
+            
+            // 隐藏其他游戏
+            const game1 = document.getElementById('game1-container');
+            const game3 = document.getElementById('game3-container');
+            if (game1) game1.classList.add('hidden');
+            if (game3) game3.classList.add('hidden');
+        },
+
+        showOtherContents: function () {
+            // 恢复主页容器
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = '';
+            }
+        },
+
+        restartGame: function () {
             this.isActive = true;
+            this.score = 0;
+            this.mistakeCount = 0;
             this.currentInputIndex = 0;
+            document.getElementById('game2-score').textContent = this.score;
+            document.getElementById('game2-message').classList.add('hidden');
+            this.renderHearts();
+            
             const settings = this.difficultySettings[this.difficulty];
             this.timeLeft = settings.time;
             this.timer = settings.time;
@@ -161,10 +208,6 @@
                 alert(`找不到包含「${this.selectedKeyword}」且符合進度的詩詞，請換個主字試試。`);
                 this.showDifficultySelector();
             }
-        },
-
-        restartGame: function () {
-            this.startGame();
         },
 
         selectPoem: function () {
@@ -323,6 +366,8 @@
             if (char === targetChar) {
                 // 答對
                 btn.classList.add('correct', 'disabled');
+                this.score += 10;
+                document.getElementById('game2-score').textContent = this.score;
                 this.currentInputIndex++;
                 this.renderQuestion();
 
@@ -331,9 +376,15 @@
                 }
             } else {
                 // 答錯
-                //btn.classList.add('wrong', 'disabled');
                 btn.classList.add('wrong');
                 setTimeout(() => btn.classList.remove('wrong'), 400);
+                this.mistakeCount++;
+                this.updateHearts();
+                
+                const settings = this.difficultySettings[this.difficulty];
+                if (this.mistakeCount >= settings.maxMistakeCount) {
+                    this.gameOver(false, `按錯次數達 ${this.mistakeCount} 次`);
+                }
             }
         },
 
@@ -376,22 +427,48 @@
             rect.style.strokeDashoffset = perimeter * (1 - ratio);
         },
 
+        renderHearts: function () {
+            const hearts = document.getElementById('game2-hearts');
+            if (!hearts) return;
+            hearts.innerHTML = '';
+            const settings = this.difficultySettings[this.difficulty];
+            for (let i = 0; i < settings.maxMistakeCount; i++) {
+                const span = document.createElement('span');
+                span.className = 'heart';
+                span.textContent = '♥';
+                hearts.appendChild(span);
+            }
+        },
+
+        updateHearts: function () {
+            const hearts = document.querySelectorAll('#game2-hearts .heart');
+            hearts.forEach((h, i) => {
+                if (i < this.mistakeCount) {
+                    h.classList.add('empty');
+                    h.textContent = '♡';
+                } else {
+                    h.classList.remove('empty');
+                    h.textContent = '♥';
+                }
+            });
+        },
+
         gameOver: function (win, reason) {
             this.isActive = false;
             clearInterval(this.timerInterval);
 
-            const resDiv = document.getElementById('game2-result');
-            const title = document.getElementById('game2-res-title');
-            const content = document.getElementById('game2-res-content');
+            const msgDiv = document.getElementById('game2-message');
+            const title = document.getElementById('game2-msg-title');
+            const content = document.getElementById('game2-msg-content');
 
-            resDiv.classList.remove('hidden');
+            msgDiv.classList.remove('hidden');
             if (win) {
                 title.textContent = "恭喜過關！";
-                title.style.color = "#27ae60";
-                content.textContent = "您成功填寫了所有缺字。";
+                title.style.color = "#4CAF50";
+                content.textContent = `完成了飞花令！得分：${this.score}`;
             } else {
                 title.textContent = "遊戲結束";
-                title.style.color = "#c0392b";
+                title.style.color = "#f44336";
                 content.textContent = reason || "再接再厲！";
             }
         }

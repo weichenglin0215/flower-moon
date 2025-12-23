@@ -99,9 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const hue = Math.floor(seededRandom(1) * 360);
         cardInner.style.setProperty('--card-hue', hue);
 
-        // 2. 詩詞選擇
-        const poemIndex = Math.floor(seededRandom(2) * POEMS.length);
-        const poem = POEMS[poemIndex];
+        // 2. 詩詞選擇 - 只選擇評價在1以上的詩詞
+        const highRatingPoems = POEMS.filter(p => (p.rating || 0) > 1);
+        const poemIndex = Math.floor(seededRandom(2) * highRatingPoems.length);
+        const poem = highRatingPoems[poemIndex];
 
         // 3. 宜忌 (基於節氣與農曆)
         let luckyText = "讀書";
@@ -543,39 +544,61 @@ document.addEventListener('DOMContentLoaded', () => {
         // 獲取節氣配置，如果沒有則使用預設
         const config = solarTermMap[solarTerm] || { luckyStart: 0, luckyCount: 8, unluckyStart: 0, unluckyCount: 6 };
 
-        // 使用種子、農曆月份和日期分組來增加變化性
-        // 將日期除以 3，讓宜忌大約每 3 天變化一次
-        const dayGroup = Math.floor(seed / 100 / 3);
-
-        function seededRandom(offset = 0) {
-            const x = Math.sin(dayGroup * 1000 + offset + lunarMonth * 100 + seed) * 10000;
-            return x - Math.floor(x);
+        // 使用 Mulberry32 PRNG 算法，基於當天日期的種子產生高質量隨機數
+        // seed 已經在外層定義為 y * 10000 + m * 100 + d (例如：20251223)
+        
+        // Mulberry32 隨機數生成器 - 產生均勻分布的隨機數
+        function createSeededRandom(baseSeed) {
+            let state = baseSeed;
+            return function(offset = 0) {
+                // 每次調用時使用不同的狀態
+                let t = state + offset * 1013904223;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
         }
+        
+        const seededRandom = createSeededRandom(seed);
 
-        // 從指定範圍選擇宜忌，使用更大的範圍以增加變化
+        // 從整個資料池中選擇宜忌，增加變化性
         const luckyItems = [];
         const unluckyItems = [];
 
         // 選擇 2-3 條宜
         const luckyCount = Math.floor(seededRandom(10) * 2) + 2; // 2-3 條
-        const luckyStartOffset = Math.floor(seededRandom(5) * 5); // 增加起始偏移
-
-        for (let i = 0; i < luckyCount; i++) {
-            const idx = (config.luckyStart + luckyStartOffset + Math.floor(seededRandom(20 + i * 7) * config.luckyCount)) % luckyPool.length;
+        const luckyStringMaxLength = 13;
+        let luckyString = "";
+        
+        // 從整個 luckyPool 中隨機選擇，不限於節氣範圍
+        let attempts = 0;
+        while (luckyItems.length < luckyCount && attempts < 100) {
+            const idx = Math.floor(seededRandom(100 + attempts) * luckyPool.length);
             if (!luckyItems.includes(luckyPool[idx])) {
-                luckyItems.push(luckyPool[idx]);
+                if (luckyString.length + luckyPool[idx].length <= luckyStringMaxLength) {
+                    luckyString += luckyPool[idx] + " · ";
+                    luckyItems.push(luckyPool[idx]);
+                }
             }
+            attempts++;
         }
 
         // 選擇 2-3 條忌
-        const unluckyCount = Math.floor(seededRandom(30) * 2) + 2; // 2-3 條
-        const unluckyStartOffset = Math.floor(seededRandom(35) * 5); // 增加起始偏移
-
-        for (let i = 0; i < unluckyCount; i++) {
-            const idx = (config.unluckyStart + unluckyStartOffset + Math.floor(seededRandom(40 + i * 7) * config.unluckyCount)) % unluckyPool.length;
+        const unluckyCount = Math.floor(seededRandom(200) * 2) + 2; // 2-3 條
+        const unluckyStringMaxLength = 13;
+        let unluckyString = "";
+        
+        // 從整個 unluckyPool 中隨機選擇，不限於節氣範圍
+        attempts = 0;
+        while (unluckyItems.length < unluckyCount && attempts < 100) {
+            const idx = Math.floor(seededRandom(300 + attempts) * unluckyPool.length);
             if (!unluckyItems.includes(unluckyPool[idx])) {
-                unluckyItems.push(unluckyPool[idx]);
+                if (unluckyString.length + unluckyPool[idx].length <= unluckyStringMaxLength) {
+                    unluckyString += unluckyPool[idx] + " · ";
+                    unluckyItems.push(unluckyPool[idx]);
+                }
             }
+            attempts++;
         }
 
         return {

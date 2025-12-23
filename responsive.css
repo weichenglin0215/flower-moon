@@ -1,0 +1,64 @@
+/* =========================================
+   响应式布局 - 5:8 宽高比
+   确保所有画面保持固定比例并自动缩放
+   ========================================= */
+
+/* 5:8 宽高比容器 */
+.aspect-5-8 {
+    /* 使用现代CSS aspect-ratio属性 */
+    aspect-ratio: 5 / 8;
+    
+    /* 由JavaScript动态设置的尺寸变量 */
+    width: var(--responsive-width, 90vw);
+    height: var(--responsive-height, auto);
+    
+    /* 确保不超出视窗 */
+    max-width: 100vw;
+    max-height: 100vh;
+    
+    /* 居中显示 */
+    margin: 0 auto;
+    
+    /* 平滑过渡动画 */
+    transition: width 0.2s ease, height 0.2s ease;
+    
+    /* 相对定位，方便子元素使用绝对定位 */
+    position: relative;
+}
+
+/* 游戏覆盖层的特殊样式 */
+.game-overlay.aspect-5-8,
+.game1-overlay.aspect-5-8 {
+    /* 覆盖层需要固定定位并居中 */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    
+    /* 固定游戏尺寸为 500*800 */
+    width: 500px !important;
+    height: 800px !important;
+    
+    /* 添加平滑过渡 */
+    transition: width 0.2s ease, height 0.2s ease, transform 0.2s ease;
+}
+
+/* 调试边框 - 显示500*800的参考框 */
+.debug-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 500px;
+    height: 800px;
+    border: 1px solid yellow;
+    pointer-events: none;
+    z-index: 9999;
+    box-sizing: border-box;
+}
+
+/* 确保body在显示覆盖层时不滚动 */
+body.overlay-active {
+    overflow: hidden;
+}
+

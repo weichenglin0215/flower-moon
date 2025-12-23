@@ -229,8 +229,33 @@
                         window.location.pathname.endsWith('/') ||
                         window.location.pathname.endsWith('/FlowerMoon_web') ||
                         window.location.pathname.endsWith('/FlowerMoon_web/')) {
-                        // 已經在日曆頁面
-                        console.log('已在日曆頁面');
+                        // 已經在日曆頁面，關閉所有遊戲、難度選擇器和詩詞資料並顯示日曆
+                        
+                        // 關閉難度選擇器
+                        if (window.DifficultySelector && typeof window.DifficultySelector.hide === 'function') {
+                            window.DifficultySelector.hide();
+                        }
+                        
+                        // 關閉詩詞資料畫面
+                        closePoemDialog();
+                        
+                        // 關閉所有遊戲
+                        if (window.Game1 && typeof window.Game1.stopGame === 'function') {
+                            window.Game1.stopGame();
+                        }
+                        if (window.Game2 && typeof window.Game2.stopGame === 'function') {
+                            window.Game2.stopGame();
+                        }
+                        if (window.Game3 && typeof window.Game3.stopGame === 'function') {
+                            window.Game3.stopGame();
+                        }
+                        
+                        // 顯示日曆容器
+                        const cardContainer = document.getElementById('cardContainer');
+                        if (cardContainer) {
+                            cardContainer.style.display = '';
+                        }
+                        console.log('已關閉所有遊戲、難度選擇器和詩詞資料，返回日曆頁面');
                     } else {
                         window.location.href = 'index.html';
                     }
@@ -278,13 +303,23 @@
                     }
                     break;
                 case 'fullscreen':
-                    if (!document.fullscreenElement) {
-                        document.documentElement.requestFullscreen().catch(err => {
-                            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-                        });
+                    const docEl = document.documentElement;
+                    const requestFS = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+                    const exitFS = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                    const fsElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+
+                    if (!fsElement) {
+                        if (requestFS) {
+                            requestFS.call(docEl).catch(err => {
+                                console.error(`全螢幕嘗試失敗: ${err.message}`);
+                            });
+                        } else {
+                            // iPhone Safari/Chrome 不支援對一般的 element 用 requestFullscreen
+                            alert("iPhone 的瀏覽器（如 Safari/Chrome）目前限制僅影片可進入程式全螢幕。若要獲得全螢幕感受，建議點選瀏覽器下方的「分享」按鈕，並選擇「加入主畫面」將此網頁存為 App。");
+                        }
                     } else {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen();
+                        if (exitFS) {
+                            exitFS.call(document);
                         }
                     }
                     break;

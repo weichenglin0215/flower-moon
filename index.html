@@ -3,10 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="花月">
     <title>花月 Flower Moon</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="menu.css">
+    <link rel="stylesheet" href="responsive.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
 </head>
@@ -15,7 +19,7 @@
     <!-- 選單會由 menu.js 動態插入 -->
 
     <!-- 卡片堆疊容器 (Card Container) -->
-    <div id="cardContainer">
+    <div id="cardContainer" class="aspect-5-8">
         <!-- JavaScript 會將卡片動態插入到這裡 -->
     </div>
 
@@ -67,6 +71,9 @@
     </template>
 
     <!-- 載入資料 (Data) 與 程式邏輯 (Script) -->
+    <link rel="stylesheet" href="difficulty-selector.css">
+    <script src="responsive.js"></script>
+    <script src="difficulty-selector.js"></script>
     <script src="menu.js"></script>
     <script src="data/poems.js"></script>
     <script src="script.js"></script>

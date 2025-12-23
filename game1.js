@@ -2,6 +2,7 @@
     // 遊戲一：慢思快選 (Slow Thought, Fast Choice)
     const Game1 = {
         isActive: false,
+        difficulty: '幼稚園',
         timer: 10,
         timerInterval: null,
         score: 0,
@@ -12,8 +13,18 @@
         options: [],
 
         container: null,
+        gameArea: null,
         timerBar: null,
         timerText: null,
+
+        // 难度设置
+        difficultySettings: {
+            '幼稚園': { time: 15, minRating: 3, maxMistakes: 4 },
+            '小學': { time: 12, minRating: 3, maxMistakes: 3 },
+            '中學': { time: 10, minRating: 2, maxMistakes: 2 },
+            '大學': { time: 8, minRating: 1, maxMistakes: 2 },
+            '研究所': { time: 6, minRating: 0, maxMistakes: 1 }
+        },
 
         loadCSS: function () {
             if (!document.getElementById('game1-css')) {
@@ -31,6 +42,7 @@
                 this.createDOM();
             }
             this.container = document.getElementById('game1-container');
+            this.gameArea = document.getElementById('game1-area');
             this.timerBar = document.getElementById('game1-timer-bar');
             this.timerText = document.getElementById('game1-timer-text');
 
@@ -46,14 +58,23 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game1-container';
-            div.className = 'game1-overlay hidden';
+            div.className = 'game1-overlay aspect-5-8 hidden';
             div.innerHTML = `
+                <!-- 调试边框 -->
+                <div class="debug-frame"></div>
+                
                 <div class="game1-header">
-                    <div class="game-stats">生命值: <span id="game1-lives">♥♥♥</span></div>
-                    <button id="game1-restart-btn" class="nav-btn">重新開始</button>
-                    <button id="game1-close-btn" class="nav-btn close-btn">離開</button>
+                    <div class="score-board">分數: <span id="game1-score">0</span></div>
+                    <div class="game1-controls">
+                        <button id="game1-restart-btn" class="nav-btn">重來</button>
+                        <button id="game1-close-btn" class="nav-btn close-btn">退出</button>
+                    </div>
                 </div>
-                <div class="game1-main">
+                <div class="game1-sub-header">
+                    <div id="game1-hearts" class="hearts"></div>
+                </div>
+                <div id="game1-area" class="game-area">
+                    <!-- 遊戲內容將在此生成 -->
                     <!-- 倒數計時 -->
                     <div class="timer-container">
                         <svg class="timer-svg" width="100" height="100">
@@ -87,13 +108,79 @@
                 </div>
             `;
             document.body.appendChild(div);
+            document.getElementById('game1-msg-btn').addEventListener('click', () => {
+                document.getElementById('game1-message').classList.add('hidden');
+                this.showDifficultySelector();
+            });
+
+            this.renderHearts();
         },
 
         show: function () {
-            this.init();
-            this.container.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            this.restartGame();
+            this.init(); // 確保 DOM 存在
+
+            // 显示难度选择器
+            this.showDifficultySelector();
+        },
+
+        showDifficultySelector: function () {
+            this.isActive = false;
+            clearInterval(this.timerInterval);
+            document.getElementById('game1-message').classList.add('hidden');
+
+            // 隐藏主页和其他游戏
+            this.hideOtherContents();
+            // 显示难度选择器
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('游戏一：慢思快选', (selectedLevel) => {
+                    this.difficulty = selectedLevel;
+                    const settings = this.difficultySettings[selectedLevel];
+                    this.timer = settings.time;
+                    this.maxMistakes = settings.maxMistakes;
+                    
+                    // 显示游戏容器
+                    this.container.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    document.body.classList.add('overlay-active');
+                    // 触发响应式布局更新
+                    if (window.updateResponsiveLayout) {
+                        window.updateResponsiveLayout();
+                    }
+                    this.restartGame();
+                });
+            } else {
+                // 降级处理：直接开始游戏
+                console.warn('[Game1] DifficultySelector not found, using default difficulty');
+                this.container.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                document.body.classList.add('overlay-active');
+                if (window.updateResponsiveLayout) {
+                    window.updateResponsiveLayout();
+                }
+                this.restartGame();
+            }
+        },
+
+        hideOtherContents: function () {
+            // 隐藏主页容器
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = 'none';
+            }
+            
+            // 隐藏其他游戏
+            const game2 = document.getElementById('game2-container');
+            const game3 = document.getElementById('game3-container');
+            if (game2) game2.classList.add('hidden');
+            if (game3) game3.classList.add('hidden');
+        },
+
+        showOtherContents: function () {
+            // 恢复主页容器
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = '';
+            }
         },
 
         stopGame: function () {
@@ -101,13 +188,21 @@
             clearInterval(this.timerInterval);
             this.container.classList.add('hidden');
             document.body.style.overflow = '';
+            document.body.classList.remove('overlay-active');
+            // 恢复其他内容
+            this.showOtherContents();
         },
 
         restartGame: function () {
             this.isActive = true;
+            this.score = 0;
             this.mistakes = 0;
-            this.updateLives();
+            //this.updateLives();
+            this.renderHearts();
+            document.getElementById('game1-score').textContent = this.score;
             document.getElementById('game1-message').classList.add('hidden');
+            // 清空遊戲區域
+            //this.gameArea.innerHTML = '';
             this.nextQuestion();
         },
 
@@ -124,17 +219,18 @@
         prepareChallenge: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return;
 
+            // 根据难度筛选诗词
+            const settings = this.difficultySettings[this.difficulty];
+            const minRating = settings.minRating;
+
             // 優先選擇常見詩體
             const eligiblePoems = POEMS.filter(p =>
                 p.content && p.content.length >= 2 && p.type &&
-                (p.type.includes('五言') || p.type.includes('七言'))
+                (p.type.includes('五言') || p.type.includes('七言')) &&
+                (p.rating || 0) >= minRating
             );
 
             let poem = eligiblePoems[Math.floor(Math.random() * eligiblePoems.length)];
-            /*優先選擇rating高的詩詞*/
-            while ((poem.rating || 0) < 2) {
-                poem = eligiblePoems[Math.floor(Math.random() * eligiblePoems.length)];
-            }
             this.currentPoem = poem;
 
             // 隨機選相鄰兩句 (偶數句一對)
@@ -285,7 +381,8 @@
                 if (this.timer <= 0) {
                     clearInterval(this.timerInterval);
                     this.mistakes++;
-                    this.updateLives();
+                    this.updateHearts();
+                    //this.updateLives();
 
                     // 揭曉答案：正確綠色，錯誤紅色
                     const btns = document.querySelectorAll('#game1-options .option-btn');
@@ -325,7 +422,8 @@
                 if (btn.classList.contains('wrong')) return;
                 btn.classList.add('wrong');
                 this.mistakes++;
-                this.updateLives();
+                //this.updateLives();
+                this.updateHearts();
                 if (this.mistakes >= this.maxMistakes) {
                     clearInterval(this.timerInterval);
                     setTimeout(() => {
@@ -339,7 +437,30 @@
             const livesSpan = document.getElementById('game1-lives');
             livesSpan.textContent = "♥".repeat(this.maxMistakes - this.mistakes) + "♡".repeat(this.mistakes);
         },
+        renderHearts: function () {
+            const hearts = document.getElementById('game1-hearts');
+            if (!hearts) return;
+            hearts.innerHTML = '';
+            for (let i = 0; i < this.difficultySettings[this.difficulty].maxMistakes; i++) {
+                const span = document.createElement('span');
+                span.className = 'heart';
+                span.textContent = '♥';
+                hearts.appendChild(span);
+            }
+        },
 
+        updateHearts: function () {
+            const hearts = document.querySelectorAll('#game1-hearts .heart');
+            hearts.forEach((h, i) => {
+                if (i < this.mistakes) {
+                    h.classList.add('empty');
+                    h.textContent = '♡';
+                } else {
+                    h.classList.remove('empty');
+                    h.textContent = '♥';
+                }
+            });
+        },
         gameOver: function (win, reason) {
             this.isActive = false;
             const msgDiv = document.getElementById('game1-message');

@@ -1,21 +1,27 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="花月">
     <title>詩詞資料 - 花月 Flower Moon</title>
     <link rel="stylesheet" href="menu.css">
     <link rel="stylesheet" href="poem_data.css">
+    <link rel="stylesheet" href="responsive.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <!-- Menu will be inserted by menu.js -->
 
-    <div class="container">
+    <div class="container aspect-5-8">
         <div id="poem-display" class="poem-display">
             <!-- Content will be injected by poem_data.js -->
         </div>
-        
+
         <div class="controls">
             <button id="prevBtn" class="nav-btn">上一首</button>
             <button id="randomBtn" class="nav-btn">隨機</button>
@@ -61,8 +67,10 @@
         </div>
     </template>
 
+    <script src="responsive.js"></script>
     <script src="menu.js"></script>
     <script src="data/poems.js"></script>
     <script src="poem_data.js"></script>
 </body>
+
 </html>

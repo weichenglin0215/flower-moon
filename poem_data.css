@@ -6,26 +6,36 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: #f5f5f5;
+    background-color: lightgoldenrodyellow;
     font-family: 'Noto Serif TC', serif;
     color: #333;
     display: flex;
     justify-content: center;
+    align-items: center;
     min-height: 100vh;
 }
 
 .container {
-    width: 100%;
-    max-width: 800px;
+    /* 宽高由 responsive.js 动态设置，保持 5:8 比例 */
     padding: 80px 20px 40px; /* Top padding for menu */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    background-color: lightgoldenrodyellow;
+    /* 允许内容滚动 */
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.poem-display {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .poem-card {
-    background: rgb(240, 230, 210);
+    background: lightgoldenrodyellow;
     padding: 40px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -65,23 +75,28 @@ body {
 }
 
 .poem-body {
-    margin-bottom: 40px;
+    margin-bottom: 0px;
     text-align: center;
-        writing-mode: horizontal-tb;
-            font-size: 1.8rem;
-            line-height: 0.5;
-            letter-spacing: 0.1em;
+    writing-mode: horizontal-tb;
+    font-size: 1.8rem;
+    line-height: 0.5rem;
+    letter-spacing: 0.1em;
 }
 
 .poem-content {
     writing-mode: horizontal-tb;
     font-size: 1.8rem;
-    line-height: 0.5;
+    line-height: 0.5rem;
     letter-spacing: 0.1em;
+    margin: 0 0;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
 }
 
 .poem-line {
-    margin: 10px 0;
+    margin: 0 0;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
 }
 
 .poem-section {
@@ -96,6 +111,18 @@ body {
     margin-bottom: 15px;
     border-left: 4px solid #3498db;
     padding-left: 10px;
+}
+
+.poem-review {
+    line-height: 1.6;
+    font-size: 1.1em;
+}
+
+.zhuyin-content {
+    margin-top: 10px;
+    font-size: 1.1em;
+    line-height: 1.8;
+    white-space: pre-wrap;
 }
 
 .famous-lines {
