@@ -37,9 +37,12 @@
     margin: 0;
     
     /* 固定游戏尺寸为 500*800 */
-    width: 500px !important;
-    height: 800px !important;
-    
+    /*width: 500px !important;
+    height: 800px !important;*/
+
+    /* 固定游戏尺寸为 500*800 */
+        width: 400px !important;
+        height: 640px !important;
     /* 添加平滑过渡 */
     transition: width 0.2s ease, height 0.2s ease, transform 0.2s ease;
 }
@@ -49,8 +52,8 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 500px;
-    height: 800px;
+    width: 400px;
+    height: 640px;
     border: 1px solid yellow;
     pointer-events: none;
     z-index: 9999;

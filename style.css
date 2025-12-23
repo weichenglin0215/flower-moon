@@ -39,10 +39,10 @@ body {
 #cardContainer {
     position: relative;
     /* 宽高由 responsive.js 动态设置，保持 5:8 比例 */
-    perspective: 800px;
+    perspective: 640px;
     /* 使用固定尺寸单位，不受浏览器缩放影响 */
-    width: 500px;
-    height: 800px;
+    width: 400px;
+    height: 640px;
 }
 
 /* Card Styling with Dynamic Hue */
