@@ -35,9 +35,9 @@ body {
 #cardContainer {
     position: relative;
     /* 使用固定尺寸单位，不受浏览器缩放影响 */
-    width: 500px;
-    height: 800px;
-    perspective: 800px;
+    width: 400px;
+    height: 640px;
+    perspective: 640px;
 }
 
 /* 卡片樣式 */
@@ -55,10 +55,10 @@ body {
     --main-text-color: hsl(var(--card-hue), 20%, 20%);
     color: var(--main-text-color);
 
-    border-radius: 24px;
+    border-radius: 1rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     display: flex;
-    padding: 32px;
+    padding: 1.5rem 1rem;
     transition: transform 0.1s linear, opacity 0.3s ease;
     cursor: grab;
     will-change: transform;
@@ -71,11 +71,11 @@ body {
 /* 三欄布局 */
 .col-left,
 .col-right {
-    flex: 0 0 50px;
+    flex: 0 0 4rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 10px 0;
+    padding: 0.5rem 0;
 }
 
 .col-center {
@@ -83,7 +83,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 1rem;
     position: relative;
     overflow: hidden;
 }
@@ -92,7 +92,7 @@ body {
 .vertical-text {
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    letter-spacing: 0.3em;
+    letter-spacing: 0.3rem;
 }
 
 /* 左欄：詩詞元資訊 */
@@ -100,7 +100,7 @@ body {
     writing-mode: vertical-rl;
     display: flex;
     flex-direction: row;
-    gap: 20px;
+    gap: 1rem;
     align-items: center;
     justify-content: center;
     height: 100%;
@@ -108,15 +108,15 @@ body {
 }
 
 .poem-title {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     /*font-weight: bold;*/
-    letter-spacing: 0.3em;
+    letter-spacing: 0.3rem;
 }
 
 .poem-author {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     opacity: 1;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.2rem;
 }
 
 .poem-title, .poem-author { cursor: pointer; }
@@ -125,15 +125,15 @@ body {
 .poem-content {
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    letter-spacing: 0.3em;
-    font-size: 3.6rem;
+    letter-spacing: 0.8rem;
+    font-size: 2.8rem;
     /*font-weight: bold;*/
-    line-height: 1.4;
+    line-height: 1.6;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
+    gap: 1rem;
     max-height: 90%;
     /* 水平壓縮 0.8 倍 → 變窄長方形 */
     transform: scaleX(0.8);
@@ -146,7 +146,7 @@ body {
 
 /* 左邊第一句詩往上移半個字高 */
 .poem-line:first-child {
-    transform: translateY(-2.5rem);
+    transform: translateY(-1.8rem);
 }
 
 /* 字符逐漸顯示效果 */
@@ -166,7 +166,7 @@ body {
 /* 花月商標BRAND LOGO */
 .brand-logo {
     writing-mode: vertical-rl;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: bold;
     letter-spacing: 0.5em;
     margin-top: auto;
