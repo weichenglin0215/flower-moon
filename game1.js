@@ -77,9 +77,9 @@
                     <!-- 遊戲內容將在此生成 -->
                     <!-- 倒數計時 -->
                     <div class="timer-container">
-                        <svg class="timer-svg" width="100" height="100">
-                            <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
-                            <circle id="game1-timer-bar" class="timer-bar" cx="50" cy="50" r="45" 
+                        <svg class="timer-svg" width="80" height="80">
+                            <circle class="timer-bg" cx="40" cy="40" r="35"></circle>
+                            <circle id="game1-timer-bar" class="timer-bar" cx="40" cy="40" r="35" 
                                 stroke-dasharray="282.7" stroke-dashoffset="0"></circle>
                         </svg>
                         <div id="game1-timer-text" class="timer-text">10</div>
@@ -104,7 +104,7 @@
                 <div id="game1-message" class="game1-message hidden">
                     <h2 id="game1-msg-title">時間到！</h2>
                     <p id="game1-msg-content"></p>
-                    <button id="game1-msg-btn" class="msg-btn">再來一次</button>
+                    <button id="game1-msg-btn" class="nav-btn">再來一局</button>
                 </div>
             `;
             document.body.appendChild(div);
