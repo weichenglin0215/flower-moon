@@ -4,6 +4,7 @@
         isActive: false,
         difficulty: '幼稚園',
         timer: 10,
+        maxTimer: 10, // 每轮的最大时间（根据难度设置）
         timerInterval: null,
         score: 0,
         mistakes: 0,
@@ -13,16 +14,16 @@
         options: [],
 
         container: null,
-        gameArea: null,
+        game1Area: null,
         timerBar: null,
         timerText: null,
 
         // 难度设置
         difficultySettings: {
-            '幼稚園': { time: 15, minRating: 3, maxMistakes: 4 },
-            '小學': { time: 12, minRating: 3, maxMistakes: 3 },
-            '中學': { time: 10, minRating: 2, maxMistakes: 2 },
-            '大學': { time: 8, minRating: 1, maxMistakes: 2 },
+            '幼稚園': { time: 60, minRating: 3, maxMistakes: 4 },
+            '小學': { time: 40, minRating: 3, maxMistakes: 3 },
+            '中學': { time: 20, minRating: 2, maxMistakes: 2 },
+            '大學': { time: 10, minRating: 1, maxMistakes: 2 },
             '研究所': { time: 6, minRating: 0, maxMistakes: 1 }
         },
 
@@ -42,7 +43,7 @@
                 this.createDOM();
             }
             this.container = document.getElementById('game1-container');
-            this.gameArea = document.getElementById('game1-area');
+            this.game1Area = document.getElementById('game1-area');
             this.timerBar = document.getElementById('game1-timer-bar');
             this.timerText = document.getElementById('game1-timer-text');
 
@@ -73,16 +74,16 @@
                 <div class="game1-sub-header">
                     <div id="game1-hearts" class="hearts"></div>
                 </div>
-                <div id="game1-area" class="game-area">
+                <div id="game1-area" class="game1-area">
                     <!-- 遊戲內容將在此生成 -->
                     <!-- 倒數計時 -->
                     <div class="timer-container">
                         <svg class="timer-svg" width="80" height="80">
                             <circle class="timer-bg" cx="40" cy="40" r="35"></circle>
                             <circle id="game1-timer-bar" class="timer-bar" cx="40" cy="40" r="35" 
-                                stroke-dasharray="282.7" stroke-dashoffset="0"></circle>
+                                stroke-dasharray="219.91" stroke-dashoffset="0"></circle>
                         </svg>
-                        <div id="game1-timer-text" class="timer-text">10</div>
+                        <div id="game1-timer-text" class="timer-text">00</div>
                     </div>
 
                     <!-- 問題區域 -->
@@ -130,26 +131,27 @@
 
             // 隐藏主页和其他游戏
             this.hideOtherContents();
-            // 显示难度选择器
+            // 顯示難度選擇器
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('游戏一：慢思快选', (selectedLevel) => {
+                window.DifficultySelector.show('慢思快選', (selectedLevel) => {
                     this.difficulty = selectedLevel;
                     const settings = this.difficultySettings[selectedLevel];
+                    this.maxTimer = settings.time; // 设置最大时间
                     this.timer = settings.time;
                     this.maxMistakes = settings.maxMistakes;
                     
-                    // 显示游戏容器
+                    // 顯示遊戲容器
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
-                    // 触发响应式布局更新
+                    // 觸發響應式佈局更新
                     if (window.updateResponsiveLayout) {
                         window.updateResponsiveLayout();
                     }
                     this.restartGame();
                 });
             } else {
-                // 降级处理：直接开始游戏
+                // 降級處理：直接開始遊戲
                 console.warn('[Game1] DifficultySelector not found, using default difficulty');
                 this.container.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
@@ -162,13 +164,13 @@
         },
 
         hideOtherContents: function () {
-            // 隐藏主页容器
+            // 隱藏主頁容器
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) {
                 cardContainer.style.display = 'none';
             }
             
-            // 隐藏其他游戏
+            // 隱藏其他遊戲
             const game2 = document.getElementById('game2-container');
             const game3 = document.getElementById('game3-container');
             if (game2) game2.classList.add('hidden');
@@ -176,7 +178,7 @@
         },
 
         showOtherContents: function () {
-            // 恢复主页容器
+            // 恢復主頁容器
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) {
                 cardContainer.style.display = '';
@@ -189,7 +191,7 @@
             this.container.classList.add('hidden');
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
-            // 恢复其他内容
+            // 恢復其他內容
             this.showOtherContents();
         },
 
@@ -219,28 +221,28 @@
         prepareChallenge: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return;
 
-            // 根据难度筛选诗词
+            // 根據難度篩選詩詞
             const settings = this.difficultySettings[this.difficulty];
             const minRating = settings.minRating;
 
-            // 優先選擇常見詩體
+            // 優先選擇常見詩詞
             const eligiblePoems = POEMS.filter(p =>
                 p.content && p.content.length >= 2 && p.type &&
-                (p.type.includes('五言') || p.type.includes('七言')) &&
+                (p.type.includes('五言') || p.type.includes('七言') || p.type.includes('詞') || p.type.includes('古詩')) &&
                 (p.rating || 0) >= minRating
             );
 
             let poem = eligiblePoems[Math.floor(Math.random() * eligiblePoems.length)];
             this.currentPoem = poem;
 
-            // 隨機選相鄰兩句 (偶數句一對)
+            // 隨機選相鄰兩句 (偶數句一對)，即問題和答案
             const numLines = poem.content.length;
             const pairIdx = Math.floor(Math.random() * Math.floor(numLines / 2));
             const startIdx = pairIdx * 2;
             let line1 = poem.content[startIdx];
             let line2 = poem.content[startIdx + 1];
 
-            // 隨機決定哪一句被部分隱藏
+            // 隨機決定哪一句被部分隱藏，即問題和答案
             const hideFirst = Math.random() < 0.5;
             this.correctAnswer = hideFirst ? line1 : line2;
             const displayedLine = hideFirst ? line2 : line1;
@@ -273,12 +275,12 @@
             qDiv.innerHTML = '';
 
             const l1Div = document.createElement('div');
-            l1Div.className = 'poem-line';
+            l1Div.className = 'poem-lines';
             l1Div.textContent = hideFirst ? maskedLineText : displayedLine;
             qDiv.appendChild(l1Div);
 
             const l2Div = document.createElement('div');
-            l2Div.className = 'poem-line';
+            l2Div.className = 'poem-lines';
             l2Div.textContent = hideFirst ? displayedLine : maskedLineText;
             qDiv.appendChild(l2Div);
 
@@ -372,7 +374,7 @@
 
         startTimer: function () {
             clearInterval(this.timerInterval);
-            this.timer = 10;
+            this.timer = this.maxTimer; // 使用难度设置的时间
             this.updateTimerUI();
 
             this.timerInterval = setInterval(() => {
@@ -402,10 +404,12 @@
 
         updateTimerUI: function () {
             this.timerText.textContent = this.timer.toString().padStart(2, '0');
-            // SVG 圈圈：stroke-dashoffset = circumference * (1 - timeLeft/totalTime)
-            // 順時針消失 = dashoffset 從 0 變到 282.7 (全消失)
-            const circumference = 282.7;
-            const offset = circumference * (1 - this.timer / 10);
+            // SVG 圈圈：逆時針消失需要用負值
+            // 圓周長 = 2 * PI * r = 2 * 3.14159 * 35 ≈ 219.91
+            const circumference = 2 * Math.PI * 35;
+            // 從 0 開始，隨時間遞減到 -circumference（完全消失）
+            const progress = this.timer / this.maxTimer; // 剩余时间比例 1 -> 0
+            const offset = -circumference * (1 - progress); // 使用负值实现逆时针
             this.timerBar.style.strokeDashoffset = offset;
         },
 

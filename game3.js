@@ -6,6 +6,8 @@
         score: 0,
         speed: 1.0, // 初始速度 (像素/幀)
         baseSpeed: 1.0,
+        incrementSpeed: 0.05,
+        maxSpeed: 1.5,
         rows: [], // 存放行元素的陣列
         currentRowIndex: 0, // 當前需要點擊的行索引
         animationId: null,
@@ -26,11 +28,11 @@
         // 難度設定
         difficulty: '幼稚園',
         difficultySettings: {
-            '幼稚園': { minRating: 3, minOptions: 1, maxOptions: 2, maxMistakeCount: 12 },
-            '小學': { minRating: 3, minOptions: 1, maxOptions: 3, maxMistakeCount: 10 },
-            '中學': { minRating: 2, minOptions: 2, maxOptions: 3, maxMistakeCount: 8 },
-            '大學': { minRating: 1, minOptions: 3, maxOptions: 4, maxMistakeCount: 6 },
-            '研究所': { minRating: 0, minOptions: 3, maxOptions: 5, maxMistakeCount: 4 }
+            '幼稚園': { incrementSpeed: 0.01, maxSpeed: 1.2, minRating: 3, minOptions: 1, maxOptions: 2, maxMistakeCount: 14 },
+            '小學': { incrementSpeed: 0.02, maxSpeed: 1.4, minRating: 3, minOptions: 1, maxOptions: 3, maxMistakeCount: 12 },
+            '中學': { incrementSpeed: 0.04, maxSpeed: 1.6, minRating: 2, minOptions: 2, maxOptions: 3, maxMistakeCount: 10 },
+            '大學': { incrementSpeed: 0.06, maxSpeed: 2.0, minRating: 1, minOptions: 3, maxOptions: 4, maxMistakeCount: 8 },
+            '研究所': { incrementSpeed: 0.08, maxSpeed: 2.4, minRating: 0, minOptions: 3, maxOptions: 5, maxMistakeCount: 6 }
         },
 
         loadCSS: function () {
@@ -170,7 +172,8 @@
         restartGame: function () {
             this.isActive = true;
             this.score = 0;
-            this.speed = this.baseSpeed;
+            this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;
+            this.maxSpeed = this.difficultySettings[this.difficulty].maxSpeed;
             this.currentRowIndex = 0;
             this.rows = [];
             this.mistakeCount = 0;
@@ -239,7 +242,7 @@
 
             // 生成每一行
             //let currentY = window.innerHeight; // 從螢幕下方開始
-            let currentY = 560; // 從game-area下方開始
+            let currentY = 500; // 從game-area下方開始
 
             chars.forEach((char, index) => {
                 // 難度控制：根據設定決定按鈕數量
@@ -333,7 +336,7 @@
                 Array.from(rowEl.querySelectorAll('button')).forEach(b => b.disabled = true);
 
                 // 增加速度
-                if (this.speed < 2) this.speed += 0.05;
+                if (this.speed < this.maxSpeed) this.speed += this.incrementSpeed;
 
                 // 移動到下一行
                 this.currentRowIndex++;

@@ -342,12 +342,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getHoliday(m, d) {
-        if (m === 1 && d === 1) return "元旦";
-        if (m === 2 && d === 28) return "和平紀念日";
-        if (m === 4 && d === 4) return "兒童節";
-        if (m === 4 && d === 5) return "清明節";
-        if (m === 5 && d === 1) return "勞動節";
-        if (m === 10 && d === 10) return "國慶日";
+        if (m === 1 && d === 1) return "元旦　";
+        /*if (m === 2 && d === 28) return "和平紀念日 ";*/
+        if (m === 4 && d === 4) return "兒童節　";
+        if (m === 4 && d === 5) return "清明節　";
+        if (m === 5 && d === 1) return "勞動節　";
+        if (m === 10 && d === 10) return "國慶日　";
         return "";
     }
 

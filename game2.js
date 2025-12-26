@@ -3,6 +3,8 @@
         isActive: false,
         difficulty: '幼稚園',
         score: 0,
+        questionCount: 3, // 每行要問幾個字
+        questionAtLine: 2, // 問題出現在第幾行，0=第一行或第二行，1=第二行，2=第三行
         mistakeCount: 0,
         selectedKeyword: '花',
         keywords: ['花', '月', '清', '雲', '玉', '霞', '國', '家', '酒', '愛', '恨', '雲', '雨', '山', '水', '夢'],
@@ -16,14 +18,14 @@
         timerInterval: null,
 
         container: null,
-        gameArea: null,
+        game2Area: null,
 
         difficultySettings: {
-            '幼稚園': { grid: [3, 3], time: 40, minRating: 3, maxMistakeCount: 8 },
-            '小學': { grid: [4, 3], time: 30, minRating: 3, maxMistakeCount: 6 },
-            '中學': { grid: [4, 4], time: 25, minRating: 2, maxMistakeCount: 5 },
-            '大學': { grid: [5, 4], time: 20, minRating: 1, maxMistakeCount: 4 },
-            '研究所': { grid: [5, 4], time: 10, minRating: 0, maxMistakeCount: 3 }
+            '幼稚園': { grid: [3, 3], time: 120, questionCount: 1, questionAtLine: 2, minRating: 3, maxMistakeCount: 8 },
+            '小學': { grid: [4, 3], time: 90, questionCount: 2, questionAtLine: 2, minRating: 3, maxMistakeCount: 10 },
+            '中學': { grid: [4, 4], time: 60, questionCount: 3, questionAtLine: 0, minRating: 2, maxMistakeCount: 8 },
+            '大學': { grid: [5, 4], time: 30, questionCount: 4, questionAtLine: 0, minRating: 1, maxMistakeCount: 8 },
+            '研究所': { grid: [5, 4], time: 15, questionCount: 5, questionAtLine: 1, minRating: 0, maxMistakeCount: 4 }
         },
 
         decoyChars: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長",
@@ -44,39 +46,39 @@
                 this.createDOM();
             }
             this.container = document.getElementById('game2-container');
-            this.gameArea = document.getElementById('game2-area');
+            this.game2Area = document.getElementById('game2-area');
         },
 
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game2-container';
-            div.className = 'game-overlay aspect-5-8 hidden';
+            div.className = 'game2-overlay aspect-5-8 hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
                 <div class="debug-frame"></div>
                 
-                <div class="game-header">
+                <div class="game2-header">
                     <div class="score-board">分數: <span id="game2-score">0</span></div>
                     <div class="game2-controls">
                         <button id="game2-restart-btn" class="nav-btn">重來</button>
                         <button id="game2-close-btn" class="nav-btn close-btn">退出</button>
                     </div>
                 </div>
-                <div class="game-sub-header">
+                <div class="game2-sub-header">
                     <div id="game2-hearts" class="hearts"></div>
                 </div>
-                <div id="game2-area" class="game-area">
+                <div id="game2-area" class="game2-area">
                     <!-- 遊戲內容將在此生成 -->
                     <div class="keyword-selector" id="game2-keywords">
                         <!-- 主字按鈕將在此生成 -->
                     </div>
-                    <div class="question-area" id="game2-question">
-                        <div id="game2-line1" class="poem-line"></div>
-                        <div id="game2-line2" class="poem-line"></div>
-                        <div class="poem-info" id="game2-info"></div>
+                    <div id="game2-question" class="question-area">
+                        <div id="game2-line1" class="poem-lines"></div>
+                        <div id="game2-line2" class="poem-lines"></div>
+                        <div id="game2-info" class="poem-info" ></div>
                     </div>
                     <div class="answer-section">
-                        <div class="grid-container" id="game2-grid-container">
+                        <div id="game2-grid-container" class="grid-container">
                             <svg id="timer-ring">
                                 <rect id="timer-path" x="4" y="4"></rect>
                             </svg>
@@ -85,7 +87,7 @@
                     </div>
                 </div>
 
-                <div id="game2-message" class="game-message hidden">
+                <div id="game2-message" class="game2-message hidden">
                     <h2 id="game2-msg-title">遊戲結束</h2>
                     <p id="game2-msg-content"></p>
                     <button id="game2-msg-btn" class="nav-btn">再來一局</button>
@@ -150,7 +152,7 @@
             
             // 使用全局难度选择器
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('游戏二：飞花令', (selectedLevel) => {
+                window.DifficultySelector.show('遊戲二：飛花令', (selectedLevel) => {
                     this.difficulty = selectedLevel;
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
@@ -251,24 +253,39 @@
                 this.answerLine = (targetIdx === l1Idx) ? 1 : 2;
             }
 
+            // 根據 questionAtLine 設定決定問題出現在哪一行
+            // 0 = 隨機選擇第一行或第二行，1 = 第一行，2 = 第二行
+            if (settings.questionAtLine === 0) {
+                // 隨機選擇，保持原有邏輯
+                // this.answerLine 已經在上面設定好了
+            } else if (settings.questionAtLine === 1) {
+                // 強制使用第一行
+                this.answerLine = 1;
+            } else if (settings.questionAtLine === 2) {
+                // 強制使用第二行
+                this.answerLine = 2;
+            }
+
             this.currentPoem = poem;
 
             // 決定隱藏哪些字
-            // 隱藏包含關鍵字的那個字，再加上隨機 1-2 個字 (視難度)
+            // 使用 questionCount 參數決定要隱藏幾個字
             const targetLine = this.answerLine === 1 ? this.line1 : this.line2;
             const chars = targetLine.replace(/[，。？！、：；「」『』]/g, '').split('');
             const cleanLine = targetLine.replace(/[，。？！、：；「」『』]/g, '');
 
             const indices = [];
+            
             // 找出所有 關鍵字 的位置
             for (let i = 0; i < cleanLine.length; i++) {
                 if (cleanLine[i] === this.selectedKeyword) indices.push(i);
             }
 
-            // 隨機加幾個
-            const numExtra = this.difficulty === '幼稚園' ? 0 :
-                this.difficulty === '小學' ? 1 :
-                    this.difficulty === '中學' ? 2 : 3;
+            // 根據 questionCount 參數決定總共要隱藏幾個字
+            const totalQuestionsNeeded = settings.questionCount;
+            
+            // 計算還需要添加多少個額外的字（除了關鍵字之外）
+            const numExtra = Math.max(0, totalQuestionsNeeded - indices.length);
 
             const available = [];
             for (let i = 0; i < cleanLine.length; i++) {
@@ -279,6 +296,11 @@
             available.sort(() => Math.random() - 0.5);
             for (let i = 0; i < Math.min(numExtra, available.length); i++) {
                 indices.push(available[i]);
+            }
+
+            // 如果關鍵字太多，只取前 questionCount 個
+            if (indices.length > totalQuestionsNeeded) {
+                indices.length = totalQuestionsNeeded;
             }
 
             // 排序，玩家需要依序輸入
@@ -465,7 +487,7 @@
             if (win) {
                 title.textContent = "恭喜過關！";
                 title.style.color = "#4CAF50";
-                content.textContent = `完成了飞花令！得分：${this.score}`;
+                content.textContent = `完成了飛花令！得分：${this.score}`;
             } else {
                 title.textContent = "遊戲結束";
                 title.style.color = "#f44336";

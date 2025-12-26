@@ -28,7 +28,9 @@
 
 /* 游戏覆盖层的特殊样式 */
 .game-overlay.aspect-5-8,
-.game1-overlay.aspect-5-8 {
+.game1-overlay.aspect-5-8,
+.game2-overlay.aspect-5-8,
+.game3-overlay.aspect-5-8 {
     /* 覆盖层需要固定定位并居中 */
     position: fixed;
     top: 50%;
@@ -40,9 +42,9 @@
     /*width: 500px !important;
     height: 800px !important;*/
 
-    /* 固定游戏尺寸为 500*800 */
-        width: 400px !important;
-        height: 640px !important;
+    /* 固定游戏尺寸为 400*640 */
+    width: 400px !important;
+    height: 640px !important;
     /* 添加平滑过渡 */
     transition: width 0.2s ease, height 0.2s ease, transform 0.2s ease;
 }

@@ -132,15 +132,16 @@
 
 .timer-bg {
     fill: none;
-    stroke: #eee;
+    /* 暗紅色 */
+        stroke: #8b0000;
     stroke-width: 6;
 }
 
 .timer-bar {
     fill: none;
-    stroke: #8b0000;
-    /* 暗紅色 */
-    stroke-width: 6;
+    stroke: #eee;
+
+    stroke-width: 8;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
 }
@@ -157,7 +158,7 @@
     text-align: center;
     width: 100%;
     margin: 0px 0;
-    padding: 0px 0rem;
+    padding: 0px 1rem;
     color: #462909;
 }
 
@@ -166,17 +167,13 @@
     font-weight: bold;
     line-height: 1.2;
     margin-bottom: 10px;
-}
-
-.poem-line {
-    margin: 10px 0;
     letter-spacing: 0.3rem;
 }
+
 
 .poem-info {
     text-align: right;
     font-size: 1rem;
-    color: #555;
     margin-top: 5px;
 }
 

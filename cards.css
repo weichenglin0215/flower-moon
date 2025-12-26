@@ -58,7 +58,7 @@ body {
     border-radius: 1rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     display: flex;
-    padding: 1.5rem 0.5rem;
+    padding: 1rem 1.5rem;
     transition: transform 0.1s linear, opacity 0.3s ease;
     cursor: grab;
     will-change: transform;
@@ -68,16 +68,73 @@ body {
     cursor: grabbing;
 }
 
-/* 三欄布局 */
+/* Layout Columns */
 .col-left,
 .col-right {
-    flex: 0 0 4rem;
+    flex: 0 0 10px;
+    /* 寬度很窄，適合垂直文字 */
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    padding: 0.5rem 0;
+    justify-content: flex-start;
+    /* 改為 flex-start，方便用 margin auto 推底部 */
+    padding: 0px 0;
+    /* 上下 padding 調整美觀 */
+    height: 100%;
+    /* 確保有完整高度 */
 }
 
+/* 三欄布局 */
+.col-left {
+    justify-content: flex-end;
+    /* 將內容推到底部 */
+}
+
+/* 左邊詩名作者名 Metadata Vertical (Left Column) */
+.poem-meta-and-logo-left {
+    display: flex;
+    flex-direction: row;
+    /* 在 vertical-rl 模式下，row 表示垂直排列，形成同一行 */
+    writing-mode: vertical-rl;
+    /* 整體直排 */
+    gap: 1rem;
+    /* 每個之間的空白間距 */
+    color: var(--main-text-color);
+    font-size: 1.2rem;
+    padding-bottom: 1rem;
+    /* 距離底邊一點內縮 */
+}
+
+.poem-title,
+.poem-author {
+    font-size: 1.2rem;
+    opacity: 1;
+    white-space: nowrap;
+    /* 防止换列 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    text-overflow: ellipsis;
+    /* 超出显示省略号 */
+    cursor: pointer;
+    writing-mode: vertical-rl;
+}
+.poem-title{
+    font-weight: bold;
+}
+/* Vertical Text Utilities */
+.vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.2em;
+}
+
+/* 花月商標BRAND LOGO */
+.brand-logo {
+    writing-mode: vertical-rl;
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 0.5rem;
+    white-space: nowrap;
+}
 .col-center {
     flex: 1;
     display: flex;
@@ -93,56 +150,6 @@ body {
             /* 超出显示省略号 */
 }
 
-/* 直式文字 */
-.vertical-text {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    letter-spacing: 0.3rem;
-}
-
-/* 左欄：詩詞元資訊 */
-.poem-meta-vertical {
-    writing-mode: vertical-rl;
-    display: flex;
-    flex-direction: row;
-    gap: 1rem;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--main-text-color);
-        white-space: nowrap;
-            /* 防止换列 */
-            overflow: hidden;
-            /* 隐藏超出部分 */
-            text-overflow: ellipsis;
-            /* 超出显示省略号 */
-}
-
-.poem-title {
-    font-size: 1.2rem;
-    font-weight: bold;
-    letter-spacing: 0.3rem;
-        white-space: nowrap;
-            /* 防止换列 */
-            overflow: hidden;
-            /* 隐藏超出部分 */
-            text-overflow: ellipsis;
-            /* 超出显示省略号 */
-}
-
-.poem-author {
-    font-size: 1.2rem;
-    opacity: 1;
-    letter-spacing: 0.2rem;
-        white-space: nowrap;
-            /* 防止换列 */
-            overflow: hidden;
-            /* 隐藏超出部分 */
-            text-overflow: ellipsis;
-            /* 超出显示省略号 */
-}
-
-.poem-title, .poem-author { cursor: pointer; }
 
 /* 中欄：詩詞內容 */
 .poem-content {
@@ -186,16 +193,6 @@ body {
     opacity: 1;
 }
 
-/* 花月商標BRAND LOGO */
-.brand-logo {
-    writing-mode: vertical-rl;
-    font-size: 1.2rem;
-    font-weight: bold;
-    letter-spacing: 0.5em;
-    margin-top: auto;
-    /* Adhere to rule 3: Main Text Color */
-    color: var(--main-text-color);
-}
 
 /* 動畫類別 */
 .animate-recoil {

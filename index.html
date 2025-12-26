@@ -26,15 +26,14 @@
     <!-- 單張卡片的模板 (Template) -->
     <template id="cardTemplate">
         <div class="card">
-            <!-- 左欄：節日與 Logo -->
+            <!-- 左欄：詩詞名與作者與 Logo -->
             <div class="col-left">
-                <div class="holidays-container"></div>
                 <!-- 移至左側的補充資訊 (Title & Author) -->
-                <div class="poem-meta-vertical-left">
+                <div class="poem-meta-and-logo-left">
                     <div class="poem-title"></div>
                     <div class="poem-author"></div>
+                    <div class="brand-logo">花月</div>
                 </div>
-                <div class="brand-logo">花月</div>
             </div>
 
             <!-- 中欄：主要內容 (包含日期、宜忌、詩詞) -->
@@ -66,6 +65,7 @@
             <!-- 右欄：農曆資訊 -->
             <div class="col-right">
                 <div class="lunar-info vertical-text"></div>
+                <div class="holidays-container"></div>
             </div>
         </div>
     </template>
