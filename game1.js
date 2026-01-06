@@ -2,7 +2,7 @@
     // 遊戲一：慢思快選 (Slow Thought, Fast Choice)
     const Game1 = {
         isActive: false,
-        difficulty: '幼稚園',
+        difficulty: '小學',
         timer: 10,
         maxTimer: 10, // 每轮的最大时间（根据难度设置）
         timerInterval: null,
@@ -20,11 +20,11 @@
 
         // 难度设置
         difficultySettings: {
-            '幼稚園': { time: 60, minRating: 3, maxMistakes: 4 },
-            '小學': { time: 40, minRating: 3, maxMistakes: 3 },
-            '中學': { time: 20, minRating: 2, maxMistakes: 2 },
-            '大學': { time: 10, minRating: 1, maxMistakes: 2 },
-            '研究所': { time: 6, minRating: 0, maxMistakes: 1 }
+            '小學': { time: 60, minRating: 7, maxMistakes: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
+            '中學': { time: 40, minRating: 6, maxMistakes: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
+            '高中': { time: 20, minRating: 5, maxMistakes: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
+            '大學': { time: 10, minRating: 4, maxMistakes: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
+            '研究所': { time: 6, minRating: 1, maxMistakes: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
         },
 
         loadCSS: function () {
@@ -111,7 +111,7 @@
             document.body.appendChild(div);
             document.getElementById('game1-msg-btn').addEventListener('click', () => {
                 document.getElementById('game1-message').classList.add('hidden');
-                this.showDifficultySelector();
+                this.restartGame(); // 直接以相同難度開啟下一局
             });
 
             this.renderHearts();
@@ -139,7 +139,7 @@
                     this.maxTimer = settings.time; // 设置最大时间
                     this.timer = settings.time;
                     this.maxMistakes = settings.maxMistakes;
-                    
+
                     // 顯示遊戲容器
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
@@ -169,7 +169,7 @@
             if (cardContainer) {
                 cardContainer.style.display = 'none';
             }
-            
+
             // 隱藏其他遊戲
             const game2 = document.getElementById('game2-container');
             const game3 = document.getElementById('game3-container');
@@ -242,13 +242,22 @@
             let line1 = poem.content[startIdx];
             let line2 = poem.content[startIdx + 1];
 
-            // 隨機決定哪一句被部分隱藏，即問題和答案
-            const hideFirst = Math.random() < 0.5;
+            // 根據 answerAtLine 決定哪一句被部分隱藏
+            // 2: 答案在第二行, 1: 答案在第一行, 0: 隨機
+            let hideFirst;
+            if (settings.answerAtLine === 1) {
+                hideFirst = true;
+            } else if (settings.answerAtLine === 2) {
+                hideFirst = false;
+            } else {
+                hideFirst = Math.random() < 0.5;
+            }
+
             this.correctAnswer = hideFirst ? line1 : line2;
             const displayedLine = hideFirst ? line2 : line1;
 
             // 處理隱藏文字 (◎)
-            const maskLine = (text) => {
+            const maskLine = (text, min, max) => {
                 const chars = text.split('');
                 // 找出非標點的位置
                 let validIndices = [];
@@ -256,8 +265,13 @@
                     if (!/[，。？！、：；]/.test(c)) validIndices.push(i);
                 });
 
-                // 隨機隱藏 2-3 個字 (不要全遮，也不要只遮一個)
-                const maskCount = Math.min(validIndices.length - 1, Math.max(2, Math.floor(validIndices.length / 2)));
+                // 判斷遮蔽數量
+                // 限制不能遮蔽全部文字，至少留下一個字
+                const maxPossible = Math.max(1, validIndices.length - 1);
+                const actualMin = Math.min(maxPossible, Math.max(1, min));
+                const actualMax = Math.min(maxPossible, Math.max(actualMin, max));
+
+                const maskCount = Math.floor(Math.random() * (actualMax - actualMin + 1)) + actualMin;
 
                 let maskedIndices = [];
                 while (maskedIndices.length < maskCount) {
@@ -268,7 +282,7 @@
                 return chars.map((c, i) => maskedIndices.includes(i) ? "◎" : c).join('');
             };
 
-            const maskedLineText = maskLine(this.correctAnswer);
+            const maskedLineText = maskLine(this.correctAnswer, settings.minMaskCount, settings.maxMaskCount);
 
             // 更新 UI
             const qDiv = document.getElementById('game1-question-lines');
@@ -386,11 +400,11 @@
                     this.updateHearts();
                     //this.updateLives();
 
-                    // 揭曉答案：正確綠色，錯誤紅色
+                    // 揭曉答案：將正確答案以 .hint 顯示
                     const btns = document.querySelectorAll('#game1-options .option-btn');
                     btns.forEach(btn => {
                         const isCorrect = btn.dataset.isCorrect === 'true';
-                        btn.classList.add(isCorrect ? 'correct' : 'wrong');
+                        if (isCorrect) btn.classList.add('hint');
                         btn.disabled = true; // 禁用按鈕
                     });
 
@@ -430,9 +444,17 @@
                 this.updateHearts();
                 if (this.mistakes >= this.maxMistakes) {
                     clearInterval(this.timerInterval);
+
+                    // 揭曉答案：將正確答案以 .hint 顯示
+                    const btns = document.querySelectorAll('#game1-options .option-btn');
+                    btns.forEach(b => {
+                        if (b.dataset.isCorrect === 'true') b.classList.add('hint');
+                        b.disabled = true;
+                    });
+
                     setTimeout(() => {
-                        this.gameOver(false, "挑戰失敗！正確答案是：" + this.correctAnswer);
-                    }, 500);
+                        this.gameOver(false, "挑戰失敗！正確答案是：\n" + this.correctAnswer);
+                    }, 1000);
                 }
             }
         },

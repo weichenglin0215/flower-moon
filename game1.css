@@ -122,8 +122,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto; /* 水平居中 */
-    align-self: center; /* 在 flex 容器中居中 */
+    margin: 0 auto;
+    /* 水平居中 */
+    align-self: center;
+    /* 在 flex 容器中居中 */
 }
 
 .timer-svg {
@@ -133,7 +135,7 @@
 .timer-bg {
     fill: none;
     /* 暗紅色 */
-        stroke: #8b0000;
+    stroke: #8b0000;
     stroke-width: 6;
 }
 
@@ -189,12 +191,12 @@
 }
 
 .option-btn {
-    padding: 0rem 1rem;
+    padding: 0rem 0rem;
     margin: 0.3rem 0.5rem;
     background: #fff9dd;
     border: 3px solid #ddd;
     border-radius: 0.6rem;
-    font-size: 2rem;
+    font-size: 1.8rem;
     letter-spacing: 0.5rem;
     min-height: 1rem;
     cursor: pointer;
@@ -219,6 +221,12 @@
     border-color: #dc3545;
     color: #721c24;
     animation: shake 0.5s;
+}
+
+.option-btn.hint {
+    background: hsl(220, 41%, 88%);
+    border-color: hsl(220, 61%, 41%);
+    color: hsl(222, 61%, 21%);
 }
 
 /* 宣告成功失敗 */
@@ -246,13 +254,14 @@
 .game1-message p {
     font-size: 1.2rem;
     margin: 0.1rem 0;
+    white-space: pre-wrap;
 }
 
 .game1-message .nav-btn {
     background: #4CAF50;
     color: white;
     border: none;
-    padding: 1rem 0.3rem;
+    padding: 0.3rem 1rem;
     font-size: 1.2rem;
     margin-top: 0.1rem;
 }

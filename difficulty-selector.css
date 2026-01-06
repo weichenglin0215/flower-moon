@@ -10,7 +10,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 1);
+    background: rgba(66, 44, 22, 1);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -24,8 +24,9 @@
 
 /* 难度选择器容器 */
 .difficulty-selector-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 2rem 1rem; /* 內部邊框*/
+    background: linear-gradient(135deg, hsl(228, 34%, 42%) 0%, hsl(270, 34%, 42%) 100%);
+    padding: 2rem 1rem;
+    /* 內部邊框*/
     border-radius: 24px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     text-align: center;
@@ -39,6 +40,7 @@
         transform: translateY(-50px);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -46,7 +48,7 @@
 }
 
 .difficulty-selector-container h2 {
-    color: white;
+    color: hsl(32, 16%, 86%);
     font-size: 2rem;
     margin-bottom: 0.8rem;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
@@ -56,29 +58,32 @@
 /* 难度按钮容器 */
 .difficulty-buttons {
     display: flex;
-    justify-content: center;
+    flex-direction: column-reverse;
+    /* 由下至上排列 */
+    align-items: center;
     gap: 1rem;
-    flex-wrap: wrap;
+    width: 100%;
 }
 
-/* 难度按钮 - 竖排文字 */
+/* 难度按钮 - 寬度相同 */
 .difficulty-btn {
     background: rgba(255, 255, 255, 0.95);
-    color: #333;
+    color: hsl(256, 40%, 33%);
     border: 3px solid transparent;
-    margin: auto;
-    padding: 1rem 0.3rem;
-    border-radius: 0.8rem;
-    font-size: 1.4rem;
+    margin: 0.2rem auto;
+    padding: 0.4rem 0.6rem;
+    border-radius: 12px;
+    font-size: 1.8rem;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s;
-    min-width: 1rem;
+    width: 80%;
+    /* 每個按鍵寬度相同 */
+    max-width: 280px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    
-    /* 竖排文字 */
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+
+    /* 水平文字 */
+    text-align: center;
     letter-spacing: 0.2em;
 }
 
@@ -86,7 +91,7 @@
     transform: translateY(-5px) scale(1.05);
     background: white;
     border-color: #ffd700;
-    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(44, 22, 11, 0.66);
 }
 
 .difficulty-btn:active {
@@ -94,15 +99,15 @@
 }
 
 /* 不同难度的颜色主题 */
-.difficulty-btn[data-level="幼稚園"] {
+.difficulty-btn[data-level="小學"] {
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
 }
 
-.difficulty-btn[data-level="小學"] {
+.difficulty-btn[data-level="中學"] {
     background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
 }
 
-.difficulty-btn[data-level="中學"] {
+.difficulty-btn[data-level="高中"] {
     background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
 }
 
@@ -114,15 +119,15 @@
     background: linear-gradient(135deg, #fdcbf1 0%, #e6dee9 100%);
 }
 
-.difficulty-btn[data-level="幼稚園"]:hover {
+.difficulty-btn[data-level="小學"]:hover {
     border-color: #00d4ff;
 }
 
-.difficulty-btn[data-level="小學"]:hover {
+.difficulty-btn[data-level="中學"]:hover {
     border-color: #ff9a00;
 }
 
-.difficulty-btn[data-level="中學"]:hover {
+.difficulty-btn[data-level="高中"]:hover {
     border-color: #ff6b9d;
 }
 
@@ -139,20 +144,19 @@
     .difficulty-selector-container {
         padding: 32px 6px;
     }
-    
+
     .difficulty-selector-container h2 {
         font-size: 2rem;
         margin-bottom: 24px;
     }
-    
+
     .difficulty-btn {
         font-size: 1.2rem;
-        padding: 0.3rem 0.6rem;
-        min-width: 1rem;
+        padding: 0.6rem 1rem;
+        width: 85%;
     }
-    
+
     .difficulty-buttons {
-        gap: 0.3rem;
+        gap: 0.6rem;
     }
 }
-

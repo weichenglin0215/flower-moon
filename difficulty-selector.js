@@ -12,7 +12,7 @@
         currentGameName: '',
 
         // 难度级别
-        levels: ['幼稚園', '小學', '中學', '大學', '研究所'],
+        levels: ['小學', '中學', '高中', '大學', '研究所'],
 
         /**
          * 初始化组件
@@ -23,7 +23,7 @@
 
             // 创建 DOM 结构
             this.createDOM();
-            
+
             // 绑定事件
             this.bindEvents();
         },
@@ -35,11 +35,11 @@
             const overlay = document.createElement('div');
             overlay.id = 'difficulty-selector-overlay';
             overlay.className = 'hidden';
-            
-            const buttonsHTML = this.levels.map(level => 
+
+            const buttonsHTML = this.levels.map(level =>
                 `<button class="difficulty-btn" data-level="${level}">${level}</button>`
             ).join('');
-            
+
             overlay.innerHTML = `
                 <div class="difficulty-selector-container">
                     <h2>請選擇難度</h2>
@@ -48,7 +48,7 @@
                     </div>
                 </div>
             `;
-            
+
             document.body.appendChild(overlay);
             this.overlay = overlay;
         },
@@ -82,13 +82,13 @@
          */
         show: function (gameName, callback) {
             this.init(); // 确保已初始化
-            
+
             this.currentGameName = gameName || 'Unknown Game';
             this.callback = callback;
-            
+
             this.overlay.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            
+
             console.log(`[DifficultySelector] 显示难度选择器 for ${this.currentGameName}`);
         },
 
@@ -97,10 +97,10 @@
          */
         hide: function () {
             if (!this.overlay) return;
-            
+
             this.overlay.classList.add('hidden');
             document.body.style.overflow = '';
-            
+
             console.log(`[DifficultySelector] 隐藏难度选择器`);
         },
 
@@ -110,9 +110,9 @@
          */
         selectDifficulty: function (level) {
             console.log(`[DifficultySelector] ${this.currentGameName} 选择难度: ${level}`);
-            
+
             this.hide();
-            
+
             // 调用回调函数
             if (this.callback && typeof this.callback === 'function') {
                 this.callback(level);

@@ -1,13 +1,13 @@
 (function () {
     const Game2 = {
         isActive: false,
-        difficulty: '幼稚園',
+        difficulty: '小學',
         score: 0,
         questionCount: 3, // 每行要問幾個字
         questionAtLine: 2, // 問題出現在第幾行，0=第一行或第二行，1=第二行，2=第三行
         mistakeCount: 0,
         selectedKeyword: '花',
-        keywords: ['花', '月', '清', '雲', '玉', '霞', '國', '家', '酒', '愛', '恨', '雲', '雨', '山', '水', '夢'],
+        keywords: ['花', '月', '清', '雲', '玉', '霞', '國', '家', '酒', '愛', '恨', '春', '雨', '山', '水', '夢'],
 
         // 遊戲狀態
         currentPoem: null,
@@ -17,17 +17,24 @@
         timeLeft: 40,
         timerInterval: null,
 
+        isRevealed: false,
         container: null,
         game2Area: null,
 
         difficultySettings: {
-            '幼稚園': { grid: [3, 3], time: 120, questionCount: 1, questionAtLine: 2, minRating: 3, maxMistakeCount: 8 },
-            '小學': { grid: [4, 3], time: 90, questionCount: 2, questionAtLine: 2, minRating: 3, maxMistakeCount: 10 },
-            '中學': { grid: [4, 4], time: 60, questionCount: 3, questionAtLine: 0, minRating: 2, maxMistakeCount: 8 },
-            '大學': { grid: [5, 4], time: 30, questionCount: 4, questionAtLine: 0, minRating: 1, maxMistakeCount: 8 },
-            '研究所': { grid: [5, 4], time: 15, questionCount: 5, questionAtLine: 1, minRating: 0, maxMistakeCount: 4 }
+            '小學': { grid: [2, 2], time: 120, questionCount: 1, questionAtLine: 2, minRating: 6, maxMistakeCount: 4 },
+            '中學': { grid: [3, 2], time: 90, questionCount: 2, questionAtLine: 2, minRating: 5, maxMistakeCount: 4 },
+            '高中': { grid: [3, 3], time: 60, questionCount: 3, questionAtLine: 0, minRating: 4, maxMistakeCount: 5 },
+            '大學': { grid: [3, 4], time: 30, questionCount: 5, questionAtLine: 0, minRating: 3, maxMistakeCount: 6 },
+            '研究所': { grid: [4, 4], time: 15, questionCount: 7, questionAtLine: 1, minRating: 2, maxMistakeCount: 8 }
         },
-
+        // 常用字庫 (用於生成干擾項)
+        decoyCharsPeople: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
+        decoyCharsSeason: "春夏秋冬晨晝暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
+        decoyCharsWeather: "陰晴風雨雪霜露霧霞虹暖寒涼暑晦暗亮光明清冽空氣嵐",
+        decoyCharsEnvironment: "山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
+        decoyCharsColor: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
+        decoyCharsPlant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
         decoyChars: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長",
 
         loadCSS: function () {
@@ -100,7 +107,7 @@
             document.getElementById('game2-restart-btn').addEventListener('click', () => this.restartGame());
             document.getElementById('game2-msg-btn').addEventListener('click', () => {
                 document.getElementById('game2-message').classList.add('hidden');
-                this.showDifficultySelector();
+                this.restartGame(); // 直接以相同難度開啟下一局
             });
 
             // 初始化主字按鈕
@@ -127,7 +134,7 @@
 
         show: function () {
             this.init();
-            
+
             // 显示难度选择器
             this.showDifficultySelector();
         },
@@ -146,10 +153,10 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             document.getElementById('game2-message').classList.add('hidden');
-            
+
             // 隐藏主页和其他游戏
             this.hideOtherContents();
-            
+
             // 使用全局难度选择器
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('遊戲二：飛花令', (selectedLevel) => {
@@ -173,7 +180,7 @@
             if (cardContainer) {
                 cardContainer.style.display = 'none';
             }
-            
+
             // 隐藏其他游戏
             const game1 = document.getElementById('game1-container');
             const game3 = document.getElementById('game3-container');
@@ -194,10 +201,11 @@
             this.score = 0;
             this.mistakeCount = 0;
             this.currentInputIndex = 0;
+            this.isRevealed = false;
             document.getElementById('game2-score').textContent = this.score;
             document.getElementById('game2-message').classList.add('hidden');
             this.renderHearts();
-            
+
             const settings = this.difficultySettings[this.difficulty];
             this.timeLeft = settings.time;
             this.timer = settings.time;
@@ -275,7 +283,7 @@
             const cleanLine = targetLine.replace(/[，。？！、：；「」『』]/g, '');
 
             const indices = [];
-            
+
             // 找出所有 關鍵字 的位置
             for (let i = 0; i < cleanLine.length; i++) {
                 if (cleanLine[i] === this.selectedKeyword) indices.push(i);
@@ -283,7 +291,7 @@
 
             // 根據 questionCount 參數決定總共要隱藏幾個字
             const totalQuestionsNeeded = settings.questionCount;
-            
+
             // 計算還需要添加多少個額外的字（除了關鍵字之外）
             const numExtra = Math.max(0, totalQuestionsNeeded - indices.length);
 
@@ -330,6 +338,9 @@
                             const hiddenIdxPos = this.hiddenIndices.indexOf(cleanIdx);
                             if (hiddenIdxPos < this.currentInputIndex) {
                                 result += `<span class="correct-char">${cleanLine[cleanIdx]}</span>`;
+                            } else if (this.isRevealed) {
+                                // 揭曉答案，保留橘黃色 (hidden-char)
+                                result += `<span class="hidden-char">${cleanLine[cleanIdx]}</span>`;
                             } else {
                                 result += '<span class="hidden-char">◎</span>';
                             }
@@ -360,7 +371,38 @@
 
             // 干擾字
             const decoys = [];
-            while (decoys.length < totalCells - answerChars.length) {
+            const neededDecoys = totalCells - answerChars.length;
+
+            // 1. 嘗試從分類主題中選取 (基於正確答案的屬性)
+            const thematicSets = [
+                this.decoyCharsPeople,
+                this.decoyCharsSeason,
+                this.decoyCharsWeather,
+                this.decoyCharsEnvironment,
+                this.decoyCharsColor,
+                this.decoyCharsPlant
+            ];
+
+            // 對每一個正確答案字，都有機會觸發其所屬主題的干擾字66%
+            answerChars.forEach(targetChar => {
+                if (decoys.length >= neededDecoys) return;
+
+                if (Math.random() < 0.66) {
+                    const matchedSet = thematicSets.find(set => set && set.includes(targetChar));
+                    if (matchedSet) {
+                        const themeCandidates = matchedSet.split('').filter(c => !answerChars.includes(c) && !decoys.includes(c));
+                        themeCandidates.sort(() => Math.random() - 0.5);
+                        // 從該主題中隨機選 1-2 個字
+                        const count = Math.min(2, neededDecoys - decoys.length, themeCandidates.length);
+                        for (let i = 0; i < count; i++) {
+                            decoys.push(themeCandidates[i]);
+                        }
+                    }
+                }
+            });
+
+            // 2. 如果選項不足，使用預設字庫補齊
+            while (decoys.length < neededDecoys) {
                 const char = this.decoyChars[Math.floor(Math.random() * this.decoyChars.length)];
                 if (!answerChars.includes(char) && !decoys.includes(char)) {
                     decoys.push(char);
@@ -402,7 +444,7 @@
                 setTimeout(() => btn.classList.remove('wrong'), 400);
                 this.mistakeCount++;
                 this.updateHearts();
-                
+
                 const settings = this.difficultySettings[this.difficulty];
                 if (this.mistakeCount >= settings.maxMistakeCount) {
                     this.gameOver(false, `按錯次數達 ${this.mistakeCount} 次`);
@@ -478,6 +520,8 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             clearInterval(this.timerInterval);
+            this.isRevealed = true;
+            this.renderQuestion();
 
             const msgDiv = document.getElementById('game2-message');
             const title = document.getElementById('game2-msg-title');
