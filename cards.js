@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 狀態 (STATE)
     // ---------------------------------------------------------
     let currentPoemIndex = 0;
+    let nextPoemIndex = 0;
     let revealTimeouts = []; // 儲存所有顯示文字的 timeout
     let hiddenChars = []; // 尚未顯示的字符
     let isShaking = false; // 是否正在搖晃
@@ -35,17 +36,53 @@ document.addEventListener('DOMContentLoaded', () => {
     // 核心邏輯 (CORE LOGIC)
     // ---------------------------------------------------------
     function initCards() {
-        // 隨機選擇一首詩作為起始
+        // 隨機選擇起始與下一首詩
         currentPoemIndex = Math.floor(Math.random() * POEMS.length);
+        nextPoemIndex = Math.floor(Math.random() * POEMS.length);
         renderStack();
         attachGlobalDragEvents();
     }
 
-    function renderStack() {
+    function renderStack(reuseBottom = false) {
+        if (reuseBottom) {
+            // 將底層卡片轉為頂層卡片
+            const oldTop = document.getElementById('topCard');
+            const newTop = document.getElementById('bottomCard');
+
+            if (oldTop) oldTop.remove();
+
+            if (newTop) {
+                newTop.id = 'topCard';
+                newTop.style.zIndex = 10;
+                newTop.style.transition = '';
+                newTop.style.transform = '';
+                newTop.style.filter = '';
+
+                // 開始逐漸顯示文字
+                startRevealAnimation(newTop);
+            } else {
+                // 如果找不到底層卡片，則完整重建
+                renderFullStack();
+                return;
+            }
+
+            // 建立新的底層卡片
+            const bottomCard = createCardElement(nextPoemIndex);
+            bottomCard.id = 'bottomCard';
+            bottomCard.style.zIndex = 1;
+            bottomCard.style.transform = 'scale(0.9)';
+            bottomCard.style.filter = 'brightness(0.7)';
+            // 插入到最前面（底層）
+            container.insertBefore(bottomCard, container.firstChild);
+        } else {
+            renderFullStack();
+        }
+    }
+
+    function renderFullStack() {
         container.innerHTML = '';
 
         // 1. 底層卡片（下一張預覽）
-        const nextPoemIndex = (currentPoemIndex + 1) % POEMS.length;
         const bottomCard = createCardElement(nextPoemIndex);
         bottomCard.id = 'bottomCard';
         bottomCard.style.zIndex = 1;
@@ -75,8 +112,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 填充詩詞元資訊
         const titleEl = cardInner.querySelector('.poem-title');
         const authorEl = cardInner.querySelector('.poem-author');
-        titleEl.textContent = (poem.title && poem.title.trim()) 
-            ? poem.title 
+        titleEl.textContent = (poem.title && poem.title.trim())
+            ? poem.title
             : (Array.isArray(poem.content) && poem.content.length ? poem.content[0] : "無題");
         authorEl.textContent = `${poem.dynasty || ''} · ${poem.author || '佚名'}`;
         titleEl.setAttribute('data-poem-id', poem.id);
@@ -92,10 +129,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 將每個字符包裝成 span，以便逐字顯示
             const chars = line.text.split('');
-            chars.forEach(char => {
+            const totalChars = chars.length;
+
+            // 決定起始顯示的字（2個）
+            const initialCount = Math.min(2, totalChars);
+            const shuffledIndices = shuffleArray([...Array(totalChars).keys()]);
+            const initialSet = new Set(shuffledIndices.slice(0, initialCount));
+
+            chars.forEach((char, idx) => {
                 const charSpan = document.createElement('span');
                 charSpan.className = 'char';
-                charSpan.textContent = char;
+
+                // 如果是起初始顯，直接加上 visible 和 instant
+                if (initialSet.has(idx)) {
+                    charSpan.classList.add('visible', 'instant');
+                }
+
+                // 預留位置的方塊
+                const placeholder = document.createElement('span');
+                placeholder.className = 'char-placeholder';
+                placeholder.textContent = '□';
+                charSpan.appendChild(placeholder);
+
+                // 實際的文字
+                const charInner = document.createElement('span');
+                charInner.className = 'char-inner';
+                charInner.textContent = char;
+                charSpan.appendChild(charInner);
+
                 lineDiv.appendChild(charSpan);
             });
 
@@ -109,6 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 文字逐漸顯示動畫 (REVEAL ANIMATION)
     // ---------------------------------------------------------
     function startRevealAnimation(card) {
+        // 設定初始顯示速度
+        card.style.setProperty('--reveal-duration', '2.5s');
         // 清除之前的所有計時器
         revealTimeouts.forEach(timeout => clearTimeout(timeout));
         revealTimeouts = [];
@@ -120,25 +183,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 為每一句詩設定顯示邏輯
         poemLines.forEach((line, lineIndex) => {
-            const chars = Array.from(line.querySelectorAll('.char'));
-            const totalChars = chars.length;
+            // 只抓取尚未顯示的字
+            const chars = Array.from(line.querySelectorAll('.char:not(.visible)'));
 
-            // 一開始每句只顯示兩個字（隨機選擇）
-            const initialCount = Math.min(2, totalChars);
-            const shuffledIndices = shuffleArray([...Array(totalChars).keys()]);
-
-            // 顯示前兩個隨機字符
-            for (let i = 0; i < initialCount; i++) {
-                chars[shuffledIndices[i]].classList.add('visible');
-            }
-
-            // 剩餘的字符需要逐漸顯示
-            const remainingIndices = shuffledIndices.slice(initialCount);
-
-            // 將剩餘字符加入全域隱藏列表
-            remainingIndices.forEach(idx => {
+            // 將所有隱藏字符加入全域隱藏列表
+            chars.forEach(element => {
                 hiddenChars.push({
-                    element: chars[idx],
+                    element: element,
                     lineIndex: lineIndex
                 });
             });
@@ -173,7 +224,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function accelerateReveal() {
         if (isShaking) return; // 已經在加速中
 
+        const card = document.getElementById('topCard');
+        if (!card) return;
+
         isShaking = true;
+        // 加速時縮短淡入時間
+        card.style.setProperty('--reveal-duration', '0.8s');
 
         // 清除所有現有的計時器
         revealTimeouts.forEach(timeout => clearTimeout(timeout));
@@ -314,14 +370,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 切換到下一張卡片
             setTimeout(() => {
-                if (dir > 0) {
-                    // 向右滑：下一首詩
-                    currentPoemIndex = (currentPoemIndex + 1) % POEMS.length;
-                } else {
-                    // 向左滑：上一首詩
-                    currentPoemIndex = (currentPoemIndex - 1 + POEMS.length) % POEMS.length;
-                }
-                renderStack();
+                // 無論左右滑動，都平滑銜接底層預覽卡片，並產生新的預覽
+                currentPoemIndex = nextPoemIndex;
+                nextPoemIndex = Math.floor(Math.random() * POEMS.length);
+                renderStack(true);
             }, 300);
         } else {
             // 回彈

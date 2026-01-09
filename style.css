@@ -5,7 +5,7 @@
    ========================================= */
 
 :root {
-    --bg-color: #5d1818;
+    --bg-color: hsl(0, 60%, 24%);
     /* 1. Dark Red Background */
     --font-main: 'Noto Serif TC', serif;
 }
@@ -39,10 +39,12 @@ body {
 #cardContainer {
     position: relative;
     /* 宽高由 responsive.js 动态设置，保持 5:8 比例 */
-    perspective: 640px;
-    /* 使用固定尺寸单位，不受浏览器缩放影响 */
-    width: 400px;
-    height: 640px;
+    perspective: 1000px;
+    /* 增加透視感 */
+    width: var(--responsive-width, 400px);
+    height: var(--responsive-height, 640px);
+    margin: 0 auto;
+    transition: width 0.3s ease, height 0.3s ease;
 }
 
 /* Card Styling with Dynamic Hue */
@@ -67,7 +69,7 @@ body {
     color: var(--main-text-color);
 
     border-radius: 1rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.5);
     display: flex;
     padding: 1rem 1.5rem;
     transition: transform 0.1s linear, opacity 0.3s ease;
@@ -82,22 +84,29 @@ body {
 /* Layout Columns */
 .col-left,
 .col-right {
-    flex: 0 0 10px;/* 寬度很窄，適合垂直文字 */
+    flex: 0 0 0.6rem;
+    /* 寬度很窄，適合垂直文字 */
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;  /* 改為 flex-start，方便用 margin auto 推底部 */
-    padding: 0px 0; /* 上下 padding 調整美觀 */
-    height: 100%;  /* 確保有完整高度 */
+    justify-content: flex-start;
+    /* 改為 flex-start，方便用 margin auto 推底部 */
+    padding: 0 0;
+    /* 上下 padding 調整美觀 */
+    height: 100%;
+    /* 確保有完整高度 */
 }
 
 
 /* ============ 右欄：農曆資訊和節日容器直排靠頂部 ============ */
 .col-right {
     display: flex;
-    flex-direction: row; /* 在 vertical-rl 模式下，row 表示垂直排列 */
+    flex-direction: row;
+    /* 在 vertical-rl 模式下，row 表示垂直排列 */
     writing-mode: vertical-rl;
-    gap: 1rem; /* 每個之間的空白間距 */
-    justify-content: flex-start; /* 靠上方 */
+    gap: 1rem;
+    /* 每個之間的空白間距 */
+    justify-content: flex-start;
+    /* 靠上方 */
     font-size: 1.2rem;
     color: var(--main-text-color);
 }
@@ -114,41 +123,54 @@ body {
 /* Holidays (Right Col) */
 .holidays-container {
     font-weight: bold;
-    white-space: nowrap; /* 防止换列 */
-    overflow: hidden; /* 隐藏超出部分 */
-    text-overflow: ellipsis; /* 超出显示省略号 */
+    white-space: nowrap;
+    /* 防止换列 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    text-overflow: ellipsis;
+    /* 超出显示省略号 */
     writing-mode: vertical-rl;
 }
 
 /* ============ 左欄：三個元素直排靠底部 ============ */
 .col-left {
-    justify-content: flex-end; /* 將內容推到底部 */
+    justify-content: flex-end;
+    /* 將內容推到底部 */
 }
 
 /* 左邊詩名作者名 Metadata Vertical (Left Column) */
 .poem-meta-and-logo-left {
     display: flex;
-    flex-direction: row; /* 在 vertical-rl 模式下，row 表示垂直排列，形成同一行 */
-    writing-mode: vertical-rl; /* 整體直排 */
-    gap: 1rem; /* 每個之間的空白間距 */
+    flex-direction: row;
+    /* 在 vertical-rl 模式下，row 表示垂直排列，形成同一行 */
+    writing-mode: vertical-rl;
+    /* 整體直排 */
+    gap: 1rem;
+    /* 每個之間的空白間距 */
     color: var(--main-text-color);
     font-size: 1.2rem;
-    padding-bottom: 1rem; /* 距離底邊一點內縮 */
+    padding-bottom: 1rem;
+    /* 距離底邊一點內縮 */
 }
 
 .poem-title,
 .poem-author {
     font-size: 1.2rem;
     opacity: 1;
-    white-space: nowrap; /* 防止换列 */
-    overflow: hidden; /* 隐藏超出部分 */
-    text-overflow: ellipsis; /* 超出显示省略号 */
+    white-space: nowrap;
+    /* 防止换列 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    text-overflow: ellipsis;
+    /* 超出显示省略号 */
     cursor: pointer;
     writing-mode: vertical-rl;
 }
+
 .poem-title {
     font-weight: bold;
 }
+
 /* Vertical Text Utilities */
 .vertical-text {
     writing-mode: vertical-rl;
@@ -170,9 +192,9 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 0px;
-    margin-bottom: 0px;
-    padding: 0 0px;
+    margin-top: 0rem;
+    margin-bottom: 0rem;
+    padding: 0 0rem;
     position: relative;
     z-index: 2;
     height: 100%;
@@ -215,15 +237,18 @@ body {
 .lucky-unlucky {
     display: flex;
     flex-direction: column;
-    gap: 0px;
+    gap: 0rem;
     /*宜忌與上面日期下面詩句的間隔*/
     margin-top: 1rem;
     margin-bottom: 1rem;
     width: 100%;
     align-items: center;
-    max-width: 320px; /* 限制宽度避免过长 */
-    max-height: 64px; /* 限制高度避免过长 */
-    overflow: hidden; /* 隐藏超出部分 */
+    max-width: 20rem;
+    /* 限制宽度避免过长 */
+    max-height: 3.6rem;
+    /* 限制高度避免过长 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
 }
 
 .activity {
@@ -261,10 +286,14 @@ body {
 .activity .value {
     font-weight: 500;
     font-size: 1rem;
-    max-width: 200px; /* 限制宽度避免过长 */
-    overflow: hidden; /* 隐藏超出部分 */
-    text-overflow: ellipsis; /* 超出显示省略号 */
-    white-space: nowrap; /* 防止换列 */
+    max-width: 12rem;
+    /* 限制宽度避免过长 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    text-overflow: ellipsis;
+    /* 超出显示省略号 */
+    white-space: nowrap;
+    /* 防止换列 */
 }
 
 /* Animation Classes */
@@ -292,7 +321,7 @@ body {
     position: relative;
     overflow: hidden;
     /* Prevent spill */
-    min-height: 160px;
+    min-height: 10rem;
 }
 
 /*下方詩句*/
@@ -313,16 +342,19 @@ body {
        flex-direction: column stacks items along the Block axis (R->L) */
     flex-direction: column;
     align-content: center;
-    overflow: hidden; /* 隐藏超出的内容 */
+    overflow: hidden;
+    /* 隐藏超出的内容 */
+    /* 水平壓縮 0.9 倍 → 變窄長方形 */
+    transform: scaleX(0.9);
 }
 
 .poem-line {
     margin: 0 0.2rem;
     /* Reduced spacing between lines (columns) */
-    white-space: nowrap; /* 防止竖排文字换列 */
-    overflow: hidden; /* 隐藏超出部分 */
-    max-height: 16rem; /* 限制每列的最大高度 */
+    white-space: nowrap;
+    /* 防止竖排文字换列 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    max-height: 16rem;
+    /* 限制每列的最大高度 */
 }
-
-
-

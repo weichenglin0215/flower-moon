@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check URL params for specific poem
         const urlParams = new URLSearchParams(window.location.search);
         const poemId = urlParams.get('id');
-        
+
         if (poemId) {
             const index = POEMS.findIndex(p => p.id == poemId);
             if (index !== -1) {
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Random start if no ID provided
             currentPoemIndex = Math.floor(Math.random() * POEMS.length);
         }
-        
+
         renderPoem(currentPoemIndex);
         setupControls();
     } else {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Famous Lines (Rating >= 3)
         const famousLinesDiv = clone.querySelector('.famous-lines');
         let hasFamousLines = false;
-        
+
         if (poem.content && poem.line_ratings) {
             poem.content.forEach((line, i) => {
                 if (poem.line_ratings[i] >= 3) {
@@ -83,25 +83,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const h2 = phoneticSection.querySelector('h2');
             phoneticSection.innerHTML = '';
             phoneticSection.appendChild(h2);
-            
+
             const p = document.createElement('div');
             p.className = 'zhuyin-content';
             p.textContent = poem.zhuyin;
             phoneticSection.appendChild(p);
         } else {
-             const h2 = phoneticSection.querySelector('h2');
-             phoneticSection.innerHTML = '';
-             phoneticSection.appendChild(h2);
-             const p = document.createElement('p');
-             p.className = 'placeholder-text';
-             p.textContent = '（暫無注音）';
-             phoneticSection.appendChild(p);
+            const h2 = phoneticSection.querySelector('h2');
+            phoneticSection.innerHTML = '';
+            phoneticSection.appendChild(h2);
+            const p = document.createElement('p');
+            p.className = 'placeholder-text';
+            p.textContent = '（暫無注音）';
+            phoneticSection.appendChild(p);
         }
 
         // Clear and append
         poemDisplay.innerHTML = '';
         poemDisplay.appendChild(clone);
-        
+
         // Update URL without reloading (optional, good for sharing)
         const url = new URL(window.location);
         url.searchParams.set('id', poem.id);
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             do {
                 newIndex = Math.floor(Math.random() * POEMS.length);
             } while (newIndex === currentPoemIndex && POEMS.length > 1);
-            
+
             currentPoemIndex = newIndex;
             renderPoem(currentPoemIndex);
         });

@@ -81,15 +81,19 @@
          * @param {Function} callback - 选择后的回调函数，参数为选中的难度
          */
         show: function (gameName, callback) {
-            this.init(); // 确保已初始化
+            console.log(`[DifficultySelector] 正在開啟難度選擇器: ${gameName}`);
+            this.init(); // 確保已初始化
 
             this.currentGameName = gameName || 'Unknown Game';
             this.callback = callback;
 
-            this.overlay.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-
-            console.log(`[DifficultySelector] 显示难度选择器 for ${this.currentGameName}`);
+            if (this.overlay) {
+                this.overlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                console.log(`[DifficultySelector] 難度選擇器已顯示`);
+            } else {
+                console.error('[DifficultySelector] 無法顯示：DOM 未創建');
+            }
         },
 
         /**

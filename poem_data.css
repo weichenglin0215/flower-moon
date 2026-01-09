@@ -6,7 +6,7 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: lightgoldenrodyellow;
+    background-color: hsl(40, 50%, 80%);
     font-family: 'Noto Serif TC', serif;
     color: #333;
     display: flex;
@@ -17,15 +17,20 @@ body {
 
 .container {
     /* 宽高由 responsive.js 动态设置，保持 5:8 比例 */
-    padding: 80px 20px 40px; /* Top padding for menu */
+    width: var(--responsive-width, 400px);
+    height: var(--responsive-height, 640px);
+    margin: 0 auto;
+    padding: 80px 20px 40px;
+    /* Top padding for menu */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 20px;
-    background-color: lightgoldenrodyellow;
+    background-color: hsl(40, 50%, 80%);
     /* 允许内容滚动 */
     overflow-y: auto;
     overflow-x: hidden;
+    transition: width 0.3s ease, height 0.3s ease;
 }
 
 .poem-display {
@@ -35,10 +40,10 @@ body {
 }
 
 .poem-card {
-    background: lightgoldenrodyellow;
+    background: hsl(40, 50%, 80%);
     padding: 40px;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .poem-header {
@@ -50,23 +55,23 @@ body {
 
 .poem-type {
     display: inline-block;
-    background-color: #e0e0e0;
+    background-color: hsl(40, 50%, 80%);
     padding: 4px 12px;
     border-radius: 16px;
-    font-size: 1em;
+    font-size: 1rem;
     color: #666;
     margin-bottom: 12px;
 }
 
 .poem-title {
-    font-size: 1em;
+    font-size: 1rem;
     margin: 10px 0;
     color: #2c3e50;
 }
 
 .poem-meta {
     color: #444;
-    font-size: 1.1em;
+    font-size: 1rem;
     margin-top: 10px;
 }
 
@@ -78,14 +83,14 @@ body {
     margin-bottom: 0px;
     text-align: center;
     writing-mode: horizontal-tb;
-    font-size: 1.8rem;
+    font-size: 1rem;
     line-height: 0.5rem;
     letter-spacing: 0.1em;
 }
 
 .poem-content {
     writing-mode: horizontal-tb;
-    font-size: 1.8rem;
+    font-size: 1rem;
     line-height: 0.5rem;
     letter-spacing: 0.1em;
     margin: 0 0;
@@ -106,7 +111,7 @@ body {
 }
 
 .poem-section h2 {
-    font-size: 1.2em;
+    font-size: 1rem;
     color: #888;
     margin-bottom: 15px;
     border-left: 4px solid #3498db;
@@ -115,25 +120,25 @@ body {
 
 .poem-review {
     line-height: 1.6;
-    font-size: 1.1em;
+    font-size: 1rem;
 }
 
 .zhuyin-content {
     margin-top: 10px;
-    font-size: 1.1em;
+    font-size: 1rem;
     line-height: 1.8;
     white-space: pre-wrap;
 }
 
 .famous-lines {
-    background-color: #f9f9f9;
+    background-color: hsl(40, 50%, 80%);
     padding: 15px;
     border-radius: 8px;
     border-left: 4px solid #e74c3c;
 }
 
 .famous-line-item {
-    font-size: 1.2em;
+    font-size: 1rem;
     margin: 8px 0;
     color: #c0392b;
 }
@@ -152,12 +157,12 @@ body {
 .nav-btn {
     padding: 10px 20px;
     background-color: #3498db;
-    color: white;
+    color: hsl(0, 50%, 80%);
     border: none;
     border-radius: 6px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 1em;
+    font-size: 1.5rem;
     transition: background-color 0.2s;
 }
 
@@ -170,12 +175,12 @@ body {
     .poem-card {
         padding: 20px;
     }
-    
+
     .poem-title {
-        font-size: 1.6em;
+        font-size: 1rem;
     }
-    
+
     .poem-content {
-        font-size: 1.2em;
+        font-size: 1rem;
     }
 }

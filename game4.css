@@ -1,0 +1,321 @@
+/* =========================================
+   遊戲四：眾裡尋他千百度樣式
+   - 全獨立樣式表，供 game4.js 相關功能使用
+   ========================================= */
+
+.game4-overlay {
+    background: radial-gradient(circle at center, #2c3e50 0%, #1a1a1a 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: whitesmoke;
+    font-family: 'Noto Serif TC', serif;
+    zoom: 1;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /*position: relative;*/
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 遊戲頂部資訊列 (分數與控制) */
+.game4-header {
+    padding: 0.1rem 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 2.5rem;
+}
+
+.game4-sub-header {
+    padding: 0.1rem 0.4rem;
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 2.5rem;
+}
+
+.score-board {
+    color: hsl(40, 50%, 80%);
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.hearts {
+    display: flex;
+    gap: 0.1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.heart {
+    color: #ff4757;
+    font-size: 1.6rem;
+}
+
+.heart.empty {
+    opacity: 0.9;
+    font-weight: bold;
+}
+
+.heart.score {
+    color: hsl(60, 100%, 50%);
+    opacity: 1;
+    font-weight: bold;
+}
+
+/* 控制按鈕 */
+.game4-controls .nav-btn {
+    margin-left: 0.5rem;
+    padding: 2px 12px;
+    background: #a35d2d;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game4-controls .nav-btn:hover {
+    background: #c37d4d;
+}
+
+.game4-controls .close-btn {
+    background: #4b4b4b;
+}
+
+/* 遊戲主區域 */
+.game4-area {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+
+}
+
+/* 問題展示區 */
+.game4-question-area {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    box-shadow: inset 0 0 1rem rgba(0, 0, 0, 0.3);
+}
+
+.poem-lines {
+    color: hsl(40, 50%, 80%);
+    font-size: 2.2rem;
+    font-weight: bold;
+    line-height: 1.4;
+    text-align: center;
+    letter-spacing: 0.2rem;
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.poem-lines span.hidden-char {
+    color: #f39c12;
+    background: rgba(255, 255, 255, 0.0);
+    border-radius: 4px;
+    padding: 0 2px;
+}
+
+.poem-lines span.correct-char {
+    color: #2ecc71;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+}
+
+/* 題目句子的延遲顯示樣式 */
+.poem-lines.game4-hidden-line {
+    opacity: 0;
+}
+
+.poem-lines.game4-hidden-line.revealed {
+    opacity: 1;
+    transition: opacity 3s ease;
+}
+
+.poem-info {
+    position: absolute;
+    right: 0.8rem;
+    bottom: -1rem;
+    font-size: 1rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.75);
+    font-style: italic;
+}
+
+/* 答案矩陣與計時器 */
+.game4-answer-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grid-container {
+    position: relative;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+}
+
+#game4-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#game4-timer-path {
+    fill: none;
+    stroke: #ff4757;
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.1s linear;
+}
+
+.answer-grid {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.5rem;
+}
+
+.ans-btn {
+    width: 3.2rem;
+    height: 3.2rem;
+    background: hsl(34, 100%, 90%);
+    border: none;
+    border-radius: 10px;
+    font-size: 2rem;
+    color: #2f3542;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    transition: transform 0.1s, background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ans-btn:active {
+    transform: scale(0.92);
+}
+
+.ans-btn.disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.2);
+    cursor: default;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.ans-btn.correct {
+    background: hsl(145, 67%, 35%) !important;
+    color: white !important;
+}
+
+.ans-btn.wrong {
+    background: hsl(0, 100%, 60%) !important;
+    color: white !important;
+    animation: game4-shake 0.4s;
+}
+
+/* 訊息視窗 */
+.game4-message {
+    position: absolute;
+    top: 85%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: hsl(40, 50%, 90%);
+    padding: 0.5rem;
+    border-radius: 20px;
+    text-align: center;
+    color: #2f3542;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+    z-index: 100;
+    width: 70%;
+}
+
+.game4-message h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.5rem;
+}
+
+.game4-message p {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.game4-message .nav-btn {
+    background: hsl(145, 67%, 35%);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 8px 30px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game4-message .nav-btn:hover {
+    background: hsl(145, 67%, 50%);
+}
+
+@keyframes game4-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-6px);
+    }
+
+    75% {
+        transform: translateX(6px);
+    }
+}
+
+@media (max-width: 400px) {
+    .poem-lines {
+        font-size: 1.8rem;
+    }
+
+    .ans-btn {
+        width: 2.8rem;
+        height: 2.8rem;
+        font-size: 1.5rem;
+    }
+}
+
+/* Flying Star Animation */
+.flying-star {
+    position: fixed;
+    z-index: 3000;
+    font-size: 2rem;
+    color: hsl(60, 100%, 50%);
+    /*text-shadow: 0 0 10px rgba(241, 196, 15, 0.8), 0 0 20px rgba(241, 196, 15, 0.4);*/
+    pointer-events: none;
+    will-change: transform, opacity;
+}

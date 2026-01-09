@@ -59,6 +59,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game2-container';
+            //檢查responsive.css是否有包括game2 - overlay.aspect - 5 - 8
             div.className = 'game2-overlay aspect-5-8 hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
@@ -142,7 +143,9 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            this.container.classList.add('hidden');
+            if (this.container) {
+                this.container.classList.add('hidden');
+            }
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
             // 恢复其他内容

@@ -35,30 +35,19 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.1);
     z-index: 10;
     width: 100%;
-    max-width: 400px;
-    max-height: 40px;
-    min-width: 400px;
-    min-height: 40px;
+    height: 2.5rem;
 }
 
 .game1-sub-header {
-    padding: 0.1rem 0.4rem;
-    display: flex;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.1);
-    z-index: 9;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
     width: 100%;
-    max-width: 400px;
-    max-height: 40px;
-    min-width: 400px;
-    min-height: 40px;
+    height: 2.5rem;
 }
 
 .score-board {
+    color: hsl(30, 75%, 20%);
     font-size: 1.5rem;
     font-weight: bold;
 }
@@ -76,7 +65,7 @@
 }
 
 .heart.empty {
-    opacity: 0.5;
+    opacity: 0.7;
 }
 
 /* 控制按鈕（重新開始／退出） */
@@ -108,80 +97,70 @@
     justify-content: space-around;
     padding: 0.1rem;
     position: relative;
-    max-width: 400px;
-    max-height: 560px;
-    min-width: 400px;
-    min-height: 560px;
+    width: 100%;
+    height: 100%;
 }
 
-/* 計時圓環容器 */
-.timer-container {
+/* 計時器外環容器 */
+.options-container {
     position: relative;
-    width: 6rem;
-    height: 6rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
-    /* 水平居中 */
-    align-self: center;
-    /* 在 flex 容器中居中 */
+    bottom: 15%;
+    padding: 0.5rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    /* 讓 SVG 定位 */
 }
 
-.timer-svg {
-    transform: rotate(-90deg);
+/* SVG 覆蓋層 */
+#game1-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* 不干擾點擊 */
 }
 
-.timer-bg {
+#game1-timer-path {
     fill: none;
-    /* 暗紅色 */
     stroke: #8b0000;
-    stroke-width: 6;
-}
-
-.timer-bar {
-    fill: none;
-    stroke: #eee;
-
     stroke-width: 8;
-    stroke-linecap: round;
+    stroke-linecap: square;
     transition: stroke-dashoffset 0.1s linear;
 }
 
-.timer-text {
-    position: absolute;
-    font-size: 2.0rem;
-    font-weight: bold;
-    color: #410000;
-}
-
 /* 問題區域 */
-.question-area {
+.game1-question-area {
     text-align: center;
     width: 100%;
     margin: 0px 0;
     padding: 0px 1rem;
-    color: #462909;
+    color: hsl(30, 75%, 20%);
 }
 
 .poem-lines {
+    text-align: center;
     font-size: 2.2rem;
     font-weight: bold;
     line-height: 1.2;
-    margin-bottom: 10px;
+    margin-bottom: 0.6rem;
     letter-spacing: 0.3rem;
+    color: hsl(30, 75%, 20%);
 }
 
 
 .poem-info {
     text-align: right;
     font-size: 1rem;
-    margin-top: 5px;
+    margin-top: 0.3rem;
+    color: hsl(30, 75%, 20%);
 }
 
 /* 答案區域 */
 .options-area {
     width: 100%;
+    top: 10%;
     max-width: 100%;
     margin: auto;
     padding: 0px 0rem;
@@ -193,16 +172,18 @@
 .option-btn {
     padding: 0rem 0rem;
     margin: 0.3rem 0.5rem;
+    padding: 0px 1.2rem;
     background: #fff9dd;
-    border: 3px solid #ddd;
+    border: 0.2rem solid #ddd;
     border-radius: 0.6rem;
     font-size: 1.8rem;
-    letter-spacing: 0.5rem;
+    letter-spacing: 0.3rem;
     min-height: 1rem;
+    min-width: 15rem;
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
-    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.5);
 }
 
 .option-btn:hover {
@@ -232,18 +213,17 @@
 /* 宣告成功失敗 */
 .game1-message {
     position: absolute;
-    top: 15%;
+    top: 88%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: rgba(255, 255, 255, 0.7);
-    padding: 1rem;
+    padding: 0.5rem;
     border-radius: 1rem;
     text-align: center;
     color: #333;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
     z-index: 20;
     width: 80%;
-    max-width: 400px;
 }
 
 .game1-message h2 {
@@ -252,7 +232,7 @@
 }
 
 .game1-message p {
-    font-size: 1.2rem;
+    font-size: 1rem;
     margin: 0.1rem 0;
     white-space: pre-wrap;
 }
@@ -261,6 +241,7 @@
     background: #4CAF50;
     color: white;
     border: none;
+    border-radius: 24px;
     padding: 0.3rem 1rem;
     font-size: 1.2rem;
     margin-top: 0.1rem;

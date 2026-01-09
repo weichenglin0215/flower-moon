@@ -1,5 +1,5 @@
 // ========================================
-// 漢堡選單統一管理模組
+// 漢堡選單與全域流程管理模組
 // ========================================
 
 (function () {
@@ -56,9 +56,9 @@
                 <span class="menu-number">5</span>
                 <span class="menu-text">字爬梯</span>
             </div>
-            <div class="menu-item menu-item-disabled" data-page="coming-soon-6">
+            <div class="menu-item" data-page="game4">
                 <span class="menu-number">6</span>
-                <span class="menu-text">敬請期待...</span>
+                <span class="menu-text">眾裡尋他千百度</span>
             </div>
             <div class="menu-item menu-item-disabled" data-page="coming-soon-7">
                 <span class="menu-number">7</span>
@@ -68,13 +68,13 @@
                 <span class="menu-number">8</span>
                 <span class="menu-text">敬請期待...</span>
             </div>
-            <div class="menu-item menu-item-disabled" data-page="coming-soon-9">
+            <div class="menu-item" data-page="author-biography">
                 <span class="menu-number">9</span>
-                <span class="menu-text">敬請期待...</span>
+                <span class="menu-text">名人列傳</span>
             </div>
             <div class="menu-item" data-page="poem-data">
                 <span class="menu-number">10</span>
-                <span class="menu-text">詩詞資料</span>
+                <span class="menu-text">詩詞資料集</span>
             </div>
             <div class="menu-item" data-page="fullscreen">
                 <span class="menu-number">11</span>
@@ -91,35 +91,54 @@
         document.body.insertBefore(hamburgerBtn, document.body.firstChild);
         document.body.insertBefore(menuPanel, document.body.firstChild);
         document.body.insertBefore(menuOverlay, document.body.firstChild);
+    }
 
-        const poemOverlay = document.createElement('div');
-        poemOverlay.id = 'poemOverlay';
-        poemOverlay.className = 'poem-overlay';
-        poemOverlay.innerHTML = `
-            <div class="poem-dialog" role="dialog" aria-modal="true">
-                <div class="poem-dialog-header">
-                    <button class="nav-btn" id="poemPrevBtn">上一首</button>
-                    <button class="nav-btn" id="poemRandomBtn">隨機</button>
-                    <button class="nav-btn" id="poemNextBtn">下一首</button>
-                    <button class="nav-btn close-btn" id="poemCloseBtn">關閉</button>
-                </div>
-                <div class="poem-dialog-body">
-                    <div class="poem-type" id="dlgType"></div>
-                    <h1 class="poem-title" id="dlgTitle"></h1>
-                    <div class="poem-meta"><span id="dlgDynasty"></span> <span id="dlgAuthor"></span></div>
-                    <div class="poem-content" id="dlgContent"></div>
-                    <div class="section-title">總評</div>
-                    <div id="dlgReview"></div>
-                    <div class="section-title">佳句賞析</div>
-                    <div class="famous-lines" id="dlgFamous"></div>
-                    <div class="section-title">注音說明</div>
-                    <div id="dlgZhuyin"></div>
-                    <div class="section-title">作者略傳</div>
-                    <p class="placeholder-text">（暫不實作）</p>
-                </div>
-            </div>`;
+    /**
+     * 核心管理器：關閉目前畫面上所有活動中的 Overlay、遊戲與對話框
+     * 確保各個功能不會重疊顯示
+     */
+    function closeAllActiveOverlays() {
+        console.log('[Menu] 正在執行全域清理...');
+        try {
+            // 1. 關閉難度選擇器
+            if (window.DifficultySelector && typeof window.DifficultySelector.hide === 'function') {
+                console.log('[Menu] 關閉難度選擇器');
+                window.DifficultySelector.hide();
+            }
 
-        document.body.appendChild(poemOverlay);
+            // 2. 關閉詩詞詳情對話框
+            if (window.PoemDialog && typeof window.PoemDialog.close === 'function') {
+                console.log('[Menu] 關閉詩詞詳情');
+                window.PoemDialog.close();
+            }
+
+            // 3. 停止所有正在運作的遊戲
+            ['Game1', 'Game2', 'Game3', 'Game4'].forEach(gameName => {
+                if (window[gameName] && typeof window[gameName].stopGame === 'function') {
+                    console.log(`[Menu] 停止 ${gameName}`);
+                    window[gameName].stopGame();
+                }
+            });
+
+            // 4. 隱藏名人列傳
+            if (window.AuthorBio && typeof window.AuthorBio.hide === 'function') {
+                console.log('[Menu] 隱藏名人列傳');
+                window.AuthorBio.hide();
+            }
+
+            // 5. 恢復主頁日曆容器的顯示狀態
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = '';
+            }
+
+            // 6. 重置 body 狀態
+            document.body.style.overflow = '';
+            document.body.classList.remove('overlay-active');
+            console.log('[Menu] 全域清理完成');
+        } catch (err) {
+            console.error('[Menu] 全域清理發生錯誤:', err);
+        }
     }
 
     function setupMenuEvents() {
@@ -128,7 +147,6 @@
         const menuOverlay = document.getElementById('menuOverlay');
         const menuItems = document.querySelectorAll('.menu-item');
 
-        // 切換選單
         function toggleMenu() {
             const isActive = menuPanel.classList.toggle('active');
             hamburgerBtn.classList.toggle('active');
@@ -136,7 +154,6 @@
             document.body.style.overflow = isActive ? 'hidden' : '';
         }
 
-        // 關閉選單
         function closeMenu() {
             menuPanel.classList.remove('active');
             hamburgerBtn.classList.remove('active');
@@ -144,229 +161,117 @@
             document.body.style.overflow = '';
         }
 
-        // 頁面切換
-        let currentPoemIndex = 0;
-
-        function openPoemDialogByIndex(index) {
-            if (typeof POEMS === 'undefined' || !POEMS.length) return;
-            currentPoemIndex = (index + POEMS.length) % POEMS.length;
-            const poem = POEMS[currentPoemIndex];
-            document.getElementById('dlgType').textContent = poem.type || '詩詞';
-            document.getElementById('dlgTitle').textContent = poem.title || '無題';
-            document.getElementById('dlgDynasty').textContent = poem.dynasty || '';
-            document.getElementById('dlgAuthor').textContent = poem.author || '佚名';
-            const contentDiv = document.getElementById('dlgContent');
-            contentDiv.innerHTML = '';
-            if (poem.content && Array.isArray(poem.content)) {
-                poem.content.forEach(line => {
-                    const div = document.createElement('div');
-                    div.className = 'poem-line';
-                    div.textContent = line;
-                    contentDiv.appendChild(div);
-                });
-            }
-
-            // Review
-            const reviewDiv = document.getElementById('dlgReview');
-            if (poem.rating) {
-                reviewDiv.textContent = poem.rating;
-                reviewDiv.className = '';
-                reviewDiv.style.color = '#333';
-            } else {
-                reviewDiv.className = 'placeholder-text';
-                reviewDiv.textContent = '（暫無總評）';
-            }
-
-            const famousDiv = document.getElementById('dlgFamous');
-            famousDiv.innerHTML = '';
-            let hasFamous = false;
-            if (poem.content && poem.line_ratings) {
-                poem.content.forEach((line, i) => {
-                    if (poem.line_ratings[i] >= 3) {
-                        const d = document.createElement('div');
-                        d.className = 'famous-line-item';
-                        d.textContent = line;
-                        famousDiv.appendChild(d);
-                        hasFamous = true;
-                    }
-                });
-            }
-            if (!hasFamous) {
-                famousDiv.innerHTML = '<p class="placeholder-text">此詩尚無評分較高的佳句。</p>';
-            }
-
-            // Zhuyin
-            const zhuyinDiv = document.getElementById('dlgZhuyin');
-            if (poem.zhuyin) {
-                zhuyinDiv.textContent = poem.zhuyin;
-                zhuyinDiv.style.color = '#333';
-            } else {
-                zhuyinDiv.innerHTML = '<p class="placeholder-text">（暫無注音）</p>';
-            }
-
-            document.getElementById('poemOverlay').classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function openPoemDialogById(id) {
-            if (typeof POEMS === 'undefined' || !POEMS.length) return;
-            const idx = POEMS.findIndex(p => p.id == id);
-            if (idx !== -1) openPoemDialogByIndex(idx);
-        }
-
-        function closePoemDialog() {
-            document.getElementById('poemOverlay').classList.remove('active');
-            document.body.style.overflow = '';
-        }
-
         function switchPage(pageName) {
+            console.log(`[Menu] 嘗試切換頁面: ${pageName}`);
             closeMenu();
 
-            // 根據選擇的頁面跳轉或執行操作
-            switch (pageName) {
-                case 'calendar':
-                    if (window.location.pathname.includes('index.html') ||
-                        window.location.pathname.endsWith('/') ||
-                        window.location.pathname.endsWith('/FlowerMoon_web') ||
-                        window.location.pathname.endsWith('/FlowerMoon_web/')) {
-                        // 已經在日曆頁面，關閉所有遊戲、難度選擇器和詩詞資料並顯示日曆
-                        
-                        // 關閉難度選擇器
-                        if (window.DifficultySelector && typeof window.DifficultySelector.hide === 'function') {
-                            window.DifficultySelector.hide();
-                        }
-                        
-                        // 關閉詩詞資料畫面
-                        closePoemDialog();
-                        
-                        // 關閉所有遊戲
-                        if (window.Game1 && typeof window.Game1.stopGame === 'function') {
-                            window.Game1.stopGame();
-                        }
-                        if (window.Game2 && typeof window.Game2.stopGame === 'function') {
-                            window.Game2.stopGame();
-                        }
-                        if (window.Game3 && typeof window.Game3.stopGame === 'function') {
-                            window.Game3.stopGame();
-                        }
-                        
-                        // 顯示日曆容器
-                        const cardContainer = document.getElementById('cardContainer');
-                        if (cardContainer) {
-                            cardContainer.style.display = '';
-                        }
-                        console.log('已關閉所有遊戲、難度選擇器和詩詞資料，返回日曆頁面');
-                    } else {
-                        window.location.href = 'index.html';
-                    }
-                    break;
-                case 'cards':
-                    if (window.location.pathname.includes('cards.html')) {
-                        // 已經在卡片頁面
-                        console.log('已在卡片頁面');
-                    } else {
-                        window.location.href = 'cards.html';
-                    }
-                    break;
-                case 'game1':
-                    if (window.Game1) {
-                        window.Game1.show();
-                    } else {
-                        window.location.href = 'index.html?game=1';
-                    }
-                    break;
-                case 'game2':
-                    if (window.Game2) {
-                        window.Game2.show();
-                    } else {
-                        window.location.href = 'index.html?game=2';
-                    }
-                    break;
-                case 'game3':
-                    if (window.Game3) {
-                        window.Game3.show();
-                    } else {
-                        // 如果在其他頁面且沒有載入 Game3，則跳轉到首頁並帶參數
-                        window.location.href = 'index.html?game=3';
-                    }
-                    break;
-                case 'coming-soon-6':
-                case 'coming-soon-7':
-                case 'coming-soon-8':
-                case 'coming-soon-9':
-                    console.log('此功能敬請期待...');
-                    break;
-                case 'poem-data':
-                    if (typeof POEMS !== 'undefined' && POEMS.length) {
-                        const start = Math.floor(Math.random() * POEMS.length);
-                        openPoemDialogByIndex(start);
-                    }
-                    break;
-                case 'fullscreen':
-                    const docEl = document.documentElement;
-                    const requestFS = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
-                    const exitFS = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-                    const fsElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            // 關閉所有覆蓋層 (例外情況：如果未來有需要共存的頁面)
+            closeAllActiveOverlays();
 
-                    if (!fsElement) {
-                        if (requestFS) {
-                            requestFS.call(docEl).catch(err => {
-                                console.error(`全螢幕嘗試失敗: ${err.message}`);
-                            });
+            try {
+                switch (pageName) {
+                    case 'calendar':
+                        console.log('[Menu] 切換至日曆');
+                        const isHome = window.location.pathname.includes('index.html') ||
+                            window.location.pathname === '/' ||
+                            window.location.pathname.endsWith('/FlowerMoon_web/') ||
+                            window.location.pathname.endsWith('/FlowerMoon_web');
+                        if (isHome) {
+                            console.log('[Menu] 已經在首頁');
                         } else {
-                            // iPhone Safari/Chrome 不支援對一般的 element 用 requestFullscreen
-                            alert("iPhone 的瀏覽器（如 Safari/Chrome）目前限制僅影片可進入程式全螢幕。若要獲得全螢幕感受，建議點選瀏覽器下方的「分享」按鈕，並選擇「加入主畫面」將此網頁存為 App。");
+                            window.location.href = 'index.html';
                         }
-                    } else {
-                        if (exitFS) {
-                            exitFS.call(document);
+                        break;
+                    case 'cards':
+                        console.log('[Menu] 切換至卡片');
+                        if (window.location.pathname.includes('cards.html')) {
+                            // 已經在卡片頁
+                        } else {
+                            window.location.href = 'cards.html';
                         }
-                    }
-                    break;
+                        break;
+                    case 'game1':
+                        console.log('[Menu] 開啟 慢思快選');
+                        if (window.Game1) {
+                            window.Game1.show();
+                        } else {
+                            console.log('[Menu] 跳轉至首頁開啟 Game 1');
+                            window.location.href = 'index.html?game=1';
+                        }
+                        break;
+                    case 'game2':
+                        console.log('[Menu] 開啟 飛花令');
+                        if (window.Game2) window.Game2.show();
+                        else window.location.href = 'index.html?game=2';
+                        break;
+                    case 'game3':
+                        console.log('[Menu] 開啟 字爬梯');
+                        if (window.Game3) window.Game3.show();
+                        else window.location.href = 'index.html?game=3';
+                        break;
+                    case 'game4':
+                        console.log('[Menu] 開啟 眾裡尋他千百度');
+                        if (window.Game4) window.Game4.show();
+                        else window.location.href = 'index.html?game=4';
+                        break;
+                    case 'author-biography':
+                        console.log('[Menu] 開啟 名人列傳');
+                        if (window.AuthorBio) window.AuthorBio.show();
+                        else {
+                            // 如果在 cards.html 等地方，跳轉回首頁帶參數開啟名人列傳
+                            window.location.href = 'index.html?page=author-bio';
+                        }
+                        break;
+                    case 'poem-data':
+                        console.log('[Menu] 跳轉至 詩詞資料集');
+                        window.location.href = 'poem_data.html';
+                        break;
+                    case 'fullscreen':
+                        console.log('[Menu] 切換全螢幕');
+                        toggleFullscreen();
+                        break;
+                    default:
+                        console.warn('[Menu] 未知的頁面名稱:', pageName);
+                }
+            } catch (err) {
+                console.error('[Menu] 切換頁面發生錯誤:', err);
             }
         }
 
-        // 事件監聽器
+        function toggleFullscreen() {
+            const docEl = document.documentElement;
+            const requestFS = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+            const exitFS = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+            const fsElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+
+            if (!fsElement) {
+                if (requestFS) {
+                    requestFS.call(docEl).catch(err => {
+                        console.error(`全螢幕嘗試失敗: ${err.message}`);
+                    });
+                } else {
+                    alert("iPhone Safari 目前僅限制影片可全螢幕。建議點選「分享」並選擇「加入主畫面」將此網頁存為 App 獲得類全螢幕體驗。");
+                }
+            } else {
+                if (exitFS) exitFS.call(document);
+            }
+        }
+
         hamburgerBtn.addEventListener('click', toggleMenu);
         menuOverlay.addEventListener('click', closeMenu);
 
         menuItems.forEach(item => {
             item.addEventListener('click', () => {
-                // 如果是禁用的項目，不執行切換
-                if (item.classList.contains('menu-item-disabled')) {
-                    return;
-                }
+                if (item.classList.contains('menu-item-disabled')) return;
                 const pageName = item.getAttribute('data-page');
                 switchPage(pageName);
             });
         });
-
-        document.getElementById('poemCloseBtn').addEventListener('click', closePoemDialog);
-        document.getElementById('poemPrevBtn').addEventListener('click', () => {
-            if (typeof POEMS === 'undefined' || !POEMS.length) return;
-            openPoemDialogByIndex(currentPoemIndex - 1);
-        });
-        document.getElementById('poemNextBtn').addEventListener('click', () => {
-            if (typeof POEMS === 'undefined' || !POEMS.length) return;
-            openPoemDialogByIndex(currentPoemIndex + 1);
-        });
-        document.getElementById('poemRandomBtn').addEventListener('click', () => {
-            if (typeof POEMS === 'undefined' || !POEMS.length) return;
-            let idx;
-            do { idx = Math.floor(Math.random() * POEMS.length); } while (idx === currentPoemIndex && POEMS.length > 1);
-            openPoemDialogByIndex(idx);
-        });
-
-        document.getElementById('poemOverlay').addEventListener('click', (e) => {
-            if (e.target.id === 'poemOverlay') closePoemDialog();
-        });
-
-        document.addEventListener('click', (e) => {
-            const t = e.target;
-            if (t.classList && (t.classList.contains('poem-title') || t.classList.contains('poem-author'))) {
-                const id = t.getAttribute('data-poem-id');
-                if (id) openPoemDialogById(id);
-            }
-        });
     }
+
+    // 暴露全域函數供外部（如頁面中的連結）呼叫
+    window.MenuManager = {
+        closeAll: closeAllActiveOverlays
+    };
+
 })();

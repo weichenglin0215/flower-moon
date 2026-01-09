@@ -215,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         topCard.style.transition = 'none';
 
         startX = getClientX(e);
+        currentX = startX;
     }
 
     let lastDirection = 0; // 1 = 右 (明天), -1 = 左 (昨天)
@@ -546,11 +547,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 使用 Mulberry32 PRNG 算法，基於當天日期的種子產生高質量隨機數
         // seed 已經在外層定義為 y * 10000 + m * 100 + d (例如：20251223)
-        
+
         // Mulberry32 隨機數生成器 - 產生均勻分布的隨機數
         function createSeededRandom(baseSeed) {
             let state = baseSeed;
-            return function(offset = 0) {
+            return function (offset = 0) {
                 // 每次調用時使用不同的狀態
                 let t = state + offset * 1013904223;
                 t = Math.imul(t ^ t >>> 15, t | 1);
@@ -558,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return ((t ^ t >>> 14) >>> 0) / 4294967296;
             };
         }
-        
+
         const seededRandom = createSeededRandom(seed);
 
         // 從整個資料池中選擇宜忌，增加變化性
@@ -569,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const luckyCount = Math.floor(seededRandom(10) * 2) + 2; // 2-3 條
         const luckyStringMaxLength = 13;
         let luckyString = "";
-        
+
         // 從整個 luckyPool 中隨機選擇，不限於節氣範圍
         let attempts = 0;
         while (luckyItems.length < luckyCount && attempts < 100) {
@@ -587,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const unluckyCount = Math.floor(seededRandom(200) * 2) + 2; // 2-3 條
         const unluckyStringMaxLength = 13;
         let unluckyString = "";
-        
+
         // 從整個 unluckyPool 中隨機選擇，不限於節氣範圍
         attempts = 0;
         while (unluckyItems.length < unluckyCount && attempts < 100) {

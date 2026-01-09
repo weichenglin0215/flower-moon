@@ -44,8 +44,9 @@
             }
             this.container = document.getElementById('game1-container');
             this.game1Area = document.getElementById('game1-area');
-            this.timerBar = document.getElementById('game1-timer-bar');
-            this.timerText = document.getElementById('game1-timer-text');
+            this.container = document.getElementById('game1-container');
+            this.game1Area = document.getElementById('game1-area');
+            // Old timer references removed
 
             // 綁定按鈕
             document.getElementById('game1-restart-btn').addEventListener('click', () => this.restartGame());
@@ -59,6 +60,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game1-container';
+            //檢查responsive.css是否有包括game1 - overlay.aspect - 5 - 8
             div.className = 'game1-overlay aspect-5-8 hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
@@ -76,16 +78,6 @@
                 </div>
                 <div id="game1-area" class="game1-area">
                     <!-- 遊戲內容將在此生成 -->
-                    <!-- 倒數計時 -->
-                    <div class="timer-container">
-                        <svg class="timer-svg" width="80" height="80">
-                            <circle class="timer-bg" cx="40" cy="40" r="35"></circle>
-                            <circle id="game1-timer-bar" class="timer-bar" cx="40" cy="40" r="35" 
-                                stroke-dasharray="219.91" stroke-dashoffset="0"></circle>
-                        </svg>
-                        <div id="game1-timer-text" class="timer-text">00</div>
-                    </div>
-
                     <!-- 問題區域 -->
                     <div class="question-area">
                         <div id="game1-question-lines" class="poem-lines">
@@ -96,9 +88,16 @@
                         </div>
                     </div>
 
-                    <!-- 答案區域 -->
-                    <div id="game1-options" class="options-area">
-                        <!-- JS 動態插入 -->
+                    <!-- 答案區域 (含邊框倒數) -->
+                    <div class="game1-options-wrapper" style="flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;">
+                        <div id="game1-options-container" class="options-container">
+                            <svg id="game1-timer-ring">
+                                <rect id="game1-timer-path" x="4" y="4"></rect>
+                            </svg>
+                            <div id="game1-options" class="options-area">
+                                <!-- JS 動態插入 -->
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -188,7 +187,9 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            this.container.classList.add('hidden');
+            if (this.container) {
+                this.container.classList.add('hidden');
+            }
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
             // 恢復其他內容
@@ -376,6 +377,10 @@
             // 渲染
             const optDiv = document.getElementById('game1-options');
             optDiv.innerHTML = '';
+
+            // 每次生成選項時重置 SVG 大小
+            setTimeout(() => this.updateTimerRing(1), 0);
+
             finalOptions.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.className = 'option-btn';
@@ -388,43 +393,64 @@
 
         startTimer: function () {
             clearInterval(this.timerInterval);
-            this.timer = this.maxTimer; // 使用难度设置的时间
-            this.updateTimerUI();
+            const startTime = Date.now();
+            const duration = this.maxTimer * 1000;
 
             this.timerInterval = setInterval(() => {
-                this.timer--;
-                this.updateTimerUI();
-                if (this.timer <= 0) {
+                const elapsed = Date.now() - startTime;
+                const ratio = 1 - (elapsed / duration);
+
+                if (ratio <= 0) {
+                    this.updateTimerRing(0);
                     clearInterval(this.timerInterval);
                     this.mistakes++;
                     this.updateHearts();
-                    //this.updateLives();
-
-                    // 揭曉答案：將正確答案以 .hint 顯示
-                    const btns = document.querySelectorAll('#game1-options .option-btn');
-                    btns.forEach(btn => {
-                        const isCorrect = btn.dataset.isCorrect === 'true';
-                        if (isCorrect) btn.classList.add('hint');
-                        btn.disabled = true; // 禁用按鈕
-                    });
-
-                    // 稍微延遲顯示結束畫面，讓讀者看清答案
+                    // 揭曉答案
+                    this.revealAnswer(false);
+                    // 延遲顯示結束
                     setTimeout(() => {
                         this.gameOver(false, "時間到！");
                     }, 1500);
+                } else {
+                    this.updateTimerRing(ratio);
                 }
-            }, 1000);
+            }, 100);
         },
 
-        updateTimerUI: function () {
-            this.timerText.textContent = this.timer.toString().padStart(2, '0');
-            // SVG 圈圈：逆時針消失需要用負值
-            // 圓周長 = 2 * PI * r = 2 * 3.14159 * 35 ≈ 219.91
-            const circumference = 2 * Math.PI * 35;
-            // 從 0 開始，隨時間遞減到 -circumference（完全消失）
-            const progress = this.timer / this.maxTimer; // 剩余时间比例 1 -> 0
-            const offset = -circumference * (1 - progress); // 使用负值实现逆时针
-            this.timerBar.style.strokeDashoffset = offset;
+        updateTimerRing: function (ratio) {
+            const rect = document.getElementById('game1-timer-path');
+            const container = document.getElementById('game1-options-container');
+            if (!rect || !container) return;
+
+            const w = container.offsetWidth;
+            const h = container.offsetHeight;
+
+            // 更新 SVG 大小
+            const svg = document.getElementById('game1-timer-ring');
+            svg.setAttribute('width', w);
+            svg.setAttribute('height', h);
+
+            // 邊框預留 (stroke-width: 8) -> 4px margin inside
+            // Rect 實際大小
+            const rw = w - 8;
+            const rh = h - 8;
+            if (rw < 0 || rh < 0) return;
+
+            rect.setAttribute('width', rw);
+            rect.setAttribute('height', rh);
+
+            const perimeter = (rw + rh) * 2;
+            rect.style.strokeDasharray = perimeter;
+            rect.style.strokeDashoffset = perimeter * (1 - ratio);
+        },
+
+        revealAnswer: function (isWin) {
+            const btns = document.querySelectorAll('#game1-options .option-btn');
+            btns.forEach(btn => {
+                const isCorrect = btn.dataset.isCorrect === 'true';
+                if (isCorrect) btn.classList.add('hint');
+                btn.disabled = true;
+            });
         },
 
         handleChoice: function (isCorrect, btn) {
@@ -446,14 +472,11 @@
                     clearInterval(this.timerInterval);
 
                     // 揭曉答案：將正確答案以 .hint 顯示
-                    const btns = document.querySelectorAll('#game1-options .option-btn');
-                    btns.forEach(b => {
-                        if (b.dataset.isCorrect === 'true') b.classList.add('hint');
-                        b.disabled = true;
-                    });
+                    // 揭曉答案
+                    this.revealAnswer(false);
 
                     setTimeout(() => {
-                        this.gameOver(false, "挑戰失敗！正確答案是：\n" + this.correctAnswer);
+                        this.gameOver(false, "正確答案是：" + this.correctAnswer);
                     }, 1000);
                 }
             }

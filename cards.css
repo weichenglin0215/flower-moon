@@ -34,10 +34,12 @@ body {
 
 #cardContainer {
     position: relative;
-    /* 使用固定尺寸单位，不受浏览器缩放影响 */
-    width: 400px;
-    height: 640px;
-    perspective: 640px;
+    /* 螢幕比例與基礎尺寸由 responsive.js 管理 */
+    width: var(--responsive-width, 400px);
+    height: var(--responsive-height, 640px);
+    perspective: 1000px;
+    margin: 0 auto;
+    transition: width 0.3s ease, height 0.3s ease;
 }
 
 /* 卡片樣式 */
@@ -117,9 +119,11 @@ body {
     cursor: pointer;
     writing-mode: vertical-rl;
 }
-.poem-title{
+
+.poem-title {
     font-weight: bold;
 }
+
 /* Vertical Text Utilities */
 .vertical-text {
     writing-mode: vertical-rl;
@@ -135,6 +139,7 @@ body {
     letter-spacing: 0.5rem;
     white-space: nowrap;
 }
+
 .col-center {
     flex: 1;
     display: flex;
@@ -142,12 +147,12 @@ body {
     align-items: center;
     padding: 0 1rem;
     position: relative;
-        white-space: nowrap;
-            /* 防止换列 */
-            overflow: hidden;
-            /* 隐藏超出部分 */
-            text-overflow: ellipsis;
-            /* 超出显示省略号 */
+    white-space: nowrap;
+    /* 防止换列 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+    text-overflow: ellipsis;
+    /* 超出显示省略号 */
 }
 
 
@@ -179,18 +184,49 @@ body {
     transform: translateY(-1.8rem);
 }
 
-/* 字符逐漸顯示效果 */
+/* 每個字符的容器 */
 .char {
     display: inline-block;
-    opacity: 0;
-    transition: opacity 1.5s ease;
-    /* 長方形字符：寬度為高度的80% */
-    /*width: 0.8em;*/
+    position: relative;
     text-align: center;
+    /* 不再使用整體的 opacity，改由內層控制 */
 }
 
-.char.visible {
+/* 預留位置的方塊：50% 半透明 */
+.char-placeholder {
+    display: inline-block;
+    opacity: 0.25;
+    transition: opacity 0.5s ease;
+}
+
+/* 實際的文字內容：初始隱藏，逐字慢慢顯示 */
+.char-inner {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    /* 動態決定顯示速度（預設 2.5s） */
+    transition: opacity var(--reveal-duration, 2.5s) ease;
+}
+
+/* 當 visible 類別被加入後：方塊消失，文字顯現 */
+.char.visible .char-placeholder {
+    opacity: 0;
+}
+
+.char.visible .char-inner {
     opacity: 1;
+}
+
+/* 初始顯示的字不需要過渡動畫 */
+.char.visible.instant .char-placeholder,
+.char.visible.instant .char-inner {
+    transition: none !important;
 }
 
 
