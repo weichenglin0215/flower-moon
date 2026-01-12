@@ -51,6 +51,7 @@
     color: hsl(40, 50%, 80%);
     font-size: 1.5rem;
     font-weight: bold;
+    padding-left: 3rem;
 }
 
 .hearts {

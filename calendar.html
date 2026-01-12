@@ -8,17 +8,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="花月">
-    <title>花月 Flower Moon</title>
-
-    <!-- 基礎樣式 -->
+    <title>日曆 - 花月 Flower Moon</title>
     <link rel="stylesheet" href="calendar.css">
     <link rel="stylesheet" href="menu.css">
     <link rel="stylesheet" href="responsive.css">
-    <link rel="stylesheet" href="author_bio.css">
     <link rel="stylesheet" href="poem_dialog.css">
-    <link rel="stylesheet" href="difficulty-selector.css">
-
-    <!-- 字體與外部庫 -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
 </head>
@@ -26,7 +20,7 @@
 <body>
     <!-- 選單會由 menu.js 動態插入 -->
 
-    <!-- 主要內容區域：日曆 (預設顯示) -->
+    <!-- 卡片堆疊容器 (Card Container) -->
     <div id="calendarCardContainer" class="aspect-5-8">
         <!-- JavaScript 會將卡片動態插入到這裡 -->
     </div>
@@ -75,23 +69,12 @@
         </div>
     </template>
 
-    <!-- 核心邏輯載入 -->
+    <!-- 載入資料 (Data) 與 程式邏輯 (Script) -->
     <script src="data/poems.js"></script>
     <script src="responsive.js"></script>
     <script src="poem_dialog.js"></script>
-    <script src="difficulty-selector.js"></script>
     <script src="menu.js"></script>
-
-    <!-- 主要功能模組 -->
     <script src="calendar.js"></script>
-    <script src="author_bio.js"></script>
-
-    <!-- 遊戲模組 (預載入) -->
-    <script src="game1.js"></script>
-    <script src="game2.js"></script>
-    <script src="game3.js"></script>
-    <script src="game4.js"></script>
-
 </body>
 
 </html>

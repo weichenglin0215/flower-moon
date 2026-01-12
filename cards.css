@@ -4,7 +4,7 @@
    - 漢堡選單樣式請見 menu.css
    ========================================= */
 :root {
-    --bg-color: #5d1818;
+    --bg-color: hsl(0, 60%, 24%);
     --font-main: 'Noto Serif TC', serif;
 }
 
@@ -48,17 +48,19 @@ body {
     /* 使用 inset 和 margin auto 实现居中 */
     inset: 0;
     margin: auto;
+
     /* 卡片是容器的90%，并居中显示 */
     width: 90%;
     height: 90%;
 
     --card-hue: 0;
     background-color: hsl(var(--card-hue), 18%, 72%);
+    /* 文字顏色：Same Hue, S 20%, L 20% */
     --main-text-color: hsl(var(--card-hue), 20%, 20%);
     color: var(--main-text-color);
 
     border-radius: 1rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.5);
     display: flex;
     padding: 1rem 1.5rem;
     transition: transform 0.1s linear, opacity 0.3s ease;
@@ -73,7 +75,7 @@ body {
 /* Layout Columns */
 .col-left,
 .col-right {
-    flex: 0 0 10px;
+    flex: 0 0 0.6rem;
     /* 寬度很窄，適合垂直文字 */
     display: flex;
     flex-direction: column;

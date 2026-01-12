@@ -126,10 +126,11 @@
                 window.AuthorBio.hide();
             }
 
-            // 5. 恢復主頁日曆容器的顯示狀態
-            const cardContainer = document.getElementById('cardContainer');
+            // 5. 確保主頁日曆或卡片容器被隱藏，避免遮擋遊戲或對話框
+            // 之後由具體的切換邏輯或遊戲 show() 決定何時顯示
+            const cardContainer = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
             if (cardContainer) {
-                cardContainer.style.display = '';
+                cardContainer.style.display = 'none';
             }
 
             // 6. 重置 body 狀態
@@ -172,12 +173,11 @@
                 switch (pageName) {
                     case 'calendar':
                         console.log('[Menu] 切換至日曆');
-                        const isHome = window.location.pathname.includes('index.html') ||
-                            window.location.pathname === '/' ||
-                            window.location.pathname.endsWith('/FlowerMoon_web/') ||
-                            window.location.pathname.endsWith('/FlowerMoon_web');
-                        if (isHome) {
-                            console.log('[Menu] 已經在首頁');
+                        const isCalendar = window.location.pathname.includes('calendar.html') || window.location.pathname.endsWith('/') || window.location.pathname.includes('index.html');
+                        if (isCalendar) {
+                            console.log('[Menu] 已經在主頁面，恢復顯示日曆');
+                            const container = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
+                            if (container) container.style.display = '';
                         } else {
                             window.location.href = 'index.html';
                         }
@@ -185,7 +185,9 @@
                     case 'cards':
                         console.log('[Menu] 切換至卡片');
                         if (window.location.pathname.includes('cards.html')) {
-                            // 已經在卡片頁
+                            console.log('[Menu] 已經在卡片頁面，恢復顯示');
+                            const container = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
+                            if (container) container.style.display = '';
                         } else {
                             window.location.href = 'cards.html';
                         }
@@ -195,7 +197,7 @@
                         if (window.Game1) {
                             window.Game1.show();
                         } else {
-                            console.log('[Menu] 跳轉至首頁開啟 Game 1');
+                            console.log('[Menu] 跳轉至主頁開啟 Game 1');
                             window.location.href = 'index.html?game=1';
                         }
                         break;
@@ -218,13 +220,18 @@
                         console.log('[Menu] 開啟 名人列傳');
                         if (window.AuthorBio) window.AuthorBio.show();
                         else {
-                            // 如果在 cards.html 等地方，跳轉回首頁帶參數開啟名人列傳
                             window.location.href = 'index.html?page=author-bio';
                         }
                         break;
                     case 'poem-data':
-                        console.log('[Menu] 跳轉至 詩詞資料集');
-                        window.location.href = 'poem_data.html';
+                        console.log('[Menu] 開啟 詩詞資料集彈窗');
+                        if (window.PoemDialog) {
+                            // 隨機開啟一首詩，模擬進入資料集
+                            const randomIdx = Math.floor(Math.random() * (window.POEMS ? window.POEMS.length : 1));
+                            window.PoemDialog.openByIndex(randomIdx);
+                        } else {
+                            console.error('[Menu] PoemDialog 未載入');
+                        }
                         break;
                     case 'fullscreen':
                         console.log('[Menu] 切換全螢幕');

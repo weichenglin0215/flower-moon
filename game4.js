@@ -22,11 +22,11 @@
         game4Area: null,
 
         difficultySettings: {
-            '小學': { time: 120, maxHideCount: 3, maxAddDecoyChars: 3, hideLines: 2, minRating: 7, maxMistakeCount: 14, showDelay: 2 },
-            '中學': { time: 90, maxHideCount: 5, maxAddDecoyChars: 3, hideLines: 2, minRating: 6, maxMistakeCount: 12, showDelay: 4 },
-            '高中': { time: 60, maxHideCount: 7, maxAddDecoyChars: 3, hideLines: 2, minRating: 5, maxMistakeCount: 10, showDelay: 8 },
-            '大學': { time: 45, maxHideCount: 10, maxAddDecoyChars: 6, hideLines: 0, minRating: 3, maxMistakeCount: 8, showDelay: 12 },
-            '研究所': { time: 30, maxHideCount: 14, maxAddDecoyChars: 10, hideLines: 3, minRating: 1, maxMistakeCount: 6, showDelay: 16 }
+            '小學': { time: 120, maxHideCount: 3, maxAddDecoyChars: 3, hideLines: 2, minRating: 7, maxMistakeCount: 14, showDelay: 10 },
+            '中學': { time: 90, maxHideCount: 5, maxAddDecoyChars: 3, hideLines: 2, minRating: 6, maxMistakeCount: 12, showDelay: 12 },
+            '高中': { time: 60, maxHideCount: 7, maxAddDecoyChars: 3, hideLines: 2, minRating: 5, maxMistakeCount: 10, showDelay: 16 },
+            '大學': { time: 45, maxHideCount: 10, maxAddDecoyChars: 6, hideLines: 0, minRating: 3, maxMistakeCount: 8, showDelay: 20 },
+            '研究所': { time: 30, maxHideCount: 14, maxAddDecoyChars: 10, hideLines: 3, minRating: 1, maxMistakeCount: 6, showDelay: 20 }
         },
 
         // 常用字庫 (用於生成干擾項)
@@ -495,6 +495,11 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);
+
+            // 立即顯示隱藏的題目內容
+            this.isRevealed = true;
+            this.cluesRevealed = true;
+            this.renderQuestion();
 
             // Snapshot time immediately so heart animation doesn't reduce time score
             const duration = this.timer * 1000;

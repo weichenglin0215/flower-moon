@@ -14,7 +14,6 @@
     justify-content: center;
     color: whitesmoke;
     font-family: 'Noto Serif TC', serif;
-
     /* 防止浏览器缩放影响布局 */
     zoom: 1;
     -webkit-text-size-adjust: 100%;
@@ -41,31 +40,12 @@
     height: 2.5rem;
 }
 
-.game1-sub-header {
-    width: 100%;
-    height: 2.5rem;
-}
 
 .score-board {
     color: hsl(30, 75%, 20%);
     font-size: 1.5rem;
     font-weight: bold;
-}
-
-.hearts {
-    display: flex;
-    gap: 0.1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.heart {
-    color: #f44336;
-    font-size: 1.6rem;
-}
-
-.heart.empty {
-    opacity: 0.7;
+    padding-left: 3rem;
 }
 
 /* 控制按鈕（重新開始／退出） */
@@ -88,30 +68,93 @@
     background: #555;
 }
 
-/* 遊戲主內容區域 */
-.game1-area {
-    flex: 1;
+/*紅心區域*/
+.game1-sub-header {
+    width: 100%;
+    height: 2.5rem;
+}
+
+.hearts {
     display: flex;
+    gap: 0.1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.heart {
+    color: #f44336;
+    font-size: 1.6rem;
+}
+
+.heart.empty {
+    opacity: 0.66;
+}
+
+
+/* 遊戲主區域 */
+.game1-area {
+    display: flex;
+    flex: 1;
     flex-direction: column;
-    align-items: center;
-    justify-content: space-around;
-    padding: 0.1rem;
+    overflow: hidden;
     position: relative;
+    padding: 0.5rem;
     width: 100%;
     height: 100%;
 }
 
-/* 計時器外環容器 */
-.options-container {
+/* 問題區域 */
+.game1-question-area {
+    text-align: center;
+    width: 100%;
+    margin: 0px 0;
+    padding: 0px 1rem;
+    color: hsl(30, 75%, 20%);
+}
+
+.game1-poem-lines {
+    font-size: 2.2rem;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.3rem;
+    color: hsl(30, 75%, 20%);
+    text-align: center;
+}
+
+
+.game1-poem-info {
+    text-align: right;
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    margin-right: 1rem;
+    color: hsl(30, 75%, 20%);
+}
+
+/* 答案區域 */
+.game1-answer-area {
+    padding: 0.1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    flex: 1;
+    /*top: 10%;
+    margin: auto;
+    flex-direction: column;
+    gap: 0.1rem;*/
+}
+
+.game1-answer-grid-container {
     position: relative;
-    bottom: 15%;
     padding: 0.5rem;
-    border-radius: 1rem;
     background: rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+    bottom: 15%;
     /* 讓 SVG 定位 */
 }
 
-/* SVG 覆蓋層 */
+/* 計時器外環 (SVG方式實現) */
 #game1-timer-ring {
     position: absolute;
     top: 0;
@@ -125,60 +168,32 @@
 #game1-timer-path {
     fill: none;
     stroke: #8b0000;
-    stroke-width: 8;
-    stroke-linecap: square;
+    stroke-width: 0.5rem;
+    stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
 }
 
-/* 問題區域 */
-.game1-question-area {
-    text-align: center;
-    width: 100%;
-    margin: 0px 0;
-    padding: 0px 1rem;
-    color: hsl(30, 75%, 20%);
+.game1-answer-grid {
+    display: grid;
+    margin: 0.5rem;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+    gap: 0.5rem;
+    /* 答案按鍵間距 */
 }
 
-.poem-lines {
-    text-align: center;
-    font-size: 2.2rem;
-    font-weight: bold;
-    line-height: 1.2;
-    margin-bottom: 0.6rem;
-    letter-spacing: 0.3rem;
-    color: hsl(30, 75%, 20%);
-}
-
-
-.poem-info {
-    text-align: right;
-    font-size: 1rem;
-    margin-top: 0.3rem;
-    color: hsl(30, 75%, 20%);
-}
-
-/* 答案區域 */
-.options-area {
-    width: 100%;
-    top: 10%;
-    max-width: 100%;
-    margin: auto;
-    padding: 0px 0rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-}
-
-.option-btn {
+.game1-option-btn {
     padding: 0rem 0rem;
     margin: 0.3rem 0.5rem;
     padding: 0px 1.2rem;
+    /*按鍵內文字左右空白寬度*/
     background: #fff9dd;
     border: 0.2rem solid #ddd;
     border-radius: 0.6rem;
     font-size: 1.8rem;
     letter-spacing: 0.3rem;
-    min-height: 1rem;
+    min-height: 3rem;
     min-width: 15rem;
     cursor: pointer;
     transition: all 0.2s;
@@ -186,25 +201,25 @@
     box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.5);
 }
 
-.option-btn:hover {
+.game1-option-btn:hover {
     border-color: #8b4513;
     background: #fffdf9;
 }
 
-.option-btn.correct {
+.game1-option-btn.correct {
     background: #d4edda;
     border-color: #28a745;
     color: #155724;
 }
 
-.option-btn.wrong {
+.game1-option-btn.wrong {
     background: #f8d7da;
     border-color: #dc3545;
     color: #721c24;
     animation: shake 0.5s;
 }
 
-.option-btn.hint {
+.game1-option-btn.hint {
     background: hsl(220, 41%, 88%);
     border-color: hsl(220, 61%, 41%);
     color: hsl(222, 61%, 21%);

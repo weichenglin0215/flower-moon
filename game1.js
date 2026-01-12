@@ -79,22 +79,22 @@
                 <div id="game1-area" class="game1-area">
                     <!-- 遊戲內容將在此生成 -->
                     <!-- 問題區域 -->
-                    <div class="question-area">
-                        <div id="game1-question-lines" class="poem-lines">
+                    <div class="game1-question-area">
+                        <div id="game1-question-lines" class="game1-poem-lines">
                             <!-- JS 動態插入 -->
                         </div>
-                        <div id="game1-poem-info" class="poem-info">
+                        <div id="game1-poem-info" class="game1-poem-info">
                             <!-- 詩名/朝代/作者 -->
                         </div>
                     </div>
 
                     <!-- 答案區域 (含邊框倒數) -->
-                    <div class="game1-options-wrapper" style="flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;">
-                        <div id="game1-options-container" class="options-container">
+                    <div class="game1-answer-area">
+                        <div id="game1-answer-grid-container" class="game1-answer-grid-container">
                             <svg id="game1-timer-ring">
                                 <rect id="game1-timer-path" x="4" y="4"></rect>
                             </svg>
-                            <div id="game1-options" class="options-area">
+                            <div id="game1-answer-grid" class="game1-answer-grid">
                                 <!-- JS 動態插入 -->
                             </div>
                         </div>
@@ -104,7 +104,7 @@
                 <div id="game1-message" class="game1-message hidden">
                     <h2 id="game1-msg-title">時間到！</h2>
                     <p id="game1-msg-content"></p>
-                    <button id="game1-msg-btn" class="nav-btn">再來一局</button>
+                    <button id="game1-msg-btn" class="nav-btn">勸君更進一杯酒</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -375,7 +375,7 @@
             finalOptions.sort(() => Math.random() - 0.5);
 
             // 渲染
-            const optDiv = document.getElementById('game1-options');
+            const optDiv = document.getElementById('game1-answer-grid');
             optDiv.innerHTML = '';
 
             // 每次生成選項時重置 SVG 大小
@@ -383,7 +383,7 @@
 
             finalOptions.forEach(opt => {
                 const btn = document.createElement('button');
-                btn.className = 'option-btn';
+                btn.className = 'game1-option-btn';
                 btn.textContent = opt.text;
                 btn.dataset.isCorrect = opt.isCorrect; // 標記是否正確
                 btn.addEventListener('click', () => this.handleChoice(opt.isCorrect, btn));
@@ -419,7 +419,7 @@
 
         updateTimerRing: function (ratio) {
             const rect = document.getElementById('game1-timer-path');
-            const container = document.getElementById('game1-options-container');
+            const container = document.getElementById('game1-answer-grid-container');
             if (!rect || !container) return;
 
             const w = container.offsetWidth;
@@ -445,7 +445,7 @@
         },
 
         revealAnswer: function (isWin) {
-            const btns = document.querySelectorAll('#game1-options .option-btn');
+            const btns = document.querySelectorAll('#game1-answer-grid .game1-option-btn');
             btns.forEach(btn => {
                 const isCorrect = btn.dataset.isCorrect === 'true';
                 if (isCorrect) btn.classList.add('hint');
@@ -518,11 +518,11 @@
 
             msgDiv.classList.remove('hidden');
             if (win) {
-                title.textContent = "恭喜獲勝！";
+                title.textContent = "恭喜過關！";
                 title.style.color = "#28a745";
-                content.textContent = "思緒敏捷，觀察入微！";
+                content.textContent = "更上一層樓！";
             } else {
-                title.textContent = "遊戲結束";
+                title.textContent = "再接再厲！";
                 title.style.color = "#dc3545";
                 content.textContent = reason;
             }

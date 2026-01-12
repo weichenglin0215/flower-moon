@@ -27,17 +27,16 @@
     background: linear-gradient(135deg, hsl(228, 34%, 42%) 0%, hsl(270, 34%, 42%) 100%);
     padding: 2rem 1rem;
     /* 內部邊框*/
-    border-radius: 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border-radius: 1.5rem;
+    box-shadow: 0 1.2rem 3.6rem rgba(0, 0, 0, 0.5);
     text-align: center;
-    max-width: 360px;
-    width: 90%;
+    width: 80%;
     animation: slideIn 0.3s ease-out;
 }
 
 @keyframes slideIn {
     from {
-        transform: translateY(-50px);
+        transform: translateY(-3rem);
         opacity: 0;
     }
 
@@ -69,18 +68,18 @@
 .difficulty-btn {
     background: rgba(255, 255, 255, 0.95);
     color: hsl(256, 40%, 33%);
-    border: 3px solid transparent;
+    border: 0.2rem solid transparent;
     margin: 0.2rem auto;
     padding: 0.4rem 0.6rem;
-    border-radius: 12px;
+    border-radius: 1rem;
     font-size: 1.8rem;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s;
     width: 80%;
     /* 每個按鍵寬度相同 */
-    max-width: 280px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    max-width: 10rem;
+    box-shadow: 0 0.4rem 0.8rem rgba(0, 0, 0, 0.66);
 
     /* 水平文字 */
     text-align: center;
@@ -88,14 +87,14 @@
 }
 
 .difficulty-btn:hover {
-    transform: translateY(-5px) scale(1.05);
+    transform: translateY(-0.3rem) scale(1.1);
     background: white;
     border-color: #ffd700;
-    box-shadow: 0 4px 12px rgba(44, 22, 11, 0.66);
+    box-shadow: 0 0.6rem 1.2rem rgba(0, 0, 0, 0.66);
 }
 
 .difficulty-btn:active {
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-0.5rem) scale(0.9);
 }
 
 /* 不同难度的颜色主题 */
@@ -142,21 +141,21 @@
 /* 响应式适配 */
 @media (max-width: 480px) {
     .difficulty-selector-container {
-        padding: 32px 6px;
+        padding: 2rem 1rem;
     }
 
     .difficulty-selector-container h2 {
         font-size: 2rem;
-        margin-bottom: 24px;
+        margin-bottom: 0.8rem;
     }
 
     .difficulty-btn {
-        font-size: 1.2rem;
-        padding: 0.6rem 1rem;
+        font-size: 1.8rem;
+        padding: 0.4rem 0.6rem;
         width: 85%;
     }
 
     .difficulty-buttons {
-        gap: 0.6rem;
+        gap: 1rem;
     }
 }

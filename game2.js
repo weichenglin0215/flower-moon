@@ -77,20 +77,22 @@
                 </div>
                 <div id="game2-area" class="game2-area">
                     <!-- 遊戲內容將在此生成 -->
-                    <div class="keyword-selector" id="game2-keywords">
+                    <div class="game2-keyword-selector" id="game2-keywords">
                         <!-- 主字按鈕將在此生成 -->
                     </div>
-                    <div id="game2-question" class="question-area">
-                        <div id="game2-line1" class="poem-lines"></div>
-                        <div id="game2-line2" class="poem-lines"></div>
-                        <div id="game2-info" class="poem-info" ></div>
+                    <div id="game2-question" class="game2-question-area">
+                        <div id="game2-line1" class="game2-poem-lines"></div>
+                        <div id="game2-line2" class="game2-poem-lines"></div>
+                        <div id="game2-info" class="game2-poem-info" ></div>
                     </div>
-                    <div class="answer-section">
-                        <div id="game2-grid-container" class="grid-container">
-                            <svg id="timer-ring">
-                                <rect id="timer-path" x="4" y="4"></rect>
+                    <div class="game2-answer-area">
+                        <div id="game2-answer-grid-container" class="game2-answer-grid-container">
+                            <svg id="game2-timer-ring">
+                                <rect id="game2-timer-path" x="4" y="4"></rect>
                             </svg>
-                            <div class="answer-grid" id="game2-grid"></div>
+                            <div class="game2-answer-grid" id="game2-answer-grid">
+                                <!-- JS 動態插入 -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -362,7 +364,7 @@
         },
 
         renderGrid: function () {
-            const container = document.getElementById('game2-grid');
+            const container = document.getElementById('game2-answer-grid');
             const settings = this.difficultySettings[this.difficulty];
             const [cols, rows] = settings.grid;
 
@@ -416,7 +418,7 @@
 
             allChars.forEach(char => {
                 const btn = document.createElement('button');
-                btn.className = 'ans-btn';
+                btn.className = 'game2-ans-btn';
                 btn.textContent = char;
                 btn.onclick = (e) => this.handleInput(char, e.target);
                 container.appendChild(btn);
@@ -474,15 +476,15 @@
         },
 
         updateTimerRing: function (ratio) {
-            const rect = document.getElementById('timer-path');
-            const container = document.getElementById('game2-grid-container');
+            const rect = document.getElementById('game2-timer-path');
+            const container = document.getElementById('game2-answer-grid-container');
             if (!rect || !container) return;
 
             const w = container.offsetWidth;
             const h = container.offsetHeight;
 
             // 更新 SVG 大小
-            const svg = document.getElementById('timer-ring');
+            const svg = document.getElementById('game2-timer-ring');
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
 

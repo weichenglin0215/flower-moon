@@ -38,31 +38,12 @@
     height: 2.5rem;
 }
 
-.game2-sub-header {
-    width: 100%;
-    height: 2.5rem;
-}
 
 .score-board {
     color: hsl(40, 50%, 80%);
     font-size: 1.5rem;
     font-weight: bold;
-}
-
-.hearts {
-    display: flex;
-    gap: 0.1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.heart {
-    color: #f44336;
-    font-size: 1.6rem;
-}
-
-.heart.empty {
-    opacity: 0.5;
+    padding-left: 3rem;
 }
 
 /* 控制按鈕（重新開始／退出） */
@@ -85,23 +66,44 @@
     background: #555;
 }
 
+/*紅心區域*/
+.game2-sub-header {
+    width: 100%;
+    height: 2.5rem;
+}
+
+.hearts {
+    display: flex;
+    gap: 0.1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.heart {
+    color: #f44336;
+    font-size: 1.6rem;
+}
+
+.heart.empty {
+    opacity: 0.66;
+}
+
+
 /* 遊戲主區域 */
 .game2-area {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    width: 100%;
     display: flex;
+    flex: 1;
     flex-direction: column;
-    color: whitesmoke;
+    overflow: hidden;
     position: relative;
+    padding: 0.5rem;
     width: 100%;
     height: 100%;
 }
 
 /* 主字選擇區 */
-.keyword-selector {
-    padding: 0.1rem;
+.game2-keyword-selector {
+    padding-bottom: 0.5rem;
     display: flex;
     justify-content: center;
     gap: 0.1rem;
@@ -152,30 +154,30 @@
 }
 
 /* 限定作用域：只在 game2 中生效 */
-#game2-container .poem-lines {
+#game2-container .game2-poem-lines {
     font-size: 2.2rem;
     font-weight: bold;
     line-height: 1.2;
-    margin-bottom: 10px;
+    margin-bottom: 0.6rem;
     letter-spacing: 0.3rem;
     color: hsl(40, 50%, 80%);
     text-align: center;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.5);
 }
 
-#game2-container .poem-lines .hidden-char {
-    color: #e67e22;
+#game2-container .game2-poem-lines .hidden-char {
+    color: hsl(28, 80%, 50%);
     font-weight: bold;
 }
 
-#game2-container .poem-lines .correct-char {
-    color: #2ecc71;
+#game2-container .game2-poem-lines .correct-char {
+    color: hsl(145, 80%, 50%);
     font-weight: bold;
-    text-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+    text-shadow: 0 0 0.6rem hsla(145, 63%, 49%, 0.5);
 }
 
 /* 限定作用域：只在 game2 中生效 */
-#game2-container .poem-info {
+#game2-container .game2-poem-info {
     text-align: right;
     font-size: 1rem;
     margin-top: 0.5rem;
@@ -184,7 +186,7 @@
 }
 
 /* 答案矩陣與計時器 */
-.answer-section {
+.game2-answer-area {
     padding: 0.1rem;
     display: flex;
     justify-content: center;
@@ -193,45 +195,51 @@
     flex: 1;
 }
 
-.grid-container {
+.game2-answer-grid-container {
     position: relative;
     padding: 0.1rem;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
+    border-radius: 1rem;
+	    /* 讓 SVG 定位 */
 }
 
 /* 計時器外環 (SVG方式實現) */
-#timer-ring {
+#game2-timer-ring {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
+	/* 不干擾點擊 */
 }
 
-#timer-path {
+#game2-timer-path {
     fill: none;
-    stroke: #8b0000;
-    stroke-width: 8;
-    stroke-linecap: square;
+    stroke: #ff4757;
+    /* 亮紅色 */
+    stroke-width: 0.5rem;
+    stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
 }
 
-.answer-grid {
+.game2-answer-grid {
     display: grid;
     margin: 1rem;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+    gap: 0.1rem;
 }
 
-.ans-btn {
-    width: 3rem;
-    height: 3rem;
+.game2-ans-btn {
+    width: 3.3rem;
+    height: 3.3rem;
     background: rgba(240, 230, 210, 1);
     border: none;
     border-radius: 0.6rem;
-    margin: 0.5rem;
-    padding: 0.5rem;
-    font-size: 2rem;
+    margin: 0.3rem;
+    font-size: 2.2rem;
     color: #2c3e50;
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
@@ -241,11 +249,11 @@
     justify-content: center;
 }
 
-.ans-btn:active {
+.game2-ans-btn:active {
     transform: scale(0.9);
 }
 
-.ans-btn.disabled {
+.game2-ans-btn.disabled {
     background: rgba(255, 255, 255, 0.2);
     color: rgba(255, 255, 255, 0.3);
     cursor: default;
@@ -253,12 +261,12 @@
     pointer-events: none;
 }
 
-.ans-btn.correct {
+.game2-ans-btn.correct {
     background: #27ae60 !important;
     color: white !important;
 }
 
-.ans-btn.wrong {
+.game2-ans-btn.wrong {
     background: #c0392b !important;
     color: white !important;
     animation: shake 0.4s;
@@ -307,15 +315,16 @@
 
 
 /* 響應式調整 */
-@media (max-width: 400px) {
-    #game2-container .poem-lines {
-        font-size: 1.2rem;
+@media (max-width: 480px) {
+    #game2-container .game2-poem-lines {
+        font-size: 1.8rem;
     }
 
-    .ans-btn {
+    .game2-ans-btn {
         width: 3rem;
         height: 3rem;
-        font-size: 1.5rem;
+        font-size: 1.8rem;
+        margin: 0.2rem;
     }
 }
 

@@ -82,27 +82,27 @@
                 <!-- 调试边框 -->
                 <div class="debug-frame"></div>
                 
-                <div class="game-header">
+                <div class="game3-header">
                     <div class="score-board">分數: <span id="game3-score">0</span></div>
-                    <div class="game-controls">
+                    <div class="game3-controls">
                         <button id="game3-restart-btn" class="nav-btn">重來</button>
                         <button id="game3-close-btn" class="nav-btn close-btn">退出</button>
                     </div>
                 </div>
-                <div class="game-sub-header">
+                <div class="game3-sub-header">
                     <div id="game3-hearts" class="hearts"></div>
                 </div>
-                <div id="game3-area" class="game-area">
+                <div id="game3-area" class="game3-area">
                     <!-- 遊戲內容將在此生成 -->
                 </div>
-                <div id="game3-history" class="game-history"></div>
+                <div id="game3-history" class="game3-history"></div>
                 <div id="game3-message" class="game3-message">
-                    <div id="game3-result-poem" class="result-poem-display"></div>
-                    <div class="result-info">
+                    <div id="game3-result-poem" class="game3-result-poem-display"></div>
+                    <div class="game3-result-info">
                         <h2 id="game3-msg-title">遊戲結束</h2>
                         <p id="game3-msg-content"></p>
                     </div>
-                    <button id="game3-msg-btn" class="nav-btn">再來一局</button>
+                    <button id="game3-msg-btn" class="nav-btn">勸君更進一杯酒</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -710,7 +710,7 @@
 
             // 建構結算詩詞顯示
             let poemHtml = '';
-            let currentLineHtml = '<div class="result-poem-line">';
+            let currentLineHtml = '<div class="game3-result-poem-line">';
 
             // 需要重新遍歷 historyData 來構建完整詩詞
             // 這裡我們直接使用 this.poemChars 和 historyData 對應
@@ -719,9 +719,9 @@
             this.historyData.forEach((item, index) => {
                 if (item.isSep) {
                     // 標點符號不顯示文字，僅作為換行依據
-                    currentLineHtml += '</div><div class="result-poem-line">';
+                    currentLineHtml += '</div><div class="game3-result-poem-line">';
                 } else {
-                    let className = 'result-char';
+                    let className = 'game3-result-char';
                     // 判斷顏色狀態
                     // 如果遊戲過關(win=true)，且狀態是 correct -> 綠色
                     // 如果狀態是 wrong -> 紅色

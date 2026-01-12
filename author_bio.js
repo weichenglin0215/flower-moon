@@ -229,6 +229,10 @@ window.AuthorBio = (function () {
             page.classList.add('hidden');
             page.classList.remove('active');
             document.body.classList.remove('overlay-active');
+
+            // 恢復主頁顯示
+            const container = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
+            if (container) container.style.display = '';
         }
     }
 
