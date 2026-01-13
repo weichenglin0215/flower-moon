@@ -66,7 +66,7 @@
                 <div class="debug-frame"></div>
                 
                 <div class="game2-header">
-                    <div class="score-board">分數: <span id="game2-score">0</span></div>
+                    <div class="game2-score-board">分數: <span id="game2-score">0</span></div>
                     <div class="game2-controls">
                         <button id="game2-restart-btn" class="nav-btn">重來</button>
                         <button id="game2-close-btn" class="nav-btn close-btn">退出</button>
@@ -361,6 +361,7 @@
             l1.innerHTML = renderLine(this.line1, this.answerLine === 1);
             l2.innerHTML = renderLine(this.line2, this.answerLine === 2);
             info.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            info.dataset.poemId = this.currentPoem.id;
         },
 
         renderGrid: function () {
@@ -553,6 +554,6 @@
             window.Game2.show();
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
-        }, 300);
+        }, 50);
     }
 })();

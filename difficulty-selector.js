@@ -34,7 +34,7 @@
         createDOM: function () {
             const overlay = document.createElement('div');
             overlay.id = 'difficulty-selector-overlay';
-            overlay.className = 'hidden';
+            overlay.className = 'difficulty-selector-overlay aspect-5-8 hidden';
 
             const buttonsHTML = this.levels.map(level =>
                 `<button class="difficulty-btn" data-level="${level}">${level}</button>`

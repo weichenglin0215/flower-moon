@@ -4,12 +4,7 @@
    ========================================= */
 
 /* 难度选择器覆盖层 */
-#difficulty-selector-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+.difficulty-selector-overlay {
     background: hsl(0, 60%, 24%);
     display: flex;
     justify-content: center;
@@ -18,8 +13,8 @@
     /* 高於所有 Overlay 與選單 */
 }
 
-#difficulty-selector-overlay.hidden {
-    display: none;
+.difficulty-selector-overlay.hidden {
+    display: none !important;
 }
 
 /* 难度选择器容器 */

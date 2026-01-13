@@ -1,9 +1,10 @@
 /* ========================================
    詩詞詳情彈窗樣式 (Poem Dialog Component)
+   命名空間: pd- (防止與其他元件如 game, cards 衝突)
    ======================================== */
 
-.poem-overlay {
-    background-color: rgba(0, 0, 0, 0.7);
+.pd-overlay {
+    background-color: rgba(0, 0, 0, 0.3);
     /* 加深遮罩 */
     opacity: 0;
     visibility: hidden;
@@ -14,130 +15,154 @@
     justify-content: center;
     padding: 0;
     box-sizing: border-box;
-    border-radius: 12px;
+    border-radius: 0.6rem;
     overflow: hidden;
 }
 
-.poem-overlay.active {
+.pd-overlay.active {
     opacity: 1;
     visibility: visible;
 }
 
-.poem-dialog {
+.pd-container {
     width: 100%;
     height: 100%;
-    background: #fff;
+    background: hsl(40, 40%, 80%);
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-.poem-dialog-header {
+.pd-header {
     display: flex;
-    gap: 10px;
-    padding: 12px 16px;
-    border-bottom: 1px solid #eee;
-    background: #fafafa;
+    gap: 0.6rem;
+    padding: 0.6rem;
+    border-bottom: 1px solid hsl(0, 0%, 93%);
+    background: hsl(40, 40%, 80%);
+    flex-shrink: 0;
+    /* 防止頭部被擠壓 */
 }
 
-.poem-dialog-header .nav-btn {
-    padding: 8px 16px;
-    background-color: #3498db;
-    color: #fff;
+.pd-header .nav-btn {
+    padding: 0.4rem 1rem;
+    background-color: hsl(40, 40%, 50%);
+    color: hsl(40, 40%, 90%);
     border: none;
-    border-radius: 6px;
+    border-radius: 0.5rem;
     cursor: pointer;
-    font-family: 'Noto Serif TC', serif;
-    letter-spacing: 0.05em;
+    font-size: 1rem;
+    line-height: 1;
+    letter-spacing: 0.1rem;
 }
 
-.poem-dialog-header .nav-btn:hover {
-    background-color: #2980b9;
+.pd-header .nav-btn:hover {
+    background-color: hsl(40, 40%, 60%);
 }
 
-.poem-dialog-header .close-btn {
-    background-color: #c0392b;
+.pd-header .close-btn {
+    background-color: hsl(0, 63%, 30%);
 }
 
-.poem-dialog-header .close-btn:hover {
-    background-color: #a93226;
+.pd-header .close-btn:hover {
+    background-color: hsl(6, 63%, 66%);
 }
 
-.poem-dialog-body {
-    padding: 24px;
+.pd-body {
+    padding: 1rem;
+    padding-bottom: 5rem;
+    /* 增加底部留白 */
     overflow-y: auto;
+    cursor: grab;
+    flex: 1;
+    /* 確保佔滿剩餘空間以利捲動 */
 }
 
-.poem-type {
+.pd-type {
     display: inline-block;
-    background-color: #e0e0e0;
-    padding: 4px 12px;
-    border-radius: 16px;
-    font-size: 0.9em;
-    color: #666;
-    margin-bottom: 12px;
+    background-color: hsla(40, 40%, 33%, 0.2);
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    line-height: 1;
+    color: hsl(40, 40%, 20%);
 }
 
-.poem-dialog .poem-title {
-    font-size: 2em;
-    margin: 6px 0;
-    color: #2c3e50;
+.pd-title {
+    writing-mode: horizontal-tb;
+    font-size: 1.5rem;
+    margin: 0.6rem 0;
+    color: hsl(40, 40%, 20%);
+    font-weight: bold;
 }
 
-.poem-dialog .poem-meta {
-    color: #666;
-    font-size: 1.1em;
-    margin-bottom: 16px;
+.pd-meta {
+    color: hsl(40, 40%, 20%);
+    font-size: 1rem;
 }
 
-.poem-dialog .poem-content {
-    font-size: 1.3em;
-    line-height: 2;
-    letter-spacing: 0.08em;
+.pd-line-content {
+    color: hsl(40, 40%, 20%);
+    font-size: 1.6rem;
+    line-height: 1.3;
+    letter-spacing: 0.2rem;
     text-align: center;
+    margin: 0.5rem 0;
+    /* 增加行間距避免擁擠 */
 }
 
-.poem-dialog .poem-line {
-    margin: 8px 0;
+.pd-section-title {
+    font-size: 1rem;
+    color: hsl(40, 40%, 20%);
+    margin-top: 1.5rem;
+    border-left: 0.5rem solid hsl(210, 60%, 40%);
+    padding-left: 1rem;
+    font-weight: bold;
 }
 
-.poem-dialog .famous-lines {
-    background: #f9f9f9;
-    padding: 12px;
-    border-radius: 8px;
-    border-left: 4px solid #e74c3c;
-    margin-top: 16px;
+.pd-famous-lines {
+    background-color: hsla(40, 40%, 33%, 0.05);
+    padding: 0.6rem;
+    border-radius: 0.6rem;
+    border-left: 0.5rem solid hsla(6, 60%, 80%, 0.5);
+    margin-top: 1rem;
 }
 
-.poem-dialog .famous-line-item {
-    font-size: 1.1em;
-    margin: 6px 0;
-    color: #c0392b;
+.pd-famous-item {
+    font-size: 1.6rem;
+    line-height: 1.5;
+    letter-spacing: 0.2rem;
+    color: hsl(6, 63%, 60%);
+    margin: 0.5rem 0;
 }
 
-.poem-dialog .section-title {
-    font-size: 1.1em;
-    color: #888;
-    margin-top: 20px;
-    border-left: 4px solid #3498db;
-    padding-left: 10px;
-}
-
-.poem-dialog .placeholder-text {
-    color: #999;
+.pd-placeholder {
+    color: hsl(6, 63%, 66%);
     font-style: italic;
+    font-size: 0.9rem;
+}
+
+#dlgZhuyin {
+    white-space: pre-wrap;
+    /*讓瀏覽器保留文字中的換行字元（如 \n），並在該處自動換行顯示*/
+    color: hsl(40, 40%, 20%);
+    line-height: 1.6;
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
 }
 
 @media (max-width: 480px) {
-    .poem-dialog-body {
-        padding: 16px;
+    .pd-body {
+        padding: 1rem;
+        padding-bottom: 8rem;
+        /* 手機端增加更多底部空間 */
     }
 
-    .poem-dialog .poem-title {
-        font-size: 1.6em;
+    .pd-title {
+        font-size: 1.4rem;
     }
 
-    .poem-dialog .poem-content {
-        font-size: 1.1em;
+    .pd-line-content,
+    .pd-famous-item {
+        font-size: 1.4rem;
     }
 }

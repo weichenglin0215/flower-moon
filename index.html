@@ -27,6 +27,12 @@
     <!-- 選單會由 menu.js 動態插入 -->
 
     <!-- 主要內容區域：日曆 (預設顯示) -->
+    <script>
+        // 立即檢查是否需要開啟遊戲，如果是則隱藏日曆容器以避免閃爍
+        if (window.location.search.includes('game=') || window.location.search.includes('page=')) {
+            document.write('<style>#calendarCardContainer { display: none !important; }</style>');
+        }
+    </script>
     <div id="calendarCardContainer" class="aspect-5-8">
         <!-- JavaScript 會將卡片動態插入到這裡 -->
     </div>

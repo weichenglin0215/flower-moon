@@ -5,7 +5,7 @@
 
 .game1-overlay {
     /* position, top, left 由 responsive.css 的 .aspect-5-8 处理 */
-    background-color: #dfd4b5;
+    background-color: hsl(40, 40%, 80%);
     /* 淺色紙張感 */
     z-index: 2000;
     display: flex;
@@ -41,7 +41,7 @@
 }
 
 
-.score-board {
+.game1-score-board {
     color: hsl(30, 75%, 20%);
     font-size: 1.5rem;
     font-weight: bold;
@@ -112,45 +112,50 @@
     color: hsl(30, 75%, 20%);
 }
 
-.game1-poem-lines {
-    font-size: 2.2rem;
+.game1-question-lines {
+    font-size: 2.5rem;
+    /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
     font-weight: bold;
-    line-height: 1.2;
+    line-height: 1.3;
     margin-bottom: 0.6rem;
     letter-spacing: 0.3rem;
     color: hsl(30, 75%, 20%);
     text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 
 .game1-poem-info {
-    text-align: right;
     font-size: 1rem;
+    /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
     margin-top: 0.5rem;
     margin-right: 1rem;
     color: hsl(30, 75%, 20%);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
 }
 
 /* 答案區域 */
 .game1-answer-area {
-    padding: 0.1rem;
+    padding-top: 1rem;
+    /*答案區上緣與問題區的距離*/
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    flex: 1;
-    /*top: 10%;
-    margin: auto;
-    flex-direction: column;
-    gap: 0.1rem;*/
+    max-width: 96%;
 }
 
 .game1-answer-grid-container {
     position: relative;
-    padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.2);
+    padding: 0.0rem;
+    background: rgba(255, 255, 255, 0.0);
+    /*減少這一層的邊框，把空間留給答案按鍵*/
     border-radius: 1rem;
-    bottom: 15%;
     /* 讓 SVG 定位 */
 }
 
@@ -167,7 +172,7 @@
 
 #game1-timer-path {
     fill: none;
-    stroke: #8b0000;
+    stroke: hsl(0, 100%, 25%);
     stroke-width: 0.5rem;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
@@ -176,29 +181,36 @@
 .game1-answer-grid {
     display: grid;
     margin: 0.5rem;
+    /*答案按鍵與邊框之間的距離*/
     justify-content: center;
     justify-items: center;
     align-items: center;
-    gap: 0.5rem;
-    /* 答案按鍵間距 */
+    gap: 0rem;
+    /* 答案按鍵間距，也會被按鍵的 margin 影響 */
 }
 
 .game1-option-btn {
-    padding: 0rem 0rem;
-    margin: 0.3rem 0.5rem;
-    padding: 0px 1.2rem;
+    margin: 0.5rem 0.5rem;
+    /*答案按鍵與邊框(另一個答案按鍵)之間的距離*/
+    padding: 0rem 1rem;
     /*按鍵內文字左右空白寬度*/
     background: #fff9dd;
+    color: hsl(30, 75%, 20%);
     border: 0.2rem solid #ddd;
     border-radius: 0.6rem;
-    font-size: 1.8rem;
+    font-size: 2.0rem;
+    /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
     letter-spacing: 0.3rem;
-    min-height: 3rem;
+    line-height: 1;
+    min-height: 3.3rem;
+    max-height: 3.3rem;
     min-width: 15rem;
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
     box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .game1-option-btn:hover {
@@ -228,38 +240,44 @@
 /* 宣告成功失敗 */
 .game1-message {
     position: absolute;
-    top: 88%;
+    top: 94%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: rgba(255, 255, 255, 0.7);
     padding: 0.5rem;
+    padding-bottom: 3rem;
+    /*刻意在下方增加空白，讓按鈕有更多空間*/
     border-radius: 1rem;
     text-align: center;
     color: #333;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.8);
     z-index: 20;
-    width: 80%;
+    width: 90%;
 }
 
 .game1-message h2 {
-    margin-top: 0;
     font-size: 1.2rem;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+    margin: 0.3rem 0;
 }
 
 .game1-message p {
     font-size: 1rem;
-    margin: 0.1rem 0;
-    white-space: pre-wrap;
+    display: inline-block;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 .game1-message .nav-btn {
     background: #4CAF50;
     color: white;
+    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
     border: none;
-    border-radius: 24px;
-    padding: 0.3rem 1rem;
+    border-radius: 1.5rem;
+    padding: 0.2rem 2rem;
     font-size: 1.2rem;
-    margin-top: 0.1rem;
 }
 
 .game1-message .nav-btn:hover {
@@ -293,7 +311,7 @@
 
 @media (max-width: 400px) {
     .poem-lines {
-        font-size: 2rem;
+        font-size: inherit;
     }
 
     .option-btn {

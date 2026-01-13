@@ -67,7 +67,7 @@
                 <div class="debug-frame"></div>
                 
                 <div class="game1-header">
-                    <div class="score-board">分數: <span id="game1-score">0</span></div>
+                    <div class="game1-score-board">分數: <span id="game1-score">0</span></div>
                     <div class="game1-controls">
                         <button id="game1-restart-btn" class="nav-btn">重來</button>
                         <button id="game1-close-btn" class="nav-btn close-btn">退出</button>
@@ -80,7 +80,7 @@
                     <!-- 遊戲內容將在此生成 -->
                     <!-- 問題區域 -->
                     <div class="game1-question-area">
-                        <div id="game1-question-lines" class="game1-poem-lines">
+                        <div id="game1-question-lines" class="game1-question-lines">
                             <!-- JS 動態插入 -->
                         </div>
                         <div id="game1-poem-info" class="game1-poem-info">
@@ -289,18 +289,28 @@
             const qDiv = document.getElementById('game1-question-lines');
             qDiv.innerHTML = '';
 
+            const l1Text = hideFirst ? maskedLineText : displayedLine;
+            const l2Text = hideFirst ? displayedLine : maskedLineText;
+
             const l1Div = document.createElement('div');
             l1Div.className = 'poem-lines';
-            l1Div.textContent = hideFirst ? maskedLineText : displayedLine;
+            l1Div.textContent = l1Text;
             qDiv.appendChild(l1Div);
 
             const l2Div = document.createElement('div');
             l2Div.className = 'poem-lines';
-            l2Div.textContent = hideFirst ? displayedLine : maskedLineText;
+            l2Div.textContent = l2Text;
             qDiv.appendChild(l2Div);
 
-            document.getElementById('game1-poem-info').textContent =
-                `${poem.title} / ${poem.dynasty} / ${poem.author}`;
+            // 動態縮小字體
+            const maxLineLen = Math.max(l1Text.length, l2Text.length);
+            this.adjustFontSize(qDiv, maxLineLen, 7, 2.5);
+
+            const infoText = `${poem.title} / ${poem.dynasty} / ${poem.author}`;
+            const infoEl = document.getElementById('game1-poem-info');
+            infoEl.textContent = infoText;
+            infoEl.dataset.poemId = poem.id; // 綁定 ID 以便點擊呼叫 dialog
+            this.adjustFontSize(infoEl, infoText.length, 20, 1.0);
 
             // 生成選項
             this.generateOptions(this.correctAnswer, maskedLineText);
@@ -385,6 +395,8 @@
                 const btn = document.createElement('button');
                 btn.className = 'game1-option-btn';
                 btn.textContent = opt.text;
+                // 動態縮小字體
+                this.adjustFontSize(btn, opt.text.length, 7, 2.0);
                 btn.dataset.isCorrect = opt.isCorrect; // 標記是否正確
                 btn.addEventListener('click', () => this.handleChoice(opt.isCorrect, btn));
                 optDiv.appendChild(btn);
@@ -526,6 +538,15 @@
                 title.style.color = "#dc3545";
                 content.textContent = reason;
             }
+        },
+
+        adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
+            if (textLen > threshold) {
+                const newSize = baseFontSizeRem * (threshold / textLen);
+                element.style.fontSize = `${newSize}rem`;
+            } else {
+                element.style.fontSize = `${baseFontSizeRem}rem`;
+            }
         }
     };
 
@@ -537,6 +558,6 @@
             if (window.Game1) window.Game1.show();
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
-        }, 300);
+        }, 50);
     }
 })();

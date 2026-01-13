@@ -67,7 +67,7 @@
             div.innerHTML = `
                 <div class="debug-frame"></div>
                 <div class="game4-header">
-                    <div class="score-board">分數: <span id="game4-score">0</span></div>
+                    <div class="game4-score-board">分數: <span id="game4-score">0</span></div>
                     <div class="game4-controls">
                         <button id="game4-restart-btn" class="nav-btn">重來</button>
                         <button id="game4-close-btn" class="nav-btn close-btn">退出</button>
@@ -709,9 +709,9 @@
 
     if (window.location.search.includes('game=4')) {
         setTimeout(() => {
-            window.Game4.show();
+            if (window.Game4) window.Game4.show();
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
-        }, 300);
+        }, 50);
     }
 })();

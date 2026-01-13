@@ -35,11 +35,11 @@
         // 難度設定
         difficulty: '小學',
         difficultySettings: {
-            '小學': { incrementSpeed: 0.002, maxSpeed: 0.07, minRating: 7, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, maxMistakeCount: 14, isStrictOrder: false },
-            '中學': { incrementSpeed: 0.004, maxSpeed: 0.10, minRating: 6, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, maxMistakeCount: 12, isStrictOrder: false },
-            '高中': { incrementSpeed: 0.006, maxSpeed: 0.12, minRating: 4, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, maxMistakeCount: 10, isStrictOrder: false },
-            '大學': { incrementSpeed: 0.008, maxSpeed: 0.15, minRating: 3, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, maxMistakeCount: 8, isStrictOrder: true },
-            '研究所': { incrementSpeed: 0.010, maxSpeed: 0.20, minRating: 1, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, maxMistakeCount: 6, isStrictOrder: true }
+            '小學': { incrementSpeed: 0.001, maxSpeed: 0.07, minRating: 7, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, maxMistakeCount: 14, isStrictOrder: false },
+            '中學': { incrementSpeed: 0.002, maxSpeed: 0.08, minRating: 6, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, maxMistakeCount: 14, isStrictOrder: false },
+            '高中': { incrementSpeed: 0.004, maxSpeed: 0.10, minRating: 4, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, maxMistakeCount: 12, isStrictOrder: false },
+            '大學': { incrementSpeed: 0.006, maxSpeed: 0.12, minRating: 3, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, maxMistakeCount: 10, isStrictOrder: true },
+            '研究所': { incrementSpeed: 0.008, maxSpeed: 0.15, minRating: 1, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, maxMistakeCount: 10, isStrictOrder: true }
         },
 
         loadCSS: function () {
@@ -261,6 +261,7 @@
             }
 
             let poem = eligiblePoems[Math.floor(Math.random() * eligiblePoems.length)];
+            this.currentPoem = poem;
 
             // 尋找三首相同類型的詩詞作為干擾項來源
             const similarPoems = POEMS.filter(p => p.type === poem.type && p.id !== poem.id);
@@ -709,8 +710,10 @@
             if (this.historyContainer) this.historyContainer.style.display = 'none';
 
             // 建構結算詩詞顯示
-            let poemHtml = '';
-            let currentLineHtml = '<div class="game3-result-poem-line">';
+            let poemHtml = `<div class="game3-result-poem-info" data-poem-id="${this.currentPoem.id}">
+                ${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}
+            </div>`;
+            let currentLineHtml = poemHtml + '<div class="game3-result-poem-line">';
 
             // 需要重新遍歷 historyData 來構建完整詩詞
             // 這裡我們直接使用 this.poemChars 和 historyData 對應
@@ -809,13 +812,11 @@
 
     // 自動檢查是否需要啟動 (從 URL 參數)
     if (window.location.search.includes('game=3')) {
-        // 稍微延遲以確保 DOM 和 POEMS 已完全載入
         setTimeout(() => {
-            window.Game3.show();
-            // 清除 URL 參數，避免重新整理時又跳出
+            if (window.Game3) window.Game3.show();
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
-        }, 300);
+        }, 50);
     }
 
 })();

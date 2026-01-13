@@ -1,0 +1,19 @@
+題目
+.game1-poem-lines {
+    font-size: 2.5rem;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.3rem;
+    color: hsl(30, 75%, 20%);
+    text-align: center;
+}
+
+
+.game1-poem-info {
+    text-align: right;
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    margin-right: 1rem;
+    color: hsl(30, 75%, 20%);
+}

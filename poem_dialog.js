@@ -25,28 +25,28 @@
         createDOM: function () {
             const poemOverlay = document.createElement('div');
             poemOverlay.id = 'poemOverlay';
-            poemOverlay.className = 'poem-overlay aspect-5-8 hidden';
+            poemOverlay.className = 'pd-overlay aspect-5-8 hidden';
             poemOverlay.innerHTML = `
-                <div class="poem-dialog" role="dialog" aria-modal="true">
-                    <div class="poem-dialog-header">
+                <div class="pd-container" role="dialog" aria-modal="true">
+                    <div class="pd-header">
                         <button class="nav-btn" id="poemPrevBtn">上一首</button>
                         <button class="nav-btn" id="poemRandomBtn">隨機</button>
                         <button class="nav-btn" id="poemNextBtn">下一首</button>
                         <button class="nav-btn close-btn" id="poemCloseBtn">關閉</button>
                     </div>
-                    <div class="poem-dialog-body">
-                        <div class="poem-type" id="dlgType"></div>
-                        <h1 class="poem-title" id="dlgTitle"></h1>
-                        <div class="poem-meta"><span id="dlgDynasty"></span> <span id="dlgAuthor"></span></div>
-                        <div class="poem-content" id="dlgContent"></div>
-                        <div class="section-title">總評</div>
+                    <div class="pd-body">
+                        <div class="pd-type" id="dlgType"></div>
+                        <div class="pd-title" id="dlgTitle"></div>
+                        <div class="pd-meta"><span id="dlgDynasty"></span> <span id="dlgAuthor"></span></div>
+                        <div class="pd-line-content" id="dlgContent"></div>
+                        <div class="pd-section-title">總評價</div>
                         <div id="dlgReview"></div>
-                        <div class="section-title">佳句賞析</div>
-                        <div class="famous-lines" id="dlgFamous"></div>
-                        <div class="section-title">注音說明</div>
+                        <div class="pd-section-title">佳句賞析</div>
+                        <div class="pd-famous-lines" id="dlgFamous"></div>
+                        <div class="pd-section-title">注音說明</div>
                         <div id="dlgZhuyin"></div>
-                        <div class="section-title">作者略傳</div>
-                        <p class="placeholder-text">（暫不實作）</p>
+                        <div class="pd-section-title">作者略傳</div>
+                        <p class="pd-placeholder">（暫不實作）</p>
                     </div>
                 </div>`;
             document.body.appendChild(poemOverlay);
@@ -75,6 +75,37 @@
 
             this.overlay.addEventListener('click', (e) => {
                 if (e.target.id === 'poemOverlay') this.close();
+            });
+
+            // 增加 pd-body 的滑鼠拖曳捲動功能
+            const dialogBody = this.overlay.querySelector('.pd-body');
+            let isDown = false;
+            let startY;
+            let scrollTop;
+
+            dialogBody.addEventListener('mousedown', (e) => {
+                isDown = true;
+                dialogBody.style.cursor = 'grabbing';
+                startY = e.pageY - dialogBody.offsetTop;
+                scrollTop = dialogBody.scrollTop;
+            });
+
+            dialogBody.addEventListener('mouseleave', () => {
+                isDown = false;
+                dialogBody.style.cursor = 'grab';
+            });
+
+            dialogBody.addEventListener('mouseup', () => {
+                isDown = false;
+                dialogBody.style.cursor = 'grab';
+            });
+
+            dialogBody.addEventListener('mousemove', (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const y = e.pageY - dialogBody.offsetTop;
+                const walk = (y - startY) * 1.5; // 捲動速度倍率
+                dialogBody.scrollTop = scrollTop - walk;
             });
 
             // 支持點擊頁面上的詩名或作者開啟 (全域委派)
@@ -116,7 +147,7 @@
             if (poem.content && Array.isArray(poem.content)) {
                 poem.content.forEach(line => {
                     const div = document.createElement('div');
-                    div.className = 'poem-line';
+                    div.className = 'pd-line-content';
                     div.textContent = line;
                     contentDiv.appendChild(div);
                 });
@@ -129,7 +160,7 @@
                 reviewDiv.className = '';
                 reviewDiv.style.color = '#333';
             } else {
-                reviewDiv.className = 'placeholder-text';
+                reviewDiv.className = 'pd-placeholder';
                 reviewDiv.textContent = '（暫無總評）';
             }
 
@@ -141,7 +172,7 @@
                 poem.content.forEach((line, i) => {
                     if (poem.line_ratings[i] >= 3) {
                         const d = document.createElement('div');
-                        d.className = 'famous-line-item';
+                        d.className = 'pd-famous-item';
                         d.textContent = line;
                         famousDiv.appendChild(d);
                         hasFamous = true;
@@ -149,16 +180,15 @@
                 });
             }
             if (!hasFamous) {
-                famousDiv.innerHTML = '<p class="placeholder-text">此詩尚無評分較高的佳句。</p>';
+                famousDiv.innerHTML = '<p class="pd-placeholder">此詩尚無評分較高的佳句。</p>';
             }
 
             // Zhuyin
             const zhuyinDiv = document.getElementById('dlgZhuyin');
             if (poem.zhuyin) {
                 zhuyinDiv.textContent = poem.zhuyin;
-                zhuyinDiv.style.color = '#333';
             } else {
-                zhuyinDiv.innerHTML = '<p class="placeholder-text">（暫無注音）</p>';
+                zhuyinDiv.innerHTML = '<p class="pd-placeholder">（暫無注音）</p>';
             }
 
             this.overlay.classList.add('active');
@@ -195,10 +225,6 @@
             this.overlay.classList.add('hidden');
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
-
-            // 恢復主頁顯示
-            const container = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
-            if (container) container.style.display = '';
         }
     };
 
