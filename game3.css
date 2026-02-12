@@ -5,13 +5,14 @@
 
 .game3-overlay {
     /* position, top, left 由 responsive.css 的 .aspect-5-8 处理 */
-    background-color: hsl(210, 42%, 24%);
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
     z-index: 2000;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: whitesmoke;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
     position: relative;
     /* 確保絕對定位的子元素（如歷程顯示）能正確定位 */
 

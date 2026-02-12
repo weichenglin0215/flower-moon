@@ -4,15 +4,13 @@
    ========================================= */
 
 .game1-overlay {
-    /* position, top, left 由 responsive.css 的 .aspect-5-8 处理 */
-    background-color: hsl(40, 40%, 80%);
-    /* 淺色紙張感 */
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
     z-index: 2000;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: whitesmoke;
+    color: hsl(40, 50%, 80%);
     font-family: 'Noto Serif TC', serif;
     /* 防止浏览器缩放影响布局 */
     zoom: 1;
@@ -42,7 +40,7 @@
 
 
 .game1-score-board {
-    color: hsl(30, 75%, 20%);
+    color: hsl(40, 50%, 80%);
     font-size: 1.5rem;
     font-weight: bold;
     padding-left: 3rem;
@@ -50,26 +48,36 @@
 
 /* 控制按鈕（重新開始／退出） */
 .game1-controls .nav-btn {
-    margin-left: 0.3rem;
+    margin-left: 0.5rem;
     padding: 0.0rem 0.5rem;
-    background: #8b4513;
+    background: hsl(24, 50%, 40%);
     border: 1px solid rgba(255, 255, 255, 0.4);
     color: white;
     border-radius: 0.6rem;
     font-size: 1.2rem;
     cursor: pointer;
+    transition: background 0.2s;
 }
 
 .game1-controls .nav-btn:hover {
-    background: #c96a3e;
+    background: hsl(24, 50%, 60%);
 }
 
 .game1-controls .close-btn {
-    background: #555;
+    background: hsl(24, 50%, 40%);
+}
+
+.game4-controls .close-btn:hover {
+    background: hsl(0, 75%, 60%);
 }
 
 /*紅心區域*/
 .game1-sub-header {
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
     height: 2.5rem;
 }
@@ -82,14 +90,18 @@
 }
 
 .heart {
-    color: #f44336;
+    color: hsl(4, 90%, 60%);
     font-size: 1.6rem;
 }
 
 .heart.empty {
-    opacity: 0.66;
+    opacity: 0.9;
 }
 
+.heart.score {
+    color: hsl(36, 90%, 50%);
+    opacity: 1;
+}
 
 /* 遊戲主區域 */
 .game1-area {
@@ -100,7 +112,6 @@
     position: relative;
     padding: 0.5rem;
     width: 100%;
-    height: 100%;
 }
 
 /* 問題區域 */
@@ -109,29 +120,46 @@
     width: 100%;
     margin: 0px 0;
     padding: 0px 1rem;
-    color: hsl(30, 75%, 20%);
+    color: hsl(40, 50%, 80%);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
 }
 
 .game1-question-lines {
     font-size: 2.5rem;
     /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
     font-weight: bold;
-    line-height: 1.3;
-    margin-bottom: 0.6rem;
+    line-height: 1.2;
+    margin-bottom: 0.3rem;
     letter-spacing: 0.3rem;
-    color: hsl(30, 75%, 20%);
+    color: hsl(40, 50%, 80%);
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
+    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.66);
 }
 
+.game1-question-lines span.hidden-char {
+    color: hsl(36, 80%, 50%);
+    border-radius: 4px;
+    padding: 0 2px;
+}
+
+.game1-question-lines span.correct-char {
+    color: hsl(145, 68%, 36%);
+    font-weight: bold;
+    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+}
 
 .game1-poem-info {
     font-size: 1rem;
     /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
     margin-top: 0.5rem;
     margin-right: 1rem;
-    color: hsl(30, 75%, 20%);
+    color: hsl(40, 50%, 80%);
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
@@ -172,7 +200,7 @@
 
 #game1-timer-path {
     fill: none;
-    stroke: hsl(0, 100%, 25%);
+    stroke: hsl(0, 80%, 36%);
     stroke-width: 0.5rem;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
@@ -180,13 +208,16 @@
 
 .game1-answer-grid {
     display: grid;
-    margin: 0.5rem;
-    /*答案按鍵與邊框之間的距離*/
+    margin: 0rem;
+    /* 整個answer-grid與周遭的間距 */
+
+    padding: 1.0rem;
+    /*這個GRID與內容物(按鍵)的間距*/
+    gap: 0.0rem;
+    /* 答案按鍵之間的間距，請設定0，讓按鍵ans-btn的 margin 自行設定即可 */
     justify-content: center;
     justify-items: center;
     align-items: center;
-    gap: 0rem;
-    /* 答案按鍵間距，也會被按鍵的 margin 影響 */
 }
 
 .game1-option-btn {
@@ -194,7 +225,7 @@
     /*答案按鍵與邊框(另一個答案按鍵)之間的距離*/
     padding: 0rem 1rem;
     /*按鍵內文字左右空白寬度*/
-    background: #fff9dd;
+    background: hsl(48, 100%, 90%);
     color: hsl(30, 75%, 20%);
     border: 0.2rem solid #ddd;
     border-radius: 0.6rem;
@@ -219,22 +250,22 @@
 }
 
 .game1-option-btn.correct {
-    background: #d4edda;
-    border-color: #28a745;
-    color: #155724;
+    background: hsl(145, 68%, 88%);
+    border-color: hsl(145, 80%, 60%);
+    color: hsl(145, 60%, 25%);
 }
 
 .game1-option-btn.wrong {
-    background: #f8d7da;
-    border-color: #dc3545;
-    color: #721c24;
+    background: hsl(0, 70%, 88%);
+    border-color: hsl(0, 80%, 60%);
+    color: hsl(0, 60%, 25%);
     animation: shake 0.5s;
 }
 
 .game1-option-btn.hint {
-    background: hsl(220, 41%, 88%);
-    border-color: hsl(220, 61%, 41%);
-    color: hsl(222, 61%, 21%);
+    background: hsl(220, 58%, 88%);
+    border-color: hsl(220, 80%, 60%);
+    color: hsl(222, 60%, 25%);
 }
 
 /* 宣告成功失敗 */
@@ -243,7 +274,7 @@
     top: 94%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 1);
     padding: 0.5rem;
     padding-bottom: 3rem;
     /*刻意在下方增加空白，讓按鈕有更多空間*/

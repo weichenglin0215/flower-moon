@@ -5,13 +5,13 @@
 
 .game2-overlay {
     /* position, top, left 由 responsive.css 的 .aspect-5-8 处理 */
-    background: radial-gradient(circle at center, #2c3e50 0%, #000000 100%);
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
     z-index: 2000;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: whitesmoke;
+    color: hsl(40, 50%, 80%);
     font-family: 'Noto Serif TC', serif;
     /* 防止浏览器缩放影响布局 */
     zoom: 1;
@@ -38,7 +38,6 @@
     height: 2.5rem;
 }
 
-
 .game2-score-board {
     color: hsl(40, 50%, 80%);
     font-size: 1.5rem;
@@ -48,26 +47,36 @@
 
 /* 控制按鈕（重新開始／退出） */
 .game2-controls .nav-btn {
-    margin-left: 0.3rem;
+    margin-left: 0.5rem;
     padding: 0.0rem 0.5rem;
-    background: #8b4513;
+    background: hsl(24, 50%, 40%);
     border: 1px solid rgba(255, 255, 255, 0.4);
     color: white;
     border-radius: 0.6rem;
     font-size: 1.2rem;
     cursor: pointer;
+    transition: background 0.2s;
 }
 
 .game2-controls .nav-btn:hover {
-    background: #c96a3e;
+    background: hsl(24, 50%, 60%);
 }
 
 .game2-controls .close-btn {
-    background: #555;
+    background: hsl(24, 50%, 40%);
+}
+
+.game2-controls .close-btn:hover {
+    background: hsl(0, 75%, 60%);
 }
 
 /*紅心區域*/
 .game2-sub-header {
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
     height: 2.5rem;
 }
@@ -88,17 +97,19 @@
     opacity: 0.66;
 }
 
+.heart.score {
+    color: hsl(36, 90%, 50%);
+    opacity: 1;
+}
 
 /* 遊戲主區域 */
 .game2-area {
     display: flex;
     flex: 1;
     flex-direction: column;
-    overflow: hidden;
     position: relative;
     padding: 0.5rem;
     width: 100%;
-    height: 100%;
 }
 
 /* 主字選擇區 */
@@ -151,6 +162,11 @@
     margin: 0px 0;
     padding: 0px 1rem;
     color: hsl(40, 50%, 80%);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
 }
 
 /* 限定作用域：只在 game2 中生效 */
@@ -169,14 +185,14 @@
 }
 
 #game2-container .game2-poem-lines .hidden-char {
-    color: hsl(28, 80%, 50%);
+    color: hsl(36, 80%, 50%);
     font-weight: bold;
 }
 
 #game2-container .game2-poem-lines .correct-char {
-    color: hsl(145, 80%, 50%);
+    color: hsl(145, 68%, 36%);
     font-weight: bold;
-    text-shadow: 0 0 0.6rem hsla(145, 63%, 49%, 0.66);
+    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
 }
 
 /* 限定作用域：只在 game2 中生效 */
@@ -196,18 +212,16 @@
 
 /* 答案矩陣與計時器 */
 .game2-answer-area {
-    padding: 0.1rem;
+    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
     width: 100%;
-    flex: 1;
 }
 
 .game2-answer-grid-container {
     position: relative;
-    padding: 0.1rem;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 1rem;
     /* 讓 SVG 定位 */
 }
@@ -225,7 +239,7 @@
 
 #game2-timer-path {
     fill: none;
-    stroke: hsl(0, 100%, 25%);
+    stroke: hsl(0, 80%, 36%);
     stroke-width: 0.5rem;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
@@ -233,12 +247,17 @@
 
 .game2-answer-grid {
     display: grid;
-    margin: 1rem;
+    margin: 0rem;
+    /* 整個answer-grid與周遭的間距 */
+
+    padding: 1.0rem;
+    /*這個GRID與內容物(按鍵)的間距*/
+    gap: 0.0rem;
+    /* 答案按鍵之間的間距，請設定0，讓按鍵ans-btn的 margin 自行設定即可 */
     justify-content: center;
     justify-items: center;
     align-items: center;
-    gap: 0.0rem;
-    /* 答案按鍵間距，也會被按鍵的 margin 影響 */
+
 }
 
 .game2-ans-btn {
@@ -247,9 +266,10 @@
     background: hsl(40, 50%, 88%);
     border: none;
     border-radius: 0.6rem;
-    margin: 0.3rem;
     font-size: 2.2rem;
     line-height: 1;
+    margin: 0.3rem;
+    /* 答案按鍵之間的間距 */
     color: hsl(210, 30%, 24%);
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
@@ -274,14 +294,14 @@
 }
 
 .game2-ans-btn.correct {
-    background: #27ae60 !important;
+    background: hsl(145, 68%, 36%) !important;
     color: white !important;
 }
 
 .game2-ans-btn.wrong {
-    background: #c0392b !important;
+    background: hsl(0, 80%, 60%) !important;
     color: white !important;
-    animation: shake 0.4s;
+    animation: game4-shake 0.4s;
 }
 
 /* 宣告成功失敗 */
@@ -290,9 +310,9 @@
     top: 94%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.9);
+    background: hsl(40, 50%, 90%);
     padding: 0.3rem;
-    padding-bottom: 3rem;
+    padding-bottom: 4rem;
     border-radius: 1rem;
     text-align: center;
     color: hsl(210, 30%, 24%);
@@ -317,32 +337,33 @@
 }
 
 .game2-message .nav-btn {
-    background: hsl(122, 39%, 49%);
+    background: hsl(145, 68%, 36%);
     color: white;
     box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
     border: none;
     border-radius: 1.5rem;
     padding: 0.2rem 2rem;
     font-size: 1.2rem;
+    cursor: pointer;
+    transition: background 0.2s;
 }
 
 .game2-message .nav-btn:hover {
-    background: hsl(122, 39%, 49%);
+    background: hsl(145, 68%, 50%);
 }
 
 
 
 /* 響應式調整 */
-@media (max-width: 480px) {
+@media (max-width: 400px) {
     #game2-container .game2-poem-lines {
-        font-size: 1.8rem;
+        font-size: 2.5rem;
     }
 
     .game2-ans-btn {
-        width: 3rem;
-        height: 3rem;
-        font-size: 1.8rem;
-        margin: 0.2rem;
+        width: 3.3rem;
+        height: 3.3rem;
+        font-size: 2.2rem;
     }
 }
 
