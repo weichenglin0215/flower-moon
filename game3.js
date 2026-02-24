@@ -63,14 +63,8 @@
             this.historyContainer = document.getElementById('game3-history');
 
             // 綁定關閉按鈕
-            document.getElementById('game3-close-btn').addEventListener('click', () => {
-                this.stopGame();
-            });
-
-            // 綁定重新開始按鈕
-            document.getElementById('game3-restart-btn').addEventListener('click', () => {
-                this.restartGame();
-            });
+            document.getElementById('game3-close-btn').onclick = () => this.startNewGame();
+            document.getElementById('game3-restart-btn').onclick = () => this.retryGame();
         },
 
         createDOM: function () {
@@ -86,7 +80,7 @@
                     <div class="score-board">分數: <span id="game3-score">0</span></div>
                     <div class="game3-controls">
                         <button id="game3-restart-btn" class="nav-btn">重來</button>
-                        <button id="game3-close-btn" class="nav-btn close-btn">退出</button>
+                        <button id="game3-close-btn" class="nav-btn close-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game3-sub-header">
@@ -107,10 +101,10 @@
             `;
             document.body.appendChild(div);
 
-            document.getElementById('game3-msg-btn').addEventListener('click', () => {
+            document.getElementById('game3-msg-btn').onclick = () => {
                 document.getElementById('game3-message').classList.remove('visible');
-                this.restartGame(); // 直接以相同難度開啟下一局
-            });
+                this.startNewGame(); // 直接以相同難度開啟下一局
+            };
 
             // 增加 result-poem-display 的滑鼠拖曳捲動功能
             const poemDisplay = document.getElementById('game3-result-poem');
@@ -215,7 +209,51 @@
             this.showOtherContents();
         },
 
-        restartGame: function () {
+        retryGame: function () {
+            if (!this.currentPoem || this.rows.length === 0) return;
+            this.isActive = true;
+            this.score = 0;
+            this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;
+            this.maxSpeed = this.difficultySettings[this.difficulty].maxSpeed;
+            this.currentRowIndex = 0;
+            this.mistakeCount = 0;
+            document.getElementById('game3-score').textContent = this.score;
+            document.getElementById('game3-message').classList.remove('visible');
+            if (this.historyContainer) this.historyContainer.style.display = '';
+            this.renderHearts();
+
+            // 重置歷史紀錄狀態
+            this.historyData.forEach(item => {
+                item.status = 'hidden';
+            });
+            this.renderHistory();
+
+            // 重置每一行的狀態與位置
+            this.rows.forEach(row => {
+                row.clicked = false;
+                row.y = row.originalY; // 在之前已經增加 originalY 了
+                row.element.style.transform = `translateY(${row.y}rem)`;
+                row.element.classList.remove('completed');
+                Array.from(row.element.querySelectorAll('button')).forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('correct', 'wrong', 'missed');
+                    btn.style.color = this.difficultySettings[this.difficulty].isStrictOrder ? this.nextRowFontColor : this.currentRowFontColor;
+                });
+            });
+
+            // 高亮第一行
+            if (this.rows.length > 0) {
+                Array.from(this.rows[0].element.querySelectorAll('button')).forEach(btn => {
+                    btn.style.color = this.currentRowFontColor;
+                });
+            }
+
+            // 開始動畫迴圈
+            if (this.animationId) cancelAnimationFrame(this.animationId);
+            this.loop();
+        },
+
+        startNewGame: function () {
             this.isActive = true;
             this.score = 0;
             this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;
@@ -226,20 +264,18 @@
             this.mistakeCount = 0;
             document.getElementById('game3-score').textContent = this.score;
             document.getElementById('game3-message').classList.remove('visible');
-            // Restore history visibility
             if (this.historyContainer) this.historyContainer.style.display = '';
             this.renderHearts();
 
-            // 清空遊戲區域
             this.gameArea.innerHTML = '';
-
-            // 選擇詩詞並生成
-            // this.updateLayoutMetrics(); // no longer needed
             this.selectAndPreparePoem();
 
-            // 開始動畫迴圈
             if (this.animationId) cancelAnimationFrame(this.animationId);
             this.loop();
+        },
+
+        restartGame: function () {
+            this.startNewGame();
         },
 
         selectAndPreparePoem: function () {
@@ -427,6 +463,7 @@
             return {
                 element: rowEl,
                 y: startY,
+                originalY: startY,
                 index: index,
                 clicked: false,
                 correctChar: correctChar
@@ -517,7 +554,18 @@
 
             // 檢查勝利
             if (this.currentRowIndex >= this.rows.length) {
-                this.gameOver(true);
+                this.isActive = false;
+                ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game3',
+                    timerContainerId: null,
+                    scoreElementId: 'game3-score',
+                    heartsSelector: '#game3-hearts .heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        this.gameOver(true, finalScore);
+                    }
+                });
             } else {
                 // 將新的當前行的所有按鈕字體顏色改為深色 (高亮)
                 const nextRowEl = this.rows[this.currentRowIndex].element;
@@ -535,7 +583,18 @@
                 this.currentRowIndex++;
                 // 也要檢查新定位的行是否結束了
                 if (this.currentRowIndex >= this.rows.length) {
-                    this.gameOver(true);
+                    this.isActive = false;
+                    ScoreManager.playWinAnimation({
+                        game: this,
+                        difficulty: this.difficulty,
+                        gameKey: 'game3',
+                        timerContainerId: null,
+                        scoreElementId: 'game3-score',
+                        heartsSelector: '#game3-hearts .heart:not(.empty)',
+                        onComplete: (finalScore) => {
+                            this.gameOver(true, finalScore);
+                        }
+                    });
                     return;
                 }
                 // 高亮新行
@@ -752,10 +811,10 @@
                 // 若 mistakeCount == 0 ? 或者全部都 correct
                 // 簡單判斷：this.mistakeCount 是否為 0
                 if (this.mistakeCount === 0) {
-                    title.textContent = `謫仙下凡！得分：${this.score}分`;
+                    title.textContent = `謫仙下凡！得分：${reason}分`;
                     title.style.color = "#FFD700"; // 金色
                 } else {
-                    title.textContent = `過關！得分：${this.score}分`;
+                    title.textContent = `過關！得分：${reason}分`;
                     title.style.color = "#4CAF50";
                 }
 

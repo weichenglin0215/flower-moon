@@ -70,7 +70,7 @@
                     <div class="game4-score-board">分數: <span id="game4-score">0</span></div>
                     <div class="game4-controls">
                         <button id="game4-restart-btn" class="nav-btn">重來</button>
-                        <button id="game4-close-btn" class="nav-btn close-btn">退出</button>
+                        <button id="game4-close-btn" class="nav-btn close-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game4-sub-header">
@@ -99,12 +99,12 @@
             `;
             document.body.appendChild(div);
 
-            document.getElementById('game4-close-btn').addEventListener('click', () => this.stopGame());
-            document.getElementById('game4-restart-btn').addEventListener('click', () => this.restartGame());
-            document.getElementById('game4-msg-btn').addEventListener('click', () => {
+            document.getElementById('game4-close-btn').onclick = () => this.startNewGame();
+            document.getElementById('game4-restart-btn').onclick = () => this.retryGame();
+            document.getElementById('game4-msg-btn').onclick = () => {
                 document.getElementById('game4-message').classList.add('hidden');
-                this.restartGame();
-            });
+                this.startNewGame();
+            };
 
             this.renderHearts();
         },
@@ -160,13 +160,45 @@
             this.showOtherContents();
         },
 
-        restartGame: function () {
+        retryGame: function () {
+            if (!this.currentPoem) return;
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
             this.currentInputIndex = 0;
             this.isRevealed = false;
-            this.cluesRevealed = false; // 重設提示句顯示狀態
+            this.cluesRevealed = false;
+            document.getElementById('game4-score').textContent = this.score;
+            document.getElementById('game4-message').classList.add('hidden');
+            this.renderHearts();
+
+            const settings = this.difficultySettings[this.difficulty];
+            this.timeLeft = settings.time;
+            this.timer = settings.time;
+
+            this.renderQuestion();
+            this.renderGrid(true); // 使用舊有的 gridChars
+            this.startTimer();
+
+            // 處理完整句子的延遲顯示
+            this.cluesRevealed = settings.showDelay === 0;
+            if (this.showTimeout) clearTimeout(this.showTimeout);
+            if (settings.showDelay > 0) {
+                this.showTimeout = setTimeout(() => {
+                    this.cluesRevealed = true;
+                    const hiddenLines = document.querySelectorAll('.poem-lines.game4-hidden-line');
+                    hiddenLines.forEach(line => line.classList.add('revealed'));
+                }, settings.showDelay * 1000);
+            }
+        },
+
+        startNewGame: function () {
+            this.isActive = true;
+            this.score = 0;
+            this.mistakeCount = 0;
+            this.currentInputIndex = 0;
+            this.isRevealed = false;
+            this.cluesRevealed = false;
             document.getElementById('game4-score').textContent = this.score;
             document.getElementById('game4-message').classList.add('hidden');
             this.renderHearts();
@@ -177,10 +209,9 @@
 
             if (this.selectRandomPoem()) {
                 this.renderQuestion();
-                this.renderGrid();
+                this.renderGrid(false); // 生成新的 gridChars
                 this.startTimer();
 
-                // 處理完整句子的延遲顯示
                 this.cluesRevealed = settings.showDelay === 0;
                 if (this.showTimeout) clearTimeout(this.showTimeout);
                 if (settings.showDelay > 0) {
@@ -194,6 +225,10 @@
                 alert('載入詩詞失敗。');
                 this.showDifficultySelector();
             }
+        },
+
+        restartGame: function () {
+            this.startNewGame();
         },
 
         selectRandomPoem: function () {
@@ -335,50 +370,55 @@
             };
         },
 
-        renderGrid: function () {
+        renderGrid: function (isRetry = false) {
             const container = document.getElementById('game4-grid');
             const settings = this.difficultySettings[this.difficulty];
 
-            const answerChars = this.hiddenPositions.map(p => p.char);
-            const targetTotal = answerChars.length + settings.maxAddDecoyChars;
+            let allChars;
+            if (isRetry && this.currentGridChars) {
+                allChars = this.currentGridChars;
+            } else {
+                const answerChars = this.hiddenPositions.map(p => p.char);
+                const targetTotal = answerChars.length + settings.maxAddDecoyChars;
 
-            // 計算二維矩陣大小 (盡量靠近正方形，Cols 3~5)
+                // 干擾字生成
+                const decoys = [];
+                const neededDecoys = Math.max(0, targetTotal - answerChars.length);
+
+                const sets = Object.values(this.decoyCharsSets);
+                answerChars.forEach(targetChar => {
+                    if (decoys.length >= neededDecoys) return;
+                    if (Math.random() < 0.6) {
+                        const matchedSet = sets.find(s => s.includes(targetChar));
+                        if (matchedSet) {
+                            const candidates = matchedSet.split('').filter(c => !answerChars.includes(c) && !decoys.includes(c));
+                            candidates.sort(() => Math.random() - 0.5);
+                            const count = Math.min(2, neededDecoys - decoys.length, candidates.length);
+                            for (let i = 0; i < count; i++) decoys.push(candidates[i]);
+                        }
+                    }
+                });
+
+                while (decoys.length < neededDecoys) {
+                    const pool = this.decoyCharsSets.common;
+                    const char = pool[Math.floor(Math.random() * pool.length)];
+                    if (!answerChars.includes(char) && !decoys.includes(char)) decoys.push(char);
+                }
+
+                allChars = [...answerChars, ...decoys].sort(() => Math.random() - 0.5);
+                this.currentGridChars = allChars;
+            }
+
+            // 計算二維矩陣大小
+            const targetTotal = allChars.length;
             let cols = 3;
             if (targetTotal > 15) cols = 5;
             else if (targetTotal > 9) cols = 4;
             else cols = 3;
 
-            let rows = Math.ceil(targetTotal / cols);
-            const totalCells = cols * rows;
-
             container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
             container.innerHTML = '';
 
-            // 干擾字生成
-            const decoys = [];
-            const neededDecoys = Math.max(0, totalCells - answerChars.length);
-
-            const sets = Object.values(this.decoyCharsSets);
-            answerChars.forEach(targetChar => {
-                if (decoys.length >= neededDecoys) return;
-                if (Math.random() < 0.6) {
-                    const matchedSet = sets.find(s => s.includes(targetChar));
-                    if (matchedSet) {
-                        const candidates = matchedSet.split('').filter(c => !answerChars.includes(c) && !decoys.includes(c));
-                        candidates.sort(() => Math.random() - 0.5);
-                        const count = Math.min(2, neededDecoys - decoys.length, candidates.length);
-                        for (let i = 0; i < count; i++) decoys.push(candidates[i]);
-                    }
-                }
-            });
-
-            while (decoys.length < neededDecoys) {
-                const pool = this.decoyCharsSets.common;
-                const char = pool[Math.floor(Math.random() * pool.length)];
-                if (!answerChars.includes(char) && !decoys.includes(char)) decoys.push(char);
-            }
-
-            const allChars = [...answerChars, ...decoys].sort(() => Math.random() - 0.5);
             allChars.forEach(char => {
                 const btn = document.createElement('button');
                 btn.className = 'ans-btn';
@@ -501,183 +541,20 @@
             this.cluesRevealed = true;
             this.renderQuestion();
 
-            // Snapshot time immediately so heart animation doesn't reduce time score
-            const duration = this.timer * 1000;
-            const elapsed = Date.now() - this.startTime;
-            const remainingMs = Math.max(0, duration - elapsed);
-
-            // Phase 2: Convert Time
-            const convertTime = () => {
-                let remainingSeconds = Math.floor(remainingMs / 1000);
-
-                if (remainingSeconds <= 0) {
-                    this.gameOver(true);
-                    return;
+            ScoreManager.playWinAnimation({
+                game: this,
+                difficulty: this.difficulty,
+                gameKey: 'game4',
+                timerContainerId: 'game4-grid-container',
+                scoreElementId: 'game4-score',
+                heartsSelector: '#game4-hearts .heart:not(.empty)',
+                onComplete: (finalScore) => {
+                    this.gameOver(true, finalScore);
                 }
-
-                let tickDelay = Math.floor(1500 / remainingSeconds);
-                if (tickDelay > 100) tickDelay = 100;
-                if (tickDelay < 30) tickDelay = 30;
-
-                let starsLaunched = 0;
-                let starsLanded = 0;
-                let isLaunchComplete = false;
-
-                const winInterval = setInterval(() => {
-                    if (remainingSeconds > 0) {
-                        const currentRatio = remainingSeconds / this.timer;
-
-                        starsLaunched++;
-                        this.createFlyingStar(currentRatio, () => {
-                            this.score += 5;
-                            document.getElementById('game4-score').textContent = this.score;
-                            starsLanded++;
-                            if (isLaunchComplete && starsLanded === starsLaunched) {
-                                this.gameOver(true);
-                            }
-                        });
-
-                        remainingSeconds--;
-                        const newRatio = remainingSeconds / this.timer;
-                        this.updateTimerRing(newRatio);
-                    } else {
-                        clearInterval(winInterval);
-                        this.updateTimerRing(0);
-                        isLaunchComplete = true;
-                        // In case all stars landed before loop finished (unlikely given logic, but safe to check)
-                        if (starsLanded === starsLaunched) {
-                            this.gameOver(true);
-                        }
-                    }
-                }, tickDelay);
-            };
-
-            // Phase 1: Convert Hearts
-            const hearts = Array.from(document.querySelectorAll('#game4-hearts .heart:not(.empty)'));
-            if (hearts.length > 0) {
-                let hIdx = hearts.length - 1;
-                const heartInterval = setInterval(() => {
-                    if (hIdx >= 0) {
-                        hearts[hIdx].classList.add('score');
-                        hearts[hIdx].textContent = '❤';
-                        this.score += 10;
-                        document.getElementById('game4-score').textContent = this.score;
-                        hIdx--;
-                    } else {
-                        clearInterval(heartInterval);
-                        setTimeout(convertTime, 300);
-                    }
-                }, 333);
-            } else {
-                convertTime();
-            }
+            });
         },
 
-        getTimerPathPoint: function (ratio) {
-            const container = document.getElementById('game4-grid-container');
-            if (!container) return { x: 0, y: 0 };
 
-            const w = container.offsetWidth;
-            const h = container.offsetHeight;
-            const rw = Math.max(0, w - 6);
-            const rh = Math.max(0, h - 6);
-            const perimeter = 2 * (rw + rh);
-
-            let dist = perimeter * (1 - ratio);
-
-            // CCW Path starting from Top-Left (x=3, y=3)
-
-            // 1. Left Edge (Top -> Bottom)
-            if (dist <= rh) {
-                return { x: 3, y: 3 + dist };
-            }
-            dist -= rh;
-
-            // 2. Bottom Edge (Left -> Right)
-            if (dist <= rw) {
-                return { x: 3 + dist, y: 3 + rh };
-            }
-            dist -= rw;
-
-            // 3. Right Edge (Bottom -> Top)
-            if (dist <= rh) {
-                return { x: 3 + rw, y: 3 + rh - dist };
-            }
-            dist -= rh;
-
-            // 4. Top Edge (Right -> Left)
-            return { x: 3 + rw - dist, y: 3 };
-        },
-
-        createFlyingStar: function (ratio, onLand) {
-            // P0: Start position (Timer endpoint)
-            const timerContainer = document.getElementById('game4-grid-container');
-            if (!timerContainer) return;
-            const tRect = timerContainer.getBoundingClientRect();
-
-            const pointOnRect = this.getTimerPathPoint(ratio);
-            const p0 = {
-                x: tRect.left + pointOnRect.x,
-                y: tRect.top + pointOnRect.y
-            };
-
-            // P2: End position (Center of score board)
-            const scoreEl = document.getElementById('game4-score');
-            if (!scoreEl) return;
-            const sRect = scoreEl.getBoundingClientRect();
-            const p2 = { x: sRect.left + sRect.width / 2, y: sRect.top + sRect.height / 2 };
-
-            // P1: Midpoint + random offset
-            const midX = (p0.x + p2.x) / 2;
-            const midY = (p0.y + p2.y) / 2;
-            const offsetX = (Math.random() - 0.5) * 300;
-            const offsetY = (Math.random() - 0.5) * 300 - 100;
-            const p1 = { x: midX + offsetX, y: midY + offsetY };
-
-            // Create Star
-            const star = document.createElement('div');
-            star.className = 'flying-star';
-            star.textContent = '★';
-            star.style.left = `${p0.x}px`;
-            star.style.top = `${p0.y}px`;
-            document.body.appendChild(star);
-
-            // Animation Loop
-            const duration = 1000; // 1 second flight time
-            const startTime = Date.now();
-
-            const animate = () => {
-                const now = Date.now();
-                const t = Math.min(1, (now - startTime) / duration);
-
-                // Quadratic Bezier relative to body
-                const oneMinusT = 1 - t;
-                const x = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x;
-                const y = oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y;
-
-                star.style.left = `${x}px`;
-                star.style.top = `${y}px`;
-
-                star.style.transform = `translate(-50%, -50%) scale(${1 - t * 0.5}) rotate(${t * 360}deg)`;
-                star.style.opacity = 1 - t * 0.2;
-
-                if (t < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    star.remove();
-                    // Pulse
-                    scoreEl.style.transform = "scale(1.5)";
-                    scoreEl.style.color = "#f1c40f";
-                    setTimeout(() => {
-                        scoreEl.style.transform = "";
-                        scoreEl.style.color = "";
-                    }, 150);
-
-                    if (onLand) onLand();
-                }
-            };
-            requestAnimationFrame(animate);
-        },
 
         gameOver: function (win, reason) {
             this.isActive = false;
@@ -695,7 +572,7 @@
                 if (win) {
                     title.textContent = "尋覓成功！";
                     title.style.color = "#2ecc71";
-                    content.textContent = `得分：${this.score}`;
+                    content.textContent = `得分：${reason}`;
                 } else {
                     title.textContent = "功敗垂成";
                     title.style.color = "#ff4757";

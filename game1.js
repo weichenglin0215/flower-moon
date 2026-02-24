@@ -49,12 +49,12 @@
             // Old timer references removed
 
             // 綁定按鈕
-            document.getElementById('game1-restart-btn').addEventListener('click', () => this.restartGame());
-            document.getElementById('game1-close-btn').addEventListener('click', () => this.stopGame());
-            document.getElementById('game1-msg-btn').addEventListener('click', () => {
+            document.getElementById('game1-restart-btn').onclick = () => this.retryGame(); // 重來：保留題目
+            document.getElementById('game1-close-btn').onclick = () => this.startNewGame(); // 開新局：換新題目
+            document.getElementById('game1-msg-btn').onclick = () => {
                 document.getElementById('game1-message').classList.add('hidden');
-                this.restartGame();
-            });
+                this.startNewGame(); // 訊息視窗按鈕預設開新局
+            };
         },
 
         createDOM: function () {
@@ -70,7 +70,7 @@
                     <div class="game1-score-board">分數: <span id="game1-score">0</span></div>
                     <div class="game1-controls">
                         <button id="game1-restart-btn" class="nav-btn">重來</button>
-                        <button id="game1-close-btn" class="nav-btn close-btn">退出</button>
+                        <button id="game1-close-btn" class="nav-btn close-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game1-sub-header">
@@ -108,10 +108,10 @@
                 </div>
             `;
             document.body.appendChild(div);
-            document.getElementById('game1-msg-btn').addEventListener('click', () => {
+            document.getElementById('game1-msg-btn').onclick = () => {
                 document.getElementById('game1-message').classList.add('hidden');
-                this.restartGame(); // 直接以相同難度開啟下一局
-            });
+                this.startNewGame(); // 直接以相同難度開啟下一局
+            };
 
             this.renderHearts();
         },
@@ -196,17 +196,36 @@
             this.showOtherContents();
         },
 
-        restartGame: function () {
+        retryGame: function () {
+            if (!this.currentPoem) return;
             this.isActive = true;
             this.score = 0;
             this.mistakes = 0;
-            //this.updateLives();
             this.renderHearts();
             document.getElementById('game1-score').textContent = this.score;
             document.getElementById('game1-message').classList.add('hidden');
-            // 清空遊戲區域
-            //this.gameArea.innerHTML = '';
-            this.nextQuestion();
+
+            // 重新渲染當前題目 (不重新準備)
+            this.renderChallenge();
+            // 重設計時器
+            this.startTimer();
+        },
+
+        startNewGame: function () {
+            this.isActive = true;
+            this.score = 0;
+            this.mistakes = 0;
+            this.renderHearts();
+            document.getElementById('game1-score').textContent = this.score;
+            document.getElementById('game1-message').classList.add('hidden');
+
+            // 準備新題目並開始
+            this.prepareChallenge();
+            this.startTimer();
+        },
+
+        restartGame: function () {
+            this.startNewGame();
         },
 
         nextQuestion: function () {
@@ -283,14 +302,23 @@
                 return chars.map((c, i) => maskedIndices.includes(i) ? "◎" : c).join('');
             };
 
-            const maskedLineText = maskLine(this.correctAnswer, settings.minMaskCount, settings.maxMaskCount);
+            this.maskedLineText = maskLine(this.correctAnswer, settings.minMaskCount, settings.maxMaskCount);
+            this.displayedLine = displayedLine;
+            this.hideFirst = hideFirst;
 
-            // 更新 UI
+            // 生成選項數據
+            this.generateOptionsData(this.correctAnswer, this.maskedLineText);
+
+            // 渲染 UI
+            this.renderChallenge();
+        },
+
+        renderChallenge: function () {
             const qDiv = document.getElementById('game1-question-lines');
             qDiv.innerHTML = '';
 
-            const l1Text = hideFirst ? maskedLineText : displayedLine;
-            const l2Text = hideFirst ? displayedLine : maskedLineText;
+            const l1Text = this.hideFirst ? this.maskedLineText : this.displayedLine;
+            const l2Text = this.hideFirst ? this.displayedLine : this.maskedLineText;
 
             const l1Div = document.createElement('div');
             l1Div.className = 'poem-lines';
@@ -306,17 +334,17 @@
             const maxLineLen = Math.max(l1Text.length, l2Text.length);
             this.adjustFontSize(qDiv, maxLineLen, 7, 2.5);
 
-            const infoText = `${poem.title} / ${poem.dynasty} / ${poem.author}`;
+            const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             const infoEl = document.getElementById('game1-poem-info');
             infoEl.textContent = infoText;
-            infoEl.dataset.poemId = poem.id; // 綁定 ID 以便點擊呼叫 dialog
+            infoEl.dataset.poemId = this.currentPoem.id;
             this.adjustFontSize(infoEl, infoText.length, 20, 1.0);
 
-            // 生成選項
-            this.generateOptions(this.correctAnswer, maskedLineText);
+            // 渲染選項
+            this.renderOptions();
         },
 
-        generateOptions: function (correct, masked) {
+        generateOptionsData: function (correct, masked) {
             const correctClean = correct.replace(/[，。？！、：；]/g, '');
             const lineLen = correctClean.length;
             const poemType = this.currentPoem.type || "";
@@ -373,6 +401,7 @@
             const decoys = [];
             while (decoys.length < 3) {
                 const raw = potentialDecoys[Math.floor(Math.random() * potentialDecoys.length)];
+                if (!raw) break; // 防止死循環
                 const clean = raw.replace(/[，。？！、：；]/g, '');
                 if (clean.length === lineLen && !usedLines.includes(raw)) {
                     decoys.push(raw);
@@ -384,6 +413,10 @@
             // 洗牌
             finalOptions.sort(() => Math.random() - 0.5);
 
+            this.currentOptions = finalOptions;
+        },
+
+        renderOptions: function () {
             // 渲染
             const optDiv = document.getElementById('game1-answer-grid');
             optDiv.innerHTML = '';
@@ -391,7 +424,7 @@
             // 每次生成選項時重置 SVG 大小
             setTimeout(() => this.updateTimerRing(1), 0);
 
-            finalOptions.forEach(opt => {
+            this.currentOptions.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.className = 'game1-option-btn';
                 btn.textContent = opt.text;
@@ -405,11 +438,11 @@
 
         startTimer: function () {
             clearInterval(this.timerInterval);
-            const startTime = Date.now();
+            this.startTime = Date.now();
             const duration = this.maxTimer * 1000;
 
             this.timerInterval = setInterval(() => {
-                const elapsed = Date.now() - startTime;
+                const elapsed = Date.now() - this.startTime;
                 const ratio = 1 - (elapsed / duration);
 
                 if (ratio <= 0) {
@@ -471,9 +504,17 @@
             if (isCorrect) {
                 btn.classList.add('correct');
                 clearInterval(this.timerInterval);
-                setTimeout(() => {
-                    this.gameOver(true);
-                }, 500);
+                ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game1',
+                    timerContainerId: 'game1-answer-grid-container',
+                    scoreElementId: 'game1-score',
+                    heartsSelector: '#game1-hearts .heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        this.gameOver(true, "最終得分：" + finalScore);
+                    }
+                });
             } else {
                 if (btn.classList.contains('wrong')) return;
                 btn.classList.add('wrong');
@@ -532,7 +573,7 @@
             if (win) {
                 title.textContent = "恭喜過關！";
                 title.style.color = "#28a745";
-                content.textContent = "更上一層樓！";
+                content.textContent = reason || "更上一層樓！";
             } else {
                 title.textContent = "再接再厲！";
                 title.style.color = "#dc3545";

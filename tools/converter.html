@@ -14,7 +14,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 1600px;
             margin: 0 auto;
             background: white;
             padding: 2rem;
@@ -53,6 +53,39 @@
             border-radius: 4px;
             overflow-x: auto;
             white-space: pre-wrap;
+            height: 1000px;
+            /* 固定高度 */
+            overflow-y: auto;
+            /* 滾動條 */
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 1.5rem;
+        }
+
+        .copy-btn {
+            background: #34495e;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .copy-btn:hover {
+            background: #465d75;
+        }
+
+        .copy-btn svg {
+            width: 14px;
+            height: 14px;
         }
 
         .instructions {
@@ -87,8 +120,31 @@
         <textarea id="inputArea" placeholder="在此貼上 Excel 資料..."></textarea>
         <button onclick="convert()">轉換成程式碼格式</button>
 
-        <h3>轉換結果：</h3>
+        <div class="header-container">
+            <h3>轉換結果：</h3>
+            <button class="copy-btn" onclick="copyToClipboard('outputArea')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                複製
+            </button>
+        </div>
         <pre id="outputArea">// 等待輸入...</pre>
+
+        <div class="header-container">
+            <h3>轉換成單行式朗誦文本：</h3>
+            <button class="copy-btn" onclick="copyToClipboard('recitationArea')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                複製
+            </button>
+        </div>
+        <pre id="recitationArea">// 等待輸入...</pre>
     </div>
 
     <script>
@@ -671,10 +727,122 @@
             });
         }
 
+        /**
+         * 生成單行朗誦格式
+         */
+        function generateRecitationLine(poem, originalNotes) {
+            let recitationLine = `${poem.title}，${poem.type}，${poem.dynasty}，作者：${poem.author}。${poem.content.join('，')}。`;
+
+            if (originalNotes && originalNotes.trim()) {
+                // 將注音說明按行拆分
+                const notesLines = originalNotes.split(/[\n\r]+/).filter(l => l.trim());
+                const pronunciationNotes = [];
+
+                for (let noteLine of notesLines) {
+                    // 匹配 "字(注音)" 格式
+                    const singleRegex = /([\u4e00-\u9fff]+)\s*(\([ㄅ-ㄩˊˇˋ˙\s　]+\))/;
+                    const matchResult = noteLine.match(singleRegex);
+
+                    if (matchResult) {
+                        const targetChar = matchResult[1];
+                        const zhuyinPart = matchResult[2];
+                        const zhuyin = zhuyinPart.slice(1, -1);
+
+                        // 尋找包含該字的詩句
+                        let relatedLine = "";
+                        if (poem.content && poem.content.length > 0) {
+                            for (const pLine of poem.content) {
+                                if (pLine.includes(targetChar)) {
+                                    relatedLine = pLine;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 將注音符號轉換為同音常用字
+                        const zhuyinParts = zhuyin.split(/[\s　]+/).filter(z => z.length > 0);
+                        let homophones = "";
+                        if (zhuyinParts.length > 1) {
+                            homophones = zhuyinParts.map(z => findCommonChar(z) || '?').join('');
+                        } else {
+                            const common = findCommonChar(zhuyin);
+                            homophones = common || zhuyin; // 如果找不到，保留原注音
+                        }
+
+                        // 替換括號內容
+                        const convertedNote = noteLine.replace(zhuyinPart, `(${homophones})`);
+
+                        if (relatedLine) {
+                            pronunciationNotes.push(`${relatedLine}，${convertedNote}`);
+                        } else {
+                            pronunciationNotes.push(convertedNote);
+                        }
+                    }
+                }
+
+                if (pronunciationNotes.length > 0) {
+                    recitationLine += `發音說明：${pronunciationNotes.join(' ')}`;
+                }
+            }
+            return recitationLine;
+        }
+
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            const btn = event.currentTarget;
+            const originalHTML = btn.innerHTML;
+
+            // 優先使用 modern Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showSuccess(btn, originalHTML);
+                }).catch(err => {
+                    console.error('Clipboard API 失敗:', err);
+                    fallbackCopy(text, btn, originalHTML);
+                });
+            } else {
+                // Fallback 方案：使用 execCommand
+                fallbackCopy(text, btn, originalHTML);
+            }
+        }
+
+        function fallbackCopy(text, btn, originalHTML) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            // 確保 textarea 不會被看到
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showSuccess(btn, originalHTML);
+                } else {
+                    throw new Error('execCommand copy was unsuccessful');
+                }
+            } catch (err) {
+                console.error('Fallback 複製失敗:', err);
+                alert('複製失敗，請手動複製');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function showSuccess(btn, originalHTML) {
+            btn.innerHTML = '已複製！';
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        }
+
         function convert() {
             const input = document.getElementById('inputArea').value;
             const lines = parseTSV(input);
             const poems = [];
+            const recitationLines = [];
 
             for (let i = 0; i < lines.length; i++) {
                 const row = lines[i];
@@ -721,12 +889,17 @@
                 }
 
                 poems.push(poem);
+
+                // 生成單行朗誦文本
+                recitationLines.push(generateRecitationLine(poem, originalZhuyin));
             }
 
+            // 生成 JSON 輸出
             const jsonString = JSON.stringify(poems, null, 2);
-            const output = `const POEMS = ${jsonString};`;
+            document.getElementById('outputArea').textContent = `const POEMS = ${jsonString};`;
 
-            document.getElementById('outputArea').textContent = output;
+            // 生成單行朗誦文本輸出            
+            document.getElementById('recitationArea').textContent = recitationLines.join('\n');
         }
 
         // Custom TSV Parser

@@ -145,15 +145,28 @@
             const contentDiv = document.getElementById('dlgContent');
             contentDiv.innerHTML = '';
             if (poem.content && Array.isArray(poem.content)) {
-                poem.content.forEach(line => {
+                poem.content.forEach((line, i) => {
                     const div = document.createElement('div');
                     div.className = 'pd-line-content';
                     div.textContent = line;
+                    /*詩句評價大於等於詩評價，且大於等於4，絕佳詩句 */
+                    if (poem.line_ratings && poem.line_ratings[i] >= (poem.rating || 0) && poem.line_ratings[i] >= 4) {
+                        div.style.fontWeight = 'bold';
+                        div.style.color = 'hsla(6, 100%, 30%, 1.00)';
+                    }
+                    /*詩句評價大於等於詩評價-1，且大於等於於4 有些高評價的詩中也有不錯的詩句，不加粗體*/
+                    else if (poem.line_ratings && poem.line_ratings[i] >= (poem.rating || 0) - 1 && poem.line_ratings[i] >= 4) {
+                        div.style.color = 'hsla(6, 100%, 30%, 1.00)';
+                    }
+                    /*詩句評價大於等於詩評價，卻小於4 因這首詩的評價就不高了，所以不加粗*/
+                    else if (poem.line_ratings && poem.line_ratings[i] >= (poem.rating || 0)) {
+                        div.style.color = 'hsla(6, 100%, 30%, 1.00)';
+                    }
                     contentDiv.appendChild(div);
                 });
             }
 
-            // Review
+            // Review (總評價)
             const reviewDiv = document.getElementById('dlgReview');
             if (poem.rating) {
                 reviewDiv.textContent = poem.rating;
@@ -164,13 +177,13 @@
                 reviewDiv.textContent = '（暫無總評）';
             }
 
-            // Famous Lines
+            // Famous Lines (佳句賞析)
             const famousDiv = document.getElementById('dlgFamous');
             famousDiv.innerHTML = '';
             let hasFamous = false;
             if (poem.content && poem.line_ratings) {
                 poem.content.forEach((line, i) => {
-                    if (poem.line_ratings[i] >= 3) {
+                    if (poem.line_ratings[i] >= poem.rating) {
                         const d = document.createElement('div');
                         d.className = 'pd-famous-item';
                         d.textContent = line;
@@ -183,7 +196,7 @@
                 famousDiv.innerHTML = '<p class="pd-placeholder">此詩尚無評分較高的佳句。</p>';
             }
 
-            // Zhuyin
+            // Zhuyin (注音說明)
             const zhuyinDiv = document.getElementById('dlgZhuyin');
             if (poem.zhuyin) {
                 zhuyinDiv.textContent = poem.zhuyin;

@@ -45,7 +45,7 @@
     padding-left: 3rem;
 }
 
-/* 控制按鈕（重新開始／退出） */
+/* 控制按鈕（重新開始／開新局） */
 .game4-controls .nav-btn {
     margin-left: 0.5rem;
     padding: 0.0rem 0.5rem;
@@ -97,7 +97,7 @@
 }
 
 .heart.score {
-    color: hsl(36, 90%, 50%);
+    color: hsl(60, 90%, 60%);
     opacity: 1;
 }
 
@@ -293,7 +293,8 @@
 }
 
 .game4-message p {
-    font-size: 1rem;
+    font-size: 1.2rem;
+    font-weight: bold;
     display: inline-block;
     vertical-align: middle;
     white-space: nowrap;

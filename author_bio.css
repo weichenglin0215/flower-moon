@@ -6,7 +6,7 @@
     /* 預設隱藏 */
     flex-direction: column;
     padding: 15px;
-    padding-top: 50px;
+    padding-top: 1px;
     /* 縮小一點空間 */
     font-family: var(--font-main);
     color: whitesmoke;
@@ -24,19 +24,19 @@
 .bio-header {
     display: flex;
     flex-wrap: wrap;
-    gap: 15px;
-    margin-bottom: 20px;
+    gap: 0.3rem 1rem;
+    margin-bottom: 0.3rem;
     background: rgba(255, 255, 255, 0.1);
-    padding: 15px;
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
+    padding: 0.6rem;
+    border-radius: 0.5rem;
+    backdrop-filter: blur(0.3rem);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 0.3rem;
 }
 
 .filter-group label {
@@ -48,8 +48,8 @@
 .filter-group input {
     background: rgba(255, 255, 255, 0.9);
     border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 0.1rem 0.6rem;
+    border-radius: 0.3rem;
     font-family: inherit;
     font-size: 1rem;
     color: #333;
@@ -57,32 +57,32 @@
 }
 
 .filter-group input {
-    min-width: 200px;
+    min-width: 20rem;
 }
 
-/* Main Content Area */
+/* Main Content Area 下方兩區的間隔*/
 .bio-content {
     display: flex;
     flex: 1;
-    gap: 20px;
+    gap: 0.2rem;
     overflow: hidden;
 }
 
-/* Author List */
+/* Author List 左側欄*/
 .author-list-container {
     flex: 1;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 12px;
+    border-radius: 0.3rem;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 .list-title {
-    padding: 15px;
+    padding: 0.3rem;
     font-size: 1.2rem;
     font-weight: bold;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -91,14 +91,14 @@
 .author-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
+    padding: 0.3rem;
 }
 
 .author-item {
-    padding: 12px 15px;
-    margin-bottom: 8px;
+    padding: 0.2rem 0.4rem;
+    margin-bottom: 0.2rem;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    border-radius: 0.3rem;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
@@ -107,7 +107,7 @@
 }
 
 .author-item:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.25);
     transform: translateX(5px);
 }
 
@@ -117,20 +117,20 @@
 }
 
 .author-name {
-    font-size: 1.1rem;
+    font-size: 1.0rem;
     font-weight: bold;
 }
 
 .author-stats {
     font-size: 0.8rem;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 /* Works List */
 .works-list-container {
     flex: 1.5;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 12px;
+    border-radius: 0.3rem;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -206,12 +206,12 @@
 /* Close button for the page */
 .page-close-btn {
     position: absolute;
-    top: 15px;
-    right: 20px;
+    top: 0px;
+    right: 1rem;
     font-size: 2rem;
     cursor: pointer;
     z-index: 101;
-    opacity: 0.7;
+    opacity: 0.6;
 }
 
 .page-close-btn:hover {

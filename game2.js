@@ -22,11 +22,11 @@
         game2Area: null,
 
         difficultySettings: {
-            '小學': { grid: [2, 2], time: 120, questionCount: 1, questionAtLine: 2, minRating: 6, maxMistakeCount: 4 },
-            '中學': { grid: [3, 2], time: 90, questionCount: 2, questionAtLine: 2, minRating: 5, maxMistakeCount: 4 },
-            '高中': { grid: [3, 3], time: 60, questionCount: 3, questionAtLine: 0, minRating: 4, maxMistakeCount: 5 },
-            '大學': { grid: [3, 4], time: 30, questionCount: 5, questionAtLine: 0, minRating: 3, maxMistakeCount: 6 },
-            '研究所': { grid: [4, 4], time: 15, questionCount: 7, questionAtLine: 1, minRating: 2, maxMistakeCount: 8 }
+            '小學': { grid: [2, 2], time: 60, maxMistakeCount: 4, questionCount: 1, questionAtLine: 2, minRating: 6 },
+            '中學': { grid: [3, 2], time: 45, maxMistakeCount: 5, questionCount: 2, questionAtLine: 2, minRating: 5 },
+            '高中': { grid: [3, 3], time: 30, maxMistakeCount: 6, questionCount: 3, questionAtLine: 0, minRating: 4 },
+            '大學': { grid: [3, 4], time: 20, maxMistakeCount: 7, questionCount: 5, questionAtLine: 0, minRating: 3 },
+            '研究所': { grid: [4, 4], time: 15, maxMistakeCount: 8, questionCount: 7, questionAtLine: 1, minRating: 2 }
         },
         // 常用字庫 (用於生成干擾項)
         decoyCharsPeople: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
@@ -69,7 +69,7 @@
                     <div class="game2-score-board">分數: <span id="game2-score">0</span></div>
                     <div class="game2-controls">
                         <button id="game2-restart-btn" class="nav-btn">重來</button>
-                        <button id="game2-close-btn" class="nav-btn close-btn">退出</button>
+                        <button id="game2-close-btn" class="nav-btn close-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game2-sub-header">
@@ -106,12 +106,12 @@
             document.body.appendChild(div);
 
             // 綁定事件
-            document.getElementById('game2-close-btn').addEventListener('click', () => this.stopGame());
-            document.getElementById('game2-restart-btn').addEventListener('click', () => this.restartGame());
-            document.getElementById('game2-msg-btn').addEventListener('click', () => {
+            document.getElementById('game2-close-btn').onclick = () => this.startNewGame(); // 開新局
+            document.getElementById('game2-restart-btn').onclick = () => this.retryGame(); // 重來
+            document.getElementById('game2-msg-btn').onclick = () => {
                 document.getElementById('game2-message').classList.add('hidden');
-                this.restartGame(); // 直接以相同難度開啟下一局
-            });
+                this.startNewGame(); // 訊息視窗按鈕預設開新局
+            };
 
             // 初始化主字按鈕
             this.renderKeywords();
@@ -201,7 +201,27 @@
             }
         },
 
-        restartGame: function () {
+        retryGame: function () {
+            if (!this.currentPoem) return;
+            this.isActive = true;
+            this.score = 0;
+            this.mistakeCount = 0;
+            this.currentInputIndex = 0;
+            this.isRevealed = false;
+            document.getElementById('game2-score').textContent = this.score;
+            document.getElementById('game2-message').classList.add('hidden');
+            this.renderHearts();
+
+            const settings = this.difficultySettings[this.difficulty];
+            this.timeLeft = settings.time;
+            this.timer = settings.time;
+
+            this.renderQuestion();
+            this.renderGrid(true); // 使用舊有的 gridChars
+            this.startTimer();
+        },
+
+        startNewGame: function () {
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -217,12 +237,16 @@
 
             if (this.selectPoem()) {
                 this.renderQuestion();
-                this.renderGrid();
+                this.renderGrid(false); // 生成新的 gridChars
                 this.startTimer();
             } else {
                 alert(`找不到包含「${this.selectedKeyword}」且符合進度的詩詞，請換個主字試試。`);
                 this.showDifficultySelector();
             }
+        },
+
+        restartGame: function () {
+            this.startNewGame();
         },
 
         selectPoem: function () {
@@ -364,7 +388,7 @@
             info.dataset.poemId = this.currentPoem.id;
         },
 
-        renderGrid: function () {
+        renderGrid: function (isRetry = false) {
             const container = document.getElementById('game2-answer-grid');
             const settings = this.difficultySettings[this.difficulty];
             const [cols, rows] = settings.grid;
@@ -372,55 +396,60 @@
             container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
             container.innerHTML = '';
 
-            const totalCells = cols * rows;
-            const answerChars = [...this.targetChars];
+            let allChars;
+            if (isRetry && this.currentGridChars) {
+                allChars = this.currentGridChars;
+            } else {
+                const totalCells = cols * rows;
+                const answerChars = [...this.targetChars];
 
-            // 干擾字
-            const decoys = [];
-            const neededDecoys = totalCells - answerChars.length;
+                // 干擾字
+                const decoys = [];
+                const neededDecoys = totalCells - answerChars.length;
 
-            // 1. 嘗試從分類主題中選取 (基於正確答案的屬性)
-            const thematicSets = [
-                this.decoyCharsPeople,
-                this.decoyCharsSeason,
-                this.decoyCharsWeather,
-                this.decoyCharsEnvironment,
-                this.decoyCharsColor,
-                this.decoyCharsPlant
-            ];
+                // 1. 嘗試從分類主題中選取
+                const thematicSets = [
+                    this.decoyCharsPeople,
+                    this.decoyCharsSeason,
+                    this.decoyCharsWeather,
+                    this.decoyCharsEnvironment,
+                    this.decoyCharsColor,
+                    this.decoyCharsPlant
+                ];
 
-            // 對每一個正確答案字，都有機會觸發其所屬主題的干擾字66%
-            answerChars.forEach(targetChar => {
-                if (decoys.length >= neededDecoys) return;
+                answerChars.forEach(targetChar => {
+                    if (decoys.length >= neededDecoys) return;
 
-                if (Math.random() < 0.66) {
-                    const matchedSet = thematicSets.find(set => set && set.includes(targetChar));
-                    if (matchedSet) {
-                        const themeCandidates = matchedSet.split('').filter(c => !answerChars.includes(c) && !decoys.includes(c));
-                        themeCandidates.sort(() => Math.random() - 0.5);
-                        // 從該主題中隨機選 1-2 個字
-                        const count = Math.min(2, neededDecoys - decoys.length, themeCandidates.length);
-                        for (let i = 0; i < count; i++) {
-                            decoys.push(themeCandidates[i]);
+                    if (Math.random() < 0.66) {
+                        const matchedSet = thematicSets.find(set => set && set.includes(targetChar));
+                        if (matchedSet) {
+                            const themeCandidates = matchedSet.split('').filter(c => !answerChars.includes(c) && !decoys.includes(c));
+                            themeCandidates.sort(() => Math.random() - 0.5);
+                            const count = Math.min(2, neededDecoys - decoys.length, themeCandidates.length);
+                            for (let i = 0; i < count; i++) {
+                                decoys.push(themeCandidates[i]);
+                            }
                         }
                     }
-                }
-            });
+                });
 
-            // 2. 如果選項不足，使用預設字庫補齊
-            while (decoys.length < neededDecoys) {
-                const char = this.decoyChars[Math.floor(Math.random() * this.decoyChars.length)];
-                if (!answerChars.includes(char) && !decoys.includes(char)) {
-                    decoys.push(char);
+                while (decoys.length < neededDecoys) {
+                    const char = this.decoyChars[Math.floor(Math.random() * this.decoyChars.length)];
+                    if (!answerChars.includes(char) && !decoys.includes(char)) {
+                        decoys.push(char);
+                    }
                 }
+
+                allChars = [...answerChars, ...decoys].sort(() => Math.random() - 0.5);
+                this.currentGridChars = allChars;
             }
-
-            const allChars = [...answerChars, ...decoys].sort(() => Math.random() - 0.5);
 
             allChars.forEach(char => {
                 const btn = document.createElement('button');
                 btn.className = 'game2-ans-btn';
                 btn.textContent = char;
+                // 如果是 retry，且該字已經被正確輸入過了，則需要標記為 disabled
+                // 但為了簡單起見，retry 時 currentInputIndex 被重置為 0 了，所以全部按鈕都是可用狀態
                 btn.onclick = (e) => this.handleInput(char, e.target);
                 container.appendChild(btn);
             });
@@ -442,7 +471,18 @@
                 this.renderQuestion();
 
                 if (this.currentInputIndex === this.targetChars.length) {
-                    this.gameOver(true);
+                    clearInterval(this.timerInterval);
+                    ScoreManager.playWinAnimation({
+                        game: this,
+                        difficulty: this.difficulty,
+                        gameKey: 'game2',
+                        timerContainerId: 'game2-answer-grid-container',
+                        scoreElementId: 'game2-score',
+                        heartsSelector: '#game2-hearts .heart:not(.empty)',
+                        onComplete: (finalScore) => {
+                            this.gameOver(true, finalScore);
+                        }
+                    });
                 }
             } else {
                 // 答錯
@@ -460,11 +500,11 @@
 
         startTimer: function () {
             clearInterval(this.timerInterval);
-            const startTime = Date.now();
+            this.startTime = Date.now();
             const duration = this.timer * 1000;
 
             this.timerInterval = setInterval(() => {
-                const elapsed = Date.now() - startTime;
+                const elapsed = Date.now() - this.startTime;
                 const ratio = 1 - (elapsed / duration);
 
                 if (ratio <= 0) {
@@ -537,7 +577,7 @@
             if (win) {
                 title.textContent = "恭喜過關！";
                 title.style.color = "#4CAF50";
-                content.textContent = `完成了飛花令！得分：${this.score}`;
+                content.textContent = `完成了飛花令！得分：${reason}`;
             } else {
                 title.textContent = "遊戲結束";
                 title.style.color = "#f44336";

@@ -93,10 +93,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const hue = Math.floor(seededRandom(1) * 360);
         cardInner.style.setProperty('--card-hue', hue);
 
-        // 2. 詩詞選擇 - 只選擇評價在 1 以上的詩詞
-        const highRatingPoems = POEMS.filter(p => (p.rating || 0) > 1);
-        const poemIndex = Math.floor(seededRandom(2) * highRatingPoems.length);
-        const poem = highRatingPoems[poemIndex];
+        // 2. 詩詞選擇
+        let poem;
+        const dateKey = `${y}${m.toString().padStart(2, '0')}${d.toString().padStart(2, '0')}`;
+
+        if (typeof CALENDAR_ASSIGNMENTS !== 'undefined' && CALENDAR_ASSIGNMENTS[dateKey]) {
+            const assignedId = CALENDAR_ASSIGNMENTS[dateKey];
+            poem = POEMS.find(p => p.id === assignedId);
+        }
+
+        // 如果找不到分配，或是沒載入分配表，則採用原有的隨機機制
+        if (!poem) {
+            const highRatingPoems = POEMS.filter(p => (p.rating || 0) >= 4);
+            const poemIndex = Math.floor(seededRandom(2) * highRatingPoems.length);
+            poem = highRatingPoems[poemIndex];
+        }
 
         // 3. 宜忌 (基於節氣與農曆)
         let luckyText = "讀書";
@@ -141,29 +152,105 @@ document.addEventListener('DOMContentLoaded', () => {
             poemBody.appendChild(div);
         });
 
-        // 農曆 (Lunar)
+        // 農曆 (Lunar) 與 節假日 (Festivals)
         if (window.Lunar) {
             const lunar = Lunar.fromDate(date);
-            let lunarHtml = `${lunar.getYearInGanZhi()}${lunar.getYearShengXiao()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}日`;
+
+            // 繁體中文映射 (用於處理 lunar-javascript 可能返回的簡體字)
+            const tMap = {
+                '龙': '龍', '马': '馬', '鸡': '雞', '猪': '豬',
+                '节': '節', '气': '氣', '农': '農', '历': '曆',
+                '腊': '臘', '阳': '陽', '惊': '驚', '蛰': '蟄',
+                '谷': '穀', '满': '滿', '种': '種', '处': '處',
+                '园': '園', '团': '團', '后': '後', '胜': '勝',
+                '儿': '兒', '劳': '勞', '动': '動', '国': '國', '庆': '慶',
+                '圣': '聖', '诞': '誕', '华': '華', '礼': '禮'
+            };
+            const toT = (s) => s ? s.split('').map(c => tMap[c] || c).join('') : '';
+
+            // 1. 農曆資訊文字
+            const ganZhi = lunar.getYearInGanZhi();
+            const shengXiao = toT(lunar.getYearShengXiao());
+            const monthChan = toT(lunar.getMonthInChinese());
+            const dayChan = lunar.getDayInChinese();
+
+            let lunarHtml = `${ganZhi}${shengXiao}年${monthChan}月${dayChan}日`;
 
             const currentJieQi = lunar.getJieQi();
             if (currentJieQi) {
-                lunarHtml += ` · ${currentJieQi}`;
+                lunarHtml += ` · ${toT(currentJieQi)}`;
             } else {
                 const nextJieQi = lunar.getNextJieQi();
                 if (nextJieQi) {
-                    lunarHtml += ` · 近${nextJieQi.getName()}`;
+                    lunarHtml += ` · 近${toT(nextJieQi.getName())}`;
                 }
             }
             cardInner.querySelector('.lunar-info').textContent = lunarHtml;
-        }
 
-        // 節假日 (Holidays)
-        const holidayText = getHoliday(m, d);
-        if (holidayText) {
-            const hDiv = document.createElement('div');
-            hDiv.textContent = holidayText;
-            cardInner.querySelector('.holidays-container').appendChild(hDiv);
+            // 2. 節假日處理
+            const festivals = [];
+
+            // 陽曆節日
+            const gregHoliday = getHoliday(m, d);
+            if (gregHoliday) festivals.push(gregHoliday);
+
+            // 農曆節日 (庫自帶)
+            lunar.getFestivals().forEach(f => festivals.push(toT(f)));
+
+            // 確保包含使用者要求的傳統節日 (以防庫未收錄或名稱不同)
+            const lm = lunar.getMonth();
+            const ld = lunar.getDay();
+            const lunarFests = {
+                '1-1': '春節',
+                '1-15': '元宵節',
+                '5-5': '端午節',
+                '7-7': '七夕節',
+                '7-15': '中元節',
+                '8-15': '中秋節',
+                '9-9': '重陽節',
+                '12-8': '臘八節',
+                '12-23': '小年'
+            };
+            const lunarKey = `${lm}-${ld}`;
+            if (lunarFests[lunarKey]) {
+                if (!festivals.includes(lunarFests[lunarKey])) festivals.push(lunarFests[lunarKey]);
+            }
+
+            // 除夕判斷：農曆 12 月的最後一天 (不論是 29 還是 30)
+            if (lm === 12) {
+                // 檢查明天是否為正月初一
+                const tomorrow = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+                const tomorrowLunar = Lunar.fromDate(tomorrow);
+                if (tomorrowLunar.getMonth() === 1 && tomorrowLunar.getDay() === 1) {
+                    if (!festivals.includes('除夕')) festivals.push('除夕');
+                }
+            }
+
+            // 節氣轉節日 (清明)
+            if (currentJieQi === "清明") {
+                if (!festivals.includes("清明節")) festivals.push("清明節");
+            }
+
+            // 3. 渲染右側資訊：合併成單一行顯示
+            const hContainer = cardInner.querySelector('.holidays-container');
+            const lunarInfo = cardInner.querySelector('.lunar-info');
+
+            // 將節日去重並與農曆資訊合併
+            const uniqueFests = [...new Set(festivals)];
+            let combinedText = lunarHtml;
+            if (uniqueFests.length > 0) {
+                combinedText += " · " + uniqueFests.join(" · ");
+            }
+
+            // 全部顯示在 holidays-container，清空 lunar-info 以達成單一行效果
+            lunarInfo.textContent = '';
+            lunarInfo.style.display = 'none';
+            hContainer.innerHTML = '';
+
+            const singleLineDiv = document.createElement('div');
+            singleLineDiv.textContent = combinedText;
+            singleLineDiv.className = 'vertical-text';
+            hContainer.appendChild(singleLineDiv);
         }
 
         return cardInner;
@@ -294,12 +381,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getHoliday(m, d) {
-        if (m === 1 && d === 1) return "元旦　";
-        if (m === 4 && d === 4) return "兒童節　";
-        if (m === 4 && d === 5) return "清明節　";
-        if (m === 5 && d === 1) return "勞動節　";
-        if (m === 10 && d === 10) return "國慶日　";
-        return "";
+        const holidays = {
+            '1-1': '元旦',
+            '2-14': '情人節',
+            '4-4': '兒童節',
+            '5-1': '勞動節',
+            '8-8': '父親節',
+            '10-10': '國慶日',
+            '12-25': '聖誕節'
+        };
+        return holidays[`${m}-${d}`] || "";
     }
 
     function getLuckyUnluckyBySolarTerm(solarTerm, lunarMonth, seed) {

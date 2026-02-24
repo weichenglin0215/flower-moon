@@ -90,7 +90,7 @@ window.AuthorBio = (function () {
                 <div class="author-list-container">
                     <div class="list-title">
                         <span>作者列表</span>
-                        <span id="authorCount" style="font-size: 0.8rem; opacity: 0.7;"></span>
+                        <span id="authorCount" style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;"></span>
                     </div>
                     <div class="author-scroll" id="authorList"></div>
                 </div>
@@ -158,8 +158,8 @@ window.AuthorBio = (function () {
 
         list.innerHTML = filteredAuthors.map(author => `
             <div class="author-item ${selectedAuthor && selectedAuthor.name === author.name ? 'selected' : ''}" data-name="${author.name}">
-                <div class="author-name">${author.name} <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6;">(${author.dynasty})</span></div>
-                <div class="author-stats">總評分: ${author.totalRating} | 作品: ${author.poems.length}</div>
+                <div class="author-name">${author.name} <br> <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">(${author.dynasty})</span></div>
+                <div class="author-stats">總評分: ${author.totalRating} <br> 作品: ${author.poems.length}</div>
             </div>
         `).join('');
 
@@ -195,7 +195,7 @@ window.AuthorBio = (function () {
                     <span class="work-title">${poem.title}</span>
                     <span class="work-rating">評價: ${poem.rating}</span>
                 </div>
-                <div class="work-snippet">${poem.content[0]}...</div>
+                <div class="work-snippet">${poem.content[0]}，${poem.content[1]}，...</div>
             </div>
         `).join('');
 
