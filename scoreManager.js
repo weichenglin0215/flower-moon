@@ -16,6 +16,25 @@ const ScoreManager = {
         'game4': { base: 100, heart: 10, time: 5 }
     },
 
+    // 玩家階級設定
+    ranks: [
+        { name: '書僮', minScore: 0 },
+        { name: '蒙童', minScore: 10000 },
+        { name: '塾生', minScore: 20000 },
+        { name: '童生', minScore: 40000 },
+        { name: '縣案首', minScore: 80000 },
+        { name: '府案首', minScore: 160000 },
+        { name: '文童', minScore: 320000 },
+        { name: '秀才', minScore: 640000 },
+        { name: '舉人', minScore: 1280000 },
+        { name: '貢士', minScore: 2560000 },
+        { name: '進士', minScore: 5120000 },
+        { name: '探花', minScore: 10240000 },
+        { name: '榜眼', minScore: 20480000 },
+        { name: '狀元', minScore: 40960000 },
+        { name: '大儒', minScore: 81920000 }
+    ],
+
     // 基礎通關分
     getBaseScore: function (gameKey) {
         return this.gameSettings[gameKey]?.base || 100;
@@ -31,28 +50,57 @@ const ScoreManager = {
         return this.gameSettings[gameKey]?.time || 5;
     },
 
+    getCurrentRank: function (score) {
+        let currentRank = this.ranks[0].name;
+        for (let i = 0; i < this.ranks.length; i++) {
+            if (score >= this.ranks[i].minScore) {
+                currentRank = this.ranks[i].name;
+            } else {
+                break;
+            }
+        }
+        return currentRank;
+    },
+
     // 儲存分數並累加至 LocalStorage
-    saveScore: function (difficulty, finalScore) {
-        let data = JSON.parse(localStorage.getItem('flowerMoon_playerData')) || {
-            nickname: '訪客',
-            totalScore: 0,
-            badges: [],
-            highestDifficulty: '小學'
-        };
+    saveScore: function (gameKey, difficulty, finalScore) {
+        let data = this.loadPlayerData(); // 使用涵蓋了 migrate 的 loadPlayerData
 
         data.totalScore += finalScore;
 
-        const diffIndex = ['小學', '中學', '高中', '大學', '研究所'];
-        const currentDiffIdx = diffIndex.indexOf(difficulty);
-        const highestDiffIdx = diffIndex.indexOf(data.highestDifficulty);
-
-        if (currentDiffIdx > highestDiffIdx) {
-            data.highestDifficulty = difficulty;
+        // 更新遊戲個別紀錄
+        if (!data.games[gameKey]) {
+            data.games[gameKey] = { playCount: 0, highScore: 0, highestDifficulty: '未挑戰', totalStars: 0 };
         }
 
+        data.games[gameKey].playCount++;
+
+        if (finalScore > data.games[gameKey].highScore) {
+            data.games[gameKey].highScore = finalScore;
+        }
+
+        const diffIndex = ['小學', '中學', '高中', '大學', '研究所'];
+        const currentDiffIdx = diffIndex.indexOf(difficulty);
+        const highestDiffIdx = diffIndex.indexOf(data.games[gameKey].highestDifficulty);
+
+        if (currentDiffIdx > highestDiffIdx) {
+            data.games[gameKey].highestDifficulty = difficulty;
+        }
+
+        // 紀錄難度過關次數
+        if (!data.difficultyCounts) {
+            data.difficultyCounts = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
+        }
+        if (difficulty in data.difficultyCounts) {
+            data.difficultyCounts[difficulty]++;
+        }
+
+        // 更新階級
+        data.globalRank = this.getCurrentRank(data.totalScore);
+
         // 簡單的徽章系統
-        if (difficulty === '研究所' && !data.badges.includes('研究所通關')) {
-            data.badges.push('研究所通關');
+        if (difficulty === '研究所' && !data.achievements.unlocked.includes('研究所通關')) {
+            data.achievements.unlocked.push('研究所通關');
         }
 
         localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
@@ -68,16 +116,91 @@ const ScoreManager = {
         }
     },
 
-    loadPlayerData: function () {
-        let data = JSON.parse(localStorage.getItem('flowerMoon_playerData'));
-        if (!data) {
-            data = {
-                nickname: '訪客',
-                totalScore: 0,
-                badges: [],
-                highestDifficulty: '未挑戰'
-            };
+    getDefaultData: function () {
+        return {
+            version: "1.1",
+            nickname: '訪客',
+            totalScore: 0,
+            globalRank: '書僮',
+            playDays: 1,
+            lastPlayedDate: new Date().toISOString().split('T')[0],
+            games: {},
+            difficultyCounts: {
+                '小學': 0,
+                '中學': 0,
+                '高中': 0,
+                '大學': 0,
+                '研究所': 0
+            },
+            achievements: {
+                unlocked: [],
+                progress: {},
+                claimed: []
+            },
+            settings: {
+                soundEffects: true,
+                bgm: true
+            }
+        };
+    },
+
+    migrateData: function (data) {
+        if (!data) return this.getDefaultData();
+
+        // 如果已經是新版 (1.1 以上)，直接回傳
+        if (data.version && parseFloat(data.version) >= 1.1) {
+            return data;
         }
+
+        // 舊版資料遷移至新結構
+        const newData = this.getDefaultData();
+        newData.nickname = data.nickname || '訪客';
+        newData.totalScore = data.totalScore || 0;
+        newData.globalRank = this.getCurrentRank(newData.totalScore);
+
+        if (data.difficultyCounts) {
+            newData.difficultyCounts = Object.assign(newData.difficultyCounts, data.difficultyCounts);
+        }
+        if (data.games) {
+            newData.games = data.games;
+        }
+
+        // 舊版的 badges 合併
+        if (data.badges && Array.isArray(data.badges)) {
+            newData.achievements.unlocked = data.badges;
+        }
+        if (data.achievements) {
+            if (data.achievements.claimed) newData.achievements.claimed = data.achievements.claimed;
+        }
+
+        if (data.highestDifficulty && data.highestDifficulty !== '未挑戰' && data.highestDifficulty !== '小學') {
+            newData.achievements.unlocked.push(`${data.highestDifficulty}通關`);
+        }
+
+        // 將遷移後的資料存回
+        localStorage.setItem('flowerMoon_playerData', JSON.stringify(newData));
+        return newData;
+    },
+
+    loadPlayerData: function () {
+        let rawData = localStorage.getItem('flowerMoon_playerData');
+        let data = null;
+        try {
+            data = rawData ? JSON.parse(rawData) : null;
+        } catch (e) {
+            console.error("解析存檔失敗:", e);
+        }
+
+        data = this.migrateData(data);
+
+        // 檢查登入天數
+        const today = new Date().toISOString().split('T')[0];
+        if (data.lastPlayedDate !== today) {
+            data.playDays = (data.playDays || 0) + 1;
+            data.lastPlayedDate = today;
+            localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+        }
+
         return data;
     },
 
@@ -128,13 +251,13 @@ const ScoreManager = {
                     if (currentStep >= steps) {
                         clearInterval(rollInterval);
                         document.getElementById(options.scoreElementId).textContent = finalScore;
-                        this.saveScore(options.difficulty, finalScore);
+                        this.saveScore(gameKey, options.difficulty, finalScore);
                         if (options.onComplete) options.onComplete(finalScore);
                     }
                 }, 40);
             } else {
                 document.getElementById(options.scoreElementId).textContent = finalScore;
-                this.saveScore(options.difficulty, finalScore);
+                this.saveScore(gameKey, options.difficulty, finalScore);
                 if (options.onComplete) options.onComplete(finalScore);
             }
         };

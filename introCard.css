@@ -1,0 +1,197 @@
+/* Intro Card (Splash Screen) */
+.intro-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #fdfaf6;
+    z-index: 3500;
+    /* 高於其他 overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.5s ease;
+    font-family: 'Noto Serif TC', serif;
+    color: #333;
+    overflow: hidden;
+}
+
+.intro-overlay.hide-slide-left {
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.intro-overlay.hide-slide-right {
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.intro-overlay.hide-fade {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.intro-card {
+    width: 90%;
+    max-width: 420px;
+    height: 90vh;
+    max-height: 720px;
+    background: #fff;
+    border: 1px solid #ebd8c0;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: 40px 30px;
+    text-align: center;
+    box-sizing: border-box;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.intro-card::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    border: 1px solid #e0d6c8;
+    border-radius: 10px;
+    pointer-events: none;
+}
+
+/*花月標題*/
+.intro-title {
+    font-size: 3.8rem;
+    font-weight: bold;
+    color: #8b1c1c;
+    margin-top: 30px;
+    letter-spacing: 20px;
+    text-indent: 20px;
+    /* offset for letter-spacing */
+    background: linear-gradient(180deg, #b32d2d, #6a1111);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 2px 2px 4px rgba(139, 28, 28, 0.1);
+}
+
+/*英文標題*/
+.intro-subtitle {
+    font-size: 1.2rem;
+    color: #887a68;
+    margin-top: 15px;
+    letter-spacing: 6px;
+    text-indent: 6px;
+    font-family: sans-serif;
+    text-transform: uppercase;
+}
+
+/*簡介文字框*/
+.intro-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: 40px 0;
+}
+
+/*簡介文字*/
+.intro-text-block {
+    height: auto;
+    max-height: 400px;
+    font-size: 1.0rem;
+    color: #4a4a4a;
+    letter-spacing: 2px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.intro-text-block p {
+    margin: 10px 0;
+}
+
+/*頁尾*/
+.intro-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #999;
+    border-top: 1px solid #ebd8c0;
+    padding-top: 20px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 20px;
+}
+
+/*作者*/
+.intro-author {
+    font-weight: bold;
+    color: #aaa;
+}
+
+/*初版日期*/
+.intro-recent-updates {
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+/*點擊離開提示*/
+.intro-swipe-hint {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.85rem;
+    color: #aaa;
+    animation: pulse 2.5s infinite;
+    background: #fff;
+    padding: 0 15px;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.3;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.3;
+    }
+}
+
+/* 簡單的開花裝飾 */
+.intro-decoration {
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    font-size: 10rem;
+    color: rgba(139, 28, 28, 0.04);
+    pointer-events: none;
+    transform: rotate(15deg);
+}
+
+.intro-decoration-left {
+    position: absolute;
+    bottom: -30px;
+    left: -30px;
+    font-size: 8rem;
+    color: rgba(139, 28, 28, 0.04);
+    pointer-events: none;
+    transform: rotate(-15deg);
+}

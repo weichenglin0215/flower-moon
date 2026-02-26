@@ -60,24 +60,28 @@
                 <span class="menu-number">6</span>
                 <span class="menu-text">眾裡尋他千百度</span>
             </div>
-            <div class="menu-item menu-item-disabled" data-page="coming-soon-7">
-                <span class="menu-number">7</span>
-                <span class="menu-text">敬請期待...</span>
-            </div>
             <div class="menu-item menu-item-disabled" data-page="coming-soon-8">
                 <span class="menu-number">8</span>
                 <span class="menu-text">敬請期待...</span>
             </div>
             <div class="menu-item" data-page="author-biography">
-                <span class="menu-number">9</span>
+                <span class="menu-number">人</span>
                 <span class="menu-text">名人列傳</span>
             </div>
             <div class="menu-item" data-page="poem-data">
-                <span class="menu-number">10</span>
+                <span class="menu-number">詩</span>
                 <span class="menu-text">詩詞資料集</span>
             </div>
+            <div class="menu-item" data-page="achievements">
+                <span class="menu-number">成</span>
+                <span class="menu-text">成就與紀錄</span>
+            </div>
+            <div class="menu-item" data-page="about">
+                <span class="menu-number">?</span>
+                <span class="menu-text">關於花月</span>
+            </div>
             <div class="menu-item" data-page="fullscreen">
-                <span class="menu-number">11</span>
+                <span class="menu-number">全</span>
                 <span class="menu-text">全螢幕切換</span>
             </div>
         `;
@@ -100,16 +104,17 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
         try {
-            // 1. 關閉難度選擇器
+            // 1. 確保主頁日曆或卡片容器被隱藏，避免遮擋遊戲或對話框
+            // 之後由具體的切換邏輯或遊戲 show() 決定何時顯示
+            const cardContainer = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
+            if (cardContainer) {
+                cardContainer.style.display = 'none';
+            }
+
+            // 2. 關閉難度選擇器
             if (window.DifficultySelector && typeof window.DifficultySelector.hide === 'function') {
                 console.log('[Menu] 關閉難度選擇器');
                 window.DifficultySelector.hide();
-            }
-
-            // 2. 關閉詩詞詳情對話框
-            if (window.PoemDialog && typeof window.PoemDialog.close === 'function') {
-                console.log('[Menu] 關閉詩詞詳情');
-                window.PoemDialog.close();
             }
 
             // 3. 停止所有正在運作的遊戲
@@ -120,20 +125,31 @@
                 }
             });
 
-            // 4. 隱藏名人列傳
+            // 4. 隱藏成就與紀錄
+            if (window.AchievementDialog && typeof window.AchievementDialog.hide === 'function') {
+                console.log('[Menu] 隱藏成就與紀錄');
+                window.AchievementDialog.hide();
+            }
+
+            // 4. 隱藏關於花月
+            if (window.AboutDialog && typeof window.AboutDialog.hide === 'function') {
+                console.log('[Menu] 隱藏關於花月');
+                window.AboutDialog.hide();
+            }
+
+            // 5. 隱藏名人列傳
             if (window.AuthorBio && typeof window.AuthorBio.hide === 'function') {
                 console.log('[Menu] 隱藏名人列傳');
                 window.AuthorBio.hide();
             }
 
-            // 5. 確保主頁日曆或卡片容器被隱藏，避免遮擋遊戲或對話框
-            // 之後由具體的切換邏輯或遊戲 show() 決定何時顯示
-            const cardContainer = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
-            if (cardContainer) {
-                cardContainer.style.display = 'none';
+            // 6. 關閉詩詞資料集
+            if (window.PoemDialog && typeof window.PoemDialog.close === 'function') {
+                console.log('[Menu] 關閉詩詞資料集');
+                window.PoemDialog.close();
             }
 
-            // 6. 重置 body 狀態
+            // 7. 重置 body 狀態
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
             console.log('[Menu] 全域清理完成');
@@ -222,6 +238,17 @@
                         else {
                             window.location.href = 'index.html?page=author-bio';
                         }
+                        break;
+                    case 'achievements':
+                        console.log('[Menu] 開啟 成就與紀錄');
+                        if (window.AchievementDialog) window.AchievementDialog.show();
+                        else {
+                            window.location.href = 'index.html?page=achievements';
+                        }
+                        break;
+                    case 'about':
+                        console.log('[Menu] 開啟 關於花月');
+                        if (window.IntroCard) window.IntroCard.show();
                         break;
                     case 'poem-data':
                         console.log('[Menu] 開啟 詩詞資料集彈窗');
