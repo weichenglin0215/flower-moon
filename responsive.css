@@ -40,6 +40,8 @@
 .game7-overlay.aspect-5-8,
 .difficulty-selector-overlay.aspect-5-8,
 .author_bio-overlay.aspect-5-8,
+.ach-overlay.aspect-5-8,
+.intro-overlay.aspect-5-8,
 .pd-overlay.aspect-5-8 {
     /* 覆盖层需要固定定位并居中 */
     position: fixed;

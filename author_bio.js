@@ -95,10 +95,9 @@ window.AuthorBio = (function () {
                     <div class="author-scroll" id="authorList"></div>
                 </div>
                 <div class="works-list-container">
-                    <div class="list-title">作品列表</div>
-                    <div class="works-controls">
-                        <button class="sort-btn active" data-sort="rating">依評價排序</button>
-                        <button class="sort-btn" data-sort="text">依名稱排序</button>
+                    <div class="list-title">作品列表
+                        <button class="sort-btn active" data-sort="rating" style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">評價 ↓</button>
+                        <button class="sort-btn" data-sort="text" style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">名稱 ↓</button>
                     </div>
                     <div class="works-scroll" id="worksList">
                         <div style="padding: 20px; text-align: center; opacity: 0.5;">請選擇一位作者</div>
@@ -124,6 +123,102 @@ window.AuthorBio = (function () {
                 if (selectedAuthor) updateWorksList();
             });
         });
+
+        // Setup momentum scroll for lists
+        setupMomentumScroll(document.getElementById('authorList'));
+        setupMomentumScroll(document.getElementById('worksList'));
+    }
+
+    function setupMomentumScroll(scrollContainer) {
+        let isDown = false;
+        let startY;
+        let scrollTop;
+        let velocity = 0;
+        let lastY = 0;
+        let lastTime = 0;
+        let momentumID = null;
+
+        const startInertia = () => {
+            const friction = 0.95;
+            const step = () => {
+                if (Math.abs(velocity) < 0.1) {
+                    cancelAnimationFrame(momentumID);
+                    return;
+                }
+                scrollContainer.scrollTop -= velocity;
+                velocity *= friction;
+                momentumID = requestAnimationFrame(step);
+            };
+            momentumID = requestAnimationFrame(step);
+        };
+
+        scrollContainer.addEventListener('mousedown', (e) => {
+            if (e.target.tagName.toLowerCase() === 'button' || e.target.closest('button')) return;
+            isDown = true;
+            scrollContainer.classList.add('grabbing');
+            startY = e.pageY - scrollContainer.offsetTop;
+            scrollTop = scrollContainer.scrollTop;
+            velocity = 0;
+            cancelAnimationFrame(momentumID);
+            lastY = e.pageY;
+            lastTime = Date.now();
+        });
+
+        const endDrag = () => {
+            if (!isDown) return;
+            isDown = false;
+            scrollContainer.classList.remove('grabbing');
+            startInertia();
+        };
+
+        scrollContainer.addEventListener('mouseleave', endDrag);
+        scrollContainer.addEventListener('mouseup', endDrag);
+
+        scrollContainer.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const y = e.pageY - scrollContainer.offsetTop;
+            const walk = (y - startY) * 1.5;
+            scrollContainer.scrollTop = scrollTop - walk;
+
+            const now = Date.now();
+            const dt = now - lastTime;
+            if (dt > 0) {
+                const dy = e.pageY - lastY;
+                velocity = dy * 0.8;
+                lastTime = now;
+                lastY = e.pageY;
+            }
+        });
+
+        scrollContainer.addEventListener('touchstart', (e) => {
+            if (e.target.tagName.toLowerCase() === 'button' || e.target.closest('button')) return;
+            isDown = true;
+            startY = e.touches[0].pageY - scrollContainer.offsetTop;
+            scrollTop = scrollContainer.scrollTop;
+            velocity = 0;
+            cancelAnimationFrame(momentumID);
+            lastY = e.touches[0].pageY;
+            lastTime = Date.now();
+        }, { passive: true });
+
+        scrollContainer.addEventListener('touchmove', (e) => {
+            if (!isDown) return;
+            const y = e.touches[0].pageY - scrollContainer.offsetTop;
+            const walk = (y - startY) * 1.2;
+            scrollContainer.scrollTop = scrollTop - walk;
+
+            const now = Date.now();
+            const dt = now - lastTime;
+            if (dt > 0) {
+                const dy = e.touches[0].pageY - lastY;
+                velocity = dy * 0.8;
+                lastTime = now;
+                lastY = e.touches[0].pageY;
+            }
+        }, { passive: true });
+
+        scrollContainer.addEventListener('touchend', endDrag);
     }
 
     function applyFilters() {
@@ -158,8 +253,14 @@ window.AuthorBio = (function () {
 
         list.innerHTML = filteredAuthors.map(author => `
             <div class="author-item ${selectedAuthor && selectedAuthor.name === author.name ? 'selected' : ''}" data-name="${author.name}">
-                <div class="author-name">${author.name} <br> <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">(${author.dynasty})</span></div>
-                <div class="author-stats">總評分: ${author.totalRating} <br> 作品: ${author.poems.length}</div>
+                <div class="author-name">
+                    ${author.name} 
+                    <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">(${author.dynasty})</span>
+                </div>
+                <div class="author-stats">
+                    <span>總評: ${author.totalRating}</span>
+                    <span>作品: ${author.poems.length}</span>
+                </div>
             </div>
         `).join('');
 

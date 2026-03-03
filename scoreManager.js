@@ -10,10 +10,12 @@ const ScoreManager = {
 
     // 各個遊戲的分數基數設定
     gameSettings: {
-        'game1': { base: 100, heart: 30, time: 5 }, // 提高基數以平衡得分
-        'game2': { base: 100, heart: 10, time: 5 },
-        'game3': { base: 100, heart: 10, time: 5 },
-        'game4': { base: 100, heart: 10, time: 5 }
+        'game1': { base: 100, heart: 30, time: 3 }, // 提高基數以平衡得分
+        'game2': { base: 100, heart: 10, time: 3 },
+        'game3': { base: 100, heart: 10, time: 3 },
+        'game4': { base: 100, heart: 10, time: 3 },
+        'game5': { base: 100, heart: 10, time: 1 },
+        'game6': { base: 100, heart: 10, time: 3 }
     },
 
     // 玩家階級設定

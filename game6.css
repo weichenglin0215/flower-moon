@@ -1,0 +1,203 @@
+/* game6.css - 詩陣侵略 (Poetry Invaders) */
+
+.game6-overlay {
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.game6-header {
+    padding: 0.1rem 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 2.5rem;
+}
+
+.game6-score-board {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: hsl(45, 100%, 70%);
+    padding-left: 3rem;
+}
+
+.game6-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* 紅心 Poetry Progress Bar (Top 10% area includes header) */
+.game6-sub-header {
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 2.5rem;
+}
+
+.game6-hearts {
+    display: flex;
+    gap: 0.1rem;
+    font-size: 1.6rem;
+    color: hsl(4, 90%, 60%);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.game6-hearts .empty {
+    opacity: 0.8;
+}
+
+.game6-area {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    /* 中部 75% 戰鬥區 */
+    display: flex;
+    flex-direction: column;
+}
+
+/*題目*/
+.game6-progress-strip {
+    min-height: 3rem;
+    height: auto;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    font-size: 1.1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 0.3rem;
+}
+
+.game6-poem-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.game6-poem-char {
+    margin-right: 0.2rem;
+    opacity: 0.3;
+}
+
+.game6-poem-char.collected {
+    opacity: 1;
+    color: gold;
+    text-shadow: 0 0 5px gold;
+}
+
+/*戰鬥區*/
+#game6-canvas {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+/*底部說明區*/
+.game6-footer {
+    height: 5%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-top: 1px solid hsla(0, 0%, 100%, 0.1);
+}
+
+.game6-drag-hint {
+    font-size: 0.8rem;
+    opacity: 0.6;
+}
+
+/*計時器*/
+#game6-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#game6-timer-path {
+    fill: none;
+    stroke: hsl(0, 80%, 36%);
+    stroke-width: 6;
+    transition: stroke-dashoffset 0.1s linear;
+}
+
+/* 訊息視窗樣式 */
+.game6-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 20, 20, 0.95);
+    padding: 2rem;
+    border: 2px solid hsl(36, 80%, 50%);
+    border-radius: 10px;
+    text-align: center;
+    z-index: 100;
+    min-width: 250px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.game6-message h2 {
+    margin-top: 0;
+    color: hsl(36, 80%, 50%);
+}
+
+.game6-message p {
+    margin: 1.5rem 0;
+    font-size: 1.1rem;
+}
+
+.game6-msg-btn {
+    background: hsl(0, 60%, 24%);
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* 寶箱/特殊效果動畫 */
+@keyframes chest-appear {
+    0% {
+        transform: scale(0) rotate(-10deg);
+        opacity: 0;
+    }
+
+    70% {
+        transform: scale(1.2) rotate(5deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+.powerup-chest {
+    animation: chest-appear 0.5s ease-out forwards;
+}
+
+.hidden {
+    display: none !important;
+}

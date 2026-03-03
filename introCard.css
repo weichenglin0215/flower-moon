@@ -1,11 +1,10 @@
 /* Intro Card (Splash Screen) */
 .intro-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: #fdfaf6;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: hsl(0, 60%, 24%);
     z-index: 3500;
     /* 高於其他 overlay */
     display: flex;
@@ -13,18 +12,24 @@
     align-items: center;
     transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.5s ease;
     font-family: 'Noto Serif TC', serif;
-    color: #333;
+    color: hsl(0, 0%, 20%);
     overflow: hidden;
 }
 
+.intro-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
 .intro-overlay.hide-slide-left {
-    transform: translateX(-100%);
+    transform: translate(-150%, -50%);
     opacity: 0;
     pointer-events: none;
 }
 
 .intro-overlay.hide-slide-right {
-    transform: translateX(100%);
+    transform: translate(50%, -50%);
     opacity: 0;
     pointer-events: none;
 }
@@ -34,19 +39,18 @@
     pointer-events: none;
 }
 
+/*卡片*/
 .intro-card {
     width: 90%;
-    max-width: 420px;
-    height: 90vh;
-    max-height: 720px;
-    background: #fff;
-    border: 1px solid #ebd8c0;
-    border-radius: 16px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    height: 90%;
+    background: hsl(45, 36%, 88%);
+    border: 1px solid hsl(36, 30%, 50%);
+    border-radius: 1rem;
+    box-shadow: 0 1.25rem 3.125rem rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 40px 30px;
+    padding: 2.5rem 1.875rem;
     text-align: center;
     box-sizing: border-box;
     cursor: pointer;
@@ -56,12 +60,12 @@
 .intro-card::before {
     content: '';
     position: absolute;
-    top: 6px;
-    left: 6px;
-    right: 6px;
-    bottom: 6px;
-    border: 1px solid #e0d6c8;
-    border-radius: 10px;
+    top: 0.375rem;
+    left: 0.375rem;
+    right: 0.375rem;
+    bottom: 0.375rem;
+    border: 1px solid hsl(36, 30%, 50%);
+    border-radius: 0.625rem;
     pointer-events: none;
 }
 
@@ -69,25 +73,25 @@
 .intro-title {
     font-size: 3.8rem;
     font-weight: bold;
-    color: #8b1c1c;
-    margin-top: 30px;
-    letter-spacing: 20px;
-    text-indent: 20px;
+    color: hsl(0, 66%, 33%);
+    margin-top: 2rem;
+    letter-spacing: 1.25rem;
+    text-indent: 1.25rem;
     /* offset for letter-spacing */
-    background: linear-gradient(180deg, #b32d2d, #6a1111);
+    background: linear-gradient(180deg, hsl(0, 60%, 44%), hsl(0, 72%, 24%));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 2px 2px 4px rgba(139, 28, 28, 0.1);
+    text-shadow: 0.125rem 0.125rem 0.25rem hsla(0, 66%, 33%, 0.1);
 }
 
 /*英文標題*/
 .intro-subtitle {
     font-size: 1.2rem;
-    color: #887a68;
-    margin-top: 15px;
-    letter-spacing: 6px;
-    text-indent: 6px;
+    color: hsl(35, 13%, 40%);
+    margin-top: 1rem;
+    letter-spacing: 0.375rem;
+    text-indent: 0.375rem;
     font-family: sans-serif;
     text-transform: uppercase;
 }
@@ -99,16 +103,16 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    margin: 40px 0;
+    margin: 2.5rem 0;
 }
 
 /*簡介文字*/
 .intro-text-block {
     height: auto;
-    max-height: 400px;
+    max-height: 25rem;
     font-size: 1.0rem;
-    color: #4a4a4a;
-    letter-spacing: 2px;
+    color: hsl(0, 0%, 25%);
+    letter-spacing: 0.125rem;
     line-height: 1.6;
     display: flex;
     flex-direction: column;
@@ -117,7 +121,7 @@
 }
 
 .intro-text-block p {
-    margin: 10px 0;
+    margin: 0.625rem 0;
 }
 
 /*頁尾*/
@@ -126,26 +130,26 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     font-size: 0.9rem;
-    color: #999;
-    border-top: 1px solid #ebd8c0;
-    padding-top: 20px;
+    color: hsl(0, 0%, 25%);
+    border-top: 1px solid hsl(36, 30%, 50%);
+    padding-top: 1.25rem;
     width: 100%;
     box-sizing: border-box;
-    margin-bottom: 20px;
+    margin-bottom: 1.25rem;
 }
 
 /*作者*/
 .intro-author {
-    font-weight: bold;
-    color: #aaa;
+    /*font-weight: bold;*/
+    color: hsl(0, 0%, 25%);
 }
 
 /*初版日期*/
 .intro-recent-updates {
     font-size: 0.8rem;
-    color: #aaa;
+    color: hsl(0, 0%, 25%);
 }
 
 /*點擊離開提示*/
@@ -155,10 +159,10 @@
     left: 50%;
     transform: translateX(-50%);
     font-size: 0.85rem;
-    color: #aaa;
+    color: hsl(0, 0%, 25%);
     animation: pulse 2.5s infinite;
-    background: #fff;
-    padding: 0 15px;
+    /*background: hsl(45, 36%, 88%);*/
+    padding: 0 0.9375rem;
 }
 
 @keyframes pulse {
@@ -178,20 +182,20 @@
 /* 簡單的開花裝飾 */
 .intro-decoration {
     position: absolute;
-    top: -30px;
-    right: -30px;
+    top: -1.875rem;
+    right: -1.875rem;
     font-size: 10rem;
-    color: rgba(139, 28, 28, 0.04);
+    color: hsla(0, 66%, 33%, 0.04);
     pointer-events: none;
     transform: rotate(15deg);
 }
 
 .intro-decoration-left {
     position: absolute;
-    bottom: -30px;
-    left: -30px;
+    bottom: -1.875rem;
+    left: -1.875rem;
     font-size: 8rem;
-    color: rgba(139, 28, 28, 0.04);
+    color: hsla(0, 66%, 33%, 0.04);
     pointer-events: none;
     transform: rotate(-15deg);
 }

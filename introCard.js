@@ -7,29 +7,44 @@
 
     const AboutDialog = {
         overlay: null,
+        hideTimeout: null,
 
         init: function () {
-            // 如果是在玩遊戲或是某個特定頁面開啟(有 query strings)，就不顯示
-            if (window.location.search.includes('game=') || window.location.search.includes('page=')) {
-                return;
-            }
+            // 如果已经在 DOM 中则不处理
+            if (document.getElementById('introOverlay')) return;
 
-            this.show();
+            this.createDOM();
+            this.bindEvents();
+
+            // 如果是在玩遊戲或是某個特定頁面開啟(有 query strings)，就不顯示
+            if (!window.location.search.includes('game=') && !window.location.search.includes('page=')) {
+                this.show();
+            }
         },
 
         show: function () {
-            if (document.getElementById('introOverlay')) return; // 避免重疊
-            this.createDOM();
-            this.bindEvents();
+            if (!this.overlay) this.init();
+
+            // 如果正在隱藏中，取消隱藏計時器
+            if (this.hideTimeout) {
+                clearTimeout(this.hideTimeout);
+                this.hideTimeout = null;
+            }
+
+            this.overlay.classList.remove('hidden');
+            this.overlay.classList.remove('hide-fade', 'hide-slide-left', 'hide-slide-right');
+            document.body.classList.add('overlay-active');
+
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         createDOM: function () {
             const overlay = document.createElement('div');
             overlay.id = 'introOverlay';
-            overlay.className = 'intro-overlay';
+            overlay.className = 'intro-overlay aspect-5-8 hidden'; // 預設隱藏
 
             overlay.innerHTML = `
-                <div class="intro-card" id="introCardNode">
+                <div class="intro-card" id="introCardNode" role="dialog" aria-modal="true">
                     <div class="intro-decoration">🌸</div>
                     
                     <div class="intro-title">花月</div>
@@ -48,7 +63,7 @@
                         <span>初版：2020年2月</span>
                     </div>
                     
-                    <div class="intro-swipe-hint">點擊關閉簡介頁</div>
+                    <div class="intro-swipe-hint">點擊或滑動關閉</div>
                     
                     <div class="intro-decoration-left">🌸</div>
                 </div>
@@ -61,12 +76,12 @@
         bindEvents: function () {
             if (!this.overlay) return;
 
-            // 點擊關閉 (淡出)
+            // 點擊關閉
             this.overlay.addEventListener('click', () => {
                 this.hide();
             });
 
-            // 滑動關閉
+            // 滑動關閉邏輯
             let startX = 0;
             let currentX = 0;
             const threshold = 50;
@@ -84,8 +99,6 @@
                     const diff = currentX - startX;
                     if (Math.abs(diff) > threshold) {
                         this.hide(diff > 0 ? 'right' : 'left');
-                    } else {
-                        this.hide();
                     }
                 }
                 startX = 0;
@@ -96,6 +109,11 @@
         hide: function (direction) {
             if (!this.overlay) return;
 
+            // 取消之前的隱藏計時器
+            if (this.hideTimeout) {
+                clearTimeout(this.hideTimeout);
+            }
+
             if (direction === 'left') {
                 this.overlay.classList.add('hide-slide-left');
             } else if (direction === 'right') {
@@ -104,13 +122,12 @@
                 this.overlay.classList.add('hide-fade');
             }
 
-            // 等待動畫結束後移除 DOM
-            setTimeout(() => {
-                if (this.overlay && this.overlay.parentNode) {
-                    this.overlay.parentNode.removeChild(this.overlay);
-                    this.overlay = null;
-                }
-            }, 600); // 配合 CSS 動畫時間
+            // 動畫結束後正式隱藏並恢復 body 捲動
+            this.hideTimeout = setTimeout(() => {
+                this.overlay.classList.add('hidden');
+                document.body.classList.remove('overlay-active');
+                this.hideTimeout = null;
+            }, 600);
         }
     };
 

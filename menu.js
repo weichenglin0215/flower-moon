@@ -60,8 +60,16 @@
                 <span class="menu-number">6</span>
                 <span class="menu-text">眾裡尋他千百度</span>
             </div>
-            <div class="menu-item menu-item-disabled" data-page="coming-soon-8">
+            <div class="menu-item" data-page="game5">
+                <span class="menu-number">7</span>
+                <span class="menu-text">墨蹤捉影</span>
+            </div>
+            <div class="menu-item" data-page="game6">
                 <span class="menu-number">8</span>
+                <span class="menu-text">詩陣侵略</span>
+            </div>
+            <div class="menu-item menu-item-disabled" data-page="coming-soon-9">
+                <span class="menu-number">9</span>
                 <span class="menu-text">敬請期待...</span>
             </div>
             <div class="menu-item" data-page="author-biography">
@@ -103,59 +111,64 @@
      */
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
-        try {
-            // 1. 確保主頁日曆或卡片容器被隱藏，避免遮擋遊戲或對話框
-            // 之後由具體的切換邏輯或遊戲 show() 決定何時顯示
-            const cardContainer = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
-            if (cardContainer) {
-                cardContainer.style.display = 'none';
-            }
 
-            // 2. 關閉難度選擇器
+        // 1. 隱藏主頁日曆或卡片容器
+        try {
+            const cardContainer = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
+            if (cardContainer) cardContainer.style.display = 'none';
+        } catch (e) { console.warn('[Menu] 隱藏主頁容器失敗', e); }
+
+        // 2. 關閉難度選擇器
+        try {
             if (window.DifficultySelector && typeof window.DifficultySelector.hide === 'function') {
-                console.log('[Menu] 關閉難度選擇器');
                 window.DifficultySelector.hide();
             }
+        } catch (e) { console.warn('[Menu] 關閉難度選擇器失敗', e); }
 
-            // 3. 停止所有正在運作的遊戲
-            ['Game1', 'Game2', 'Game3', 'Game4'].forEach(gameName => {
+        // 3. 停止所有正在運作的遊戲
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6'].forEach(gameName => {
+            try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
-                    console.log(`[Menu] 停止 ${gameName}`);
                     window[gameName].stopGame();
                 }
-            });
+            } catch (e) { console.warn(`[Menu] 停止 ${gameName} 失敗`, e); }
+        });
 
-            // 4. 隱藏成就與紀錄
+        // 4. 隱藏成就與紀錄
+        try {
             if (window.AchievementDialog && typeof window.AchievementDialog.hide === 'function') {
-                console.log('[Menu] 隱藏成就與紀錄');
                 window.AchievementDialog.hide();
             }
+        } catch (e) { console.warn('[Menu] 隱藏成就紀錄失敗', e); }
 
-            // 4. 隱藏關於花月
+        // 5. 隱藏關於花月 (IntroCard / AboutDialog)
+        try {
             if (window.AboutDialog && typeof window.AboutDialog.hide === 'function') {
-                console.log('[Menu] 隱藏關於花月');
                 window.AboutDialog.hide();
             }
+        } catch (e) { console.warn('[Menu] 隱藏關於花月失敗', e); }
 
-            // 5. 隱藏名人列傳
+        // 6. 隱藏名人列傳
+        try {
             if (window.AuthorBio && typeof window.AuthorBio.hide === 'function') {
-                console.log('[Menu] 隱藏名人列傳');
                 window.AuthorBio.hide();
             }
+        } catch (e) { console.warn('[Menu] 隱藏名人列傳失敗', e); }
 
-            // 6. 關閉詩詞資料集
+        // 7. 關閉詩詞資料集
+        try {
             if (window.PoemDialog && typeof window.PoemDialog.close === 'function') {
-                console.log('[Menu] 關閉詩詞資料集');
                 window.PoemDialog.close();
             }
+        } catch (e) { console.warn('[Menu] 關閉詩詞資料集失敗', e); }
 
-            // 7. 重置 body 狀態
+        // 8. 重置 body 狀態
+        try {
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
-            console.log('[Menu] 全域清理完成');
-        } catch (err) {
-            console.error('[Menu] 全域清理發生錯誤:', err);
-        }
+        } catch (e) { console.warn('[Menu] 重置 Body 狀態失敗', e); }
+
+        console.log('[Menu] 全域清理完成');
     }
 
     function setupMenuEvents() {
@@ -231,6 +244,16 @@
                         console.log('[Menu] 開啟 眾裡尋他千百度');
                         if (window.Game4) window.Game4.show();
                         else window.location.href = 'index.html?game=4';
+                        break;
+                    case 'game5':
+                        console.log('[Menu] 開啟 墨蹤捉影');
+                        if (window.Game5) window.Game5.show();
+                        else window.location.href = 'index.html?game=5';
+                        break;
+                    case 'game6':
+                        console.log('[Menu] 開啟 詩陣侵略');
+                        if (window.Game6) window.Game6.show();
+                        else window.location.href = 'index.html?game=6';
                         break;
                     case 'author-biography':
                         console.log('[Menu] 開啟 名人列傳');

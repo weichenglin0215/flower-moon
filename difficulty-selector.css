@@ -19,11 +19,11 @@
 
 /* 难度选择器容器 */
 .difficulty-selector-container {
-    background: linear-gradient(135deg, hsl(228, 34%, 42%) 0%, hsl(270, 34%, 42%) 100%);
+    background: linear-gradient(135deg, hsl(270, 34%, 36%) 0%, hsl(228, 34%, 30%) 100%);
     padding: 2rem 1rem;
     /* 內部邊框*/
     border-radius: 1.5rem;
-    box-shadow: 0 1.2rem 3.6rem rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.9rem 1.8rem rgba(0, 0, 0, 0.5);
     text-align: center;
     width: 80%;
     animation: slideIn 0.3s ease-out;
@@ -41,12 +41,13 @@
     }
 }
 
+/*請選擇難度*/
 .difficulty-selector-container h2 {
-    color: hsl(32, 16%, 86%);
-    font-size: 2rem;
+    color: hsl(32, 30%, 90%);
+    font-size: 1.6rem;
     margin-bottom: 0.8rem;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.25em;
 }
 
 /* 难度按钮容器 */
@@ -62,7 +63,7 @@
 /* 难度按钮 - 寬度相同 */
 .difficulty-btn {
     background: rgba(255, 255, 255, 0.95);
-    color: hsl(256, 40%, 33%);
+    color: hsl(45, 30%, 85%);
     border: 0.2rem solid transparent;
     margin: 0.2rem auto;
     padding: 0.4rem 0.6rem;
@@ -74,7 +75,7 @@
     width: 80%;
     /* 每個按鍵寬度相同 */
     max-width: 10rem;
-    box-shadow: 0 0.4rem 0.8rem rgba(0, 0, 0, 0.66);
+    box-shadow: 0 0.3rem 0.5rem rgba(0, 0, 0, 0.66);
 
     /* 水平文字 */
     text-align: center;
@@ -94,6 +95,27 @@
 
 /* 不同难度的颜色主题 */
 .difficulty-btn[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.difficulty-btn[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.difficulty-btn[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.difficulty-btn[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.difficulty-btn[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+/*
+.difficulty-btn[data-level="小學"] {
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
 }
 
@@ -112,25 +134,26 @@
 .difficulty-btn[data-level="研究所"] {
     background: linear-gradient(135deg, #fdcbf1 0%, #e6dee9 100%);
 }
+*/
 
 .difficulty-btn[data-level="小學"]:hover {
-    border-color: #00d4ff;
+    border-color: hsl(100, 80%, 40%);
 }
 
 .difficulty-btn[data-level="中學"]:hover {
-    border-color: #ff9a00;
+    border-color: hsl(210, 80%, 50%);
 }
 
 .difficulty-btn[data-level="高中"]:hover {
-    border-color: #ff6b9d;
+    border-color: hsl(0, 80%, 50%);
 }
 
 .difficulty-btn[data-level="大學"]:hover {
-    border-color: #6a85b6;
+    border-color: hsl(290, 80%, 50%);
 }
 
 .difficulty-btn[data-level="研究所"]:hover {
-    border-color: #baa7c8;
+    border-color: hsl(60, 80%, 50%);
 }
 
 /* 响应式适配 */

@@ -5,15 +5,17 @@
     display: none;
     /* 預設隱藏 */
     flex-direction: column;
-    padding: 15px;
-    padding-top: 1px;
+    padding: 0.9375rem;
+    padding-top: 0.0625rem;
     /* 縮小一點空間 */
     font-family: var(--font-main);
     color: whitesmoke;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: 0.75rem;
     /* 增加圓角 */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.625rem 1.875rem rgba(0, 0, 0, 0.5);
+    width: 100%;
+    height: 100%;
 }
 
 #authorBioPage.active {
@@ -57,15 +59,17 @@
 }
 
 .filter-group input {
-    min-width: 20rem;
+    min-width: 10rem;
+    width: 100%;
 }
 
 /* Main Content Area 下方兩區的間隔*/
 .bio-content {
     display: flex;
     flex: 1;
-    gap: 0.2rem;
+    gap: 0.5rem;
     overflow: hidden;
+    flex-direction: row;
 }
 
 /* Author List 左側欄*/
@@ -92,28 +96,36 @@
     flex: 1;
     overflow-y: auto;
     padding: 0.3rem;
+    cursor: grab;
+    user-select: none;
+    -webkit-overflow-scrolling: touch;
 }
 
+.author-scroll.grabbing {
+    cursor: grabbing;
+}
+
+/*作者列表item*/
 .author-item {
-    padding: 0.2rem 0.4rem;
-    margin-bottom: 0.2rem;
+    padding: 0.3rem;
+    margin-bottom: 0.3rem;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 0.3rem;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
 .author-item:hover {
     background: rgba(255, 255, 255, 0.25);
-    transform: translateX(5px);
+    transform: translateX(0.3125rem);
 }
 
 .author-item.selected {
     background: #c0392b;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0.25rem 0.9375rem rgba(0, 0, 0, 0.3);
 }
 
 .author-name {
@@ -122,8 +134,11 @@
 }
 
 .author-stats {
-    font-size: 0.8rem;
-    opacity: 0.8;
+    font-size: 0.7rem;
+    opacity: 0.7;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
 }
 
 /* Works List */
@@ -137,9 +152,10 @@
 }
 
 .works-controls {
-    padding: 10px 15px;
+    padding: 0.4rem 0.6rem;
     display: flex;
-    gap: 10px;
+    gap: 0.4rem;
+    flex-wrap: wrap;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -147,8 +163,8 @@
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: whitesmoke;
-    padding: 5px 12px;
-    border-radius: 20px;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.5rem;
     cursor: pointer;
     font-size: 0.9rem;
     transition: all 0.2s;
@@ -163,14 +179,22 @@
 .works-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
+    padding: 0.625rem;
+    cursor: grab;
+    user-select: none;
+    -webkit-overflow-scrolling: touch;
 }
 
+.works-scroll.grabbing {
+    cursor: grabbing;
+}
+
+/*作品列表item*/
 .work-item {
-    padding: 12px 15px;
-    margin-bottom: 8px;
+    padding: 0.3rem 0.3rem;
+    margin-bottom: 0.3rem;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    border-radius: 0.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -182,7 +206,7 @@
 .work-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 5px;
+    margin-bottom: 0.3125rem;
 }
 
 .work-title {
@@ -218,22 +242,4 @@
     opacity: 1;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .bio-content {
-        flex-direction: column;
-    }
-
-    .author-list-container {
-        flex: 1;
-    }
-
-    .works-list-container {
-        flex: 1;
-    }
-
-    #authorBioPage {
-        padding: 10px;
-        padding-top: 60px;
-    }
-}
+/* Responsive adjustments removed - unified for aspect-5-8 */

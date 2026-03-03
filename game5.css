@@ -1,0 +1,245 @@
+/* game5.css - 墨蹤捉影 (Poetry Pac-Man) */
+
+.game5-overlay {
+    /*background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);*/
+    background: radial-gradient(circle at center, hsl(210, 30%, 5%) 0%, hsl(0, 0%, 0%) 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    overflow: hidden;
+}
+
+/* Header */
+.game5-header {
+    padding: 0.1rem 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 2.5rem;
+}
+
+.game5-score-board {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: hsl(45, 100%, 70%);
+    padding-left: 3rem;
+}
+
+.game5-controls .nav-btn {
+    padding: 0.0rem 0.5rem;
+    background: hsl(0, 60%, 25%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* 紅心 Poetry Progress Bar (Top 10% area includes header) */
+.game5-sub-header {
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 2.5rem;
+}
+
+.game5-hearts {
+    display: flex;
+    gap: 0.2rem;
+    margin-bottom: 0.2rem;
+}
+
+.game5-hearts .heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 1.6rem;
+}
+
+.game5-hearts .heart.empty {
+    opacity: 0.8;
+}
+
+/*目標詩句*/
+.game5-target-poem {
+    font-size: 1.2rem;
+    letter-spacing: 0.03rem;
+    display: flex;
+    gap: 0.03rem;
+    margin-bottom: 0.3rem;
+}
+
+/*提示字*/
+.game5-char-hint {
+    padding: 0 2px;
+    opacity: 0.4;
+    transition: all 0.3s;
+}
+
+/*提示*/
+.game5-char-hint.prompt {
+    opacity: 0.8;
+}
+
+/*下一個答案*/
+.game5-char-hint.answer.active {
+    opacity: 1;
+    color: hsl(45, 100%, 60%);
+    text-shadow: 0 0 10px hsl(45, 100%, 50%);
+    transform: scale(1.2);
+    font-weight: bold;
+}
+
+/*已收集*/
+.game5-char-hint.answer.collected {
+    opacity: 1;
+    color: #fff;
+}
+
+/* 尚未收集且非目前目標的答案字，顯示為底線佔位 */
+.game5-char-hint.answer:not(.collected):not(.active) {
+    color: transparent;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+    min-width: 1.2rem;
+    display: inline-block;
+}
+
+/* Maze Area (70%) */
+.game5-maze-container {
+    width: 100%;
+    height: 70%;
+    position: relative;
+    background: rgba(10, 10, 10, 0.5);
+    display: flex;
+    align-items: center;
+    /* 居中擺放 */
+    justify-content: center;
+    overflow: hidden;
+    /* 不需要捲動軸 */
+}
+
+#game5-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#game5-timer-path {
+    fill: none;
+    stroke: hsl(0, 80%, 40%);
+    stroke-width: 6px;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.1s linear;
+}
+
+#game5-canvas {
+    display: block;
+    /* 水墨感背景 */
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="f"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" /><feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0" /></filter><rect width="100" height="100" filter="url(%23f)" fill="white" opacity="0.05"/></svg>');
+}
+
+/* Control Area (10%) */
+.game5-ui-area {
+    width: 100%;
+    height: 10%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.game5-timer-container {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    color: hsl(0, 80%, 60%);
+}
+
+.game5-instruction {
+    font-size: 0.9rem;
+    opacity: 0.6;
+    text-align: center;
+}
+
+/* Message Box */
+.game5-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 20, 20, 0.95);
+    border: 2px solid hsl(45, 50%, 40%);
+    padding: 1.5rem;
+    border-radius: 1rem;
+    text-align: center;
+    z-index: 2100;
+    min-width: 200px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.game5-message.hidden {
+    display: none;
+}
+
+.game5-msg-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.5rem;
+    background: hsl(45, 60%, 40%);
+    border: none;
+    color: white;
+    border-radius: 2rem;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+/* Animations */
+@keyframes glow {
+    0% {
+        filter: drop-shadow(0 0 2px gold);
+    }
+
+    50% {
+        filter: drop-shadow(0 0 10px gold);
+    }
+
+    100% {
+        filter: drop-shadow(0 0 2px gold);
+    }
+}
+
+.char-glow {
+    animation: glow 1.5s infinite;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+.shake {
+    animation: shake 0.3s;
+}

@@ -485,7 +485,7 @@
             if (char === clickedRow.correctChar) {
                 // 答對
                 e.target.classList.add('correct');
-                this.score += 10;
+                this.score += 5; // 答對加 5 分
                 document.getElementById('game3-score').textContent = this.score;
 
                 // 更新歷程狀態

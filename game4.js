@@ -22,11 +22,11 @@
         game4Area: null,
 
         difficultySettings: {
-            '小學': { time: 120, maxHideCount: 3, maxAddDecoyChars: 3, hideLines: 2, minRating: 7, maxMistakeCount: 14, showDelay: 10 },
-            '中學': { time: 90, maxHideCount: 5, maxAddDecoyChars: 3, hideLines: 2, minRating: 6, maxMistakeCount: 12, showDelay: 12 },
-            '高中': { time: 60, maxHideCount: 7, maxAddDecoyChars: 3, hideLines: 2, minRating: 5, maxMistakeCount: 10, showDelay: 16 },
-            '大學': { time: 45, maxHideCount: 10, maxAddDecoyChars: 6, hideLines: 0, minRating: 3, maxMistakeCount: 8, showDelay: 20 },
-            '研究所': { time: 30, maxHideCount: 14, maxAddDecoyChars: 10, hideLines: 3, minRating: 1, maxMistakeCount: 6, showDelay: 20 }
+            '小學': { time: 60, maxMistakeCount: 4, maxHideCount: 3, maxAddDecoyChars: 6, hideLines: 2, minRating: 7, showDelay: 0 },
+            '中學': { time: 45, maxMistakeCount: 5, maxHideCount: 5, maxAddDecoyChars: 8, hideLines: 2, minRating: 6, showDelay: 4 },
+            '高中': { time: 30, maxMistakeCount: 6, maxHideCount: 7, maxAddDecoyChars: 12, hideLines: 2, minRating: 5, showDelay: 8 },
+            '大學': { time: 20, maxMistakeCount: 7, maxHideCount: 10, maxAddDecoyChars: 15, hideLines: 0, minRating: 3, showDelay: 10 },
+            '研究所': { time: 15, maxMistakeCount: 8, maxHideCount: 12, maxAddDecoyChars: 20, hideLines: 3, minRating: 1, showDelay: 12 }
         },
 
         // 常用字庫 (用於生成干擾項)
@@ -372,14 +372,21 @@
 
         renderGrid: function (isRetry = false) {
             const container = document.getElementById('game4-grid');
-            const settings = this.difficultySettings[this.difficulty];
+            const gridConfigs = {
+                '小學': { total: 9, cols: 3 },
+                '中學': { total: 12, cols: 4 },
+                '高中': { total: 16, cols: 4 },
+                '大學': { total: 20, cols: 5 },
+                '研究所': { total: 25, cols: 5 }
+            };
+            const config = gridConfigs[this.difficulty] || gridConfigs['小學'];
 
             let allChars;
             if (isRetry && this.currentGridChars) {
                 allChars = this.currentGridChars;
             } else {
                 const answerChars = this.hiddenPositions.map(p => p.char);
-                const targetTotal = answerChars.length + settings.maxAddDecoyChars;
+                const targetTotal = config.total;
 
                 // 干擾字生成
                 const decoys = [];
@@ -409,14 +416,8 @@
                 this.currentGridChars = allChars;
             }
 
-            // 計算二維矩陣大小
-            const targetTotal = allChars.length;
-            let cols = 3;
-            if (targetTotal > 15) cols = 5;
-            else if (targetTotal > 9) cols = 4;
-            else cols = 3;
-
-            container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            // 使用固定的列數
+            container.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
             container.innerHTML = '';
 
             allChars.forEach(char => {
