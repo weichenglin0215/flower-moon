@@ -51,8 +51,8 @@
     margin: 0;
 
     /* 固定游戏尺寸为 500*800 */
-    /*width: 500px !important;
-    height: 800px !important;*/
+    /*width: 15.0rem !important;
+    height: 24.0rem !important;*/
 
     /* 依照 JS 計算的動態尺寸縮放 */
     width: var(--responsive-width) !important;
@@ -68,9 +68,9 @@
     left: 0;
     width: var(--responsive-width);
     height: var(--responsive-height);
-    /*width: 400px;*/
-    /*height: 640px;*/
-    border: 1px solid yellow;
+    /*width: 12.0rem;*/
+    /*height: 19.2rem;*/
+    border: 0.05rem solid yellow;
     pointer-events: none;
     z-index: 9999;
     box-sizing: border-box;

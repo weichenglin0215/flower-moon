@@ -298,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffX = currentX - startX;
 
         const rotation = diffX * 0.05;
-        dragTarget.style.transform = `translateX(${diffX}px) rotate(${rotation}deg)`;
+        dragTarget.style.transform = `translateX(${( (diffX) * 0.03 ).toFixed(1)}rem) rotate(${rotation}deg)`;
 
         const bottomCard = document.getElementById('bottomCard');
         if (bottomCard) {
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const dir = diffX > 0 ? 1 : -1;
             const endX = dir * window.innerWidth * 1.5;
-            card.style.transform = `translateX(${endX}px) rotate(${dir * 30}deg)`;
+            card.style.transform = `translateX(${( (endX) * 0.03 ).toFixed(1)}rem) rotate(${dir * 30}deg)`;
 
             const bottomCard = document.getElementById('bottomCard');
             if (bottomCard) {
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             void card.offsetWidth;
             card.classList.add('animate-recoil');
             requestAnimationFrame(() => {
-                card.style.transform = `translate(0px, 0px) rotate(0deg)`;
+                card.style.transform = `translate(0.0rem, 0.0rem) rotate(0deg)`;
             });
 
             const bottomCard = document.getElementById('bottomCard');

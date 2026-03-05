@@ -68,9 +68,17 @@
                 <span class="menu-number">8</span>
                 <span class="menu-text">詩陣侵略</span>
             </div>
-            <div class="menu-item menu-item-disabled" data-page="coming-soon-9">
+            <div class="menu-item" data-page="game7">
                 <span class="menu-number">9</span>
-                <span class="menu-text">敬請期待...</span>
+                <span class="menu-text">青鳥雲梯</span>
+            </div>
+            <div class="menu-item" data-page="game8">
+                <span class="menu-number">10</span>
+                <span class="menu-text">一筆裁詩</span>
+            </div>
+            <div class="menu-item" data-page="game9">
+                <span class="menu-number">11</span>
+                <span class="menu-text">詩韻鎖扣</span>
             </div>
             <div class="menu-item" data-page="author-biography">
                 <span class="menu-number">人</span>
@@ -112,21 +120,8 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        // 1. 隱藏主頁日曆或卡片容器
-        try {
-            const cardContainer = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
-            if (cardContainer) cardContainer.style.display = 'none';
-        } catch (e) { console.warn('[Menu] 隱藏主頁容器失敗', e); }
-
-        // 2. 關閉難度選擇器
-        try {
-            if (window.DifficultySelector && typeof window.DifficultySelector.hide === 'function') {
-                window.DifficultySelector.hide();
-            }
-        } catch (e) { console.warn('[Menu] 關閉難度選擇器失敗', e); }
-
         // 3. 停止所有正在運作的遊戲
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -143,6 +138,9 @@
 
         // 5. 隱藏關於花月 (IntroCard / AboutDialog)
         try {
+            if (window.IntroCard && typeof window.IntroCard.hide === 'function') {
+                window.IntroCard.hide();
+            }
             if (window.AboutDialog && typeof window.AboutDialog.hide === 'function') {
                 window.AboutDialog.hide();
             }
@@ -161,6 +159,21 @@
                 window.PoemDialog.close();
             }
         } catch (e) { console.warn('[Menu] 關閉詩詞資料集失敗', e); }
+
+        // 8. 關閉難度選擇器
+        try {
+            if (window.DifficultySelector && typeof window.DifficultySelector.hide === 'function') {
+                window.DifficultySelector.hide();
+            }
+        } catch (e) { console.warn('[Menu] 關閉難度選擇器失敗', e); }
+
+        // 9. 隱藏主頁日曆或卡片容器 (必須在所有遊戲 stopGame 之後執行，以免被 stopGame 再次打開)
+        try {
+            const card1 = document.getElementById('cardContainer');
+            const card2 = document.getElementById('calendarCardContainer');
+            if (card1) card1.style.display = 'none';
+            if (card2) card2.style.display = 'none';
+        } catch (e) { console.warn('[Menu] 隱藏主頁容器失敗', e); }
 
         // 8. 重置 body 狀態
         try {
@@ -195,8 +208,11 @@
             console.log(`[Menu] 嘗試切換頁面: ${pageName}`);
             closeMenu();
 
-            // 關閉所有覆蓋層 (例外情況：如果未來有需要共存的頁面)
-            closeAllActiveOverlays();
+            // 如果是關於花月 (about) 或詩詞資料集 (poem-data)，可以疊加在其他頁面之上，故不清理全域
+            if (pageName !== 'about' && pageName !== 'poem-data' && pageName !== 'fullscreen') {
+                // 關閉所有覆蓋層
+                closeAllActiveOverlays();
+            }
 
             try {
                 switch (pageName) {
@@ -205,8 +221,10 @@
                         const isCalendar = window.location.pathname.includes('calendar.html') || window.location.pathname.endsWith('/') || window.location.pathname.includes('index.html');
                         if (isCalendar) {
                             console.log('[Menu] 已經在主頁面，恢復顯示日曆');
-                            const container = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
-                            if (container) container.style.display = '';
+                            const c1 = document.getElementById('calendarCardContainer');
+                            const c2 = document.getElementById('cardContainer');
+                            if (c1) c1.style.display = '';
+                            if (c2) c2.style.display = '';
                         } else {
                             window.location.href = 'index.html';
                         }
@@ -215,8 +233,10 @@
                         console.log('[Menu] 切換至卡片');
                         if (window.location.pathname.includes('cards.html')) {
                             console.log('[Menu] 已經在卡片頁面，恢復顯示');
-                            const container = document.getElementById('cardContainer') || document.getElementById('calendarCardContainer');
-                            if (container) container.style.display = '';
+                            const c1 = document.getElementById('cardContainer');
+                            const c2 = document.getElementById('calendarCardContainer');
+                            if (c1) c1.style.display = '';
+                            if (c2) c2.style.display = '';
                         } else {
                             window.location.href = 'cards.html';
                         }
@@ -254,6 +274,21 @@
                         console.log('[Menu] 開啟 詩陣侵略');
                         if (window.Game6) window.Game6.show();
                         else window.location.href = 'index.html?game=6';
+                        break;
+                    case 'game7':
+                        console.log('[Menu] 開啟 青鳥雲梯');
+                        if (window.Game7) window.Game7.show();
+                        else window.location.href = 'index.html?game=7';
+                        break;
+                    case 'game8':
+                        console.log('[Menu] 開啟 一筆裁詩');
+                        if (window.Game8) window.Game8.show();
+                        else window.location.href = 'index.html?game=8';
+                        break;
+                    case 'game9':
+                        console.log('[Menu] 開啟 詩韻鎖扣');
+                        if (window.Game9) window.Game9.show();
+                        else window.location.href = 'index.html?game=9';
                         break;
                     case 'author-biography':
                         console.log('[Menu] 開啟 名人列傳');

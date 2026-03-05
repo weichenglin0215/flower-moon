@@ -63,7 +63,7 @@
             this.historyContainer = document.getElementById('game3-history');
 
             // 綁定關閉按鈕
-            document.getElementById('game3-close-btn').onclick = () => this.startNewGame();
+            document.getElementById('game3-newGame-btn').onclick = () => this.startNewGame();
             document.getElementById('game3-restart-btn').onclick = () => this.retryGame();
         },
 
@@ -80,7 +80,7 @@
                     <div class="score-board">分數: <span id="game3-score">0</span></div>
                     <div class="game3-controls">
                         <button id="game3-restart-btn" class="nav-btn">重來</button>
-                        <button id="game3-close-btn" class="nav-btn close-btn">開新局</button>
+                        <button id="game3-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game3-sub-header">

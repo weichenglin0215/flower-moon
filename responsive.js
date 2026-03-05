@@ -54,12 +54,12 @@
         });
 
         // --- 字體與 UI 等比例縮放實作 ---
-        // 以 iPhone 原生基準高度 640px 為 1.0 倍
-        // 計算當前容器高度相對於 640px 的縮放比例
+        // 以 iPhone 原生基準高度 19.2rem 為 1.0 倍
+        // 計算當前容器高度相對於 19.2rem 的縮放比例
         const fontScale = containerHeight / 640;
 
         // 將縮放比例套用到根節點 (html) 的字體大小
-        // 預設 16px * 縮放比例，這樣所有使用 rem 的單位都會跟著等比例縮放
+        // 預設 0.5rem * 縮放比例，這樣所有使用 rem 的單位都會跟著等比例縮放
         document.documentElement.style.fontSize = `${fontScale * 16}px`;
         // ------------------------------
 

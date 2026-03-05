@@ -100,7 +100,7 @@ window.AuthorBio = (function () {
                         <button class="sort-btn" data-sort="text" style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">名稱 ↓</button>
                     </div>
                     <div class="works-scroll" id="worksList">
-                        <div style="padding: 20px; text-align: center; opacity: 0.5;">請選擇一位作者</div>
+                        <div style="padding: 0.6rem; text-align: center; opacity: 0.5;">請選擇一位作者</div>
                     </div>
                 </div>
             </div>

@@ -21,16 +21,29 @@
     height: 2.5rem;
 }
 
+/*分數*/
 .game6-score-board {
     font-size: 1.5rem;
     font-weight: bold;
-    color: hsl(45, 100%, 70%);
+    color: hsl(45, 80%, 70%);
     padding-left: 3rem;
 }
 
+/*控制按鈕*/
 .game6-controls {
     display: flex;
     gap: 0.5rem;
+}
+
+/*控制按鈕*/
+.game6-controls .nav-btn {
+    padding: 0.0rem 0.5rem;
+    background: hsl(0, 60%, 25%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
 }
 
 /* 紅心 Poetry Progress Bar (Top 10% area includes header) */
@@ -39,9 +52,9 @@
     justify-content: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.5rem;
+    height: 2.0rem;
 }
 
 .game6-hearts {
@@ -66,7 +79,7 @@
     flex-direction: column;
 }
 
-/*題目*/
+/*收集詩句的欄位*/
 .game6-progress-strip {
     min-height: 3rem;
     height: auto;
@@ -75,27 +88,31 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 1rem;
-    font-size: 1.1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.1rem 1rem;
+    font-size: 1.0rem;
+    line-height: 1.0;
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
     gap: 0.3rem;
 }
 
+/*收集詩句的欄位*/
 .game6-poem-row {
     display: flex;
     justify-content: center;
     gap: 0.2rem;
 }
 
+/*未收集的字*/
 .game6-poem-char {
     margin-right: 0.2rem;
     opacity: 0.3;
 }
 
+/*已收集的字*/
 .game6-poem-char.collected {
     opacity: 1;
     color: gold;
-    text-shadow: 0 0 5px gold;
+    text-shadow: 0 0 0.1rem gold;
 }
 
 /*戰鬥區*/
@@ -114,7 +131,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    border-top: 1px solid hsla(0, 0%, 100%, 0.1);
+    border-top: 0.0rem solid hsla(0, 0%, 100%, 0.1);
 }
 
 .game6-drag-hint {
@@ -148,12 +165,12 @@
     transform: translate(-50%, -50%);
     background: rgba(20, 20, 20, 0.95);
     padding: 2rem;
-    border: 2px solid hsl(36, 80%, 50%);
-    border-radius: 10px;
+    border: 0.1rem solid hsl(36, 80%, 50%);
+    border-radius: 0.3rem;
     text-align: center;
     z-index: 100;
-    min-width: 250px;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    min-width: 7.5rem;
+    box-shadow: 0 0 0.9rem rgba(0, 0, 0, 0.8);
 }
 
 .game6-message h2 {
@@ -168,10 +185,11 @@
 
 .game6-msg-btn {
     background: hsl(0, 60%, 24%);
+    font-size: 1.1rem;
     color: white;
     border: none;
     padding: 0.6rem 1.5rem;
-    border-radius: 5px;
+    border-radius: 0.1rem;
     cursor: pointer;
     font-family: inherit;
 }

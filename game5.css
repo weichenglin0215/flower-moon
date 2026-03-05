@@ -24,18 +24,20 @@
     height: 2.5rem;
 }
 
+/*分數*/
 .game5-score-board {
     font-size: 1.5rem;
     font-weight: bold;
-    color: hsl(45, 100%, 70%);
+    color: hsl(45, 80%, 70%);
     padding-left: 3rem;
 }
 
+/*控制按鈕*/
 .game5-controls .nav-btn {
     padding: 0.0rem 0.5rem;
     background: hsl(0, 60%, 25%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
     border-radius: 0.6rem;
     font-size: 1rem;
     cursor: pointer;
@@ -47,9 +49,9 @@
     justify-content: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.5rem;
+    height: 2.0rem;
 }
 
 .game5-hearts {
@@ -78,7 +80,7 @@
 
 /*提示字*/
 .game5-char-hint {
-    padding: 0 2px;
+    padding: 0 0.1rem;
     opacity: 0.4;
     transition: all 0.3s;
 }
@@ -92,7 +94,7 @@
 .game5-char-hint.answer.active {
     opacity: 1;
     color: hsl(45, 100%, 60%);
-    text-shadow: 0 0 10px hsl(45, 100%, 50%);
+    text-shadow: 0 0 0.3rem hsl(45, 100%, 50%);
     transform: scale(1.2);
     font-weight: bold;
 }
@@ -106,7 +108,7 @@
 /* 尚未收集且非目前目標的答案字，顯示為底線佔位 */
 .game5-char-hint.answer:not(.collected):not(.active) {
     color: transparent;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+    border-bottom: 0.1rem solid rgba(255, 255, 255, 0.3);
     min-width: 1.2rem;
     display: inline-block;
 }
@@ -138,7 +140,7 @@
 #game5-timer-path {
     fill: none;
     stroke: hsl(0, 80%, 40%);
-    stroke-width: 6px;
+    stroke-width: 0.2rem;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
 }
@@ -158,7 +160,7 @@
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.3);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 0.05rem solid rgba(255, 255, 255, 0.1);
     position: relative;
 }
 
@@ -181,13 +183,13 @@
     left: 50%;
     transform: translate(-50%, -50%);
     background: rgba(20, 20, 20, 0.95);
-    border: 2px solid hsl(45, 50%, 40%);
+    border: 0.1rem solid hsl(45, 50%, 40%);
     padding: 1.5rem;
     border-radius: 1rem;
     text-align: center;
     z-index: 2100;
-    min-width: 200px;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    min-width: 6.0rem;
+    box-shadow: 0 0 0.9rem rgba(0, 0, 0, 0.8);
 }
 
 .game5-message.hidden {
@@ -208,15 +210,15 @@
 /* Animations */
 @keyframes glow {
     0% {
-        filter: drop-shadow(0 0 2px gold);
+        filter: drop-shadow(0 0 0.1rem gold);
     }
 
     50% {
-        filter: drop-shadow(0 0 10px gold);
+        filter: drop-shadow(0 0 0.3rem gold);
     }
 
     100% {
-        filter: drop-shadow(0 0 2px gold);
+        filter: drop-shadow(0 0 0.1rem gold);
     }
 }
 
@@ -232,11 +234,11 @@
     }
 
     25% {
-        transform: translateX(-5px);
+        transform: translateX(-0.1rem);
     }
 
     75% {
-        transform: translateX(5px);
+        transform: translateX(0.1rem);
     }
 }
 

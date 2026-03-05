@@ -33,9 +33,9 @@ body {
 #calendarCardContainer {
     position: relative;
     /* 寬高由 responsive.js 動態設置，保持 5:8 比例 */
-    width: var(--responsive-width, 400px);
-    height: var(--responsive-height, 640px);
-    perspective: 1000px;
+    width: var(--responsive-width, 12.0rem);
+    height: var(--responsive-height, 19.2rem);
+    perspective: 30.0rem;
     margin: 0 auto;
     transition: width 0.3s ease, height 0.3s ease;
 }
@@ -180,7 +180,7 @@ body {
 .date-header {
     text-align: center;
     color: whitesmoke;
-    text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.3);
+    text-shadow: 0.1rem 0.1rem 0.1rem rgba(0, 0, 0, 0.3);
 }
 
 .year-month {

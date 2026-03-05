@@ -15,7 +15,8 @@
             'game3': '字爬梯',
             'game4': '眾裡尋他千百度',
             'game5': '墨蹤捉影',
-            'game6': '詩陣侵略'
+            'game6': '詩陣侵略',
+            'game7': '青鳥雲梯'
         },
 
         rankCertTexts: {
@@ -315,7 +316,7 @@
                 }
             }
             if (!hasGames) {
-                gamesContainer.innerHTML = '<div style="text-align:center; color:#999; padding:30px;">尚無遊戲紀錄</div>';
+                gamesContainer.innerHTML = '<div style="text-align:center; color:#999; padding:0.9rem;">尚無遊戲紀錄</div>';
             }
 
             // 渲染徽章殿堂 (成就殿堂)
@@ -444,7 +445,7 @@
 
                         const right = document.createElement('div');
                         right.style.display = 'flex';
-                        right.style.gap = '10px';
+                        right.style.gap = '0.3rem';
                         right.style.alignItems = 'center';
 
                         if (isClaimed) {

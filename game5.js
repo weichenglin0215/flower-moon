@@ -880,7 +880,7 @@
             this.ctx.globalAlpha = 1.0;
 
             // Draw Foods
-            this.ctx.font = `bold ${this.gridSize * 0.9}px 'Noto Serif TC'`;
+            this.ctx.font = `bold ${( (this.gridSize * 0.9) * 0.03 ).toFixed(1)}rem 'Noto Serif TC'`;
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             const settings = this.difficultySettings[this.difficulty];

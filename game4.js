@@ -70,7 +70,7 @@
                     <div class="game4-score-board">分數: <span id="game4-score">0</span></div>
                     <div class="game4-controls">
                         <button id="game4-restart-btn" class="nav-btn">重來</button>
-                        <button id="game4-close-btn" class="nav-btn close-btn">開新局</button>
+                        <button id="game4-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game4-sub-header">
@@ -99,7 +99,7 @@
             `;
             document.body.appendChild(div);
 
-            document.getElementById('game4-close-btn').onclick = () => this.startNewGame();
+            document.getElementById('game4-newGame-btn').onclick = () => this.startNewGame();
             document.getElementById('game4-restart-btn').onclick = () => this.retryGame();
             document.getElementById('game4-msg-btn').onclick = () => {
                 document.getElementById('game4-message').classList.add('hidden');

@@ -37,7 +37,7 @@
     display: flex;
     gap: 0.6rem;
     padding: 0.6rem;
-    border-bottom: 1px solid hsl(0, 0%, 93%);
+    border-bottom: 0.05rem solid hsl(0, 0%, 93%);
     background: hsl(40, 40%, 80%);
     flex-shrink: 0;
     /* 防止頭部被擠壓 */
@@ -159,7 +159,7 @@
     margin-top: 0.5rem;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 14.4rem) {
     .pd-body {
         padding: 1rem;
         padding-bottom: 8rem;

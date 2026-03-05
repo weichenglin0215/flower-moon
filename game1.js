@@ -50,7 +50,7 @@
 
             // 綁定按鈕
             document.getElementById('game1-restart-btn').onclick = () => this.retryGame(); // 重來：保留題目
-            document.getElementById('game1-close-btn').onclick = () => this.startNewGame(); // 開新局：換新題目
+            document.getElementById('game1-newGame-btn').onclick = () => this.startNewGame(); // 開新局：換新題目
             document.getElementById('game1-msg-btn').onclick = () => {
                 document.getElementById('game1-message').classList.add('hidden');
                 this.startNewGame(); // 訊息視窗按鈕預設開新局
@@ -70,7 +70,7 @@
                     <div class="game1-score-board">分數: <span id="game1-score">0</span></div>
                     <div class="game1-controls">
                         <button id="game1-restart-btn" class="nav-btn">重來</button>
-                        <button id="game1-close-btn" class="nav-btn close-btn">開新局</button>
+                        <button id="game1-newGame-btn" class="nav-btn newGame-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game1-sub-header">
@@ -475,7 +475,7 @@
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
 
-            // 邊框預留 (stroke-width: 8) -> 4px margin inside
+            // 邊框預留 (stroke-width: 8) -> 0.1rem margin inside
             // Rect 實際大小
             const rw = w - 8;
             const rh = h - 8;

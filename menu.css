@@ -160,7 +160,7 @@
     font-weight: bold;
     font-size: 1rem;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(244, 228, 160, 0.3);
+    box-shadow: 0 0.1rem 0.2rem rgba(244, 228, 160, 0.3);
 }
 
 /* 選單文字 */
@@ -189,9 +189,9 @@
 }
 
 /* 響應式調整 */
-@media (max-width: 480px) {
+@media (max-width: 14.4rem) {
     .menu-panel {
-        width: 240px;
+        width: 7.2rem;
     }
 
     .menu-item {
@@ -201,8 +201,8 @@
     }
 
     .menu-number {
-        width: 28px;
-        height: 28px;
+        width: 0.8rem;
+        height: 0.8rem;
         font-size: 1rem;
     }
 }

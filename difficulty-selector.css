@@ -46,7 +46,7 @@
     color: hsl(32, 30%, 90%);
     font-size: 1.6rem;
     margin-bottom: 0.8rem;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0.1rem 0.1rem 0.1rem rgba(0, 0, 0, 0.3);
     letter-spacing: 0.25em;
 }
 
@@ -157,7 +157,7 @@
 }
 
 /* 响应式适配 */
-@media (max-width: 480px) {
+@media (max-width: 14.4rem) {
     .difficulty-selector-container {
         padding: 2rem 1rem;
     }

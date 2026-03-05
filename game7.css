@@ -1,0 +1,328 @@
+/* game7.css - 青鳥雲梯 (Flappy Poetry) */
+
+.game7-overlay {
+    background: linear-gradient(to bottom, hsl(210, 72%, 80%) 25%, hsl(30, 36%, 50%) 100%);
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+    position: relative;
+}
+
+.game7-header {
+    padding: 0.2rem 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: hsla(210, 36%, 40%, 0.6);
+    z-index: 100;
+    width: 100%;
+    height: 2.5rem;
+    /*backdrop-filter: blur(5px);*/
+}
+
+/* 分數看板 */
+.game7-score-board {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: hsl(45, 80%, 70%);
+    padding-left: 3rem;
+}
+
+/* 控制按鈕組 */
+.game7-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.game7-controls .nav-btn {
+    padding: 0.0rem 0.5rem;
+    background: hsl(210, 60%, 33%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.game7-controls .nav-btn:hover {
+    background: hsl(210, 60%, 66%);
+    box-shadow: 0 0 10px hsla(210, 60%, 66%, 0.5);
+}
+
+/* 生命值列 */
+.game7-sub-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: hsla(210, 36%, 40%, 0.6);
+    z-index: 90;
+    border-bottom: 1px solid hsla(0, 0%, 100%, 0.2);
+    width: 100%;
+    height: 2.0rem;
+}
+
+.game7-hearts {
+    display: flex;
+    gap: 0.3rem;
+    font-size: 1.5rem;
+    color: hsl(4, 90%, 60%);
+}
+
+.game7-heart.empty {
+    opacity: 0.2;
+    filter: grayscale(1);
+}
+
+/* 遊戲核心區域 */
+.game7-area {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    touch-action: none;
+    background: transparent;
+}
+
+#game7-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 雲海背景層 */
+.game7-bg-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    transition: background 2s ease;
+}
+
+/* 不同時段的雲色 */
+.bg-morning {
+    background: linear-gradient(to bottom, hsla(45, 100%, 50%, 0.05), hsla(30, 100%, 50%, 0.1));
+}
+
+.bg-afternoon {
+    background: linear-gradient(to bottom, hsla(210, 100%, 50%, 0.05), hsla(200, 100%, 50%, 0.1));
+}
+
+.bg-evening {
+    background: linear-gradient(to bottom, hsla(20, 100%, 50%, 0.05), hsla(10, 100%, 50%, 0.1));
+}
+
+/* 詩詞資訊 (顯示目前詩名) */
+.game7-poem-info {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 80;
+    text-align: right;
+    pointer-events: none;
+}
+
+.game7-poem-name {
+    font-size: 1rem;
+    color: hsl(45, 50%, 80%);
+    opacity: 1;
+}
+
+/* 計時器圓環 */
+#game7-timer-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#game7-timer-path {
+    fill: none;
+    stroke: hsla(220, 90%, 60%, 0.72);
+    stroke-width: 6;
+    stroke-dasharray: 2000;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.1s linear;
+}
+
+/* 訊息視窗 - 偏右顯示，寬度佔 3/4，高度加大 */
+.game7-message {
+    position: absolute;
+    top: 50%;
+    left: 62.5%;
+    /* 中心點移至右側 3/4 區域的中心: (100% + 25%) / 2 */
+    transform: translate(-50%, -50%);
+    background: hsla(210, 50%, 60%, 0.95);
+    padding: 1.5rem;
+    border: 1px solid hsla(220, 80%, 50%, 0.5);
+    border-radius: 1rem;
+    text-align: center;
+    z-index: 200;
+    width: 70%;
+    /* 大約佔 3/4 */
+    height: 80%;
+    /* 高度加大 */
+    box-shadow: 0 0.2rem 0.5rem hsla(240, 60%, 20%, 0.66);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    animation: message-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes message-in {
+    from {
+        transform: translate(-50%, -40%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, -50%);
+        opacity: 1;
+    }
+}
+
+/*結算顯示詩句*/
+.game7-result-poem {
+    flex: 1;
+    overflow-y: auto;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.5rem;
+    font-size: 1.1rem;
+    line-height: 1.8;
+    text-align: left;
+    white-space: pre-wrap;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(36, 0%, 80%) transparent;
+}
+
+/*結算顯示詩句捲軸寬度*/
+.game7-result-poem::-webkit-scrollbar {
+    width: 6px;
+}
+
+/*結算顯示詩句捲軸顏色*/
+.game7-result-poem::-webkit-scrollbar-thumb {
+    background: hsl(36, 0%, 80%);
+    border-radius: 3px;
+}
+
+/*打中*/
+.char-hit {
+    color: gold;
+    font-weight: bold;
+}
+
+/*未打中*/
+.char-skipped {
+    color: hsla(0, 100%, 70%, 0.6);
+    text-decoration: line-through;
+}
+
+/*未打中*/
+.char-pending {
+    color: hsla(0, 0%, 100%, 0.4);
+}
+
+/*標點符號*/
+.char-punctuation {
+    color: hsla(0, 0%, 100%, 0.6);
+}
+
+/*標題*/
+.game7-message h2 {
+    margin: 0 0 1rem;
+    color: hsl(220, 40%, 30%);
+    font-size: 2rem;
+}
+
+.game7-message p {
+    margin: 0.5rem 0 2rem;
+    font-size: 1.2rem;
+    line-height: 1.6;
+}
+
+/*訊息框按鍵*/
+.game7-btn {
+    background: hsl(220, 40%, 30%);
+    color: white;
+    border: 1px solid hsla(180, 60%, 80%, 0.3);
+    padding: 0.8rem 2rem;
+    border-radius: 0.5rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+.game7-btn:hover {
+    background: hsl(200, 80%, 40%);
+    transform: scale(1.05);
+}
+
+/* 點擊回饋：印章效果 */
+@keyframes stamp-press {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(0.95);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.stamped {
+    animation: stamp-press 0.2s ease-out;
+}
+
+/* 雲朵動畫 */
+@keyframes cloud-drift {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-100px);
+    }
+}
+
+.cloud-particle {
+    position: absolute;
+    opacity: 0.4;
+    filter: blur(20px);
+    border-radius: 50%;
+    background: white;
+    pointer-events: none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 難度標籤 */
+.game7-difficulty-tag {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+    background: hsla(210, 60%, 40%, 0.5);
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    color: hsl(180, 20%, 90%);
+    border: 1px solid hsla(180, 80%, 60%, 0.3);
+    z-index: 80;
+}

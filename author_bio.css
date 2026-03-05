@@ -32,7 +32,7 @@
     padding: 0.6rem;
     border-radius: 0.5rem;
     backdrop-filter: blur(0.3rem);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 0.05rem solid rgba(255, 255, 255, 0.2);
 }
 
 .filter-group {
@@ -86,7 +86,7 @@
     padding: 0.3rem;
     font-size: 1.2rem;
     font-weight: bold;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.2);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -156,12 +156,12 @@
     display: flex;
     gap: 0.4rem;
     flex-wrap: wrap;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
 }
 
 .sort-btn {
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 0.05rem solid rgba(255, 255, 255, 0.2);
     color: whitesmoke;
     padding: 0.3rem 0.5rem;
     border-radius: 0.5rem;
@@ -230,7 +230,7 @@
 /* Close button for the page */
 .page-close-btn {
     position: absolute;
-    top: 0px;
+    top: 0.05rem;
     right: 1rem;
     font-size: 2rem;
     cursor: pointer;

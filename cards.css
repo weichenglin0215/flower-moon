@@ -35,9 +35,9 @@ body {
 #cardContainer {
     position: relative;
     /* 螢幕比例與基礎尺寸由 responsive.js 管理 */
-    width: var(--responsive-width, 400px);
-    height: var(--responsive-height, 640px);
-    perspective: 1000px;
+    width: var(--responsive-width, 12.0rem);
+    height: var(--responsive-height, 19.2rem);
+    perspective: 30.0rem;
     margin: 0 auto;
     transition: width 0.3s ease, height 0.3s ease;
 }
@@ -81,7 +81,7 @@ body {
     flex-direction: column;
     justify-content: flex-start;
     /* 改為 flex-start，方便用 margin auto 推底部 */
-    padding: 0px 0;
+    padding: 0.05rem 0;
     /* 上下 padding 調整美觀 */
     height: 100%;
     /* 確保有完整高度 */

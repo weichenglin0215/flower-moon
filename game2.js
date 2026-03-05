@@ -17,15 +17,21 @@
         timeLeft: 40,
         timerInterval: null,
 
-        isRevealed: false,
-        container: null,
-        game2Area: null,
-
+        isRevealed: false, // 是否已顯示答案
+        container: null, // 遊戲容器
+        game2Area: null, // 遊戲區域
+        /*grid: [行, 列]
+        time: 時間限制
+        maxMistakeCount: 最大錯誤次數
+        questionCount: 每行要問幾個字
+        questionAtLine: 問題出現在第幾行，0=第一行或第二行，1=第二行，2=第三行
+        minRating: 最低評分
+        */
         difficultySettings: {
             '小學': { grid: [2, 2], time: 60, maxMistakeCount: 4, questionCount: 1, questionAtLine: 2, minRating: 6 },
-            '中學': { grid: [3, 2], time: 45, maxMistakeCount: 5, questionCount: 2, questionAtLine: 2, minRating: 5 },
-            '高中': { grid: [3, 3], time: 30, maxMistakeCount: 6, questionCount: 3, questionAtLine: 0, minRating: 4 },
-            '大學': { grid: [3, 4], time: 20, maxMistakeCount: 7, questionCount: 5, questionAtLine: 0, minRating: 3 },
+            '中學': { grid: [3, 2], time: 45, maxMistakeCount: 5, questionCount: 3, questionAtLine: 2, minRating: 5 },
+            '高中': { grid: [3, 3], time: 30, maxMistakeCount: 6, questionCount: 4, questionAtLine: 0, minRating: 4 },
+            '大學': { grid: [3, 4], time: 20, maxMistakeCount: 7, questionCount: 6, questionAtLine: 0, minRating: 3 },
             '研究所': { grid: [4, 4], time: 15, maxMistakeCount: 8, questionCount: 7, questionAtLine: 1, minRating: 2 }
         },
         // 常用字庫 (用於生成干擾項)
@@ -69,7 +75,7 @@
                     <div class="game2-score-board">分數: <span id="game2-score">0</span></div>
                     <div class="game2-controls">
                         <button id="game2-restart-btn" class="nav-btn">重來</button>
-                        <button id="game2-close-btn" class="nav-btn close-btn">開新局</button>
+                        <button id="game2-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game2-sub-header">
@@ -106,7 +112,7 @@
             document.body.appendChild(div);
 
             // 綁定事件
-            document.getElementById('game2-close-btn').onclick = () => this.startNewGame(); // 開新局
+            document.getElementById('game2-newGame-btn').onclick = () => this.startNewGame(); // 開新局
             document.getElementById('game2-restart-btn').onclick = () => this.retryGame(); // 重來
             document.getElementById('game2-msg-btn').onclick = () => {
                 document.getElementById('game2-message').classList.add('hidden');
