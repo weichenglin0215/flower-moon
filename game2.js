@@ -82,6 +82,7 @@
                     <div id="game2-hearts" class="hearts"></div>
                 </div>
                 <div id="game2-area" class="game2-area">
+                    <div class="game2-difficulty-tag" id="game2-diff-tag">小學</div>
                     <!-- 遊戲內容將在此生成 -->
                     <div class="game2-keyword-selector" id="game2-keywords">
                         <!-- 主字按鈕將在此生成 -->
@@ -209,6 +210,8 @@
 
         retryGame: function () {
             if (!this.currentPoem) return;
+            // 啟用重來按鈕
+            document.getElementById('game2-restart-btn').disabled = false;
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -224,10 +227,12 @@
 
             this.renderQuestion();
             this.renderGrid(true); // 使用舊有的 gridChars
+            document.getElementById('game2-restart-btn').disabled = false;
             this.startTimer();
         },
 
         startNewGame: function () {
+            document.getElementById('game2-diff-tag').textContent = this.difficulty;
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -478,6 +483,7 @@
 
                 if (this.currentInputIndex === this.targetChars.length) {
                     clearInterval(this.timerInterval);
+                    document.getElementById('game2-restart-btn').disabled = true;
                     ScoreManager.playWinAnimation({
                         game: this,
                         difficulty: this.difficulty,
@@ -571,6 +577,12 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game2-restart-btn').disabled = true;
+            } else {
+                document.getElementById('game2-restart-btn').disabled = false;
+            }
             clearInterval(this.timerInterval);
             this.isRevealed = true;
             this.renderQuestion();

@@ -88,6 +88,7 @@
                     <canvas id="game6-canvas"></canvas>
                 </div>
                 <div class="game6-footer">
+                    <div class="game6-difficulty-tag" id="game6-diff-tag">小學</div>
                     <div class="game6-drag-hint">左右滑動控制砲台 (按住或拖曳時發射飛彈)</div>
                 </div>
                 <div id="game6-message" class="game6-message hidden">
@@ -210,6 +211,7 @@
                     this.setupCanvas();
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
                     this.startNewGame();
+                    document.getElementById('game6-restart-btn').disabled = false;
                 });
             }
         },
@@ -218,10 +220,15 @@
             const area = document.querySelector('.game6-area');
             this.canvas.width = area.offsetWidth;
             this.canvas.height = area.offsetHeight;
+            this.isMobile = window.innerWidth < 768; // 判斷是否為手機
+            this.gScale = this.isMobile ? 0.6 : 1.0; // 手機縮小 40% (x0.6)
+            this.player.width = 50 * this.gScale;
+            this.player.height = 20 * this.gScale;
             this.player.x = this.canvas.width / 2;
         },
 
         startNewGame: function () {
+            document.getElementById('game6-diff-tag').textContent = this.difficulty;
             this.score = 0;
             this.mistakeCount = 0;
             this.isWin = false;
@@ -234,6 +241,8 @@
         },
 
         retryGame: function () {
+            // 啟用重來按鈕
+            document.getElementById('game6-restart-btn').disabled = false;
             this.mistakeCount = 0;
             this.resetGameStates();
             this.loadLevel(); // 可以考慮重複同一首詩，或換一首
@@ -320,8 +329,22 @@
             const rowSpacing = upDownSpacing;
 
             // 根據難度決定顯示幾句詩句
-            const linesToShow = poem.content.slice(0, settings.lineCount);
+            // 從奇數句（第1、3、5...)開始連續取 lineCount 句
+            const poemContent = poem.content;
+            const possibleStarts = [];
+            for (let i = 0; i < poemContent.length; i += 2) {
+                if (i + settings.lineCount - 1 < poemContent.length) possibleStarts.push(i);
+            }
+            if (possibleStarts.length === 0) possibleStarts.push(0);
+            const lineStart = possibleStarts[Math.floor(Math.random() * possibleStarts.length)];
+
+            const linesToShow = [];
+            for (let i = 0; i < settings.lineCount; i++) {
+                const line = poemContent[lineStart + i];
+                if (line) linesToShow.push(line);
+            }
             const totalLines = linesToShow.length;
+            this.currentPoemLineStart = lineStart; // 記録起始句索引
 
             linesToShow.forEach((line, rowIdx) => {
                 const cleanLine = line.replace(/[，。？！、：；]/g, '');
@@ -352,7 +375,13 @@
             const progress = document.getElementById('game6-progress');
             const settings = this.difficultySettings[this.difficulty];
             if (this.currentPoem) {
-                const linesToShow = this.currentPoem.content.slice(0, settings.lineCount);
+                // 使用與 createEnemies 相同的起始句索引
+                const lineStart = this.currentPoemLineStart || 0;
+                const linesToShow = [];
+                for (let i = 0; i < settings.lineCount; i++) {
+                    const line = this.currentPoem.content[lineStart + i];
+                    if (line) linesToShow.push(line);
+                }
                 let html = '';
 
                 // 每兩句詩顯示成同一行 (Progress UI 的視覺分行)
@@ -799,7 +828,7 @@
             this.player.bullets.forEach(b => {
                 this.ctx.fillStyle = b.type === 'pierce' ? 'gold' : 'yellow';
                 this.ctx.beginPath();
-                this.ctx.arc(b.x, b.y, b.type === 'pierce' ? 6 : 4, 0, Math.PI * 2);
+                this.ctx.arc(b.x, b.y, (b.type === 'pierce' ? 6 : 4) * (this.gScale || 1), 0, Math.PI * 2);
                 this.ctx.fill();
             });
 
@@ -807,7 +836,7 @@
             this.enemyProjectiles.forEach(p => {
                 this.ctx.fillStyle = 'hsl(270, 0%, 50%)';
                 this.ctx.beginPath();
-                this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                this.ctx.arc(p.x, p.y, p.radius * (this.gScale || 1), 0, Math.PI * 2);
                 this.ctx.fill();
                 this.ctx.strokeStyle = 'hsl(270, 0%, 100%)';
                 this.ctx.stroke();
@@ -818,11 +847,12 @@
             const px = this.player.x - this.player.width / 2;
             const py = this.canvas.height - this.player.height - 20;
             this.ctx.fillRect(px, py, this.player.width, this.player.height);
-            // 砲管
+            // 砲管 (也要縮小)
             const mCount = this.player.multiShotLevel;
+            const gs = this.gScale || 1;
             for (let i = 0; i < mCount; i++) {
-                const off = (i - (mCount - 1) / 2) * 15;
-                this.ctx.fillRect(this.player.x + off - 4, py - 10, 8, 10);
+                const off = (i - (mCount - 1) / 2) * 15 * gs;
+                this.ctx.fillRect(this.player.x + off - 4 * gs, py - 10 * gs, 8 * gs, 10 * gs);
             }
 
             // 畫獎勵 UI
@@ -928,7 +958,7 @@
             this.isActive = false;
             this.isWin = true;
             clearInterval(this.timerInterval);
-
+            document.getElementById('game6-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
             ScoreManager.playWinAnimation({
                 game: this,
                 difficulty: this.difficulty,
@@ -944,6 +974,12 @@
 
         gameOver: function (win, msg) {
             this.isActive = false;
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game6-restart-btn').disabled = true;
+            } else {
+                document.getElementById('game6-restart-btn').disabled = false;
+            }
             clearInterval(this.timerInterval);
             const msgDiv = document.getElementById('game6-message');
             document.getElementById('game6-msg-title').textContent = win ? "擊退詩陣" : "防禦失敗";

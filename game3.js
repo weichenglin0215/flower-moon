@@ -89,6 +89,7 @@
                 <div id="game3-area" class="game3-area">
                     <!-- 遊戲內容將在此生成 -->
                 </div>
+                <div class="game3-difficulty-tag" id="game3-diff-tag">小學</div>
                 <div id="game3-history" class="game3-history"></div>
                 <div id="game3-message" class="game3-message">
                     <div id="game3-result-poem" class="game3-result-poem-display"></div>
@@ -211,6 +212,8 @@
 
         retryGame: function () {
             if (!this.currentPoem || this.rows.length === 0) return;
+            // 啟用重來按鈕
+            document.getElementById('game3-restart-btn').disabled = false;
             this.isActive = true;
             this.score = 0;
             this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;
@@ -250,10 +253,12 @@
 
             // 開始動畫迴圈
             if (this.animationId) cancelAnimationFrame(this.animationId);
+            document.getElementById('game3-restart-btn').disabled = false;
             this.loop();
         },
 
         startNewGame: function () {
+            document.getElementById('game3-diff-tag').textContent = this.difficulty;
             this.isActive = true;
             this.score = 0;
             this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;
@@ -356,8 +361,14 @@
             this.historyContainer = document.getElementById('game3-history');
             this.renderHistory();
 
-            // 生成每一行
-            let currentY = 35; // 從game-area下方開始 (rem)
+            // 動態計算 gameArea 的高度（rem），讓方塊從畫面底部下方開始升起
+            const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+            const gameAreaHeightPx = this.gameArea.offsetHeight || (rootFontSize * 35);
+            const gameAreaHeightRem = gameAreaHeightPx / rootFontSize;
+
+            // 從遊戲區域底部下方開始 (遊戲區域高度 + 額外空間)
+            this.gameAreaHeightRem = gameAreaHeightRem; // 儲存供 loop() 判斷使用
+            let currentY = gameAreaHeightRem;
 
             chars.forEach((char, index) => {
                 // 檢查是否為新句子的開始
@@ -555,6 +566,7 @@
             // 檢查勝利
             if (this.currentRowIndex >= this.rows.length) {
                 this.isActive = false;
+                document.getElementById('game3-restart-btn').disabled = true;
                 ScoreManager.playWinAnimation({
                     game: this,
                     difficulty: this.difficulty,
@@ -584,6 +596,7 @@
                 // 也要檢查新定位的行是否結束了
                 if (this.currentRowIndex >= this.rows.length) {
                     this.isActive = false;
+                    document.getElementById('game3-restart-btn').disabled = true;
                     ScoreManager.playWinAnimation({
                         game: this,
                         difficulty: this.difficulty,
@@ -638,8 +651,10 @@
                     this.updateHistoryStatus(row.index, 'wrong');
                 }
 
-                // 更新尚未處理字的 visibility 狀態 (只要進入畫面上方 約35rem 內)
-                if (row.y < 35 && !row.clicked) {
+                // 更新尚未處理字的 visibility 狀態
+                // 只有當方塊進入可視區域底部（row.y < gameAreaHeightRem）時才顯示，與方塊同步由下往上出現
+                const visibleThreshold = this.gameAreaHeightRem || 30;
+                if (row.y < visibleThreshold && !row.clicked) {
                     this.updateHistoryStatus(row.index, 'waiting');
                 }
             });
@@ -739,6 +754,12 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game3-restart-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕
+            } else {
+                document.getElementById('game3-restart-btn').disabled = false;
+            }
             cancelAnimationFrame(this.animationId);
 
             // 1. 將所有畫面尚未完成的行，標示出藍色正確答案

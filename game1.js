@@ -77,6 +77,7 @@
                     <div id="game1-hearts" class="hearts"></div>
                 </div>
                 <div id="game1-area" class="game1-area">
+                    <div class="game1-difficulty-tag" id="game1-diff-tag">小學</div>
                     <!-- 遊戲內容將在此生成 -->
                     <!-- 問題區域 -->
                     <div class="game1-question-area">
@@ -207,11 +208,13 @@
 
             // 重新渲染當前題目 (不重新準備)
             this.renderChallenge();
+            document.getElementById('game1-restart-btn').disabled = false;
             // 重設計時器
             this.startTimer();
         },
 
         startNewGame: function () {
+            document.getElementById('game1-diff-tag').textContent = this.difficulty;
             this.isActive = true;
             this.score = 0;
             this.mistakes = 0;
@@ -221,6 +224,7 @@
 
             // 準備新題目並開始
             this.prepareChallenge();
+            document.getElementById('game1-restart-btn').disabled = false;
             this.startTimer();
         },
 
@@ -504,6 +508,7 @@
             if (isCorrect) {
                 btn.classList.add('correct');
                 clearInterval(this.timerInterval);
+                document.getElementById('game1-restart-btn').disabled = true;
                 ScoreManager.playWinAnimation({
                     game: this,
                     difficulty: this.difficulty,
@@ -565,6 +570,12 @@
         },
         gameOver: function (win, reason) {
             this.isActive = false;
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game1-restart-btn').disabled = true;
+            } else {
+                document.getElementById('game1-restart-btn').disabled = false;
+            }
             const msgDiv = document.getElementById('game1-message');
             const title = document.getElementById('game1-msg-title');
             const content = document.getElementById('game1-msg-content');

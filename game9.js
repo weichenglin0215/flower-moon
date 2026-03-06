@@ -16,7 +16,7 @@
 
         // difficulty config
         // 難度設定：星星數、螺絲數、空槽數、時間(秒)、是否有提示、是否有撤銷、移動次數上限、每回合可交換螺絲數
-        /*難度參數詳細說明，hasHint: true表示有提示，undo: true表示有撤銷，moveLimit: 0表示沒有移動次數上限，exchangeQuantity: 2表示控制題目難度的預先的交換螺絲數*/
+        /*難度參數詳細說明，hasHint: true表示有提示，undo: true表示有撤銷，moveLimit: 0表示沒有移動次數上限，exchangeQuantity: 2表示控制題目難度的預先的交換螺絲數，totalNumberOfExchange: 16表示題目總共預先交換的次數(越多次越難)*/
         //color: hard, expert 可使用深色且難以辨識的顏色
         difficultySettings: {
             '小學': { stars: 6, bolts: 6, emptyBolts: 2, time: 90, hasHint: 'all', undo: true, moveLimit: 0, exchangeQuantity: 2, totalNumberOfExchange: 16 },
@@ -184,42 +184,94 @@
         selectRandomPoem: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
+            const minRating = settings.stars;
 
-            // 1. Filter poems by rating and having at least 4 lines
-            let eligible = POEMS.filter(p => p.rating >= settings.stars && p.content.length >= 4);
+            // 建立所有符合條件的 (poem, startIndex) 候選組合
+            // 條件：從奇數索引（0, 2, 4...）開始的連續4句，每句的 line_ratings 都 >= minRating
+            const candidates = [];
+            POEMS.forEach(poem => {
+                if (!poem.content || poem.content.length < 4) return;
+                const lineRatings = poem.line_ratings || [];
 
-            if (eligible.length === 0) {
-                // Fallback: any poem with at least 4 lines
-                eligible = POEMS.filter(p => p.content.length >= 4);
+                // 從奇數起始點（索引0, 2, 4...）嘗試連續取4句
+                for (let i = 0; i <= poem.content.length - 4; i += 2) {
+                    // 檢查這4句的每一句 line_ratings 是否都符合難度要求
+                    let allQualify = [0, 1, 2, 3].every(offset => {
+                        const lr = lineRatings[i + offset];
+                        return lr !== undefined && lr >= minRating;
+                    });
+
+                    if (!allQualify) {
+                        // 檢查前2句的每一句 line_ratings 是否都符合難度要求
+                        allQualify = [0, 1].every(offset => {
+                            const lr = lineRatings[i + offset];
+                            return lr !== undefined && lr >= minRating;
+                        });
+                    }
+                    if (!allQualify) {
+                        // 檢查後2句的每一句 line_ratings 是否都符合難度要求
+                        allQualify = [2, 3].every(offset => {
+                            const lr = lineRatings[i + offset];
+                            return lr !== undefined && lr >= minRating;
+                        });
+                    }
+
+                    if (allQualify) {
+                        candidates.push({ poem, startIndex: i });
+                    }
+                }
+            });
+
+            // 若無完全符合的候選，降級：只要詩整體評分 >= minRating 且有4句即可
+            let finalCandidates = candidates;
+            if (finalCandidates.length === 0) {
+                POEMS.forEach(poem => {
+                    if (!poem.content || poem.content.length < 4) return;
+                    if ((poem.rating || 0) >= minRating) {
+                        for (let i = 0; i <= poem.content.length - 4; i += 2) {
+                            finalCandidates.push({ poem, startIndex: i });
+                        }
+                    }
+                });
             }
 
-            if (eligible.length === 0) return false;
+            // 最終 fallback：任意有4句的詩
+            if (finalCandidates.length === 0) {
+                POEMS.forEach(poem => {
+                    if (poem.content && poem.content.length >= 4) {
+                        finalCandidates.push({ poem, startIndex: 0 });
+                    }
+                });
+            }
 
-            // Pick a random poem
-            this.currentPoem = eligible[Math.floor(Math.random() * eligible.length)];
+            if (finalCandidates.length === 0) return false;
 
-            // 2. Randomly pick 4 consecutive lines
-            const poemLines = this.currentPoem.content;
-            const startIndex = Math.floor(Math.random() * (poemLines.length - 3));
+            // 隨機挑一個候選
+            const chosen = finalCandidates[Math.floor(Math.random() * finalCandidates.length)];
+            this.currentPoem = chosen.poem;
+            const startIndex = chosen.startIndex;
 
+            // 取連續4句
             this.lines = [];
             for (let i = 0; i < 4; i++) {
-                const rawLine = poemLines[startIndex + i];
-                // Strip punctuation and whitespace
+                const rawLine = chosen.poem.content[startIndex + i];
+                if (!rawLine) break;
                 const text = rawLine.replace(/[，。？！、：；「」『』\s]/g, "");
                 this.lines.push(text);
             }
 
-            // Calculate max line length to define bolt capacity
+            // 計算最長行字數（決定螺絲管容量）
             this.maxLineLength = Math.max(...this.lines.map(l => l.length));
-            // Ensure a minimum capacity for comfort, e.g. at least 5
             this.maxLineLength = Math.max(this.maxLineLength, 5);
 
-            document.getElementById('game9-poem-info').textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            document.getElementById('game9-poem-info').textContent =
+                `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             return true;
         },
 
         startGameProcess: function (isRetry) {
+            // 啟用重來按鈕
+            document.getElementById('game9-restart-btn').disabled = false;
             this.isActive = true;
             this.score = 0;
             this.movesMade = 0;
@@ -533,7 +585,9 @@
                             this.newlyCompletedBoltIdx = boltIdx; // Mark for animation
                         }
                         // Score formula calculation for completing a stack
-                        this.score += 20 * count / this.lines[targetBolt[0].colorGroup].length;
+                        //this.score += 20 * count / this.lines[targetBolt[0].colorGroup].length;
+                        //我把計分改成以該螺絲串的長度為基礎
+                        this.score += 20 * (this.lines[targetBolt[0].colorGroup].length - difficultySettings[this.difficulty].exchangeQuantity);
                         document.getElementById('game9-score').textContent = Math.round(this.score);
                     } else {
                         // If it WAS completed but now we pulled something out (not possible if pick blocked), but for safety:
@@ -688,6 +742,8 @@
         gameWin: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
+            // 禁用重來按鈕
+            document.getElementById('game9-restart-btn').disabled = true;   // 必須在得分表演之前就先禁用重來按鈕
 
             // Using standard win animation
             if (window.ScoreManager && typeof window.ScoreManager.playWinAnimation === 'function') {
@@ -709,6 +765,12 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game9-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+            } else {
+                document.getElementById('game9-restart-btn').disabled = false;
+            }
             clearInterval(this.timerInterval);
 
             const msg = document.getElementById('game9-message');

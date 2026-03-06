@@ -9,8 +9,8 @@
         currentPoem: null,
         fullPoemText: "", // Just the raw characters without punctuation
         poemLines: [],    // Array of strings (raw characters per line)
-        gridData: [],     // 6x8 array of objects: { char, isTarget, targetIndex, isObstacle }
-        gridElements: [], // 6x8 array of DOM elements
+        gridData: [],     // 9x7 array of objects: { char, isTarget, targetIndex, isObstacle }
+        gridElements: [], // 9x7 array of DOM elements
 
         // Interaction state
         isDragging: false,
@@ -29,18 +29,21 @@
         // Audio Context (for zither notes)
         audioCtx: null,
         notes: [261.63, 293.66, 329.63, 392.00, 440.00], // C D E G A (Pentatonic)
-        /*hints 提示方式：all 提示黃光在開頭與結尾字且整句都用粗體顯示、start 提示黃光在開頭且只顯示開頭、startEnd顯示提示黃光在開頭與結尾字、none 不顯示
-        splitPath 斷句：true 可以斷句連接(只完成一句、兩句、三句或是整個題目，由程式自動判斷玩家的輸入)、false 連續(強制必須一次完成整個題目的所有字)
-        maxMistake 最大錯誤次數：999 無限制、3 三次、2 兩次、1 一次、0 零次
-        time 時間限制：0 無限制、90 九十秒、60 六十秒、45 四十五秒
-        obstacles 障礙物數量：0 無障礙、10 十個、20 二十個
-        decoyPool 誘餌池：normal 普通、hard 困難*/
+        /*hints 提示方式：all/startEnd/start/none
+        splitPath 斷句：true=可分句完成、false=必須一次連完整首
+        maxMistake 最大錯誤次數
+        time 時間限制（秒，0=無限）
+        obstacles 障礙物數量
+        decoyPool 誘餌池：normal/hard
+        stars 最低詩評rating
+        minLines 最少句數（必須偶數，從奇數句開始連續挑選）
+        maxChars 總字數上限*/
         difficultySettings: {
-            '小學': { hints: 'all', splitPath: true, maxMistake: 8, time: 70, obstacles: 0, decoyPool: 'normal', stars: 6 },
-            '中學': { hints: 'startEnd', splitPath: true, maxMistake: 6, time: 60, obstacles: 0, decoyPool: 'normal', stars: 5 },
-            '高中': { hints: 'start', splitPath: true, maxMistake: 4, time: 50, obstacles: 0, decoyPool: 'normal', stars: 4 },
-            '大學': { hints: 'startEnd', splitPath: false, maxMistake: 2, time: 45, obstacles: 0, decoyPool: 'normal', stars: 4 },
-            '研究所': { hints: 'none', splitPath: false, maxMistake: 1, time: 40, obstacles: 0, decoyPool: 'hard', stars: 3 }
+            '小學': { hints: 'all', splitPath: true, maxMistake: 8, time: 80, obstacles: 0, decoyPool: 'normal', stars: 6, minLines: 4, maxChars: 56 },
+            '中學': { hints: 'startEnd', splitPath: true, maxMistake: 6, time: 70, obstacles: 0, decoyPool: 'normal', stars: 5, minLines: 4, maxChars: 56 },
+            '高中': { hints: 'startEnd', splitPath: true, maxMistake: 4, time: 60, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 8, maxChars: 56 },
+            '大學': { hints: 'start', splitPath: false, maxMistake: 2, time: 55, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 8, maxChars: 56 },
+            '研究所': { hints: 'start', splitPath: false, maxMistake: 1, time: 45, obstacles: 0, decoyPool: 'hard', stars: 3, minLines: 8, maxChars: 56 }
         },
 
         decoySets: {
@@ -249,6 +252,8 @@
 
             this.updateProgressText();
             this.applyHints();
+            // 格子、提示、進度都準備完畢後才啟用重來按鈕
+            document.getElementById('game8-restart-btn').disabled = false;
 
             const diffTag = document.getElementById('game8-diff-tag');
             if (diffTag) diffTag.textContent = this.difficulty;
@@ -264,39 +269,31 @@
         },
 
         selectRandomPoem: function () {
-            if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
-
-            const settings = this.difficultySettings[this.difficulty];
-
-            // Choose poems that have 20 or 40 chars (5-char or 7-char quatrain)
-            // and filter by rating (stars) similar to Game 6
-            let validPoems = POEMS.filter(p => {
-                const text = p.content.join('').replace(/[，。？！、：；「」『』\s]/g, "");
-                return (text.length >= 20 && text.length <= 40) && (p.rating >= settings.stars);
-            });
-
-            // Fallback: if no poems match BOTH criteria, loosen the rating requirement
-            if (validPoems.length === 0) {
-                validPoems = POEMS.filter(p => {
-                    const text = p.content.join('').replace(/[，。？！、：；「」『』\s]/g, "");
-                    return (text.length >= 20 && text.length <= 40);
-                });
+            if (typeof getSharedRandomPoem !== 'function') {
+                console.error("需要先載入 script.js 中的 getSharedRandomPoem 函數");
+                return false;
             }
 
-            if (validPoems.length === 0) return false;
+            const settings = this.difficultySettings[this.difficulty];
+            const minLines = settings.minLines;
+            const maxChars = settings.maxChars;
+            const reqStars = settings.stars;
 
-            this.currentPoem = validPoems[Math.floor(Math.random() * validPoems.length)];
-            this.fullPoemText = this.currentPoem.content.join('').replace(/[，。？！、：；「」『』\s]/g, "");
+            // 呼叫全局選詩函數，maxLines 給 100 代表無上限，minChars 設定為 8 字
+            const result = getSharedRandomPoem(reqStars, minLines, 100, 8, maxChars);
 
-            this.poemLines = [];
-            this.currentPoem.content.forEach(line => {
-                const pureLine = line.replace(/[，。？！、：；「」『』\s]/g, "");
-                if (pureLine.length > 0) this.poemLines.push(pureLine);
-            });
+            if (!result) return false;
+
+            this.currentPoem = result.poem;
+            this.poemLines = result.lines;
+
+            // fullPoemText：所選句子的所有字合併
+            this.fullPoemText = this.poemLines.join('');
 
             // Set up phases
             this.phases = [];
-            document.getElementById('game8-poem-info').textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            document.getElementById('game8-poem-info').textContent =
+                `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             document.getElementById('game8-poem-info').onclick = () => {
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
             };
@@ -304,8 +301,8 @@
         },
 
         generateLevel: function () {
-            // Setup grid data matrix (8 rows x 6 cols)
-            this.gridData = Array(8).fill().map(() => Array(6).fill(null));
+            // Setup grid data matrix (9 rows x 7 cols)
+            this.gridData = Array(9).fill().map(() => Array(7).fill(null));
             const settings = this.difficultySettings[this.difficulty];
 
             let pathLength = this.fullPoemText.length;
@@ -358,8 +355,8 @@
 
             // Fill empty spots and obstacles
             let obstacleCountDecided = settings.obstacles;
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 6; c++) {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 7; c++) {
                     if (this.gridData[r][c] === null) {
                         if (obstacleCountDecided > 0 && Math.random() < 0.2) {
                             this.gridData[r][c] = {
@@ -385,33 +382,267 @@
         },
 
         generateRandomPath: function (length, numObstacles) {
-            // Very simple back-tracking to find a path of length `length` in 6x8 board
-            let path = [];
-            let visited = Array(8).fill().map(() => Array(6).fill(false));
+            const ROWS = 9, COLS = 7;
+            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            const dirNames = ['U', 'D', 'L', 'R'];
 
-            // Try random starts
-            const starts = [];
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 6; c++) starts.push({ r, c });
+            // 取得九宮格區塊編號 (盤面 9x7 分為 3x3 個區塊)
+            const getRegion = (r, c) => {
+                const rr = Math.floor(r / 3); // 0, 1, 2
+                // 把 7欄 切成 3區：2欄, 3欄, 2欄 -> (0,1), (2,3,4), (5,6)
+                const cc = c < 2 ? 0 : (c < 5 ? 1 : 2);
+                return rr * 3 + cc;
+            };
+
+            // 計算路徑品質分數
+            const evaluatePath = (path) => {
+                const regionCounts = Array(9).fill(0);
+                let currentStraight = 0;
+                let lastDir = null;
+
+                let perfectTurns = 0;   // 最佳：剛好三格直角轉彎
+                let badStraights = 0;   // 太糟：直線超過三格
+                let prematureTurns = 0; // 太早轉彎
+
+                for (let i = 0; i < path.length; i++) {
+                    const p = path[i];
+                    regionCounts[getRegion(p.row, p.col)]++;
+
+                    if (i > 0) {
+                        const dr = p.row - path[i - 1].row;
+                        const dc = p.col - path[i - 1].col;
+                        const dir = `${dr},${dc}`;
+
+                        if (dir === lastDir) {
+                            currentStraight++;
+                        } else {
+                            if (lastDir !== null) {
+                                if (currentStraight === 3) perfectTurns++;
+                                else if (currentStraight < 3) prematureTurns++;
+                                else badStraights++;
+                            }
+                            currentStraight = 1;
+                            lastDir = dir;
+                        }
+                    } else {
+                        currentStraight = 1;
+                    }
+                }
+
+                if (currentStraight > 3) badStraights++;
+
+                // 評估九宮格分佈均勻度
+                let emptyRegions = 0;
+                let singleCellRegions = 0;
+                for (let i = 0; i < 9; i++) {
+                    if (regionCounts[i] === 0) emptyRegions++;
+                    if (regionCounts[i] === 1) singleCellRegions++;
+                }
+
+                // 檢查是否有兩個相鄰的空區域 (完全無路徑)
+                let adjacentEmpty = 0;
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        const idx = r * 3 + c;
+                        if (regionCounts[idx] === 0) {
+                            if (c < 2 && regionCounts[r * 3 + c + 1] === 0) adjacentEmpty++; // 右側
+                            if (r < 2 && regionCounts[(r + 1) * 3 + c] === 0) adjacentEmpty++; // 下方
+                        }
+                    }
+                }
+
+                return { emptyRegions, singleCellRegions, adjacentEmpty, perfectTurns, badStraights, prematureTurns };
+            };
+
+            // 啟發式 DFS，嘗試生成單條路徑
+            const tryGenerate = (startR, startC) => {
+                let path = [];
+                let visited = Array(ROWS).fill().map(() => Array(COLS).fill(false));
+
+                let iterations = 0;
+                const MAX_ITER = 4000; // 設定上限避免過度消耗效能
+
+                const dfs = (r, c, depth, lastDir, currentStraight) => {
+                    iterations++;
+                    if (iterations > MAX_ITER) return false;
+
+                    path.push({ row: r, col: c });
+                    visited[r][c] = true;
+                    if (depth === length) return true;
+
+                    let candidates = [];
+                    for (let di = 0; di < dirs.length; di++) {
+                        const d = dirs[di];
+                        const nr = r + d[0], nc = c + d[1];
+                        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || visited[nr][nc]) continue;
+
+                        let exits = 0;
+                        for (const dd of dirs) {
+                            const nnr = nr + dd[0], nnc = nc + dd[1];
+                            if (nnr >= 0 && nnr < ROWS && nnc >= 0 && nnc < COLS && !visited[nnr][nnc]) exits++;
+                        }
+
+                        // 判斷出路，若周圍無出路且尚未達到目標長度，剪枝
+                        if (exits === 0 && depth + 1 < length) continue;
+
+                        const thisDir = dirNames[di];
+                        const isStraight = (lastDir === thisDir);
+                        const newStraight = isStraight ? currentStraight + 1 : 1;
+
+                        // 取消之前的 Warnsdorff 規則 (也就是哪裡出路少走哪裡)，因為網格中最少出路的地方永遠是邊緣和角落。
+                        // 我們要建立自己的趨中性與轉彎計分系統。
+                        let prefScore = 0;
+
+                        if (exits === 1 && depth + 1 < length) {
+                            // 唯一出路，為了避免製造死棋，這步必須給予極高分數絕對優先走。
+                            prefScore += 1000;
+                        } else {
+                            // 趨中性：避免一直沿著邊緣走，稍微給予內側高分，把路徑拉離開牆壁
+                            const distToCenter = Math.abs(nr - 4) + Math.abs(nc - 3);
+                            prefScore += (10 - distToCenter) * 4;
+
+                            // 不要急著轉彎，三格直線再轉彎是最適合的
+                            if (lastDir !== null) {
+                                if (isStraight) {
+                                    if (currentStraight < 3) prefScore += 15; // 鼓勵保持直走達到3格
+                                    else prefScore -= 50;                     // 超過3格則極力勸退
+                                } else {
+                                    if (currentStraight === 3) prefScore += 15; // 走滿三格後轉彎給予強烈獎勵
+                                    else prefScore += 25;                        // 未滿三格急著轉彎給予懲罰
+                                }
+                            }
+                        }
+
+                        // 加入隨機性，讓不同嘗試能走不同分支
+                        prefScore += Math.random() * 40;
+
+                        candidates.push({ nr, nc, dir: thisDir, straight: newStraight, prefScore });
+                    }
+
+                    // 完全依照我們的自訂喜好分數進行排序 (分數高的優先)
+                    candidates.sort((a, b) => b.prefScore - a.prefScore);
+
+                    for (const cand of candidates) {
+                        if (dfs(cand.nr, cand.nc, depth + 1, cand.dir, cand.straight)) {
+                            return true;
+                        }
+                    }
+
+                    path.pop();
+                    visited[r][c] = false;
+                    return false;
+                };
+
+                if (dfs(startR, startC, 1, null, 1)) return path;
+                return null;
+            };
+
+            // 1. 確實地隨機從 7x9 中準備所有的格子候選名單，打亂順序以確保隨機抽出
+            const allCoords = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    allCoords.push({ r, c });
+                }
             }
-            starts.sort(() => Math.random() - 0.5);
+            allCoords.sort(() => Math.random() - 0.5);
 
+            let bestPath = null;
+            let bestScore = -Infinity;
+            const maxAttemptsPerStart = 60; // 在同一個起點下，反覆嘗試不同方向以找出完美路線的次數
+
+            // 隨機抽選起點
+            for (let sIdx = 0; sIdx < allCoords.length; sIdx++) {
+                const startR = allCoords[sIdx].r;
+                const startC = allCoords[sIdx].c;
+
+                let foundAnyPath = false;
+
+                // 2. 任何嘗試新路徑都要以上述選定的單一「起始位置」開始，才能公平比較
+                for (let attempt = 0; attempt < maxAttemptsPerStart; attempt++) {
+                    const path = tryGenerate(startR, startC);
+                    if (!path) continue; // 這條死胡同
+
+                    foundAnyPath = true;
+                    const metrics = evaluatePath(path);
+
+                    let quality = 0;
+
+                    // 正分項：越符合「三格一轉」就加越多分
+                    quality += metrics.perfectTurns * 25;
+
+                    // 負分項：嚴厲懲罰沒有做好的擴散或太長無聊的直線
+                    quality -= metrics.emptyRegions * 200;
+                    quality -= metrics.adjacentEmpty * 500;
+                    quality -= metrics.singleCellRegions * 50;
+                    quality -= metrics.badStraights * 50;
+
+                    if (quality > bestScore) {
+                        bestScore = quality;
+                        bestPath = path;
+                    }
+                }
+
+                // 一旦「這一個起點」有成功產出任何路線並挑出最佳解，遊戲就結束尋找，固定這個起點。
+                if (foundAnyPath) {
+                    break;
+                }
+            }
+
+            // Fallback (若多次嘗試都在同一起點死胡同失敗，則更換起點進行保底演算)
+            if (!bestPath) {
+                let allStarts = [];
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        allStarts.push({ r, c });
+                    }
+                }
+                allStarts.sort(() => Math.random() - 0.5);
+
+                for (let attempt = 0; attempt < allStarts.length; attempt++) {
+                    const { r, c } = allStarts[attempt];
+                    let path = this.tryGenerateFallback(r, c, ROWS, COLS, length);
+                    if (path) {
+                        bestPath = path;
+                        break;
+                    }
+                }
+            }
+
+            return bestPath;
+        },
+
+        // 保底演算法：純 Warnsdorff 規則，保證能產出路徑
+        tryGenerateFallback: function (startR, startC, ROWS, COLS, length) {
+            let path = [];
+            let visited = Array(ROWS).fill().map(() => Array(COLS).fill(false));
             const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
             const dfs = (r, c, depth) => {
                 path.push({ row: r, col: c });
                 visited[r][c] = true;
-
                 if (depth === length) return true;
 
-                // Randomize directions
-                let d = [...dirs].sort(() => Math.random() - 0.5);
-                for (let i = 0; i < 4; i++) {
-                    const nr = r + d[i][0];
-                    const nc = c + d[i][1];
-                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 6 && !visited[nr][nc]) {
-                        if (dfs(nr, nc, depth + 1)) return true;
+                let candidates = [];
+                for (let di = 0; di < dirs.length; di++) {
+                    const d = dirs[di];
+                    const nr = r + d[0], nc = c + d[1];
+                    if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || visited[nr][nc]) continue;
+
+                    let exits = 0;
+                    for (const dd of dirs) {
+                        const nnr = nr + dd[0], nnc = nc + dd[1];
+                        if (nnr >= 0 && nnr < ROWS && nnc >= 0 && nnc < COLS && !visited[nnr][nnc]) exits++;
                     }
+
+                    // 加上微小的隨機擾動防止完全固定
+                    candidates.push({ nr, nc, exits: exits + Math.random() * 0.5 });
+                }
+
+                // 出路越少的越優先
+                candidates.sort((a, b) => a.exits - b.exits);
+
+                for (const cand of candidates) {
+                    if (dfs(cand.nr, cand.nc, depth + 1)) return true;
                 }
 
                 path.pop();
@@ -419,21 +650,17 @@
                 return false;
             };
 
-            for (let s of starts) {
-                if (dfs(s.r, s.c, 1)) {
-                    return path;
-                }
-            }
+            if (dfs(startR, startC, 1)) return path;
             return null;
         },
 
         renderGrid: function () {
             const container = document.getElementById('game8-grid');
             container.innerHTML = '';
-            this.gridElements = Array(8).fill().map(() => Array(6).fill(null));
+            this.gridElements = Array(9).fill().map(() => Array(7).fill(null));
 
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 6; c++) {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 7; c++) {
                     const cellData = this.gridData[r][c];
                     const div = document.createElement('div');
                     div.className = 'game8-cell';
@@ -509,8 +736,8 @@
                     }
                 }
 
-                let phaseLabelStr = `第 ${startPhaseLabel} 句`;
-                if (endPhaseLabel > startPhaseLabel) phaseLabelStr = `第 ${startPhaseLabel}~${endPhaseLabel} 句`;
+                let phaseLabelStr = `第 ${startPhaseLabel}/${this.phases.length} 句`;
+                if (endPhaseLabel > startPhaseLabel) phaseLabelStr = `第 ${startPhaseLabel}~${endPhaseLabel}/${this.phases.length} 句`;
 
                 txt.textContent = `${phaseLabelStr}：已連 ${currentPathLength} / ${targetWordCount} 字`;
             } else {
@@ -524,8 +751,8 @@
             if (!phase) return;
 
             // Clear hints
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 6; c++) {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 7; c++) {
                     if (this.gridElements[r][c]) {
                         this.gridElements[r][c].classList.remove('start-hint', 'target-hint');
                     }
@@ -533,8 +760,8 @@
             }
 
             if (settings.hints === 'all') {
-                for (let r = 0; r < 8; r++) {
-                    for (let c = 0; c < 6; c++) {
+                for (let r = 0; r < 9; r++) {
+                    for (let c = 0; c < 7; c++) {
                         const d = this.gridData[r][c];
                         if (d.isTarget && d.targetIndex >= phase.startIndex && d.targetIndex < phase.startIndex + phase.length) {
                             this.gridElements[r][c].classList.add('target-hint'); // bold whole sentence/poem
@@ -545,8 +772,8 @@
                     }
                 }
             } else if (settings.hints === 'start') {
-                for (let r = 0; r < 8; r++) {
-                    for (let c = 0; c < 6; c++) {
+                for (let r = 0; r < 9; r++) {
+                    for (let c = 0; c < 7; c++) {
                         const d = this.gridData[r][c];
                         if (d.isTarget && d.targetIndex === phase.startIndex) {
                             this.gridElements[r][c].classList.add('start-hint');
@@ -554,8 +781,8 @@
                     }
                 }
             } else if (settings.hints === 'startEnd') {
-                for (let r = 0; r < 8; r++) {
-                    for (let c = 0; c < 6; c++) {
+                for (let r = 0; r < 9; r++) {
+                    for (let c = 0; c < 7; c++) {
                         const d = this.gridData[r][c];
                         if (d.isTarget && (d.targetIndex === phase.startIndex || d.targetIndex === phase.startIndex + phase.length - 1)) {
                             this.gridElements[r][c].classList.add('start-hint');
@@ -852,8 +1079,8 @@
             const gridWrapper = document.getElementById("game8-grid-wrapper");
             const w = gridWrapper.offsetWidth;
             const h = gridWrapper.offsetHeight;
-            const cellW = w / 6;
-            const cellH = h / 8;
+            const cellW = w / 7;  // 7 欄
+            const cellH = h / 9;  // 9 列
 
             let d = '';
             pathArray.forEach((p, idx) => {
@@ -942,6 +1169,8 @@
         gameWin: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
+            // 禁用重來按鈕
+            document.getElementById('game8-restart-btn').disabled = true;
 
             // Using standard win animation
             ScoreManager.playWinAnimation({
@@ -959,6 +1188,12 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game8-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+            } else {
+                document.getElementById('game8-restart-btn').disabled = false;
+            }
             clearInterval(this.timerInterval);
 
             const msgDiv = document.getElementById('game8-message');

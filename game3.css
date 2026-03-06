@@ -82,7 +82,13 @@
 }
 
 .game3-controls .nav-btn:hover {
-    background: #c96a3e;
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game3-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
 }
 
 
@@ -96,12 +102,26 @@
     height: 100%;
 }
 
+/* 難度標籤 */
+.game3-difficulty-tag {
+    position: absolute;
+    top: 5.3rem;
+    left: 0.3rem;
+    background: hsla(0, 0%, 33%, 0.66);
+    padding: 0.1rem 0.6rem;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    color: hsl(45, 50%, 75%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+}
+
 /* 遊戲歷程顯示 (最左側直排) */
 .game3-history {
     position: absolute;
     left: 0.5rem;
-    top: 14%;
-    height: 84%;
+    top: 18%;
+    height: 80%;
     width: 2rem;
     background: rgba(0, 0, 0, 0.33);
     padding: 0.3rem;

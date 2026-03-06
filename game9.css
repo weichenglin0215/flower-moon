@@ -54,7 +54,13 @@
 }
 
 .game9-controls .nav-btn:hover {
-    background: hsl(24, 50%, 60%);
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game9-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
 }
 
 .game9-sub-header {

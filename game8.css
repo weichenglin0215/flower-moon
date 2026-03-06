@@ -53,7 +53,13 @@
 }
 
 .game8-controls .nav-btn:hover {
-    background: hsl(24, 50%, 60%);
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game8-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
 }
 
 /* 難度標籤 */
@@ -150,14 +156,14 @@
 /*棋盤*/
 .game8-grid-wrapper {
     position: relative;
-    width: 95%;
+    width: 96%;
     max-width: 28rem;
-    aspect-ratio: 6 / 8;
+    aspect-ratio: 7 / 9;
     background: hsl(40, 30%, 0%);
     /* 淺米色宣紙質感 */
     border-radius: 0.5rem;
     box-shadow: inset 0 0 2rem rgba(0, 0, 0, 0.2), 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');
+    /*background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');*/
     touch-action: none;
     /* Prevent scroll on touch */
 }
@@ -238,8 +244,8 @@
     width: 100%;
     height: 100%;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: repeat(8, 1fr);
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(9, 1fr);
     z-index: 3;
 }
 
@@ -284,6 +290,8 @@
 
 /*棋盤格-起始提示字粗體黃色*/
 .game8-cell.start-hint {
+    font-size: 2.5rem;
+    font-weight: bold;
     text-shadow: 0 0 0.5rem hsl(36, 80%, 50%);
     color: hsl(0, 0%, 100%);
 }

@@ -77,6 +77,7 @@
                     <div id="game4-hearts" class="hearts"></div>
                 </div>
                 <div id="game4-area" class="game4-area">
+                    <div class="game4-difficulty-tag" id="game4-diff-tag">小學</div>
                     <div id="game4-question" class="game4-question-area">
                         <div id="game4-line1" class="poem-lines"></div>
                         <div id="game4-line2" class="poem-lines"></div>
@@ -162,6 +163,8 @@
 
         retryGame: function () {
             if (!this.currentPoem) return;
+            // 啟用重來按鈕
+            document.getElementById('game4-restart-btn').disabled = false;
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -193,6 +196,7 @@
         },
 
         startNewGame: function () {
+            document.getElementById('game4-diff-tag').textContent = this.difficulty;
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -428,6 +432,7 @@
                 container.appendChild(btn);
             });
 
+            document.getElementById('game4-restart-btn').disabled = false;
             this.updateTimerRing(1);
         },
 
@@ -536,7 +541,7 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);
-
+            document.getElementById('game4-restart-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕
             // 立即顯示隱藏的題目內容
             this.isRevealed = true;
             this.cluesRevealed = true;
@@ -559,6 +564,12 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game4-restart-btn').disabled = true;
+            } else {
+                document.getElementById('game4-restart-btn').disabled = false;
+            }
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);
             this.isRevealed = true;

@@ -53,6 +53,11 @@
     box-shadow: 0 0 10px hsla(210, 60%, 66%, 0.5);
 }
 
+.game7-controls .nav-btn:disabled {
+    background: hsl(210, 0%, 33%);
+    color: hsl(45, 0%, 70%);
+}
+
 /* 生命值列 */
 .game7-sub-header {
     display: flex;

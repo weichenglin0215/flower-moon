@@ -62,7 +62,7 @@
             </div>
             <div class="menu-item" data-page="game5">
                 <span class="menu-number">7</span>
-                <span class="menu-text">墨蹤捉影</span>
+                <span class="menu-text">詩詞小精靈</span>
             </div>
             <div class="menu-item" data-page="game6">
                 <span class="menu-number">8</span>
@@ -266,7 +266,7 @@
                         else window.location.href = 'index.html?game=4';
                         break;
                     case 'game5':
-                        console.log('[Menu] 開啟 墨蹤捉影');
+                        console.log('[Menu] 開啟 詩詞小精靈');
                         if (window.Game5) window.Game5.show();
                         else window.location.href = 'index.html?game=5';
                         break;

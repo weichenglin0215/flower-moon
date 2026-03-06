@@ -1,4 +1,4 @@
-/* game5.js - 墨蹤捉影 (Poetry Pac-Man) */
+/* game5.js - 詩詞小精靈 (Poetry Pac-Man) */
 
 (function () {
     'use strict';
@@ -112,6 +112,7 @@
                 </div>
                 
                 <div class="game5-ui-area">
+                    <div class="game5-difficulty-tag" id="game5-diff-tag">小學</div>
                     <div id="game5-timer" class="game5-timer-container">時間：--</div>
                     <div class="game5-instruction">滑動螢幕改變方向</div>
                 </div>
@@ -237,7 +238,7 @@
             }
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('墨蹤捉影', (level) => {
+                window.DifficultySelector.show('詩詞小精靈', (level) => {
                     this.difficulty = level;
                     const settings = this.difficultySettings[level];
                     this.maxMistakes = settings.hearts;
@@ -248,14 +249,15 @@
 
                     // 必須在顯示容器後才計算地圖大小，否則 offsetWidth 會是 0
                     this.setupMaze();
-
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
                     this.startNewGame();
+                    document.getElementById('game5-restart-btn').disabled = false;
                 });
             }
         },
 
         startNewGame: function () {
+            document.getElementById('game5-diff-tag').textContent = this.difficulty;
             this.score = 0;
             this.mistakes = 0;
             this.collectedCount = 0;
@@ -272,6 +274,8 @@
 
             this.lastTime = performance.now();
             if (this.requestID) cancelAnimationFrame(this.requestID);
+            // 所有遊戲資源準備完畢後才啟用重來按鈕
+            document.getElementById('game5-restart-btn').disabled = false;
             this.gameLoop(this.lastTime);
         },
 
@@ -285,6 +289,9 @@
             this.renderHearts();
             // Reset food visibility
             this.foods.forEach(f => f.collected = false);
+
+            // 重置完成後才啟用重來按鈕
+            document.getElementById('game5-restart-btn').disabled = false;
 
             this.lastTime = performance.now();
             if (this.requestID) cancelAnimationFrame(this.requestID);
@@ -307,18 +314,18 @@
             const poem = eligible[Math.floor(Math.random() * eligible.length)];
             this.targetPoem = poem;
 
-            // 挑選詩句直到總字數大於答案字數需求
+            // 挑選詩句直到總字數大於答案字數需求 (僅挑選單數句子：1, 3, 5...)
             let fullStr = "";
-            let startLine = Math.floor(Math.random() * (poem.content.length - 1));
-            for (let i = startLine; i < poem.content.length; i++) {
+            let startLineIndex = Math.floor(Math.random() * (Math.floor((poem.content.length + 1) / 2))) * 2;
+            for (let i = startLineIndex; i < poem.content.length; i += 2) {
                 fullStr += poem.content[i].replace(/[，。？！、：；]/g, '');
                 if (fullStr.length > settings.answerLen) break;
             }
 
-            // 如果從 random 開始湊不夠，從頭開始湊
+            // 如果從 random 開始湊不夠，從頭開始湊 (僅挑選單數句子)
             if (fullStr.length <= settings.answerLen) {
                 fullStr = "";
-                for (let i = 0; i < poem.content.length; i++) {
+                for (let i = 0; i < poem.content.length; i += 2) {
                     fullStr += poem.content[i].replace(/[，。？！、：；]/g, '');
                     if (fullStr.length > settings.answerLen) break;
                 }
@@ -880,7 +887,8 @@
             this.ctx.globalAlpha = 1.0;
 
             // Draw Foods
-            this.ctx.font = `bold ${( (this.gridSize * 0.9) * 0.03 ).toFixed(1)}rem 'Noto Serif TC'`;
+            // PC gridSize ~21px, Mobile gridSize ~15px. Font size should follow gridSize.
+            this.ctx.font = `bold ${Math.floor(this.gridSize * 0.8)}px 'Noto Serif TC'`;
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             const settings = this.difficultySettings[this.difficulty];
@@ -970,6 +978,12 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game5-restart-btn').disabled = true;
+            } else {
+                document.getElementById('game5-restart-btn').disabled = false;
+            }
             this.isWin = win;
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);

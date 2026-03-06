@@ -1,4 +1,4 @@
-/* game5.css - 墨蹤捉影 (Poetry Pac-Man) */
+/* game5.css - 詩詞小精靈 (Poetry Pac-Man) */
 
 .game5-overlay {
     /*background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);*/
@@ -41,6 +41,16 @@
     border-radius: 0.6rem;
     font-size: 1rem;
     cursor: pointer;
+}
+
+.game5-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game5-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
 }
 
 /* 紅心 Poetry Progress Bar (Top 10% area includes header) */
@@ -125,6 +135,20 @@
     justify-content: center;
     overflow: hidden;
     /* 不需要捲動軸 */
+}
+
+/* 難度標籤 */
+.game5-difficulty-tag {
+    position: absolute;
+    top: 0.3rem;
+    left: 0.3rem;
+    background: hsla(0, 0%, 33%, 0.66);
+    padding: 0.1rem 0.6rem;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    color: hsl(45, 50%, 75%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
 }
 
 #game5-timer-ring {

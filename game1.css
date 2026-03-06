@@ -59,15 +59,13 @@
 }
 
 .game1-controls .nav-btn:hover {
-    background: hsl(24, 50%, 60%);
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
 }
 
-.game1-controls .close-btn {
-    background: hsl(24, 50%, 40%);
-}
-
-.game4-controls .close-btn:hover {
-    background: hsl(0, 75%, 60%);
+.game1-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
 }
 
 /*紅心區域*/
@@ -111,6 +109,20 @@
     position: relative;
     padding: 0.5rem;
     width: 100%;
+}
+
+/* 難度標籤 */
+.game1-difficulty-tag {
+    position: absolute;
+    top: 7.2rem;
+    left: 0.3rem;
+    background: hsla(0, 0%, 33%, 0.66);
+    padding: 0.1rem 0.6rem;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    color: hsl(45, 50%, 75%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
 }
 
 /* 問題區域 */

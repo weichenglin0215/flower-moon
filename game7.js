@@ -18,9 +18,9 @@
             x: 0,
             y: 0,
             vy: 0,
-            width: 90,
-            height: 90,
-            radius: 45,
+            width: 60,
+            height: 60,
+            radius: 30,
             rotation: 0,
             color: "hsl(190, 80%, 60%)"
         },
@@ -51,11 +51,11 @@
         // 難度設定
         // g:重力, jump:跳躍力, width:方塊寬度, heightVar:高度變異, move:移動, hearts:生命值, speed:速度, minChars:最少字數, stopOnLand:是否停留, stars:詩詞星等
         difficultySettings: {
-            '小學': { g: 0.4, jump: 8.0, width: 120, heightVar: 100, move: false, hearts: 5, speed: 120, minChars: 20, stopOnLand: true, stars: 7, time: 90 },
-            '中學': { g: 0.45, jump: 10, width: 100, heightVar: 200, move: false, hearts: 4, speed: 150, minChars: 28, stopOnLand: true, stars: 6, time: 90 },
-            '高中': { g: 0.5, jump: 12.0, width: 80, heightVar: 300, move: false, hearts: 3, speed: 180, minChars: 40, stopOnLand: false, stars: 5, time: 100 },
-            '大學': { g: 0.65, jump: 14.0, width: 60, heightVar: 400, move: true, hearts: 2, speed: 210, minChars: 56, stopOnLand: false, stars: 3, time: 120 },
-            '研究所': { g: 0.7, jump: 16.0, width: 60, heightVar: 500, move: true, hearts: 1, speed: 240, minChars: 56, stopOnLand: false, stars: 1, time: 150 }
+            '小學': { g: 0.4, jump: 8.0, width: 100, heightVar: 200, move: false, hearts: 5, speed: 100, minChars: 20, stopOnLand: true, stars: 7, time: 90 },
+            '中學': { g: 0.45, jump: 10, width: 80, heightVar: 300, move: false, hearts: 4, speed: 120, minChars: 28, stopOnLand: true, stars: 6, time: 90 },
+            '高中': { g: 0.5, jump: 12.0, width: 70, heightVar: 400, move: false, hearts: 3, speed: 140, minChars: 40, stopOnLand: false, stars: 5, time: 100 },
+            '大學': { g: 0.65, jump: 14.0, width: 60, heightVar: 500, move: true, hearts: 2, speed: 160, minChars: 56, stopOnLand: false, stars: 3, time: 120 },
+            '研究所': { g: 0.7, jump: 16.0, width: 50, heightVar: 600, move: true, hearts: 1, speed: 180, minChars: 56, stopOnLand: false, stars: 1, time: 150 }
         },
 
         init: function () {
@@ -237,6 +237,8 @@
             this.particles = []; // 確保重來或開新局時先清空所有雲
             this.initClouds();
             this.createInitialBlock();
+            // 遊戲盤面準備完成後才啟用重來按鈕
+            document.getElementById('game7-restart-btn').disabled = false;
         },
 
         loadPoem: function () {
@@ -254,25 +256,17 @@
                 if (eligible.length === 0) eligible = POEMS; // fallback
                 this.currentPoem = eligible[Math.floor(Math.random() * eligible.length)];
 
-                // 處理詩詞內容：擷取雙數句子 (Couplets)
+                // 處理詩詞內容：擷取單數句子 (1, 3, 5...)
                 const rawContent = this.currentPoem.content;
                 let usedLines = [];
                 let totalCharsNoPunct = 0;
 
-                // 研究所難度直接使用整首
-                if (this.difficulty === '研究所') {
-                    usedLines = [...rawContent];
+                // 研究所難度直接使用整首 (但依然僅取單數句以維持風格?) 
+                // 使用者要求所有遊戲都要從單數句子挑選
+                for (let i = 0; i < rawContent.length; i += 2) {
+                    usedLines.push(rawContent[i]);
                     totalCharsNoPunct = usedLines.join('').replace(/[，。？！、：；]/g, '').length;
-                } else {
-                    // 依序加入雙數句子直至滿足字數
-                    for (let i = 0; i < rawContent.length; i += 2) {
-                        if (i + 1 < rawContent.length) {
-                            const pair = [rawContent[i], rawContent[i + 1]];
-                            usedLines.push(...pair);
-                            totalCharsNoPunct = usedLines.join('').replace(/[，。？！、：；]/g, '').length;
-                            if (totalCharsNoPunct >= minChars) break;
-                        }
-                    }
+                    if (this.difficulty !== '研究所' && totalCharsNoPunct >= minChars) break;
                 }
 
                 this.fullPoemRaw = usedLines;
@@ -316,8 +310,8 @@
 
             if (nextIdx >= this.poemChars.length) return; // 已全部生成
             /*水平間距*/
-            const minDist = 200;
-            const maxDist = 300;
+            const minDist = 100;
+            const maxDist = 400;
             const dx = minDist + Math.random() * (maxDist - minDist);
             /*相對於上一塊高度*/
             const dy = (Math.random() * 0.66 + 0.33) * (Math.random() < 0.5 ? 1 : -1) * settings.heightVar;
@@ -465,8 +459,8 @@
 
         checkCollision: function () {
             const bx = this.bird.x;
-            const by = this.bird.y + 30; // 橢圓形底部 (半長軸 45, 半短軸 30)
-            const ellipseHalfW = 45; // 橢圓形水平半徑
+            const by = this.bird.y + 15; // 橢圓形底部 (半長軸 22.5, 半短軸 15)
+            const ellipseHalfW = 22.5; // 橢圓形水平半徑
 
             for (let i = 0; i < this.blocks.length; i++) {
                 const b = this.blocks[i];
@@ -662,26 +656,26 @@
 
             this.ctx.fillStyle = b.color;
             this.ctx.beginPath();
-            this.ctx.ellipse(0, 0, 45, 30, 0, 0, Math.PI * 2); // 放大 3 倍 (原本 15, 10)
+            this.ctx.ellipse(0, 0, 22.5, 15, 0, 0, Math.PI * 2); // 縮小一半 (原本 45, 30)
             this.ctx.fill();
 
             this.ctx.fillStyle = "white";
-            const wingY = Math.sin(Date.now() * 0.01) * 15;
+            const wingY = Math.sin(Date.now() * 0.01) * 7.5;
             this.ctx.beginPath();
-            this.ctx.moveTo(-15, 0);
-            this.ctx.quadraticCurveTo(0, -45 + wingY, 15, 0);
+            this.ctx.moveTo(-7.5, 0);
+            this.ctx.quadraticCurveTo(0, -22.5 + wingY, 7.5, 0);
             this.ctx.fill();
 
             this.ctx.fillStyle = "black";
             this.ctx.beginPath();
-            this.ctx.arc(24, -6, 6, 0, Math.PI * 2);
+            this.ctx.arc(12, -3, 3, 0, Math.PI * 2);
             this.ctx.fill();
 
             this.ctx.fillStyle = "orange";
             this.ctx.beginPath();
-            this.ctx.moveTo(42, 0);
-            this.ctx.lineTo(60, 6);
-            this.ctx.lineTo(42, 12);
+            this.ctx.moveTo(21, 0);
+            this.ctx.lineTo(30, 3);
+            this.ctx.lineTo(21, 6);
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.restore();
@@ -745,6 +739,8 @@
 
         gameWin: function () {
             this.isActive = false;
+            // 禁用重來按鈕
+            document.getElementById('game7-restart-btn').disabled = true;
             if (window.ScoreManager) {
                 window.ScoreManager.playWinAnimation({
                     game: this,
@@ -762,6 +758,12 @@
 
         gameOver: function (isWin, message) {
             this.isActive = false;
+            // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
+            if (isWin) {
+                document.getElementById('game7-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+            } else {
+                document.getElementById('game7-restart-btn').disabled = false;
+            }
             const msg = document.getElementById('game7-message');
             document.getElementById('game7-msg-title').textContent = isWin ? "謫仙凌雲" : "高處不勝寒";
             this.renderResultPoem(); // 顯示有色彩狀態的整首詩
