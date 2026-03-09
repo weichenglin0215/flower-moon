@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. 底層卡片 (用作 下一張/上一張 的預覽)
         const bottomDate = getOffsetDate(currentDate, 1);
         const bottomCard = createCardElement(bottomDate);
-        bottomCard.id = 'bottomCard';
+        bottomCard.id = 'calendarBottomCard';
         bottomCard.style.zIndex = 1;
         bottomCard.style.transform = 'scale(0.85)';
         bottomCard.style.filter = 'brightness(0.6)'; // 較暗
@@ -49,14 +49,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2. 頂層卡片 (當前顯示)
         const topCard = createCardElement(currentDate);
-        topCard.id = 'topCard';
+        topCard.id = 'calendarTopCard';
         topCard.style.zIndex = 10;
         container.appendChild(topCard);
     }
 
     // 動態更新底層卡片的內容
     function updateBottomCardContent(offset) {
-        const bottomCard = document.getElementById('bottomCard');
+        const bottomCard = document.getElementById('calendarBottomCard');
         if (!bottomCard) return;
 
         const newDate = getOffsetDate(currentDate, offset);
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bottomCard.style.setProperty('--card-hue', newCardEl.style.getPropertyValue('--card-hue'));
         bottomCard.style.color = newCardEl.style.color;
         bottomCard.className = newCardEl.className; // 複製樣式變體
-        bottomCard.id = 'bottomCard'; // 保持 ID
+        bottomCard.id = 'calendarBottomCard'; // 保持 ID
         bottomCard.style.zIndex = 1; // 保持 Z-Index
     }
 
@@ -272,10 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function dragStart(e) {
-        const topCard = document.getElementById('topCard');
+        const topCard = document.getElementById('calendarTopCard');
         if (!topCard) return;
-        if (!e.target.closest('#topCard')) return;
+        if (!e.target.closest('#calendarTopCard')) return;
 
+        if (window.SoundManager) window.SoundManager.playOpenItem();
         isDragging = true;
         dragTarget = topCard;
         lastDirection = 0;
@@ -298,9 +299,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffX = currentX - startX;
 
         const rotation = diffX * 0.05;
-        dragTarget.style.transform = `translateX(${( (diffX) * 0.03 ).toFixed(1)}rem) rotate(${rotation}deg)`;
+        dragTarget.style.transform = `translateX(${((diffX) * 0.03).toFixed(1)}rem) rotate(${rotation}deg)`;
 
-        const bottomCard = document.getElementById('bottomCard');
+        const bottomCard = document.getElementById('calendarBottomCard');
         if (bottomCard) {
             const cardWidth = dragTarget.offsetWidth;
             const threshold = cardWidth * 0.5;
@@ -339,9 +340,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const dir = diffX > 0 ? 1 : -1;
             const endX = dir * window.innerWidth * 1.5;
-            card.style.transform = `translateX(${( (endX) * 0.03 ).toFixed(1)}rem) rotate(${dir * 30}deg)`;
+            card.style.transform = `translateX(${((endX) * 0.03).toFixed(1)}rem) rotate(${dir * 30}deg)`;
 
-            const bottomCard = document.getElementById('bottomCard');
+            const bottomCard = document.getElementById('calendarBottomCard');
             if (bottomCard) {
                 bottomCard.style.transition = 'transform 0.4s ease, filter 0.4s ease';
                 bottomCard.style.transform = 'scale(1.0)';
@@ -353,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentDate.setDate(currentDate.getDate() + offset);
                 renderStack();
             }, 300);
+            if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
         } else {
             card.style.transition = '';
             void card.offsetWidth;
@@ -361,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.style.transform = `translate(0.0rem, 0.0rem) rotate(0deg)`;
             });
 
-            const bottomCard = document.getElementById('bottomCard');
+            const bottomCard = document.getElementById('calendarBottomCard');
             if (bottomCard) {
                 bottomCard.style.transition = 'transform 0.5s ease, filter 0.5s ease';
                 bottomCard.style.transform = 'scale(0.85)';

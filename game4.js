@@ -29,16 +29,7 @@
             '研究所': { time: 15, maxMistakeCount: 8, maxHideCount: 12, maxAddDecoyChars: 20, hideLines: 3, minRating: 1, showDelay: 12 }
         },
 
-        // 常用字庫 (用於生成干擾項)
-        decoyCharsSets: {
-            people: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
-            season: "春夏秋冬晨晝暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
-            weather: "陰晴風雨雪霜露霧霞虹暖寒涼暑晦暗亮光明清冽空氣嵐",
-            environment: "山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
-            color: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
-            plant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
-            common: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長"
-        },
+        // 常用字庫已移至 script.js 的 window.SharedDecoy 中
 
         loadCSS: function () {
             if (!document.getElementById('game4-css')) {
@@ -99,10 +90,16 @@
                 </div>
             `;
             document.body.appendChild(div);
-
-            document.getElementById('game4-newGame-btn').onclick = () => this.startNewGame();
-            document.getElementById('game4-restart-btn').onclick = () => this.retryGame();
+            document.getElementById('game4-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame();
+            };
+            document.getElementById('game4-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();
+            };
             document.getElementById('game4-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game4-message').classList.add('hidden');
                 this.startNewGame();
             };
@@ -370,6 +367,7 @@
 
             info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
             info.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
             };
         },
@@ -392,28 +390,11 @@
                 const answerChars = this.hiddenPositions.map(p => p.char);
                 const targetTotal = config.total;
 
-                // 干擾字生成
-                const decoys = [];
+                // 干擾字生成 (使用共用邏輯)
                 const neededDecoys = Math.max(0, targetTotal - answerChars.length);
-
-                const sets = Object.values(this.decoyCharsSets);
-                answerChars.forEach(targetChar => {
-                    if (decoys.length >= neededDecoys) return;
-                    if (Math.random() < 0.6) {
-                        const matchedSet = sets.find(s => s.includes(targetChar));
-                        if (matchedSet) {
-                            const candidates = matchedSet.split('').filter(c => !answerChars.includes(c) && !decoys.includes(c));
-                            candidates.sort(() => Math.random() - 0.5);
-                            const count = Math.min(2, neededDecoys - decoys.length, candidates.length);
-                            for (let i = 0; i < count; i++) decoys.push(candidates[i]);
-                        }
-                    }
-                });
-
-                while (decoys.length < neededDecoys) {
-                    const pool = this.decoyCharsSets.common;
-                    const char = pool[Math.floor(Math.random() * pool.length)];
-                    if (!answerChars.includes(char) && !decoys.includes(char)) decoys.push(char);
+                let decoys = [];
+                if (window.SharedDecoy) {
+                    decoys = window.SharedDecoy.getDecoyChars(answerChars, neededDecoys);
                 }
 
                 allChars = [...answerChars, ...decoys].sort(() => Math.random() - 0.5);
@@ -428,7 +409,14 @@
                 const btn = document.createElement('button');
                 btn.className = 'ans-btn';
                 btn.textContent = char;
-                btn.onclick = (e) => this.handleInput(char, e.target);
+                btn.onclick = (e) => {
+                    if (window.SoundManager) {
+                        const target = this.hiddenPositions[this.currentInputIndex];
+                        if (char === target.char) window.SoundManager.playSuccess();
+                        else window.SoundManager.playFailure();
+                    }
+                    this.handleInput(char, e.target);
+                };
                 container.appendChild(btn);
             });
 

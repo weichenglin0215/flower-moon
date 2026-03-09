@@ -9,11 +9,11 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    /* 頂部對齊防止突出 */
+    /* 頂部對齊，確保主要內容在視覺中心 */
     color: hsl(40, 50%, 80%);
     font-family: 'Noto Serif TC', serif;
     overflow: hidden;
-    /* 防止內容溢出外層 */
+    /* 鎖定溢出，防止遊戲內容超出視窗範圍 */
     box-sizing: border-box;
 }
 
@@ -160,15 +160,13 @@
     max-width: 28rem;
     aspect-ratio: 7 / 9;
     background: hsl(40, 30%, 0%);
-    /* 淺米色宣紙質感 */
-    border-radius: 0.5rem;
-    box-shadow: inset 0 0 2rem rgba(0, 0, 0, 0.2), 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+    /* 宣紙紋理質感設定 (可選) */
     /*background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');*/
     touch-action: none;
-    /* Prevent scroll on touch */
+    /* 停用手勢捲動，確保拖曳畫線順暢 */
 }
 
-/* SVG Line Layer */
+/* SVG 線條層：用於繪製玩家劃出的各種顏色路徑 */
 .game8-svg-layer {
     position: absolute;
     top: 0;
@@ -176,34 +174,35 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
+    /* 穿透點擊，不干擾文字格的觸控 */
     z-index: 2;
 }
 
 /*繪製筆觸路徑*/
 .game8-path {
     fill: none;
-    stroke-width: 0.8rem;
+    stroke-width: 0.5rem;
     stroke-linecap: round;
     stroke-linejoin: round;
-    filter: drop-shadow(0 0.1rem 0.2rem rgba(0, 0, 0, 0.3));
+    filter: drop-shadow(0 0.1rem 0.2rem rgba(0, 0, 0, 0.6));
     transition: opacity 0.3s ease;
 }
 
 /*完成筆觸路徑*/
 .game8-path.success-path {
     transition: opacity 0.5s ease;
-    opacity: 0.66;
+    opacity: 0.95;
 }
 
 
 /* 第一筆：藍色 */
 .game8-path.path-color-1 {
-    stroke: hsl(230, 80%, 45%);
+    stroke: hsl(230, 80%, 50%);
 }
 
 /* 第二筆：淺青色 */
 .game8-path.path-color-2 {
-    stroke: hsl(180, 80%, 45%);
+    stroke: hsl(190, 80%, 35%);
 }
 
 /* 第三筆：綠色 */
@@ -316,13 +315,13 @@
 
 /* Cell 底色，第一筆藍色 */
 .game8-cell.permanent-selected.cell-color-1::before {
-    background: hsla(230, 80%, 45%, 0.4);
+    background: hsla(230, 80%, 45%, 0.5);
     transform: translate(-50%, -50%) scale(1.2);
 }
 
 /* 第二筆淺青色 */
 .game8-cell.permanent-selected.cell-color-2::before {
-    background: hsla(180, 80%, 45%, 0.4);
+    background: hsla(190, 80%, 45%, 0.4);
     transform: translate(-50%, -50%) scale(1.2);
 }
 

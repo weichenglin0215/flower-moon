@@ -258,14 +258,14 @@
     }
 
     25% {
-        transform: translateX(-0.1rem);
+        transform: translateX(-0.05rem);
     }
 
     75% {
-        transform: translateX(0.1rem);
+        transform: translateX(0.05rem);
     }
 }
 
 .shake {
-    animation: shake 0.3s;
+    animation: shake 0.2s;
 }

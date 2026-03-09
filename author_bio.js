@@ -108,15 +108,19 @@ window.AuthorBio = (function () {
         document.body.appendChild(page);
 
         // Events
-        page.querySelector('.page-close-btn').addEventListener('click', hide);
+        page.querySelector('.page-close-btn').addEventListener('click', () => {
+            if (window.SoundManager) window.SoundManager.playCloseItem(); //關閉選單，降低音頻。
+            hide();
+        });
 
         document.getElementById('dynastyFilter').addEventListener('change', applyFilters);
         document.getElementById('surnameFilter').addEventListener('change', applyFilters);
         document.getElementById('bioSearch').addEventListener('input', applyFilters);
-
+        //排序按鈕
         const sortBtns = page.querySelectorAll('.sort-btn');
         sortBtns.forEach(btn => {
             btn.addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem(); //重新排序，提高音頻。
                 sortBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentSort = btn.dataset.sort;
@@ -267,6 +271,7 @@ window.AuthorBio = (function () {
         // Re-attach click events
         list.querySelectorAll('.author-item').forEach(item => {
             item.addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem(); //選定項目，提高音頻。
                 const name = item.dataset.name;
                 selectedAuthor = allAuthors.find(a => a.name === name);
 
@@ -278,7 +283,7 @@ window.AuthorBio = (function () {
             });
         });
     }
-
+    //更新作品列表
     function updateWorksList() {
         const list = document.getElementById('worksList');
         if (!selectedAuthor) return;
@@ -302,6 +307,7 @@ window.AuthorBio = (function () {
 
         list.querySelectorAll('.work-item').forEach(item => {
             item.addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem(); //選定項目，提高音頻。
                 const id = item.dataset.id;
                 if (window.openPoemDialogById) {
                     window.openPoemDialogById(id);

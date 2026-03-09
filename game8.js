@@ -5,30 +5,28 @@
         score: 0,
         mistakeCount: 0,
 
-        // Game state
-        currentPoem: null,
-        fullPoemText: "", // Just the raw characters without punctuation
-        poemLines: [],    // Array of strings (raw characters per line)
-        gridData: [],     // 9x7 array of objects: { char, isTarget, targetIndex, isObstacle }
-        gridElements: [], // 9x7 array of DOM elements
+        // --- 遊戲狀態變數 ---
+        currentPoem: null,     // 當前選中的詩詞物件
+        fullPoemText: "",     // 乾淨的詩詞全文（過濾掉標點符號後的所有字）
+        poemLines: [],        // 詩句陣列（存儲各行純文字，供分段判斷使用）
+        gridData: [],         // 9x7 網格邏輯數據：{ char, isTarget, targetIndex, isObstacle }
+        gridElements: [],     // 9x7 網格對應的 DOM 元素陣列
 
-        // Interaction state
-        isDragging: false,
-        currentPath: [],  // Array of { row, col }
-        completedTargetIndex: 0, // How many target characters have been successfully connected
-        currentPhase: 0,  // For primary/middle school (split phases)
-        phases: [],       // Array of { startIndex, length }
-        successfulStrokes: [], // Array of arrays of { row, col }
+        // --- 玩家互動狀態 ---
+        isDragging: false,    // 是否正在拖曳繪製路徑
+        currentPath: [],      // 當前正在拖曳的路徑座標陣列 [{ row, col }, ...]
+        completedTargetIndex: 0, // 累計已成功連線的目標字元索引
+        currentPhase: 0,      // 當前正在挑戰的句數或階段索引
+        phases: [],           // 遊戲階段定義：{ startIndex, length }
+        successfulStrokes: [], // 已確認提交成功的筆畫路徑存檔
 
-        // Timer
-        timer: 0,
-        timerInterval: null,
-        startTime: 0,
-        maxTimer: 0,
+        // --- 計時器與進度控制 ---
+        timer: 0,             // 剩餘時間百分比或數值
+        timerInterval: null,  // 計時器節拍實例
+        startTime: 0,         // 本局遊戲開始的時間戳
+        maxTimer: 0,          // 根據困難度設定的總限時（秒）
 
-        // Audio Context (for zither notes)
-        audioCtx: null,
-        notes: [261.63, 293.66, 329.63, 392.00, 440.00], // C D E G A (Pentatonic)
+        // --- 計時器與進度控制 ---
         /*hints 提示方式：all/startEnd/start/none
         splitPath 斷句：true=可分句完成、false=必須一次連完整首
         maxMistake 最大錯誤次數
@@ -66,36 +64,6 @@
             }
         },
 
-        initAudio: function () {
-            try {
-                if (!this.audioCtx) {
-                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            } catch (e) {
-                console.warn("Web Audio API not supported", e);
-            }
-        },
-
-        playNote: function (index) {
-            if (!this.audioCtx) return;
-            if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
-
-            const osc = this.audioCtx.createOscillator();
-            const gain = this.audioCtx.createGain();
-
-            osc.connect(gain);
-            gain.connect(this.audioCtx.destination);
-
-            const freq = this.notes[index % this.notes.length];
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
-
-            gain.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 1);
-
-            osc.start();
-            osc.stop(this.audioCtx.currentTime + 1);
-        },
 
         init: function () {
             this.loadCSS();
@@ -147,9 +115,16 @@
             `;
             document.body.appendChild(div);
 
-            document.getElementById('game8-newGame-btn').onclick = () => this.startNewGame();
-            document.getElementById('game8-restart-btn').onclick = () => this.retryGame();
+            document.getElementById('game8-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame();
+            };
+            document.getElementById('game8-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();
+            };
             document.getElementById('game8-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game8-message').classList.add('hidden');
                 this.startNewGame();
             };
@@ -180,7 +155,7 @@
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
-                    this.initAudio();
+                    if (window.SoundManager) window.SoundManager.init();
                     this.restartGame();
                 });
             }
@@ -295,13 +270,15 @@
             document.getElementById('game8-poem-info').textContent =
                 `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             document.getElementById('game8-poem-info').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playGuzheng(4);
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
             };
             return true;
         },
 
+        // 生成關卡數據：建立 9x7 網格，產出隨機路徑填充目標文字，並填補誘餌文字
         generateLevel: function () {
-            // Setup grid data matrix (9 rows x 7 cols)
+            // 初始化網格數據矩陣 (9 列 x 7 欄)
             this.gridData = Array(9).fill().map(() => Array(7).fill(null));
             const settings = this.difficultySettings[this.difficulty];
 
@@ -309,11 +286,11 @@
             let generatedPath = this.generateRandomPath(pathLength, settings.obstacles);
 
             if (!generatedPath) {
-                // Fallback simply generate again without obstacles
+                // 如果特定起點無法生成高品質路徑，則執行保底生成的邏輯（不考慮障礙物）
                 generatedPath = this.generateRandomPath(pathLength, 0);
             }
 
-            // Fill target path
+            // 將目標路徑填入網格數據中
             for (let i = 0; i < pathLength; i++) {
                 const p = generatedPath[i];
                 this.gridData[p.row][p.col] = {
@@ -324,7 +301,7 @@
                 };
             }
 
-            // Define phases based on difficulty
+            // 根據難度設定來劃分遊戲階段（是否分句挑戰）
             if (settings.splitPath) {
                 let currentIndex = 0;
                 for (let i = 0; i < this.poemLines.length; i++) {
@@ -335,29 +312,31 @@
                     currentIndex += this.poemLines[i].length;
                 }
             } else {
+                // 大學/研究所等高難度：必須一次連完整首詩
                 this.phases.push({
                     startIndex: 0,
                     length: pathLength
                 });
             }
 
-            // Generate decoys pool
+            // 準備誘餌文字池
             let decoyPool = [];
             if (settings.decoyPool === 'hard') {
-                // Hard mode: similar characters
-                // Fallback to pool based on components, here simplified to mixed sets
+                // 進階模式：使用部首或形態相似的混淆字集
                 const sets = Object.values(this.decoySets).join('');
                 for (let i = 0; i < sets.length; i++) decoyPool.push(sets[i]);
             } else {
+                // 普通模式：使用常用字池
                 decoyPool = this.decoySets.common.split('');
             }
-            decoyPool.sort(() => Math.random() - 0.5);
+            decoyPool.sort(() => Math.random() - 0.5); // 打亂代幣順序
 
-            // Fill empty spots and obstacles
+            // 在路徑之外的空白位置填充障礙物或誘餌文字
             let obstacleCountDecided = settings.obstacles;
             for (let r = 0; r < 9; r++) {
                 for (let c = 0; c < 7; c++) {
                     if (this.gridData[r][c] === null) {
+                        // 依照障礙物機率與剩餘數量進行分配
                         if (obstacleCountDecided > 0 && Math.random() < 0.2) {
                             this.gridData[r][c] = {
                                 char: '',
@@ -367,6 +346,7 @@
                             };
                             obstacleCountDecided--;
                         } else {
+                            // 否則從文字池中取出隨機文字進行填充
                             this.gridData[r][c] = {
                                 char: decoyPool.pop() || '之',
                                 isTarget: false,
@@ -394,15 +374,15 @@
                 return rr * 3 + cc;
             };
 
-            // 計算路徑品質分數
+            // 內部函式：評估路徑品質 (指標包括：轉彎節奏、區域分佈、直線長度)
             const evaluatePath = (path) => {
-                const regionCounts = Array(9).fill(0);
-                let currentStraight = 0;
-                let lastDir = null;
+                const regionCounts = Array(9).fill(0); // 記錄九個區塊各自被佔用的格數
+                let currentStraight = 0;              // 當前連續直行的長度
+                let lastDir = null;                   // 上一次移動的方向
 
-                let perfectTurns = 0;   // 最佳：剛好三格直角轉彎
-                let badStraights = 0;   // 太糟：直線超過三格
-                let prematureTurns = 0; // 太早轉彎
+                let perfectTurns = 0;   // 理想情況：走滿三格後進行一次 90 度轉彎
+                let badStraights = 0;   // 扣分項：直線過長 (超過三格) 顯得無聊
+                let prematureTurns = 0; // 扣分項：走不到三格就猴急轉彎，路徑會太破碎
 
                 for (let i = 0; i < path.length; i++) {
                     const p = path[i];
@@ -462,13 +442,14 @@
                 let iterations = 0;
                 const MAX_ITER = 4000; // 設定上限避免過度消耗效能
 
+                // 內部函式：深度優先搜尋 (DFS) 用於探測路徑
                 const dfs = (r, c, depth, lastDir, currentStraight) => {
                     iterations++;
-                    if (iterations > MAX_ITER) return false;
+                    if (iterations > MAX_ITER) return false; // 預防遞迴過深導致瀏覽器卡死
 
                     path.push({ row: r, col: c });
                     visited[r][c] = true;
-                    if (depth === length) return true;
+                    if (depth === length) return true; // 順利找齊目標長度，成功回傳
 
                     let candidates = [];
                     for (let di = 0; di < dirs.length; di++) {
@@ -681,7 +662,7 @@
             this.currentPath = [];
             this.successfulStrokes = [];
 
-            // clear success paths layout
+            // 清除上次遊戲留下的舊路徑 SVG 元素
             const svgLayer = document.querySelector('.game8-svg-layer');
             if (svgLayer) {
                 const paths = svgLayer.querySelectorAll('.game8-path.success-path');
@@ -703,19 +684,20 @@
             let targetWordCount = phase.length;
             let currentPathLength = this.currentPath.length;
 
-            // IF splitPath is true, maybe path goes into next phases!
+            // 若啟用了分句路徑 (splitPath)，則需要判斷當前輸入是否跨越多個階段
             const settings = this.difficultySettings[this.difficulty];
             if (settings.splitPath) {
                 let checkIdx = phase.startIndex;
                 for (let i = this.currentPhase; i < this.phases.length; i++) {
+                    // 檢查當前連線長度是否已涵蓋至下一句
                     if (currentPathLength >= (checkIdx + this.phases[i].length - phase.startIndex)) {
                         targetWordCount = (checkIdx + this.phases[i].length - phase.startIndex);
                         checkIdx += this.phases[i].length;
-                        // Check if still going...
+                        // 若剛好連到句子末端則跳出
                         if (currentPathLength === targetWordCount) break;
                     } else if (currentPathLength > 0) {
                         targetWordCount = (checkIdx + this.phases[i].length - phase.startIndex);
-                        break; // We are in the middle of completing an extended phase
+                        break; // 正在連線某個跨句路徑中
                     } else {
                         break;
                     }
@@ -724,7 +706,7 @@
 
             const txt = document.getElementById('game8-progress-text');
             if (settings.splitPath) {
-                // To accurately tell the user which phases they are drawing, calculate end phase
+                // 精確計算並顯示玩家目前正橫跨哪些句子
                 let startPhaseLabel = this.currentPhase + 1;
                 let endPhaseLabel = startPhaseLabel;
 
@@ -750,7 +732,7 @@
             const phase = this.phases[this.currentPhase];
             if (!phase) return;
 
-            // Clear hints
+            // 清除地圖上所有舊的提示樣式
             for (let r = 0; r < 9; r++) {
                 for (let c = 0; c < 7; c++) {
                     if (this.gridElements[r][c]) {
@@ -760,23 +742,28 @@
             }
 
             if (settings.hints === 'all') {
+                // 「全文提示」：加粗顯示當前整句的所有字串。
                 for (let r = 0; r < 9; r++) {
                     for (let c = 0; c < 7; c++) {
                         const d = this.gridData[r][c];
+                        // 檢查格子是否為目標字，且其索引在當前詩句的範圍內。
                         if (d.isTarget && d.targetIndex >= phase.startIndex && d.targetIndex < phase.startIndex + phase.length) {
-                            this.gridElements[r][c].classList.add('target-hint'); // bold whole sentence/poem
+                            this.gridElements[r][c].classList.add('target-hint'); // 全句加粗。
+                            // 如果是詩句的起點或終點，則額外加上「start-hint」樣式，使其更突出。
                             if (d.targetIndex === phase.startIndex || d.targetIndex === phase.startIndex + phase.length - 1) {
-                                this.gridElements[r][c].classList.add('start-hint'); // highlight start and end
+                                this.gridElements[r][c].classList.add('start-hint'); // 起點與終點加光圈。
                             }
                         }
                     }
                 }
             } else if (settings.hints === 'start') {
+                // 「起點提示」：只提示當前詩句的第一個字。
                 for (let r = 0; r < 9; r++) {
                     for (let c = 0; c < 7; c++) {
                         const d = this.gridData[r][c];
+                        // 檢查格子是否為目標字，且其索引是當前詩句的起始索引。
                         if (d.isTarget && d.targetIndex === phase.startIndex) {
-                            this.gridElements[r][c].classList.add('start-hint');
+                            this.gridElements[r][c].classList.add('start-hint'); // 提示起點。
                         }
                     }
                 }
@@ -792,10 +779,12 @@
             }
         },
 
+        // 從滑鼠或觸控事件中取得對應的網格座標與 DOM 元素
         getCellFromEvent: function (e) {
             let src = e.target;
             if (e.touches && e.touches.length > 0) {
                 const touch = e.touches[0];
+                // 觸控模式下使用 elementFromPoint 識別座標下的元素
                 src = document.elementFromPoint(touch.clientX, touch.clientY);
             }
             if (src && src.classList && src.classList.contains('game8-cell')) {
@@ -808,31 +797,27 @@
             return null;
         },
 
+        // 處理拖曳開始事件：初始化路徑並播放起點音效
         onDragStart: function (e) {
             if (!this.isActive) return;
-            e.preventDefault(); // Prevent scrolling on touch
+            e.preventDefault(); // 阻擋觸控時的頁面捲動
 
             const cell = this.getCellFromEvent(e);
             if (!cell) return;
 
             const d = this.gridData[cell.r][cell.c];
-            if (d.isObstacle) return;
+            if (d.isObstacle) return; // 障礙物不可作為起點
 
-            // Must start at the expected target index
-            const expectedIndex = this.phases[this.currentPhase].startIndex;
-
-            // We allow starting the path anywhere, validity is checked on end
-            // But if they didn't even tap the first character correct, we still draw lines visually 
-            // and fail them on mouse up.
-
+            // 設定拖曳狀態為真，並初始化路徑
             this.isDragging = true;
             this.currentPath = [{ row: cell.r, col: cell.c }];
             cell.el.classList.add('selected');
 
+            // 根據當前已完成的筆畫數量決定本次路徑的顏色
             let currentIdx = this.successfulStrokes.length;
             cell.el.classList.add(`cell-color-${(currentIdx % 8) + 1}`);
 
-            this.playNote(0);
+            if (window.SoundManager) window.SoundManager.playGuzheng(0); // 播放宮聲
             this.updateCurrentPathDraw();
             this.updateProgressText();
 
@@ -841,6 +826,7 @@
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
         },
 
+        // 處理拖曳過程中的移動事件：計算鄰近性並支援「原路退回」撤銷操作
         onDragMove: function (e) {
             if (!this.isDragging || !this.isActive) return;
             if (e.cancelable) e.preventDefault();
@@ -850,34 +836,36 @@
 
             const lastNode = this.currentPath[this.currentPath.length - 1];
 
-            if (cell.r === lastNode.row && cell.c === lastNode.col) return; // Same cell as last
+            if (cell.r === lastNode.row && cell.c === lastNode.col) return; // 停留在同一格則忽略
 
             const d = this.gridData[cell.r][cell.c];
-            if (d.isObstacle) return;
+            if (d.isObstacle) return; // 障礙物不可滑入
 
-            // Check if adjacent (not diagonal)
+            // 檢查是否為相鄰格子 (僅限上下左右)
             const isAdjacent = Math.abs(cell.r - lastNode.row) + Math.abs(cell.c - lastNode.col) === 1;
 
             if (isAdjacent) {
-                // Check if unvisited in current path
+                // 檢查該格是否已在當前路徑中
                 const visitedIndex = this.currentPath.findIndex(p => p.row === cell.r && p.col === cell.c);
                 if (visitedIndex === -1) {
-                    // Valid step
+                    // 合法的新步：加入路徑併播放音階
                     this.currentPath.push({ row: cell.r, col: cell.c });
                     cell.el.classList.add('selected');
                     let currentIdx = this.successfulStrokes.length;
                     cell.el.classList.add(`cell-color-${(currentIdx % 8) + 1}`);
-
-                    this.playNote(this.currentPath.length - 1);
+                    // 播放音階，最高21階，避免太刺耳。
+                    if (window.SoundManager) window.SoundManager.playGuzheng((this.currentPath.length - 1) % 21);
                     this.updateCurrentPathDraw();
                     this.updateProgressText();
                     if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
                 } else if (visitedIndex === this.currentPath.length - 2) {
-                    // Backtracking (undo last step)
+                    // 原路退回：這代表玩家後悔了，移除最後一步以達成撤銷
                     const popped = this.currentPath.pop();
                     this.gridElements[popped.row][popped.col].classList.remove('selected');
                     let currentIdx = this.successfulStrokes.length;
                     this.gridElements[popped.row][popped.col].classList.remove(`cell-color-${(currentIdx % 8) + 1}`);
+                    // 播放音階，最高21階，避免太刺耳。
+                    if (window.SoundManager) window.SoundManager.playGuzheng((this.currentPath.length - 1) % 21);
 
                     this.updateCurrentPathDraw();
                     this.updateProgressText();
@@ -886,32 +874,32 @@
             }
         },
 
+        // 處理拖曳結束：驗證玩家劃出的路徑是否與目標詩句文字吻合
         onDragEnd: function (e) {
             if (!this.isDragging || !this.isActive) return;
             this.isDragging = false;
 
             const phase = this.phases[this.currentPhase];
-
             const settings = this.difficultySettings[this.difficulty];
 
-            // Validate Path
+            // 驗證邏輯
             let isValid = false;
             let phasesCompleted = 0;
 
             if (settings.splitPath) {
-                // If splitPath is true, allow completing multiple phases at once
+                // 分句挑戰模式：允許一筆劃完成多個句子
                 let targetIdx = phase.startIndex;
                 for (let i = 0; i < this.currentPath.length; i++) {
                     const p = this.currentPath[i];
                     const d = this.gridData[p.row][p.col];
-                    // Compare character instead of exact targetIndex to handle duplicates
+                    // 根據字元進行内容比對（而非 targetIndex，以應對同字異位的重疊可能）
                     if (d.char !== this.fullPoemText[targetIdx]) {
-                        break; // Incorrect character
+                        break; // 內容不符
                     }
                     targetIdx++;
                 }
 
-                // See how many FULL phases we completed
+                // 計算本次操作總共完整完成了多少個階段/句子
                 let checkIdx = phase.startIndex;
                 for (let i = this.currentPhase; i < this.phases.length; i++) {
                     if (targetIdx >= checkIdx + this.phases[i].length) {
@@ -922,25 +910,23 @@
                     }
                 }
 
+                // 只有在剛好完成多個完整句數，且路徑長度與內容完全吻合時才判為有效
                 if (phasesCompleted > 0 && this.currentPath.length === (checkIdx - phase.startIndex)) {
                     isValid = true;
                 }
             } else {
-                // If splitPath is false, strict exactly 1 phase completion logic
+                // 嚴格模式：一次只能挑戰當前定義的一個階段（整首詩）
                 if (this.currentPath.length === phase.length) {
                     isValid = true;
                     for (let i = 0; i < this.currentPath.length; i++) {
                         const p = this.currentPath[i];
                         const d = this.gridData[p.row][p.col];
-                        // Compare character instead of exact targetIndex to handle duplicates
                         if (d.char !== this.fullPoemText[phase.startIndex + i]) {
                             isValid = false;
                             break;
                         }
                     }
-                    if (isValid) {
-                        phasesCompleted = 1;
-                    }
+                    if (isValid) phasesCompleted = 1;
                 }
             }
 
@@ -950,9 +936,8 @@
                 this.handleMistake();
             }
 
-            // Temporary variable cleanup is now handled manually inside handlePhaseWin on success or here on fail
+            // 若驗證失敗，清除所有選取效果並重置路徑
             if (!isValid) {
-                // If mistake happen, remove selections
                 let currentIdx = this.successfulStrokes.length;
                 let colorClass = `cell-color-${(currentIdx % 8) + 1}`;
                 this.currentPath.forEach(p => {
@@ -1011,10 +996,13 @@
             } else {
                 this.applyHints();
             }
+            if (window.SoundManager) window.SoundManager.playSuccess();
         },
 
+        // 發生錯誤時的處理：震動效果、扣心、以及判斷是否遊戲結束
         handleMistake: function () {
-            // Mistake effect
+            if (window.SoundManager) window.SoundManager.playFailure();
+            // 閃爍效果：路徑變淡後消失
             const currentPathEl = document.getElementById('game8-current-path');
             currentPathEl.style.opacity = '0.3';
             setTimeout(() => {
@@ -1025,7 +1013,7 @@
             }, 300);
 
             this.mistakeCount++;
-            this.updateHearts();
+            this.updateHearts(); // 更新心心顯示
 
             const maxM = this.difficultySettings[this.difficulty].maxMistake;
             if (this.mistakeCount >= maxM) {
@@ -1092,6 +1080,7 @@
             return d;
         },
 
+        // 啟動計時器：定時計算流逝時間並更新計時環
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -1110,6 +1099,7 @@
             }, 50);
         },
 
+        // 更新計時環的 SVG 樣式：計算周長並根據剩餘比例設定 stroke-dashoffset
         updateTimerRing: function (ratio) {
             const rect = document.getElementById('game8-timer-path');
             const wrapper = document.getElementById('game8-grid-wrapper');
@@ -1119,7 +1109,7 @@
             let w = wrapper.offsetWidth;
             let h = wrapper.offsetHeight;
 
-            // If it's 0 (could happen at boot), try to fallback or wait
+            // 若寬度為 0 (可能剛載入尚未渲染)，嘗試備用方案
             if (w === 0 || h === 0) {
                 const rectBox = wrapper.getBoundingClientRect();
                 w = rectBox.width;
@@ -1129,7 +1119,7 @@
 
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
-            svg.style.display = 'block'; // Force visible if logic says so
+            svg.style.display = 'block';
 
             rect.setAttribute('width', w - 6);
             rect.setAttribute('height', h - 6);

@@ -122,16 +122,19 @@
         },
 
         bindEvents: function () {
-            document.getElementById('game7-newGame-btn').onclick = (e) => {
-                e.stopPropagation();
-                this.newGame();
-            };
             document.getElementById('game7-restart-btn').onclick = (e) => {
                 e.stopPropagation();
+                if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();
+            };
+            document.getElementById('game7-newGame-btn').onclick = (e) => {
+                e.stopPropagation();
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.newGame();
             };
             document.getElementById('game7-msg-btn').onclick = (e) => {
                 e.stopPropagation();
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 if (this.state === 'GAME_OVER') {
                     this.retryGame();
                 } else {
@@ -349,6 +352,7 @@
         },
 
         jump: function () {
+            if (window.SoundManager) window.SoundManager.playHit(7, 2);
             this.bird.vy = -this.jumpForce;
             this.bird.color = "hsl(210, 100%, 50%)"; // 飛行狀態
             if (this.state === 'LANDED') {
@@ -448,9 +452,11 @@
                 if (b.index >= 0 && !b.isLanded && !b.isGhost && birdLeft > b.x + b.size) {
                     b.isGhost = true; // 標記為錯過
                     this.hitStatus[b.index] = 2; // skipped
+                    if (window.SoundManager) window.SoundManager.playFailure();
                     this.mistakeCount++;
                     this.renderHearts();
                     if (this.mistakeCount >= this.maxMistakeCount) {
+                        if (window.SoundManager) window.SoundManager.playSadTriple();
                         this.gameOver(false, "體力耗盡，折翼於詩雲深處...");
                     }
                 }
@@ -473,6 +479,7 @@
                     // 只有在平台頂部邊緣判定著陸
                     if (by >= b.y - threshold && by <= b.y + barHeight) {
                         this.landOn(b);
+                        if (window.SoundManager) window.SoundManager.playHit(22, 1.5);
                         break;
                     }
                 }
@@ -509,12 +516,14 @@
                 this.score += 5;
                 this.hitStatus[block.index] = 1; // hit
                 this.updateScoreUI();
+                if (window.SoundManager) window.SoundManager.playSuccess();
                 this.playDonSound();
                 if (block.isGoal) this.gameWin();
             }
         },
 
         handleDeath: function () {
+            if (window.SoundManager) window.SoundManager.playFailure();
             this.state = 'DYING';
             this.bird.y = this.canvas.height - 30;
             this.bird.vy = 0;
@@ -524,6 +533,7 @@
                 this.mistakeCount++;
                 this.renderHearts();
                 if (this.mistakeCount >= this.maxMistakeCount) {
+                    if (window.SoundManager) window.SoundManager.playSadTriple();
                     this.gameOver(false, "墜落九泉，詩意盡失...");
                 } else {
                     // 尋找最後一個成功著陸的平台 (Checkpoint)

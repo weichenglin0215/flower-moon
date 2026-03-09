@@ -49,9 +49,16 @@
             // Old timer references removed
 
             // 綁定按鈕
-            document.getElementById('game1-restart-btn').onclick = () => this.retryGame(); // 重來：保留題目
-            document.getElementById('game1-newGame-btn').onclick = () => this.startNewGame(); // 開新局：換新題目
+            document.getElementById('game1-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame(); // 重來：保留題目
+            };
+            document.getElementById('game1-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame(); // 開新局：換新題目
+            };
             document.getElementById('game1-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game1-message').classList.add('hidden');
                 this.startNewGame(); // 訊息視窗按鈕預設開新局
             };
@@ -110,6 +117,7 @@
             `;
             document.body.appendChild(div);
             document.getElementById('game1-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game1-message').classList.add('hidden');
                 this.startNewGame(); // 直接以相同難度開啟下一局
             };
@@ -435,7 +443,13 @@
                 // 動態縮小字體
                 this.adjustFontSize(btn, opt.text.length, 7, 2.0);
                 btn.dataset.isCorrect = opt.isCorrect; // 標記是否正確
-                btn.addEventListener('click', () => this.handleChoice(opt.isCorrect, btn));
+                btn.addEventListener('click', () => {
+                    if (window.SoundManager) {
+                        if (opt.isCorrect) window.SoundManager.playSuccess();
+                        else window.SoundManager.playFailure();
+                    }
+                    this.handleChoice(opt.isCorrect, btn);
+                });
                 optDiv.appendChild(btn);
             });
         },

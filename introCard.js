@@ -24,7 +24,6 @@
 
         show: function () {
             if (!this.overlay) this.init();
-
             // 如果正在隱藏中，取消隱藏計時器
             if (this.hideTimeout) {
                 clearTimeout(this.hideTimeout);
@@ -36,6 +35,8 @@
             document.body.classList.add('overlay-active');
 
             if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            if (window.SoundManager) setTimeout(() => window.SoundManager.playJoyfulTriple(), 1000);
+
         },
 
         createDOM: function () {
@@ -78,6 +79,7 @@
 
             // 點擊關閉
             this.overlay.addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playCloseItem();
                 this.hide();
             });
 
@@ -98,6 +100,7 @@
                 if (startX && currentX) {
                     const diff = currentX - startX;
                     if (Math.abs(diff) > threshold) {
+                        if (window.SoundManager) window.SoundManager.playCloseItem();
                         this.hide(diff > 0 ? 'right' : 'left');
                     }
                 }

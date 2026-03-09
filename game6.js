@@ -73,7 +73,7 @@
                     <div class="game6-score-board">分數: <span id="game6-score">0</span></div>
                     <div class="game6-controls">
                         <button id="game6-restart-btn" class="nav-btn">重來</button>
-                        <button id="game6-close-btn" class="nav-btn close-btn">開新局</button>
+                        <button id="game6-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game6-sub-header">
@@ -104,9 +104,16 @@
         },
 
         bindEvents: function () {
-            document.getElementById('game6-close-btn').onclick = () => this.startNewGame();
-            document.getElementById('game6-restart-btn').onclick = () => this.retryGame();
+            document.getElementById('game6-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame();
+            };
+            document.getElementById('game6-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();
+            };
             document.getElementById('game6-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game6-message').classList.add('hidden');
                 if (this.isWin) this.startNewGame();
                 else this.retryGame();
@@ -603,11 +610,13 @@
 
                         // 4. 砲彈碰到文字敵人會出現黃色的爆炸特效
                         this.spawnExplosion(b.x, b.y, 'yellow', 12);
+                        if (window.SoundManager) window.SoundManager.playHit(15, 1.0);
 
                         if (e.hp <= 0) {
                             // 4. 砲彈碰到文字敵人死亡了，會出現更大的黃色的爆炸特效
                             this.spawnExplosion(b.x, b.y, 'yellow', 36);
                             this.destroyEnemy(j, e);
+                            if (window.SoundManager) setTimeout(() => window.SoundManager.playHit(22, 2.0), 150);
                         }
 
                         hitAny = true;
@@ -641,6 +650,7 @@
                 if (hitBlock) {
                     this.spawnExplosion(b.x, b.y, 'white', 12); // 子彈射中石碑的小特效
                     this.player.bullets.splice(i, 1);
+                    if (window.SoundManager) window.SoundManager.playHit(5, 0.6);
                 }
             }
 
@@ -656,6 +666,7 @@
                         this.spawnExplosion(p.x, p.y, 'white', 12);
                         this.player.bullets.splice(i, 1);
                         this.enemyProjectiles.splice(j, 1);
+                        if (window.SoundManager) window.SoundManager.playHit(24, 0.15);
                         break;
                     }
                 }
@@ -676,6 +687,7 @@
                             hitBlock = true;
                             // 3. 敵人砲彈碰到防禦石碑出現白色的爆炸特效
                             this.spawnExplosion(p.x, p.y, 'white', 12);
+                            if (window.SoundManager) window.SoundManager.playHit(5, 0.6);
                             break;
                         }
                     }
@@ -694,6 +706,9 @@
                     // 3. 敵人砲彈碰到砲塔會出現紅色的爆炸特效
                     this.spawnExplosion(p.x, p.y, 'hsl(0, 100%, 66%)', 36);
                     this.handlePlayerHit();
+                    if (window.SoundManager) window.SoundManager.playHit(2, 1.0);
+                    if (window.SoundManager) setTimeout(() => window.SoundManager.playHit(6, 1.5), 150);
+                    if (window.SoundManager) setTimeout(() => window.SoundManager.playHit(10, 2.0), 300);
                 }
             }
         },
@@ -723,6 +738,7 @@
                     setTimeout(() => {
                         // 範圍加大兩倍，數量加倍 (原本 30, 分散 50 -> 現在 60, 分散 120)
                         this.spawnExplosion(lastX + (Math.random() - 0.5) * 24, lastY + (Math.random() - 0.5) * 24, 'yellow', 180);
+                        if (window.SoundManager) window.SoundManager.playHit(10 * (k + 1), 1.0);
                     }, k * 300);
                 }
                 setTimeout(() => {
@@ -743,6 +759,7 @@
         },
 
         applyPowerUp: function (type) {
+            if (window.SoundManager) window.SoundManager.playSuccess();
             // 獎勵累積邏輯
             if (type === 'Swift') {
                 this.player.swiftLevel++;
@@ -756,6 +773,7 @@
         },
 
         handlePlayerHit: function () {
+            if (window.SoundManager) window.SoundManager.playFailure();
             this.mistakeCount++;
             this.player.hitTimer = 0.5; // 受傷紅閃 0.5 秒
             this.renderHearts();
@@ -860,33 +878,38 @@
                 this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.fillStyle = 'white';
-                this.ctx.font = "bold 0.9rem 'Noto Serif TC'";
+                this.ctx.font = "bold 2rem 'Noto Serif TC'";
                 this.ctx.textAlign = 'center';
                 this.ctx.fillText("請選擇獎勵", this.canvas.width / 2, this.canvas.height / 2 - 100);
 
                 this.chestItems.forEach(c => {
                     this.ctx.fillStyle = 'gold';
-                    this.ctx.fillRect(c.x - 40, c.y - 40, 80, 80);
+                    this.ctx.fillRect(c.x - 60, c.y - 60, 120, 120);
                     this.ctx.strokeStyle = 'white';
                     this.ctx.lineWidth = 2;
-                    this.ctx.strokeRect(c.x - 40, c.y - 40, 80, 80);
+                    this.ctx.strokeRect(c.x - 60, c.y - 60, 120, 120);
 
                     this.ctx.fillStyle = 'black';
-                    this.ctx.font = "bold 0.5rem sans-serif";
-                    let label = "";
+                    this.ctx.font = "bold 1.2rem sans-serif";
+                    let label1 = "";
+                    let label2 = "";
                     let val = "";
                     if (c.type === 'Swift') {
-                        label = "快速射擊";
+                        label1 = "快速";
+                        label2 = "射擊";
                         val = (2.0 + this.player.swiftLevel * 1.0).toFixed(1) + "x";
                     } else if (c.type === 'Multi-shot') {
-                        label = "多發子彈";
-                        val = (this.player.multiShotLevel + 1) + "發";
+                        label1 = "多發";
+                        label2 = "子彈";
+                        val = (this.player.multiShotLevel + 1) + " 發";
                     } else if (c.type === 'Pierce') {
-                        label = "穿透";
-                        val = (this.player.pierceLevel + 1) + "架";
+                        label1 = "穿透";
+                        label1 = "敵機";
+                        val = (this.player.pierceLevel + 1) + " 架";
                     }
-                    this.ctx.fillText(label, c.x, c.y - 10);
-                    this.ctx.fillText(val, c.x, c.y + 20);
+                    this.ctx.fillText(label1, c.x, c.y - 30);
+                    this.ctx.fillText(label2, c.x, c.y);
+                    this.ctx.fillText(val, c.x, c.y + 36);
                 });
             }
 

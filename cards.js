@@ -46,13 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderStack(reuseBottom = false) {
         if (reuseBottom) {
             // 將底層卡片轉為頂層卡片
-            const oldTop = document.getElementById('topCard');
-            const newTop = document.getElementById('bottomCard');
+            const oldTop = document.getElementById('cardsTopCard');
+            const newTop = document.getElementById('cardsBottomCard');
 
             if (oldTop) oldTop.remove();
 
             if (newTop) {
-                newTop.id = 'topCard';
+                newTop.id = 'cardsTopCard';
                 newTop.style.zIndex = 10;
                 newTop.style.transition = '';
                 newTop.style.transform = '';
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 建立新的底層卡片
             const bottomCard = createCardElement(nextPoemIndex);
-            bottomCard.id = 'bottomCard';
+            bottomCard.id = 'cardsBottomCard';
             bottomCard.style.zIndex = 1;
             bottomCard.style.transform = 'scale(0.9)';
             bottomCard.style.filter = 'brightness(0.7)';
@@ -82,17 +82,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderFullStack() {
         container.innerHTML = '';
 
-        // 1. 底層卡片（下一張預覽）
+        // 創建新的底層卡片
         const bottomCard = createCardElement(nextPoemIndex);
-        bottomCard.id = 'bottomCard';
+        bottomCard.id = 'cardsBottomCard';
         bottomCard.style.zIndex = 1;
-        bottomCard.style.transform = 'scale(0.9)';
-        bottomCard.style.filter = 'brightness(0.7)';
+        bottomCard.style.transform = 'scale(0.85)';
+        bottomCard.style.filter = 'brightness(0.6)';
         container.appendChild(bottomCard);
 
-        // 2. 頂層卡片（當前顯示）
+        // 創建新的頂層卡片
         const topCard = createCardElement(currentPoemIndex);
-        topCard.id = 'topCard';
+        topCard.id = 'cardsTopCard';
         topCard.style.zIndex = 10;
         container.appendChild(topCard);
 
@@ -283,10 +283,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function dragStart(e) {
-        const topCard = document.getElementById('topCard');
+        const topCard = document.getElementById('cardsTopCard');
         if (!topCard) return;
-        if (!e.target.closest('#topCard')) return;
-
+        if (!e.target.closest('#cardsTopCard')) return;
+        if (window.SoundManager) window.SoundManager.playOpenItem();
         isDragging = true;
         dragTarget = topCard;
 
@@ -320,10 +320,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 移動頂層卡片
         const rotation = diffX * 0.05;
-        dragTarget.style.transform = `translateX(${( (diffX) * 0.03 ).toFixed(1)}rem) rotate(${rotation}deg)`;
+        dragTarget.style.transform = `translateX(${((diffX) * 0.03).toFixed(1)}rem) rotate(${rotation}deg)`;
 
         // 底層卡片動畫
-        const bottomCard = document.getElementById('bottomCard');
+        const bottomCard = document.getElementById('cardsBottomCard');
         if (bottomCard) {
             const cardWidth = dragTarget.offsetWidth;
             const threshold = cardWidth * 0.5;
@@ -355,9 +355,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const dir = diffX > 0 ? 1 : -1;
             const endX = dir * window.innerWidth * 1.5;
-            card.style.transform = `translateX(${( (endX) * 0.03 ).toFixed(1)}rem) rotate(${dir * 30}deg)`;
+            card.style.transform = `translateX(${((endX) * 0.03).toFixed(1)}rem) rotate(${dir * 30}deg)`;
 
-            const bottomCard = document.getElementById('bottomCard');
+            const bottomCard = document.getElementById('cardsBottomCard');
             if (bottomCard) {
                 bottomCard.style.transition = 'transform 0.4s ease, filter 0.4s ease';
                 bottomCard.style.transform = 'scale(1.0)';
@@ -375,6 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 nextPoemIndex = Math.floor(Math.random() * POEMS.length);
                 renderStack(true);
             }, 300);
+            if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
         } else {
             // 回彈
             card.style.transition = '';
@@ -385,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.style.transform = `translate(0.0rem, 0.0rem) rotate(0deg)`;
             });
 
-            const bottomCard = document.getElementById('bottomCard');
+            const bottomCard = document.getElementById('cardsBottomCard');
             if (bottomCard) {
                 bottomCard.style.transition = 'transform 0.5s ease, filter 0.5s ease';
                 bottomCard.style.transform = 'scale(0.9)';

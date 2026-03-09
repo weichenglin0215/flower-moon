@@ -113,9 +113,16 @@
             document.body.appendChild(div);
 
             // 綁定事件
-            document.getElementById('game2-newGame-btn').onclick = () => this.startNewGame(); // 開新局
-            document.getElementById('game2-restart-btn').onclick = () => this.retryGame(); // 重來
+            document.getElementById('game2-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame(); // 重來：保留題目
+            };
+            document.getElementById('game2-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame(); // 開新局：換新題目
+            };
             document.getElementById('game2-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game2-message').classList.add('hidden');
                 this.startNewGame(); // 訊息視窗按鈕預設開新局
             };
@@ -133,6 +140,7 @@
                 btn.className = 'kw-btn' + (kw === this.selectedKeyword ? ' active' : '');
                 btn.textContent = kw;
                 btn.onclick = () => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
                     if (this.selectedKeyword === kw) return;
                     this.selectedKeyword = kw;
                     this.renderKeywords();
@@ -461,7 +469,14 @@
                 btn.textContent = char;
                 // 如果是 retry，且該字已經被正確輸入過了，則需要標記為 disabled
                 // 但為了簡單起見，retry 時 currentInputIndex 被重置為 0 了，所以全部按鈕都是可用狀態
-                btn.onclick = (e) => this.handleInput(char, e.target);
+                btn.onclick = (e) => {
+                    if (window.SoundManager) {
+                        const targetChar = this.targetChars[this.currentInputIndex];
+                        if (char === targetChar) window.SoundManager.playSuccess();
+                        else window.SoundManager.playFailure();
+                    }
+                    this.handleInput(char, e.target);
+                };
                 container.appendChild(btn);
             });
 

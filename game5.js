@@ -44,14 +44,14 @@
         mapScale: 1.0,
 
         // 撞擊錯誤文字時的停頓時間 (毫秒)
-        mistakePenaltyDuration: 0,
-        //time遊戲時間，heart生命數，monster怪物數，star詩詞星等，answerLen答案長度，hintDuration下一個文字黃色發光提示時間
+        mistakePenaltyDuration: 150,
+        //time遊戲時間，heart生命數，monster怪物數，star詩詞星等，answerLen答案長度，hintDuration下一個文字黃色發光提示時間, lostInt 負值縮短小精靈們頭暈間隔時間表示越弱，lostDur 正值延長小精靈們持續頭昏時間表示越弱。
         difficultySettings: {
-            '小學': { time: 120, hearts: 5, monsters: 2, stars: 7, answerLen: 5, hintDuration: -1 },
-            '中學': { time: 120, hearts: 3, monsters: 3, stars: 6, answerLen: 7, hintDuration: -1 },
-            '高中': { time: 120, hearts: 3, monsters: 4, stars: 5, answerLen: 10, hintDuration: -1 },
-            '大學': { time: 120, hearts: 3, monsters: 4, stars: 4, answerLen: 14, hintDuration: -1 },
-            '研究所': { time: 120, hearts: 3, monsters: 4, stars: 3, answerLen: 14, hintDuration: -1 }
+            '小學': { time: 120, hearts: 5, monsters: 2, stars: 7, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
+            '中學': { time: 120, hearts: 3, monsters: 3, stars: 6, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
+            '高中': { time: 120, hearts: 3, monsters: 4, stars: 5, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
+            '大學': { time: 120, hearts: 3, monsters: 4, stars: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 },
+            '研究所': { time: 120, hearts: 3, monsters: 4, stars: 3, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
         },
 
         // Maze layout (1 = wall, 0 = path, 2 = ghost house)
@@ -94,7 +94,7 @@
                     <div class="game5-score-board">分數: <span id="game5-score">0</span></div>
                     <div class="game5-controls">
                         <button id="game5-restart-btn" class="nav-btn">重來</button>
-                        <button id="game5-close-btn" class="nav-btn">開新局</button>
+                        <button id="game5-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
                 
@@ -130,9 +130,16 @@
         },
 
         bindEvents: function () {
-            document.getElementById('game5-restart-btn').onclick = () => this.restartGame();
-            document.getElementById('game5-close-btn').onclick = () => this.startNewGame();
+            document.getElementById('game5-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.restartGame();
+            };
+            document.getElementById('game5-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();
+            };
             document.getElementById('game5-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game5-message').classList.add('hidden');
                 if (this.isWin) this.startNewGame();
                 else this.restartGame();
@@ -432,8 +439,8 @@
                     color: config.color,
                     ai: config.ai,
                     lastLostTime: Date.now() + Math.random() * 3000, // 初始恍神時間隨機偏移
-                    lostInterval: config.lostInt, // 間隔觸發時間
-                    lostDuration: config.lostDur, // 觸發後的恍神時間
+                    lostInterval: config.lostInt + settings.lostInt, // 間隔觸發時間，加上難度設定的時間
+                    lostDuration: config.lostDur + settings.lostDur, // 觸發後的恍神時間，加上難度設定的時間
                     isStunned: false
                 });
             }
@@ -811,6 +818,7 @@
             this.foods.forEach(f => {
                 if (!f.collected && f.row === pg.r && f.col === pg.c) {
                     if (f.index === this.collectedCount) {
+                        if (window.SoundManager) window.SoundManager.playSuccess();
                         // Correct order
                         f.collected = true;
                         this.collectedCount++;
@@ -828,9 +836,11 @@
                             if (nextHint) nextHint.classList.add('active');
                         }
                     } else {
+                        //if (window.SoundManager) window.SoundManager.playFailure();
+                        //if (window.SoundManager) window.SoundManager.playCloseItem();
                         // Wrong order - subtle penalty or shake?
-                        document.querySelector('.game5-maze-container').classList.add('shake');
-                        setTimeout(() => document.querySelector('.game5-maze-container').classList.remove('shake'), 300);
+                        //document.querySelector('.game5-maze-container').classList.add('shake');
+                        setTimeout(() => document.querySelector('.game5-maze-container').classList.remove('shake'), 100);
                         // 撞擊錯誤文字時的懲罰停頓時間 (penalty)
                         this.player.speed *= 0.5; // 降低移動速度
                         setTimeout(() => this.player.speed = this.player.speedDefault, this.mistakePenaltyDuration);
@@ -841,6 +851,7 @@
 
         handleHit: function () {
             if (this.isDying) return;
+            if (window.SoundManager) window.SoundManager.playSadTriple(); //被抓到了
             this.isDying = true;
             this.deathStartTime = Date.now();
             this.mistakes++;

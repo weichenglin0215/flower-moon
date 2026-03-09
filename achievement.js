@@ -117,6 +117,7 @@
             const tabs = this.overlay.querySelectorAll('.ach-tab');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
+                    if (window.SoundManager) window.SoundManager.playOpenItem();
                     tabs.forEach(t => t.classList.remove('active'));
                     this.overlay.querySelectorAll('.ach-panel').forEach(p => p.classList.remove('active'));
 
@@ -252,6 +253,7 @@
                 rankViewEl.textContent = '領取稱號榜單';
                 rankViewEl.classList.add('clickable-rank');
                 rankViewEl.onclick = () => {
+                    if (window.SoundManager) window.SoundManager.playJoyfulTriple();
                     const ranks = window.ScoreManager.ranks;
                     const r = ranks.find(rank => rank.name === currentRankName);
                     if (r) {
@@ -391,7 +393,10 @@
                     btn.className = 'ach-btn-claim';
                     btn.textContent = '查看獎狀';
                     btn.style.background = 'hsl(44, 60%, 44%)';
-                    btn.onclick = () => this.showCert(certImg, rankCertTexts[r.name] || '恭喜榮升！');
+                    btn.onclick = () => {
+                        if (window.SoundManager) window.SoundManager.playJoyfulTriple();
+                        this.showCert(certImg, rankCertTexts[r.name] || '恭喜榮升！');
+                    };
                     right.appendChild(btn);
                     lastUnlockedItem = item;
                 } else if (isUnlocked) {
@@ -399,6 +404,7 @@
                     btn.className = 'ach-btn-claim';
                     btn.textContent = '領取獎狀';
                     btn.onclick = () => {
+                        if (window.SoundManager) window.SoundManager.playJoyfulTriple();
                         if (!data.achievements.claimed) data.achievements.claimed = [];
                         data.achievements.claimed.push(rankId);
                         localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
@@ -455,7 +461,10 @@
                             btn.className = 'ach-btn-claim';
                             btn.textContent = '查看獎狀';
                             btn.style.background = 'hsl(44, 60%, 44%)';
-                            btn.onclick = () => this.showCert(certImg, getCertText(t, title));
+                            btn.onclick = () => {
+                                if (window.SoundManager) window.SoundManager.playJoyfulTriple();
+                                this.showCert(certImg, getCertText(t, title));
+                            };
                             right.appendChild(btn);
                             lastUnlockedItem = item;
                         } else if (isUnlocked) {
@@ -463,6 +472,7 @@
                             btn.className = 'ach-btn-claim';
                             btn.textContent = '領取獎狀';
                             btn.onclick = () => {
+                                if (window.SoundManager) window.SoundManager.playJoyfulTriple();
                                 if (!data.achievements.claimed) data.achievements.claimed = [];
                                 data.achievements.claimed.push(achId);
                                 localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
@@ -510,6 +520,7 @@
                 document.body.appendChild(overlay);
                 if (window.updateResponsiveLayout) window.updateResponsiveLayout();
                 overlay.addEventListener('click', () => {
+                    if (window.SoundManager) window.SoundManager.playCloseItem();
                     overlay.classList.remove('active');
                 });
             }

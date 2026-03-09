@@ -62,6 +62,20 @@
             buttons.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const level = e.target.getAttribute('data-level');
+                    //根據難度，播放不同音頻。
+                    //小學:1,中學:2,高中:3,大學:4,研究所:5
+                    let audioIndex = 1;
+                    if (level === '小學') audioIndex = 3;
+                    else if (level === '中學') audioIndex = 5;
+                    else if (level === '高中') audioIndex = 7;
+                    else if (level === '大學') audioIndex = 9;
+                    else if (level === '研究所') audioIndex = 11;
+                    if (window.SoundManager) {
+                        //三連音，延遲播放，避免音頻重疊。
+                        window.SoundManager.playGuzheng(audioIndex);
+                        setTimeout(() => window.SoundManager.playGuzheng(audioIndex + 1), 100);
+                        setTimeout(() => window.SoundManager.playGuzheng(audioIndex + 2), 200);
+                    }
                     this.selectDifficulty(level);
                 });
             });

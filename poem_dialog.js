@@ -57,16 +57,22 @@
          * 綁定事件
          */
         bindEvents: function () {
-            document.getElementById('poemCloseBtn').addEventListener('click', () => this.close());
+            document.getElementById('poemCloseBtn').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playCloseItem(); //關閉時播放低音 Do。
+                this.close();
+            });
             document.getElementById('poemPrevBtn').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (typeof POEMS === 'undefined' || !POEMS.length) return;
                 this.openByIndex(this.currentPoemIndex - 1);
             });
             document.getElementById('poemNextBtn').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (typeof POEMS === 'undefined' || !POEMS.length) return;
                 this.openByIndex(this.currentPoemIndex + 1);
             });
             document.getElementById('poemRandomBtn').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (typeof POEMS === 'undefined' || !POEMS.length) return;
                 let idx;
                 do { idx = Math.floor(Math.random() * POEMS.length); } while (idx === this.currentPoemIndex && POEMS.length > 1);
@@ -114,6 +120,7 @@
                 if (t) {
                     const id = t.getAttribute('data-poem-id');
                     if (id) {
+                        if (window.SoundManager) window.SoundManager.playConfirmItem(); //中音 Do
                         e.preventDefault();
                         e.stopPropagation();
                         this.openById(id);

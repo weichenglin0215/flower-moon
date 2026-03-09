@@ -130,16 +130,25 @@
         },
 
         bindEvents: function () {
-            document.getElementById('game9-restart-btn').onclick = () => this.retryGame();
-            document.getElementById('game9-newGame-btn').onclick = () => this.startNewGame();
+            document.getElementById('game9-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame();
+            };
+            document.getElementById('game9-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();
+            };
             document.getElementById('game9-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game9-message').classList.add('hidden');
                 this.startNewGame();
             };
             document.getElementById('game9-poem-info').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 if (window.PoemDialog && this.currentPoem) window.PoemDialog.openById(this.currentPoem.id);
             };
             document.getElementById('game9-undo-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.undoMove();
             };
         },
@@ -519,6 +528,7 @@
                     if (bolt[i].colorGroup !== targetColor) {
                         // User clicked a nut that has different colored nuts on top of it
                         this.playNote('error');
+                        if (window.SoundManager) window.SoundManager.playFailure();
                         return;
                     }
                 }
@@ -546,6 +556,7 @@
                 // Check constraints
                 if (targetBolt.length + count > this.maxLineLength) {
                     this.playNote('error');
+                    if (window.SoundManager) window.SoundManager.playFailure();
                     const trgEl = document.querySelector(`.game9-bolt[data-idx="${boltIdx}"]`);
                     if (trgEl) {
                         trgEl.classList.add('shake');
@@ -579,6 +590,7 @@
 
                     if (this.checkBoltCompleted(targetBolt)) {
                         this.playNote('complete');
+                        if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
                         // Add to completed session trackers if newly completed
                         if (!this.completedBolts.includes(boltIdx)) {
                             this.completedBolts.push(boltIdx);
@@ -587,7 +599,7 @@
                         // Score formula calculation for completing a stack
                         //this.score += 20 * count / this.lines[targetBolt[0].colorGroup].length;
                         //我把計分改成以該螺絲串的長度為基礎
-                        this.score += 20 * (this.lines[targetBolt[0].colorGroup].length - difficultySettings[this.difficulty].exchangeQuantity);
+                        this.score += 20 * (this.lines[targetBolt[0].colorGroup].length - this.difficultySettings[this.difficulty].exchangeQuantity);
                         document.getElementById('game9-score').textContent = Math.round(this.score);
                     } else {
                         // If it WAS completed but now we pulled something out (not possible if pick blocked), but for safety:
@@ -607,6 +619,7 @@
                     this.checkGameEnd();
                 } else {
                     this.playNote('error');
+                    if (window.SoundManager) window.SoundManager.playFailure();
                     const trgEl = document.querySelector(`.game9-bolt[data-idx="${boltIdx}"]`);
                     if (trgEl) {
                         trgEl.classList.add('shake');
@@ -768,8 +781,11 @@
             // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
                 document.getElementById('game9-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
+
             } else {
                 document.getElementById('game9-restart-btn').disabled = false;
+                if (window.SoundManager) window.SoundManager.playSadTriple();
             }
             clearInterval(this.timerInterval);
 

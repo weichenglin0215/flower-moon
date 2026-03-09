@@ -63,8 +63,14 @@
             this.historyContainer = document.getElementById('game3-history');
 
             // 綁定關閉按鈕
-            document.getElementById('game3-newGame-btn').onclick = () => this.startNewGame();
-            document.getElementById('game3-restart-btn').onclick = () => this.retryGame();
+            document.getElementById('game3-restart-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame();// 重來：保留題目
+            };
+            document.getElementById('game3-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();// 開新局：換新題目
+            };
         },
 
         createDOM: function () {
@@ -103,6 +109,7 @@
             document.body.appendChild(div);
 
             document.getElementById('game3-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game3-message').classList.remove('visible');
                 this.startNewGame(); // 直接以相同難度開啟下一局
             };
@@ -494,6 +501,7 @@
             }
 
             if (char === clickedRow.correctChar) {
+                if (window.SoundManager) window.SoundManager.playSuccessShort();
                 // 答對
                 e.target.classList.add('correct');
                 this.score += 5; // 答對加 5 分
@@ -518,6 +526,7 @@
                     this.updateCurrentRowHighlight();
                 }
             } else {
+                if (window.SoundManager) window.SoundManager.playFailure();
                 // 答錯
                 e.target.classList.add('wrong');
                 e.target.disabled = true;

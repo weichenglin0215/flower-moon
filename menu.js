@@ -192,6 +192,8 @@
 
         function toggleMenu() {
             const isActive = menuPanel.classList.toggle('active');
+            if (isActive && window.SoundManager) window.SoundManager.playOpenItem(); //打開選單，提高音頻。
+            else if (!isActive && window.SoundManager) window.SoundManager.playCloseItem(); //關閉選單，降低音頻。
             hamburgerBtn.classList.toggle('active');
             menuOverlay.classList.toggle('active');
             document.body.style.overflow = isActive ? 'hidden' : '';
@@ -223,8 +225,8 @@
                             console.log('[Menu] 已經在主頁面，恢復顯示日曆');
                             const c1 = document.getElementById('calendarCardContainer');
                             const c2 = document.getElementById('cardContainer');
-                            if (c1) c1.style.display = '';
-                            if (c2) c2.style.display = '';
+                            if (c1) c1.style.display = 'block';
+                            if (c2) c2.style.display = 'none';
                         } else {
                             window.location.href = 'index.html';
                         }
@@ -232,13 +234,13 @@
                     case 'cards':
                         console.log('[Menu] 切換至卡片');
                         if (window.location.pathname.includes('cards.html')) {
-                            console.log('[Menu] 已經在卡片頁面，恢復顯示');
+                            // in case user is somehow on cards.html directly
+                            window.location.href = 'index.html?page=cards';
+                        } else {
                             const c1 = document.getElementById('cardContainer');
                             const c2 = document.getElementById('calendarCardContainer');
-                            if (c1) c1.style.display = '';
-                            if (c2) c2.style.display = '';
-                        } else {
-                            window.location.href = 'cards.html';
+                            if (c1) c1.style.display = 'block';
+                            if (c2) c2.style.display = 'none';
                         }
                         break;
                     case 'game1':
@@ -354,6 +356,7 @@
 
         menuItems.forEach(item => {
             item.addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem(); //選定項目，提高音頻。
                 if (item.classList.contains('menu-item-disabled')) return;
                 const pageName = item.getAttribute('data-page');
                 switchPage(pageName);

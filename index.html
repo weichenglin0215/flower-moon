@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="game7.css">
     <link rel="stylesheet" href="game8.css">
     <link rel="stylesheet" href="game9.css">
+    <link rel="stylesheet" href="cards.css">
 
     <!-- 字體與外部庫 -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
@@ -43,6 +44,37 @@
     <div id="calendarCardContainer" class="aspect-5-8">
         <!-- JavaScript 會將卡片動態插入到這裡 -->
     </div>
+
+    <!-- 卡片默背容器 (預設隱藏) -->
+    <div id="cardContainer" class="aspect-5-8" style="display: none;">
+        <!-- JavaScript 會將卡片動態插入到這裡 -->
+    </div>
+
+    <!-- 單張卡片默背的模板 -->
+    <template id="cardTemplate">
+        <div class="card">
+            <!-- 左欄：詩詞名與作者，品牌標誌 -->
+            <div class="col-left">
+                <div class="poem-meta-and-logo-left">
+                    <div class="poem-title"></div>
+                    <div class="poem-author"></div>
+                    <div class="brand-logo">花月</div>
+                </div>
+            </div>
+
+            <!-- 中欄：詩詞名句 -->
+            <div class="col-center">
+                <div class="poem-content">
+                    <!-- 詩句會動態插入 -->
+                </div>
+            </div>
+
+            <!-- 右欄： -->
+            <div class="col-right">
+
+            </div>
+        </div>
+    </template>
 
     <!-- 單張卡片的模板 (Template) -->
     <template id="calendarCardTemplate">
@@ -90,6 +122,7 @@
 
     <!-- 核心邏輯載入 -->
     <script src="data/poems.js"></script>
+    <script src="data/最常見詩詞字排名.js"></script>
     <script src="script.js"></script>
     <script src="data/calendar_assignments.js"></script>
     <script src="responsive.js"></script>
@@ -114,6 +147,7 @@
     <script src="game7.js"></script>
     <script src="game8.js"></script>
     <script src="game9.js"></script>
+    <script src="cards.js"></script>
 
 </body>
 
