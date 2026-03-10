@@ -76,7 +76,7 @@
                     </div>
                     <div class="game7-controls">
                         <button id="game7-restart-btn" class="nav-btn">重來</button>
-                        <button id="game7-newGame-btn" class="nav-btn newGame-btn">開新局</button>
+                        <button id="game7-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game7-sub-header">
@@ -206,6 +206,7 @@
             this.startTime = null; // 待開始飛行後才設置計時
         },
 
+        //game7只有resetGame() 透過isRetry控制是否重來或是開新局
         resetGame: function (isRetry = false) {
             const settings = this.difficultySettings[this.difficulty];
             this.score = 0;
@@ -242,38 +243,43 @@
             this.createInitialBlock();
             // 遊戲盤面準備完成後才啟用重來按鈕
             document.getElementById('game7-restart-btn').disabled = false;
+            document.getElementById('game7-newGame-btn').disabled = false;
         },
 
         loadPoem: function () {
             if (typeof POEMS !== 'undefined') {
                 const settings = this.difficultySettings[this.difficulty];
                 const minChars = settings.minChars;
-                const minStars = settings.stars || 1;
+                const minStars = settings.stars || 4;
 
-                let eligible = POEMS.filter(p => {
-                    if (p.rating < minStars) return false;
-                    let text = p.content.join('').replace(/[，。？！、：；]/g, '');
-                    return text.length >= minChars;
-                });
+                // 使用共用邏輯取得隨機詩詞
+                const result = getSharedRandomPoem(minStars, 4, 8, minChars, 200);
+                if (result) {
+                    this.currentPoem = result.poem;
+                } else {
+                    let eligible = POEMS.filter(p => {
+                        if ((p.rating || 0) < minStars) return false;
+                        let text = p.content.join('').replace(/[，。？！、：；「」『』\s]/g, '');
+                        return text.length >= minChars;
+                    });
+                    if (eligible.length === 0) eligible = POEMS; // fallback
+                    this.currentPoem = eligible[Math.floor(Math.random() * eligible.length)];
+                }
 
-                if (eligible.length === 0) eligible = POEMS; // fallback
-                this.currentPoem = eligible[Math.floor(Math.random() * eligible.length)];
-
-                // 處理詩詞內容：擷取單數句子 (1, 3, 5...)
+                // 處理詩詞內容：從 result.startIndex 開始，擷取單數句子 (1, 3, 5...)
                 const rawContent = this.currentPoem.content;
                 let usedLines = [];
                 let totalCharsNoPunct = 0;
+                let startIndex = result ? result.startIndex : 0;
 
-                // 研究所難度直接使用整首 (但依然僅取單數句以維持風格?) 
-                // 使用者要求所有遊戲都要從單數句子挑選
-                for (let i = 0; i < rawContent.length; i += 2) {
+                for (let i = startIndex; i < rawContent.length; i += 2) {
                     usedLines.push(rawContent[i]);
-                    totalCharsNoPunct = usedLines.join('').replace(/[，。？！、：；]/g, '').length;
+                    totalCharsNoPunct = usedLines.join('').replace(/[，。？！、：；「」『』\s]/g, '').length;
                     if (this.difficulty !== '研究所' && totalCharsNoPunct >= minChars) break;
                 }
 
                 this.fullPoemRaw = usedLines;
-                const textNoPunct = usedLines.join('').replace(/[，。？！、：；]/g, '');
+                const textNoPunct = usedLines.join('').replace(/[，。？！、：；「」『』\s]/g, '');
                 this.poemChars = textNoPunct.split('');
                 this.hitStatus = new Array(this.poemChars.length).fill(0);
 
@@ -750,7 +756,8 @@
         gameWin: function () {
             this.isActive = false;
             // 禁用重來按鈕
-            document.getElementById('game7-restart-btn').disabled = true;
+            document.getElementById('game7-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+            document.getElementById('game7-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             if (window.ScoreManager) {
                 window.ScoreManager.playWinAnimation({
                     game: this,
@@ -771,8 +778,10 @@
             // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
             if (isWin) {
                 document.getElementById('game7-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+                document.getElementById('game7-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game7-restart-btn').disabled = false;
+                document.getElementById('game7-newGame-btn').disabled = false;
             }
             const msg = document.getElementById('game7-message');
             document.getElementById('game7-msg-title').textContent = isWin ? "謫仙凌雲" : "高處不勝寒";

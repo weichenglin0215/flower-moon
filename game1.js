@@ -77,7 +77,7 @@
                     <div class="game1-score-board">分數: <span id="game1-score">0</span></div>
                     <div class="game1-controls">
                         <button id="game1-restart-btn" class="nav-btn">重來</button>
-                        <button id="game1-newGame-btn" class="nav-btn newGame-btn">開新局</button>
+                        <button id="game1-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game1-sub-header">
@@ -216,9 +216,11 @@
 
             // 重新渲染當前題目 (不重新準備)
             this.renderChallenge();
-            document.getElementById('game1-restart-btn').disabled = false;
             // 重設計時器
             this.startTimer();
+            // 啟用重來按鈕
+            document.getElementById('game1-restart-btn').disabled = false;
+            document.getElementById('game1-newGame-btn').disabled = false;
         },
 
         startNewGame: function () {
@@ -232,8 +234,10 @@
 
             // 準備新題目並開始
             this.prepareChallenge();
-            document.getElementById('game1-restart-btn').disabled = false;
             this.startTimer();
+            // 啟用重來按鈕
+            document.getElementById('game1-restart-btn').disabled = false;
+            document.getElementById('game1-newGame-btn').disabled = false;
         },
 
         restartGame: function () {
@@ -253,26 +257,20 @@
         prepareChallenge: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return;
 
-            // 根據難度篩選詩詞
             const settings = this.difficultySettings[this.difficulty];
-            const minRating = settings.minRating;
+            const minRating = settings.minRating || 4;
 
-            // 優先選擇常見詩詞
-            const eligiblePoems = POEMS.filter(p =>
-                p.content && p.content.length >= 2 && p.type &&
-                (p.type.includes('五言') || p.type.includes('七言') || p.type.includes('詞') || p.type.includes('古詩')) &&
-                (p.rating || 0) >= minRating
-            );
-
-            let poem = eligiblePoems[Math.floor(Math.random() * eligiblePoems.length)];
-            this.currentPoem = poem;
-
-            // 隨機選相鄰兩句 (偶數句一對)，即問題和答案
-            const numLines = poem.content.length;
-            const pairIdx = Math.floor(Math.random() * Math.floor(numLines / 2));
-            const startIdx = pairIdx * 2;
-            let line1 = poem.content[startIdx];
-            let line2 = poem.content[startIdx + 1];
+            // 使用全域共用邏輯取得隨機詩詞 (要求至少 2 句)
+            const result = getSharedRandomPoem(minRating, 2, 2, 10, 14);
+            if (!result) {
+                alert('找不到符合評分的詩詞。');
+                return;
+            }
+            this.currentPoem = result.poem;
+            const content = result.poem.content;
+            const startIdx = result.startIndex;
+            let line1 = content[startIdx];
+            let line2 = content[startIdx + 1];
 
             // 根據 answerAtLine 決定哪一句被部分隱藏
             // 2: 答案在第二行, 1: 答案在第一行, 0: 隨機
@@ -361,19 +359,7 @@
             const lineLen = correctClean.length;
             const poemType = this.currentPoem.type || "";
 
-            // 從相同長度且類型相似的詩中找干擾項
-            let potentialDecoys = POEMS.filter(p =>
-                p.type === poemType && p.id !== this.currentPoem.id
-            ).flatMap(p => p.content);
-
-            // 如果同類型的詩不夠，就全庫找長度相同的句
-            if (potentialDecoys.length < 10) {
-                potentialDecoys = POEMS.flatMap(p => p.content).filter(l =>
-                    l.replace(/[，。？！、：；]/g, '').length === lineLen
-                );
-            }
-
-            // 取得遮罩模式 (true 代表在問題中是隱藏的)
+            // 取得遮罩模式
             const getMaskPattern = (original, maskedText) => {
                 let p = [];
                 for (let i = 0; i < original.length; i++) {
@@ -381,15 +367,12 @@
                 }
                 return p;
             };
-
             const pattern = getMaskPattern(correct, masked);
 
-            // 選取顯示反向遮罩的字 (即問題中隱藏的字)
-            const applyOptionMask = (targetLine) => {
-                // targetLine 可能長度與 correct 不一致 (雖然 filter 過但標點可能不同)
-                // 為了保險，我們先 clean 再 map
+            // 選取顯示反向遮罩的字
+            const applyOptionMask = (targetLine, isCorrect = false) => {
                 const targetClean = targetLine.replace(/[，。？！、：；]/g, '');
-                const correctStructure = correct; // 用正確句的結構
+                const correctStructure = correct;
 
                 let result = "";
                 let cleanIdx = 0;
@@ -398,7 +381,6 @@
                     if (isPunct) {
                         result += correctStructure[i];
                     } else if (cleanIdx < targetClean.length) {
-                        // 反向映射：問題顯示的字在選項中隱藏，問題隱藏的字在選項中顯示
                         result += pattern[i] ? targetClean[cleanIdx] : "◎";
                         cleanIdx++;
                     }
@@ -406,25 +388,59 @@
                 return result;
             };
 
-            let finalOptions = [{ text: applyOptionMask(correct), isCorrect: true }];
+            let finalOptions = [{ text: applyOptionMask(correct, true), isCorrect: true }];
             let usedLines = [correct];
 
-            // 隨機選出 3 個干擾項
-            const decoys = [];
-            while (decoys.length < 3) {
-                const raw = potentialDecoys[Math.floor(Math.random() * potentialDecoys.length)];
-                if (!raw) break; // 防止死循環
-                const clean = raw.replace(/[，。？！、：；]/g, '');
-                if (clean.length === lineLen && !usedLines.includes(raw)) {
-                    decoys.push(raw);
-                    usedLines.push(raw);
-                    finalOptions.push({ text: applyOptionMask(raw), isCorrect: false });
+            // 使用 SharedDecoy 產生相似句子
+            if (window.SharedDecoy) {
+                const targetChars = correctClean.split('');
+                const minRating = this.difficultySettings[this.difficulty].minRating || 4;
+                const distractorPool = window.SharedDecoy.getDecoyChars(targetChars, 20, [], minRating);
+
+                // 嘗試從 POEMS 中尋找相似句
+                let candidates = [];
+                const searchPool = POEMS.filter(p => (p.rating || 0) >= minRating && p.id !== this.currentPoem.id);
+
+                for (const p of searchPool) {
+                    for (const line of p.content) {
+                        const clean = line.replace(/[，。？！、：；]/g, '');
+                        if (clean.length === lineLen && !usedLines.includes(line)) {
+                            // 計算相似度 (包含多少 distractorPool 或 targetChars 中的字)
+                            let similarity = 0;
+                            for (const char of clean) {
+                                if (distractorPool.includes(char)) similarity++;
+                                if (targetChars.includes(char)) similarity += 2;
+                            }
+                            if (similarity > 0) {
+                                candidates.push({ line, similarity });
+                            }
+                        }
+                    }
+                }
+
+                // 優先選擇相似度高的句子
+                candidates.sort((a, b) => b.similarity - a.similarity);
+
+                for (let i = 0; i < Math.min(candidates.length, 3); i++) {
+                    const decoyLine = candidates[i].line;
+                    finalOptions.push({ text: applyOptionMask(decoyLine), isCorrect: false });
+                    usedLines.push(decoyLine);
+                }
+            }
+
+            // 如果不夠 4 個，補充隨機項
+            while (finalOptions.length < 4) {
+                const rndPoem = POEMS[Math.floor(Math.random() * POEMS.length)];
+                const rndLine = rndPoem.content[Math.floor(Math.random() * rndPoem.content.length)];
+                const clean = rndLine.replace(/[，。？！、：；]/g, '');
+                if (clean.length === lineLen && !usedLines.includes(rndLine)) {
+                    finalOptions.push({ text: applyOptionMask(rndLine), isCorrect: false });
+                    usedLines.add(rndLine);
                 }
             }
 
             // 洗牌
             finalOptions.sort(() => Math.random() - 0.5);
-
             this.currentOptions = finalOptions;
         },
 
@@ -522,7 +538,8 @@
             if (isCorrect) {
                 btn.classList.add('correct');
                 clearInterval(this.timerInterval);
-                document.getElementById('game1-restart-btn').disabled = true;
+                document.getElementById('game1-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game1-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 ScoreManager.playWinAnimation({
                     game: this,
                     difficulty: this.difficulty,
@@ -586,9 +603,11 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game1-restart-btn').disabled = true;
+                document.getElementById('game1-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game1-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game1-restart-btn').disabled = false;
+                document.getElementById('game1-newGame-btn').disabled = false;
             }
             const msgDiv = document.getElementById('game1-message');
             const title = document.getElementById('game1-msg-title');

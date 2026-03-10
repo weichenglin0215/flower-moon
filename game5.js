@@ -258,7 +258,6 @@
                     this.setupMaze();
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
                     this.startNewGame();
-                    document.getElementById('game5-restart-btn').disabled = false;
                 });
             }
         },
@@ -283,6 +282,7 @@
             if (this.requestID) cancelAnimationFrame(this.requestID);
             // 所有遊戲資源準備完畢後才啟用重來按鈕
             document.getElementById('game5-restart-btn').disabled = false;
+            document.getElementById('game5-newGame-btn').disabled = false;
             this.gameLoop(this.lastTime);
         },
 
@@ -299,7 +299,7 @@
 
             // 重置完成後才啟用重來按鈕
             document.getElementById('game5-restart-btn').disabled = false;
-
+            document.getElementById('game5-newGame-btn').disabled = false;
             this.lastTime = performance.now();
             if (this.requestID) cancelAnimationFrame(this.requestID);
             this.gameLoop(this.lastTime);
@@ -308,24 +308,20 @@
         preparePoem: function () {
             if (typeof POEMS === 'undefined') return;
             const settings = this.difficultySettings[this.difficulty];
+            const minRating = settings.stars || 4;
 
-            // 挑選符合難度(星星)與字數的詩
-            let eligible = POEMS.filter(p => p.rating >= settings.stars && p.content.length >= 2);
+            // 使用共用邏輯取得隨機詩詞
+            const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+            if (!result) return;
 
-            // 大學/研究所優先挑選七言詩
-            if (this.difficulty === '大學' || this.difficulty === '研究所') {
-                const sevenWords = eligible.filter(p => p.content[0].replace(/[，。？！、：；]/g, '').length === 7);
-                if (sevenWords.length > 0) eligible = sevenWords;
-            }
-
-            const poem = eligible[Math.floor(Math.random() * eligible.length)];
+            const poem = result.poem;
             this.targetPoem = poem;
 
-            // 挑選詩句直到總字數大於答案字數需求 (僅挑選單數句子：1, 3, 5...)
+            // 從 getSharedRandomPoem 找到的起始句開始挑選 (僅挑選單數句子：1, 3, 5...)
             let fullStr = "";
-            let startLineIndex = Math.floor(Math.random() * (Math.floor((poem.content.length + 1) / 2))) * 2;
+            let startLineIndex = result.startIndex;
             for (let i = startLineIndex; i < poem.content.length; i += 2) {
-                fullStr += poem.content[i].replace(/[，。？！、：；]/g, '');
+                fullStr += poem.content[i].replace(/[，。？！、：；「」『』\s]/g, '');
                 if (fullStr.length > settings.answerLen) break;
             }
 
@@ -333,7 +329,7 @@
             if (fullStr.length <= settings.answerLen) {
                 fullStr = "";
                 for (let i = 0; i < poem.content.length; i += 2) {
-                    fullStr += poem.content[i].replace(/[，。？！、：；]/g, '');
+                    fullStr += poem.content[i].replace(/[，。？！、：；「」『』\s]/g, '');
                     if (fullStr.length > settings.answerLen) break;
                 }
             }
@@ -991,9 +987,11 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game5-restart-btn').disabled = true;
+                document.getElementById('game5-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game5-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game5-restart-btn').disabled = false;
+                document.getElementById('game5-newGame-btn').disabled = false;
             }
             this.isWin = win;
             clearInterval(this.timerInterval);

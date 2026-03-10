@@ -28,11 +28,11 @@
         minRating: 最低評分
         */
         difficultySettings: {
-            '小學': { grid: [2, 2], time: 60, maxMistakeCount: 4, questionCount: 1, questionAtLine: 2, minRating: 6 },
-            '中學': { grid: [3, 2], time: 45, maxMistakeCount: 5, questionCount: 3, questionAtLine: 2, minRating: 5 },
-            '高中': { grid: [3, 3], time: 30, maxMistakeCount: 6, questionCount: 4, questionAtLine: 0, minRating: 4 },
-            '大學': { grid: [3, 4], time: 20, maxMistakeCount: 7, questionCount: 6, questionAtLine: 0, minRating: 3 },
-            '研究所': { grid: [4, 4], time: 15, maxMistakeCount: 8, questionCount: 7, questionAtLine: 1, minRating: 2 }
+            '小學': { grid: [3, 2], time: 60, maxMistakeCount: 4, questionCount: 1, questionAtLine: 2, minRating: 6 },
+            '中學': { grid: [3, 3], time: 45, maxMistakeCount: 5, questionCount: 3, questionAtLine: 2, minRating: 5 },
+            '高中': { grid: [4, 3], time: 30, maxMistakeCount: 6, questionCount: 4, questionAtLine: 0, minRating: 4 },
+            '大學': { grid: [4, 4], time: 20, maxMistakeCount: 7, questionCount: 6, questionAtLine: 0, minRating: 3 },
+            '研究所': { grid: [5, 4], time: 15, maxMistakeCount: 8, questionCount: 7, questionAtLine: 1, minRating: 2 }
         },
         // 常用字庫 (用於生成干擾項)
         decoyCharsPeople: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
@@ -218,8 +218,7 @@
 
         retryGame: function () {
             if (!this.currentPoem) return;
-            // 啟用重來按鈕
-            document.getElementById('game2-restart-btn').disabled = false;
+
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -235,8 +234,10 @@
 
             this.renderQuestion();
             this.renderGrid(true); // 使用舊有的 gridChars
-            document.getElementById('game2-restart-btn').disabled = false;
             this.startTimer();
+            // 啟用重來按鈕
+            document.getElementById('game2-restart-btn').disabled = false;
+            document.getElementById('game2-newGame-btn').disabled = false;
         },
 
         startNewGame: function () {
@@ -262,6 +263,9 @@
                 alert(`找不到包含「${this.selectedKeyword}」且符合進度的詩詞，請換個主字試試。`);
                 this.showDifficultySelector();
             }
+            // 啟用重來按鈕
+            document.getElementById('game2-restart-btn').disabled = false;
+            document.getElementById('game2-newGame-btn').disabled = false;
         },
 
         restartGame: function () {
@@ -272,41 +276,34 @@
             if (typeof POEMS === 'undefined') return false;
 
             const settings = this.difficultySettings[this.difficulty];
-            // 篩選包含關鍵字的詩詞
-            const eligible = POEMS.filter(p => {
-                if ((p.rating || 0) < settings.minRating) return false;
-                return p.content.some(line => line.includes(this.selectedKeyword));
-            });
+            // 使用共用邏輯取得隨機詩詞，並要求包含關鍵字
+            const result = getSharedRandomPoem(settings.minRating, 2, 4, 10, 100, this.selectedKeyword);
 
-            if (eligible.length === 0) return false;
+            if (!result) return false;
 
-            // 隨機選一個
-            const poem = eligible[Math.floor(Math.random() * eligible.length)];
+            this.currentPoem = result.poem;
+            const content = result.poem.content;
+            const startIdx = result.startIndex;
 
-            // 找包含關鍵字的行
-            const matchingLines = [];
-            poem.content.forEach((line, idx) => {
-                if (line.includes(this.selectedKeyword)) {
-                    matchingLines.push(idx);
-                }
-            });
+            // getSharedRandomPoem 保證從 startIdx 開始的 2 句包含關鍵字且評分達標
+            // 我們判斷這 2 句中哪一句包含關鍵字
+            const hasL1 = content[startIdx].includes(this.selectedKeyword);
+            const hasL2 = content[startIdx + 1] && content[startIdx + 1].includes(this.selectedKeyword);
 
-            const targetIdx = matchingLines[Math.floor(Math.random() * matchingLines.length)];
-            const otherIdx = (targetIdx % 2 === 0) ? targetIdx + 1 : targetIdx - 1;
-
-            // 確保 index 有效
-            const l1Idx = Math.min(targetIdx, otherIdx);
-            const l2Idx = Math.max(targetIdx, otherIdx);
-
-            if (l2Idx >= poem.content.length) {
-                // 如果是奇數行且是最後一行，取前一行
-                this.line1 = poem.content[targetIdx - 1];
-                this.line2 = poem.content[targetIdx];
-                this.answerLine = 2; // 目標在第二行
+            // 優先找包含關鍵字的行作為答案行
+            if (hasL1) {
+                this.line1 = content[startIdx];
+                this.line2 = content[startIdx + 1] || "";
+                this.answerLine = 1;
+            } else if (hasL2) {
+                this.line1 = content[startIdx];
+                this.line2 = content[startIdx + 1];
+                this.answerLine = 2;
             } else {
-                this.line1 = poem.content[l1Idx];
-                this.line2 = poem.content[l2Idx];
-                this.answerLine = (targetIdx === l1Idx) ? 1 : 2;
+                // 回退保護 (理論上不會發生)
+                this.line1 = content[startIdx];
+                this.line2 = content[startIdx + 1] || "";
+                this.answerLine = 1;
             }
 
             // 根據 questionAtLine 設定決定問題出現在哪一行
@@ -322,7 +319,6 @@
                 this.answerLine = 2;
             }
 
-            this.currentPoem = poem;
 
             // 決定隱藏哪些字
             // 使用 questionCount 參數決定要隱藏幾個字
@@ -421,41 +417,20 @@
             } else {
                 const totalCells = cols * rows;
                 const answerChars = [...this.targetChars];
-
-                // 干擾字
-                const decoys = [];
                 const neededDecoys = totalCells - answerChars.length;
 
-                // 1. 嘗試從分類主題中選取
-                const thematicSets = [
-                    this.decoyCharsPeople,
-                    this.decoyCharsSeason,
-                    this.decoyCharsWeather,
-                    this.decoyCharsEnvironment,
-                    this.decoyCharsColor,
-                    this.decoyCharsPlant
-                ];
+                // 使用 SharedDecoy 產生干擾字，以 keywords 作為 targetChars
+                const decoys = window.SharedDecoy ? window.SharedDecoy.getDecoyChars(this.keywords, neededDecoys, answerChars, settings.minRating) : [];
 
-                answerChars.forEach(targetChar => {
-                    if (decoys.length >= neededDecoys) return;
-
-                    if (Math.random() < 0.66) {
-                        const matchedSet = thematicSets.find(set => set && set.includes(targetChar));
-                        if (matchedSet) {
-                            const themeCandidates = matchedSet.split('').filter(c => !answerChars.includes(c) && !decoys.includes(c));
-                            themeCandidates.sort(() => Math.random() - 0.5);
-                            const count = Math.min(2, neededDecoys - decoys.length, themeCandidates.length);
-                            for (let i = 0; i < count; i++) {
-                                decoys.push(themeCandidates[i]);
-                            }
+                // 如果 SharedDecoy 沒傳回足夠的字，補充隨機項
+                if (decoys.length < neededDecoys) {
+                    const used = new Set([...answerChars, ...decoys]);
+                    while (decoys.length < neededDecoys) {
+                        const rnd = this.decoyChars[Math.floor(Math.random() * this.decoyChars.length)];
+                        if (!used.has(rnd)) {
+                            decoys.push(rnd);
+                            used.add(rnd);
                         }
-                    }
-                });
-
-                while (decoys.length < neededDecoys) {
-                    const char = this.decoyChars[Math.floor(Math.random() * this.decoyChars.length)];
-                    if (!answerChars.includes(char) && !decoys.includes(char)) {
-                        decoys.push(char);
                     }
                 }
 
@@ -498,7 +473,9 @@
 
                 if (this.currentInputIndex === this.targetChars.length) {
                     clearInterval(this.timerInterval);
-                    document.getElementById('game2-restart-btn').disabled = true;
+                    document.getElementById('game2-restart-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                    document.getElementById('game2-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+
                     ScoreManager.playWinAnimation({
                         game: this,
                         difficulty: this.difficulty,
@@ -594,9 +571,11 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game2-restart-btn').disabled = true;
+                document.getElementById('game2-restart-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game2-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game2-restart-btn').disabled = false;
+                document.getElementById('game2-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
             this.isRevealed = true;

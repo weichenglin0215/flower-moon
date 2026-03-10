@@ -219,8 +219,6 @@
 
         retryGame: function () {
             if (!this.currentPoem || this.rows.length === 0) return;
-            // 啟用重來按鈕
-            document.getElementById('game3-restart-btn').disabled = false;
             this.isActive = true;
             this.score = 0;
             this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;
@@ -260,8 +258,10 @@
 
             // 開始動畫迴圈
             if (this.animationId) cancelAnimationFrame(this.animationId);
-            document.getElementById('game3-restart-btn').disabled = false;
             this.loop();
+            // 啟用重來按鈕
+            document.getElementById('game3-restart-btn').disabled = false;
+            document.getElementById('game3-newGame-btn').disabled = false;
         },
 
         startNewGame: function () {
@@ -284,6 +284,9 @@
 
             if (this.animationId) cancelAnimationFrame(this.animationId);
             this.loop();
+            // 啟用重來按鈕
+            document.getElementById('game3-restart-btn').disabled = false;
+            document.getElementById('game3-newGame-btn').disabled = false;
         },
 
         restartGame: function () {
@@ -297,25 +300,25 @@
             }
 
             const setting = this.difficultySettings[this.difficulty];
-            const minRating = setting.minRating;
-            const maxOptions = setting.maxOptions;
-            const minOptions = setting.minOptions;
+            const minRating = setting.minRating || 4;
 
-            // 篩選符合評分的詩詞
-            const eligiblePoems = POEMS.filter(p => (p.rating || 0) >= minRating);
-            if (eligiblePoems.length === 0) {
+            // 使用共用邏輯取得隨機詩詞
+            // Game 3 喜歡連續的句子，所以我們要求至少 4 句
+            const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+            if (!result) {
                 alert('找不到符合該難度評分的詩詞');
                 return;
             }
 
-            let poem = eligiblePoems[Math.floor(Math.random() * eligiblePoems.length)];
+            const poem = result.poem;
             this.currentPoem = poem;
+            const startIdx = result.startIndex;
+            const lineCount = result.lines.length;
 
             // 尋找三首相同類型的詩詞作為干擾項來源
             const similarPoems = POEMS.filter(p => p.type === poem.type && p.id !== poem.id);
             let extraDecoyChars = "";
             if (similarPoems.length > 0) {
-                // 隨機取三首
                 const shuffledSimilar = similarPoems.sort(() => Math.random() - 0.5).slice(0, 3);
                 shuffledSimilar.forEach(p => {
                     p.content.forEach(line => {
@@ -327,44 +330,45 @@
             // 合併原本的常用字庫與額外的詩詞字庫
             const currentDecoyPool = (this.decoyChars + extraDecoyChars).split('');
 
-            // 將詩詞內容展平為字符陣列，過濾標點符號 (簡單過濾)
+            // 將詩詞內容展平為字符陣列，只使用 getSharedRandomPoem 選出的範圍
             let chars = [];
-            let charRatings = []; // 紀錄每個字的句子評價
+            let charRatings = [];
             const firstIndices = new Set();
+            this.historyData = [];
 
-            poem.content.forEach((line, lineIdx) => {
+            for (let i = 0; i < lineCount; i++) {
+                const lineIdx = startIdx + i;
+                const line = poem.content[lineIdx];
                 const cleanLine = line.replace(/[，。？！、：；「」『』]/g, '');
-                if (!cleanLine) return;
+                if (!cleanLine) continue;
 
-                const startIndex = chars.length;
-                firstIndices.add(startIndex);
+                const currentCharsStart = chars.length;
+                firstIndices.add(currentCharsStart);
 
-                // 取得該句評價
                 const lineRating = (poem.line_ratings && poem.line_ratings[lineIdx] !== undefined)
                     ? poem.line_ratings[lineIdx]
                     : 0;
 
                 const lineChars = cleanLine.split('');
                 chars.push(...lineChars);
-                // 每個字都記錄其所屬句子的評價
                 lineChars.forEach((c, charIdx) => {
                     charRatings.push(lineRating);
                     this.historyData.push({
                         char: c,
-                        status: 'hidden', // hidden, waiting, correct, wrong
+                        status: 'hidden',
                         isSep: false
                     });
-                    // 如果是該行最後一個字且不是最後一行，加入逗號
-                    if (charIdx === lineChars.length - 1 && lineIdx < poem.content.length - 1) {
+                    if (charIdx === lineChars.length - 1 && i < lineCount - 1) {
                         this.historyData.push({
                             char: '，',
-                            status: 'hidden',
+                            status: 'correct',
                             isSep: true
                         });
                     }
                 });
-            });
+            }
             this.poemChars = chars;
+            this.charRatings = charRatings;
             this.historyContainer = document.getElementById('game3-history');
             this.renderHistory();
 
@@ -396,7 +400,9 @@
                     numOptions = 1;
                 } else {
                     // 根據難度設定隨機決定選項數量 (minOptions 到 maxOptions)
-                    numOptions = Math.floor(Math.random() * (maxOptions - minOptions + 1)) + minOptions;
+                    const minO = setting.minOptions || 1;
+                    const maxO = setting.maxOptions || 1;
+                    numOptions = Math.floor(Math.random() * (maxO - minO + 1)) + minO;
                     if (numOptions < 1) numOptions = 1;
                 }
 
@@ -575,7 +581,8 @@
             // 檢查勝利
             if (this.currentRowIndex >= this.rows.length) {
                 this.isActive = false;
-                document.getElementById('game3-restart-btn').disabled = true;
+                document.getElementById('game3-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 ScoreManager.playWinAnimation({
                     game: this,
                     difficulty: this.difficulty,
@@ -605,7 +612,8 @@
                 // 也要檢查新定位的行是否結束了
                 if (this.currentRowIndex >= this.rows.length) {
                     this.isActive = false;
-                    document.getElementById('game3-restart-btn').disabled = true;
+                    document.getElementById('game3-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                    document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                     ScoreManager.playWinAnimation({
                         game: this,
                         difficulty: this.difficulty,
@@ -765,9 +773,11 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game3-restart-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕
+                document.getElementById('game3-restart-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game3-restart-btn').disabled = false;
+                document.getElementById('game3-newGame-btn').disabled = false;
             }
             cancelAnimationFrame(this.animationId);
 

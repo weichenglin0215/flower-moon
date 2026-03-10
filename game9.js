@@ -193,77 +193,20 @@
         selectRandomPoem: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
-            const minRating = settings.stars;
+            const minRating = settings.stars || 4;
 
-            // 建立所有符合條件的 (poem, startIndex) 候選組合
-            // 條件：從奇數索引（0, 2, 4...）開始的連續4句，每句的 line_ratings 都 >= minRating
-            const candidates = [];
-            POEMS.forEach(poem => {
-                if (!poem.content || poem.content.length < 4) return;
-                const lineRatings = poem.line_ratings || [];
+            // 使用共用邏輯取得隨機詩詞 (要求至少 4 句)
+            const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+            if (!result) return false;
 
-                // 從奇數起始點（索引0, 2, 4...）嘗試連續取4句
-                for (let i = 0; i <= poem.content.length - 4; i += 2) {
-                    // 檢查這4句的每一句 line_ratings 是否都符合難度要求
-                    let allQualify = [0, 1, 2, 3].every(offset => {
-                        const lr = lineRatings[i + offset];
-                        return lr !== undefined && lr >= minRating;
-                    });
+            this.currentPoem = result.poem;
+            const poem = result.poem;
+            const startIndex = result.startIndex;
 
-                    if (!allQualify) {
-                        // 檢查前2句的每一句 line_ratings 是否都符合難度要求
-                        allQualify = [0, 1].every(offset => {
-                            const lr = lineRatings[i + offset];
-                            return lr !== undefined && lr >= minRating;
-                        });
-                    }
-                    if (!allQualify) {
-                        // 檢查後2句的每一句 line_ratings 是否都符合難度要求
-                        allQualify = [2, 3].every(offset => {
-                            const lr = lineRatings[i + offset];
-                            return lr !== undefined && lr >= minRating;
-                        });
-                    }
-
-                    if (allQualify) {
-                        candidates.push({ poem, startIndex: i });
-                    }
-                }
-            });
-
-            // 若無完全符合的候選，降級：只要詩整體評分 >= minRating 且有4句即可
-            let finalCandidates = candidates;
-            if (finalCandidates.length === 0) {
-                POEMS.forEach(poem => {
-                    if (!poem.content || poem.content.length < 4) return;
-                    if ((poem.rating || 0) >= minRating) {
-                        for (let i = 0; i <= poem.content.length - 4; i += 2) {
-                            finalCandidates.push({ poem, startIndex: i });
-                        }
-                    }
-                });
-            }
-
-            // 最終 fallback：任意有4句的詩
-            if (finalCandidates.length === 0) {
-                POEMS.forEach(poem => {
-                    if (poem.content && poem.content.length >= 4) {
-                        finalCandidates.push({ poem, startIndex: 0 });
-                    }
-                });
-            }
-
-            if (finalCandidates.length === 0) return false;
-
-            // 隨機挑一個候選
-            const chosen = finalCandidates[Math.floor(Math.random() * finalCandidates.length)];
-            this.currentPoem = chosen.poem;
-            const startIndex = chosen.startIndex;
-
-            // 取連續4句
+            // 取連續 4 句
             this.lines = [];
             for (let i = 0; i < 4; i++) {
-                const rawLine = chosen.poem.content[startIndex + i];
+                const rawLine = poem.content[startIndex + i];
                 if (!rawLine) break;
                 const text = rawLine.replace(/[，。？！、：；「」『』\s]/g, "");
                 this.lines.push(text);
@@ -277,10 +220,8 @@
                 `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             return true;
         },
-
+        //game9只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
-            // 啟用重來按鈕
-            document.getElementById('game9-restart-btn').disabled = false;
             this.isActive = true;
             this.score = 0;
             this.movesMade = 0;
@@ -329,6 +270,9 @@
             } else {
                 document.getElementById('game9-timer-ring').style.display = 'none';
             }
+            // 啟用重來按鈕
+            document.getElementById('game9-restart-btn').disabled = false;
+            document.getElementById('game9-newGame-btn').disabled = false;
         },
 
         generateLevel: function () {
@@ -757,6 +701,7 @@
             clearInterval(this.timerInterval);
             // 禁用重來按鈕
             document.getElementById('game9-restart-btn').disabled = true;   // 必須在得分表演之前就先禁用重來按鈕
+            document.getElementById('game9-newGame-btn').disabled = true;   //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
 
             // Using standard win animation
             if (window.ScoreManager && typeof window.ScoreManager.playWinAnimation === 'function') {
@@ -781,10 +726,12 @@
             // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
                 document.getElementById('game9-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+                document.getElementById('game9-newGame-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
 
             } else {
                 document.getElementById('game9-restart-btn').disabled = false;
+                document.getElementById('game9-newGame-btn').disabled = false;
                 if (window.SoundManager) window.SoundManager.playSadTriple();
             }
             clearInterval(this.timerInterval);

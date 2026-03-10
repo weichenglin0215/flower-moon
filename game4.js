@@ -160,8 +160,6 @@
 
         retryGame: function () {
             if (!this.currentPoem) return;
-            // 啟用重來按鈕
-            document.getElementById('game4-restart-btn').disabled = false;
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -190,6 +188,9 @@
                     hiddenLines.forEach(line => line.classList.add('revealed'));
                 }, settings.showDelay * 1000);
             }
+            // 啟用重來按鈕
+            document.getElementById('game4-restart-btn').disabled = false;
+            document.getElementById('game4-newGame-btn').disabled = false;
         },
 
         startNewGame: function () {
@@ -226,6 +227,9 @@
                 alert('載入詩詞失敗。');
                 this.showDifficultySelector();
             }
+            // 啟用重來按鈕
+            document.getElementById('game4-restart-btn').disabled = false;
+            document.getElementById('game4-newGame-btn').disabled = false;
         },
 
         restartGame: function () {
@@ -235,40 +239,17 @@
         selectRandomPoem: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
-            const minR = settings.minRating;
+            const minR = settings.minRating || 4;
 
-            // 1. 篩選符合條件的詩詞與有效的對聯 (句對)
-            const eligiblePool = [];
-            POEMS.forEach(p => {
-                const pairs = [];
-                const pairCount = Math.floor(p.content.length / 2);
-                for (let i = 0; i < pairCount; i++) {
-                    const idx1 = i * 2;
-                    const idx2 = idx1 + 1;
+            // 使用共用邏輯取得隨機詩詞 (要求至少 2 句)
+            const result = getSharedRandomPoem(minR, 2, 4, 10, 100);
+            if (!result) return false;
 
-                    // 取得每句的評分，若無則參考詩詞總評
-                    const r1 = (p.line_ratings && p.line_ratings[idx1] !== undefined) ? p.line_ratings[idx1] : (p.rating || 0);
-                    const r2 = (p.line_ratings && p.line_ratings[idx2] !== undefined) ? p.line_ratings[idx2] : (p.rating || 0);
-
-                    // 只要其中一句符合最低評分即視為有效題對
-                    if (Math.max(r1, r2) >= minR) {
-                        pairs.push({ l1: p.content[idx1], l2: p.content[idx2] });
-                    }
-                }
-                if (pairs.length > 0) {
-                    eligiblePool.push({ poem: p, validPairs: pairs });
-                }
-            });
-
-            if (eligiblePool.length === 0) return false;
-
-            // 2. 隨機選一個詩詞及其中的有效句對
-            const pick = eligiblePool[Math.floor(Math.random() * eligiblePool.length)];
-            const pair = pick.validPairs[Math.floor(Math.random() * pick.validPairs.length)];
-
-            this.currentPoem = pick.poem;
-            this.line1 = pair.l1;
-            this.line2 = pair.l2;
+            this.currentPoem = result.poem;
+            const content = result.poem.content;
+            const startIdx = result.startIndex;
+            this.line1 = content[startIdx];
+            this.line2 = content[startIdx + 1] || "";
 
             // 決定隱藏那些字
             this.hiddenPositions = [];
@@ -394,7 +375,8 @@
                 const neededDecoys = Math.max(0, targetTotal - answerChars.length);
                 let decoys = [];
                 if (window.SharedDecoy) {
-                    decoys = window.SharedDecoy.getDecoyChars(answerChars, neededDecoys);
+                    // 使用預設的 minRating 4 來確保混淆句來自高知名度詩詞
+                    decoys = window.SharedDecoy.getDecoyChars(answerChars, neededDecoys, [], 4);
                 }
 
                 allChars = [...answerChars, ...decoys].sort(() => Math.random() - 0.5);
@@ -421,6 +403,7 @@
             });
 
             document.getElementById('game4-restart-btn').disabled = false;
+            document.getElementById('game4-newGame-btn').disabled = false;
             this.updateTimerRing(1);
         },
 
@@ -530,6 +513,7 @@
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);
             document.getElementById('game4-restart-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕
+            document.getElementById('game4-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕
             // 立即顯示隱藏的題目內容
             this.isRevealed = true;
             this.cluesRevealed = true;
@@ -554,9 +538,11 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game4-restart-btn').disabled = true;
+                document.getElementById('game4-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game4-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game4-restart-btn').disabled = false;
+                document.getElementById('game4-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);

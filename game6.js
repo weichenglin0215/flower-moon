@@ -13,6 +13,36 @@
         timeLeft: 60,
         timerInterval: null,
 
+        // 介面物件尺寸設定 (單位為 rem, 相對於根字體大小)
+        ui: {
+            // 敵人文字
+            enemySize: 1.5,        // 尺寸
+            enemySpacingX: 1.4,    // 橫向間隔倍數 (文字尺寸 * 此值)
+            enemySpacingY: 1.4,    // 縱向間隔倍數 (文字尺寸 * 此值)
+
+            // 落下砲彈
+            enemyBulletSize: 0.2,  // 直徑
+
+            // 地面防禦石碑
+            monumentBlockSize: 0.4, // 每一小格的尺寸
+            monumentCols: 8,       // 橫向顆數
+            monumentRows: 4,       // 縱向顆數
+
+            // 我方砲台
+            playerWidth: 2.0,      // 寬度
+            playerHeight: 0.8,     // 高度
+            gunWidth: 0.3,         // 砲管寬度
+            gunHeight: 0.3,        // 砲管高度
+
+            // 我方射擊飛彈
+            bulletSize: 0.3,       // 一般彈直徑
+            bulletSizePierce: 0.3, // 穿透彈直徑
+
+            // 獎勵介面
+            powerUpBoxSizeWidth: 5,    // 黃底白框尺寸
+            powerUpBoxSizeHeight: 6    // 黃底白框尺寸
+        },
+
         // 核心遊戲對象
         player: {
             x: 0,
@@ -48,11 +78,11 @@
         // 遊戲難度設定
         difficultySettings: {
             // stars: 詩詞星等, lineCount: 敵人由幾句詩組成, baseSpeed: 初始左右移動速度, speedInc: 撞牆後的增加速度, 
-            '小學': { time: 90, hearts: 5, fireRate: 0.8, baseSpeed: 60, speedInc: 5, stars: 7, lineCount: 2 },
-            '中學': { time: 90, hearts: 4, fireRate: 0.75, baseSpeed: 65, speedInc: 7, stars: 6, lineCount: 4 },
-            '高中': { time: 90, hearts: 3, fireRate: 0.7, baseSpeed: 70, speedInc: 9, stars: 5, lineCount: 4 },
-            '大學': { time: 105, hearts: 2, fireRate: 0.6, baseSpeed: 75, speedInc: 11, stars: 4, lineCount: 8 },
-            '研究所': { time: 120, hearts: 1, fireRate: 0.5, baseSpeed: 80, speedInc: 13, stars: 3, lineCount: 8 }
+            '小學': { time: 90, hearts: 6, fireRate: 0.8, baseSpeed: 60, speedInc: 6, stars: 7, lineCount: 2 },
+            '中學': { time: 90, hearts: 5, fireRate: 0.7, baseSpeed: 65, speedInc: 7, stars: 6, lineCount: 4 },
+            '高中': { time: 90, hearts: 4, fireRate: 0.6, baseSpeed: 70, speedInc: 8, stars: 5, lineCount: 8 },
+            '大學': { time: 105, hearts: 3, fireRate: 0.5, baseSpeed: 75, speedInc: 9, stars: 4, lineCount: 8 },
+            '研究所': { time: 120, hearts: 2, fireRate: 0.4, baseSpeed: 80, speedInc: 10, stars: 3, lineCount: 8 }
         },
 
         enemyDirection: 1, // 1 為右, -1 為左
@@ -197,10 +227,12 @@
         },
 
         handleChestClick: function (x, y) {
+            const boxSizeWidth = this.ui.powerUpBoxSizeWidth * this.u;
+            const boxSizeHeight = this.ui.powerUpBoxSizeHeight * this.u;
             for (let i = 0; i < this.chestItems.length; i++) {
                 const c = this.chestItems[i];
-                // 檢查是否點擊到金黃色方塊 (方塊大小為 80x80)
-                if (x > c.x - 40 && x < c.x + 40 && y > c.y - 40 && y < c.y + 40) {
+                // 檢查是否點擊到金黃色方塊
+                if (x > c.x - boxSizeWidth / 2 && x < c.x + boxSizeWidth / 2 && y > c.y - boxSizeHeight / 2 && y < c.y + boxSizeHeight / 2) {
                     this.applyPowerUp(c.type);
                     this.chestItems = [];
                     break;
@@ -218,7 +250,6 @@
                     this.setupCanvas();
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
                     this.startNewGame();
-                    document.getElementById('game6-restart-btn').disabled = false;
                 });
             }
         },
@@ -227,10 +258,14 @@
             const area = document.querySelector('.game6-area');
             this.canvas.width = area.offsetWidth;
             this.canvas.height = area.offsetHeight;
-            this.isMobile = window.innerWidth < 768; // 判斷是否為手機
-            this.gScale = this.isMobile ? 0.6 : 1.0; // 手機縮小 40% (x0.6)
-            this.player.width = 50 * this.gScale;
-            this.player.height = 20 * this.gScale;
+
+            // 使用 rem 作為基準單位，確保在不同裝置上比例與視覺效果一致
+            const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+            this.u = rootFontSize;
+
+            // 砲塔尺寸根據 ui 設定調整
+            this.player.width = this.ui.playerWidth * this.u;
+            this.player.height = this.ui.playerHeight * this.u;
             this.player.x = this.canvas.width / 2;
         },
 
@@ -245,17 +280,22 @@
             this.startTimer();
             this.renderHearts();
             this.updateScoreUI();
+            // 啟用重來按鈕
+            document.getElementById('game6-restart-btn').disabled = false;
+            document.getElementById('game6-newGame-btn').disabled = false;
         },
 
         retryGame: function () {
-            // 啟用重來按鈕
-            document.getElementById('game6-restart-btn').disabled = false;
+
             this.mistakeCount = 0;
             this.resetGameStates();
             this.loadLevel(); // 可以考慮重複同一首詩，或換一首
             this.startLoop();
             this.startTimer();
             this.renderHearts();
+            // 啟用重來按鈕
+            document.getElementById('game6-restart-btn').disabled = false;
+            document.getElementById('game6-newGame-btn').disabled = false;
         },
 
         resetGameStates: function () {
@@ -281,13 +321,21 @@
 
         loadLevel: function () {
             const settings = this.difficultySettings[this.difficulty];
+            const minRating = settings.stars || 4;
 
-            // 挑選詩詞
+            // 使用共用邏輯取得隨機詩詞
             if (typeof POEMS !== 'undefined') {
-                const eligible = POEMS.filter(p => p.rating >= settings.stars);
-                const poem = eligible[Math.floor(Math.random() * eligible.length)];
-                this.currentPoem = poem;
-                this.createEnemies(poem);
+                const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+                if (result) {
+                    this.currentPoem = result.poem;
+                    this.createEnemies(result.poem, result.startIndex);
+                } else {
+                    // 備用方案
+                    const eligible = POEMS.filter(p => (p.rating || 0) >= minRating);
+                    const poem = eligible.length > 0 ? eligible[Math.floor(Math.random() * eligible.length)] : POEMS[Math.floor(Math.random() * POEMS.length)];
+                    this.currentPoem = poem;
+                    this.createEnemies(poem, 0);
+                }
             }
 
             // 根據難度設定初始速度與方向
@@ -296,18 +344,18 @@
 
             // 創建石碑：四組橫向排列
             const mCount = 4;
-            const blockW = 10;
-            const blockH = 10;
-            const mCols = 8;
-            const mRows = 3;
+            const blockW = this.ui.monumentBlockSize * this.u;
+            const blockH = this.ui.monumentBlockSize * this.u;
+            const mCols = this.ui.monumentCols;
+            const mRows = this.ui.monumentRows;
             const mTotalWidth = mCols * blockW;
             const spacing = this.canvas.width / (mCount + 1);
 
             for (let i = 0; i < mCount; i++) {
                 const startX = spacing * (i + 1) - mTotalWidth / 2;
-                const startY = this.canvas.height - 120;
+                const startY = this.canvas.height - 7.5 * this.u; // 底部高度比例
                 const blocks = [];
-                // 每個石碑由 8*3 個小方塊組成
+                // 每個石碑由設定的行列數組成
                 for (let r = 0; r < mRows; r++) {
                     for (let c = 0; c < mCols; c++) {
                         blocks.push({
@@ -323,28 +371,26 @@
             }
         },
 
-        createEnemies: function (poem) {
+        createEnemies: function (poem, lineStart) {
             const settings = this.difficultySettings[this.difficulty];
             const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-            const fontSize = 1.5 * rootFontSize; // 使用 2.0rem 以維持在所有裝置上的視覺比例
+            const fontSize = this.ui.enemySize * rootFontSize;
             this.enemyFontSize = fontSize;
 
             const startY = fontSize / 1; // 1. 緊貼畫布上緣
-            const leftRightSpacing = fontSize * 1.2;
-            const upDownSpacing = fontSize * 1.6;
-            const charSpacing = leftRightSpacing;
-            const rowSpacing = upDownSpacing;
+            const charSpacing = fontSize * this.ui.enemySpacingX; //敵人字的左右間隔
+            const rowSpacing = fontSize * this.ui.enemySpacingY; //敵人字的上下間隔
 
-            // 根據難度決定顯示幾句詩句
-            // 從奇數句（第1、3、5...)開始連續取 lineCount 句
-            const poemContent = poem.content;
-            const possibleStarts = [];
-            for (let i = 0; i < poemContent.length; i += 2) {
-                if (i + settings.lineCount - 1 < poemContent.length) possibleStarts.push(i);
+            // 如果沒有傳入 lineStart，則使用隨機策略 (回退用)
+            if (lineStart === undefined) {
+                const possibleStarts = [];
+                for (let i = 0; i < poem.content.length; i += 2) {
+                    if (i + settings.lineCount - 1 < poem.content.length) possibleStarts.push(i);
+                }
+                lineStart = possibleStarts.length > 0 ? possibleStarts[Math.floor(Math.random() * possibleStarts.length)] : 0;
             }
-            if (possibleStarts.length === 0) possibleStarts.push(0);
-            const lineStart = possibleStarts[Math.floor(Math.random() * possibleStarts.length)];
 
+            const poemContent = poem.content;
             const linesToShow = [];
             for (let i = 0; i < settings.lineCount; i++) {
                 const line = poemContent[lineStart + i];
@@ -502,7 +548,7 @@
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const e = this.enemies[i];
                 if (shiftDown) {
-                    e.y += fontSize / 3; // 碰牆時向下移動 1/3 字體高度
+                    e.y += fontSize / 4; // 碰牆時向下移動 1/4 字體高度
                 }
                 if (e.y > lowestY) lowestY = e.y;
 
@@ -546,8 +592,9 @@
             this.chestItems.forEach((c, idx) => {
                 // 檢查玩家是否碰觸
                 const px = this.player.x - this.player.width / 2;
-                const py = this.canvas.height - this.player.height - 20;
-                if (this.rectIntersect(px, py, this.player.width, this.player.height, c.x - 20, c.y - 20, 40, 40)) {
+                const py = this.canvas.height - this.player.height - 1.25 * this.u;
+                const hitSize = 2.5 * this.u;
+                if (this.rectIntersect(px, py, this.player.width, this.player.height, c.x - hitSize / 2, c.y - hitSize / 2, hitSize, hitSize)) {
                     this.applyPowerUp(c.type);
                     this.chestItems = []; // 撿起一個，其餘消失
                 }
@@ -563,15 +610,15 @@
         fireBullet: function () {
             const bSpeed = 400;
             const count = this.player.multiShotLevel;
-            const spread = 20; // 彈幕間距
-
-            // 根據等級發射相對應數量的子彈 (如 1, 2, 3...)
-            const startX = this.player.x - ((count - 1) * spread) / 2;
+            const spread = 0.9 * this.u; // 與 draw 函式中的間距保持一致
+            const gunH = this.ui.gunHeight * this.u;
+            const py = this.canvas.height - this.player.height - 1.25 * this.u;
 
             for (let i = 0; i < count; i++) {
+                const off = (i - (count - 1) / 2) * spread;
                 this.player.bullets.push({
-                    x: startX + i * spread,
-                    y: this.canvas.height - 50,
+                    x: this.player.x + off,
+                    y: py - gunH,
                     speed: bSpeed,
                     type: this.player.pierceLevel > 0 ? 'pierce' : 'normal',
                     pierceCount: this.player.pierceLevel // 剩餘穿透數
@@ -700,7 +747,7 @@
 
                 // 玩家碰撞
                 const px = this.player.x - this.player.width / 2;
-                const py = this.canvas.height - this.player.height - 20;
+                const py = this.canvas.height - this.player.height - 1.25 * this.u;
                 if (this.rectIntersect(px, py, this.player.width, this.player.height, p.x - p.radius, p.y - p.radius, p.radius * 2, p.radius * 2)) {
                     this.enemyProjectiles.splice(i, 1);
                     // 3. 敵人砲彈碰到砲塔會出現紅色的爆炸特效
@@ -787,7 +834,7 @@
             this.isEnding = true;
             this.player.hitTimer = 2.0; // 確保砲塔在表演期間保持紅色
             const px = this.player.x;
-            const py = this.canvas.height - this.player.height - 20;
+            const py = this.canvas.height - this.player.height - 1.25 * this.u;
 
             // 完整表演三倍數量的紅色被擊中爆破特效 (約 1 秒)
             for (let k = 0; k < 3; k++) {
@@ -846,15 +893,18 @@
             this.player.bullets.forEach(b => {
                 this.ctx.fillStyle = b.type === 'pierce' ? 'gold' : 'yellow';
                 this.ctx.beginPath();
-                this.ctx.arc(b.x, b.y, (b.type === 'pierce' ? 6 : 4) * (this.gScale || 1), 0, Math.PI * 2);
+                const diameter = b.type === 'pierce' ? this.ui.bulletSizePierce : this.ui.bulletSize;
+                const radius = (diameter / 2) * this.u;
+                this.ctx.arc(b.x, b.y, radius, 0, Math.PI * 2);
                 this.ctx.fill();
             });
 
             // 畫敵人墨點
             this.enemyProjectiles.forEach(p => {
-                this.ctx.fillStyle = 'hsl(270, 0%, 50%)';
+                this.ctx.fillStyle = 'hsl(270, 0%, 80%)';
                 this.ctx.beginPath();
-                this.ctx.arc(p.x, p.y, p.radius * (this.gScale || 1), 0, Math.PI * 2);
+                const radius = (this.ui.enemyBulletSize / 2) * this.u;
+                this.ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
                 this.ctx.fill();
                 this.ctx.strokeStyle = 'hsl(270, 0%, 100%)';
                 this.ctx.stroke();
@@ -863,14 +913,16 @@
             // 畫玩家砲台
             this.ctx.fillStyle = this.player.hitTimer > 0 ? 'red' : 'hsl(36, 80%, 50%)';
             const px = this.player.x - this.player.width / 2;
-            const py = this.canvas.height - this.player.height - 20;
+            const py = this.canvas.height - this.player.height - 1.25 * this.u;
             this.ctx.fillRect(px, py, this.player.width, this.player.height);
-            // 砲管 (也要縮小)
+            // 砲管
             const mCount = this.player.multiShotLevel;
-            const gs = this.gScale || 1;
+            const gunW = this.ui.gunWidth * this.u;
+            const gunH = this.ui.gunHeight * this.u;
+            const spread = 0.9 * this.u;
             for (let i = 0; i < mCount; i++) {
-                const off = (i - (mCount - 1) / 2) * 15 * gs;
-                this.ctx.fillRect(this.player.x + off - 4 * gs, py - 10 * gs, 8 * gs, 10 * gs);
+                const off = (i - (mCount - 1) / 2) * spread;
+                this.ctx.fillRect(this.player.x + off - gunW / 2, py - gunH, gunW, gunH);
             }
 
             // 畫獎勵 UI
@@ -878,19 +930,21 @@
                 this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.fillStyle = 'white';
-                this.ctx.font = "bold 2rem 'Noto Serif TC'";
+                this.ctx.font = `bold 2rem 'Noto Serif TC'`;
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText("請選擇獎勵", this.canvas.width / 2, this.canvas.height / 2 - 100);
+                this.ctx.fillText("請選擇獎勵", this.canvas.width / 2, this.canvas.height / 2 - 6.25 * this.u);
 
                 this.chestItems.forEach(c => {
+                    const boxSizeWidth = this.ui.powerUpBoxSizeWidth * this.u;
+                    const boxSizeHeight = this.ui.powerUpBoxSizeHeight * this.u;
                     this.ctx.fillStyle = 'gold';
-                    this.ctx.fillRect(c.x - 60, c.y - 60, 120, 120);
+                    this.ctx.fillRect(c.x - boxSizeWidth / 2, c.y - boxSizeHeight / 2, boxSizeWidth, boxSizeHeight);
                     this.ctx.strokeStyle = 'white';
                     this.ctx.lineWidth = 2;
-                    this.ctx.strokeRect(c.x - 60, c.y - 60, 120, 120);
+                    this.ctx.strokeRect(c.x - boxSizeWidth / 2, c.y - boxSizeHeight / 2, boxSizeWidth, boxSizeHeight);
 
                     this.ctx.fillStyle = 'black';
-                    this.ctx.font = "bold 1.2rem sans-serif";
+                    this.ctx.font = `bold ${1.1 * this.u}px sans-serif`;
                     let label1 = "";
                     let label2 = "";
                     let val = "";
@@ -904,12 +958,12 @@
                         val = (this.player.multiShotLevel + 1) + " 發";
                     } else if (c.type === 'Pierce') {
                         label1 = "穿透";
-                        label1 = "敵機";
+                        label2 = "敵機";
                         val = (this.player.pierceLevel + 1) + " 架";
                     }
-                    this.ctx.fillText(label1, c.x, c.y - 30);
+                    this.ctx.fillText(label1, c.x, c.y - 1.8 * this.u);
                     this.ctx.fillText(label2, c.x, c.y);
-                    this.ctx.fillText(val, c.x, c.y + 36);
+                    this.ctx.fillText(val, c.x, c.y + 2.25 * this.u);
                 });
             }
 
@@ -982,6 +1036,7 @@
             this.isWin = true;
             clearInterval(this.timerInterval);
             document.getElementById('game6-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+            document.getElementById('game6-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕
             ScoreManager.playWinAnimation({
                 game: this,
                 difficulty: this.difficulty,
@@ -999,9 +1054,11 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game6-restart-btn').disabled = true;
+                document.getElementById('game6-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game6-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game6-restart-btn').disabled = false;
+                document.getElementById('game6-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
             const msgDiv = document.getElementById('game6-message');

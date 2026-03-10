@@ -38,10 +38,10 @@
         maxChars 總字數上限*/
         difficultySettings: {
             '小學': { hints: 'all', splitPath: true, maxMistake: 8, time: 80, obstacles: 0, decoyPool: 'normal', stars: 6, minLines: 4, maxChars: 56 },
-            '中學': { hints: 'startEnd', splitPath: true, maxMistake: 6, time: 70, obstacles: 0, decoyPool: 'normal', stars: 5, minLines: 4, maxChars: 56 },
-            '高中': { hints: 'startEnd', splitPath: true, maxMistake: 4, time: 60, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 8, maxChars: 56 },
-            '大學': { hints: 'start', splitPath: false, maxMistake: 2, time: 55, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 8, maxChars: 56 },
-            '研究所': { hints: 'start', splitPath: false, maxMistake: 1, time: 45, obstacles: 0, decoyPool: 'hard', stars: 3, minLines: 8, maxChars: 56 }
+            '中學': { hints: 'startEnd', splitPath: true, maxMistake: 6, time: 75, obstacles: 0, decoyPool: 'normal', stars: 5, minLines: 4, maxChars: 56 },
+            '高中': { hints: 'startEnd', splitPath: true, maxMistake: 4, time: 70, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 4, maxChars: 56 },
+            '大學': { hints: 'start', splitPath: false, maxMistake: 2, time: 65, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 6, maxChars: 56 },
+            '研究所': { hints: 'start', splitPath: false, maxMistake: 1, time: 60, obstacles: 0, decoyPool: 'hard', stars: 3, minLines: 8, maxChars: 56 }
         },
 
         decoySets: {
@@ -51,7 +51,7 @@
             environment: "山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
             color: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
             plant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
-            common: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長"
+            common: "的一是在不了有和人這中大為上個國以要時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長"
         },
 
         loadCSS: function () {
@@ -201,7 +201,7 @@
         restartGame: function () {
             this.startNewGame();
         },
-
+        //game8只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
             this.isActive = true;
             this.score = 0;
@@ -229,6 +229,7 @@
             this.applyHints();
             // 格子、提示、進度都準備完畢後才啟用重來按鈕
             document.getElementById('game8-restart-btn').disabled = false;
+            document.getElementById('game8-newGame-btn').disabled = false;
 
             const diffTag = document.getElementById('game8-diff-tag');
             if (diffTag) diffTag.textContent = this.difficulty;
@@ -255,7 +256,7 @@
             const reqStars = settings.stars;
 
             // 呼叫全局選詩函數，maxLines 給 100 代表無上限，minChars 設定為 8 字
-            const result = getSharedRandomPoem(reqStars, minLines, 100, 8, maxChars);
+            const result = getSharedRandomPoem(reqStars, minLines, 100, 20, maxChars);
 
             if (!result) return false;
 
@@ -281,12 +282,39 @@
             // 初始化網格數據矩陣 (9 列 x 7 欄)
             this.gridData = Array(9).fill().map(() => Array(7).fill(null));
             const settings = this.difficultySettings[this.difficulty];
+            const pathLength = this.fullPoemText.length;
 
-            let pathLength = this.fullPoemText.length;
-            let generatedPath = this.generateRandomPath(pathLength, settings.obstacles);
+            // --- 新增：強迫強迫路徑迂迴規則 ---
+            // 在設計路徑之前，先取出非答案文字的 1/4 字數，隨機擺放位置，強迫路徑繞道。
+            const totalCells = 63; // 9x7
+            const emptyCount = totalCells - pathLength;
+            const preDecoyCount = Math.ceil(emptyCount / 4);
+            const preOccupied = [];
+
+            // 隨機抽選預放位置
+            const allCoords = [];
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 7; c++) allCoords.push({ r, c });
+            }
+            allCoords.sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < preDecoyCount; i++) {
+                const coord = allCoords.pop();
+                preOccupied.push(coord);
+                // 暫時標記為預放誘餌
+                this.gridData[coord.r][coord.c] = { isPreDecoy: true };
+            }
+
+            // 獲取路徑 (傳入預放位置資訊)
+            let generatedPath = this.generateRandomPath(pathLength, settings.obstacles, preOccupied);
 
             if (!generatedPath) {
-                // 如果特定起點無法生成高品質路徑，則執行保底生成的邏輯（不考慮障礙物）
+                // 如果預設權重導致死棋，則清除預放標記進行保底重試
+                for (let r = 0; r < 9; r++) {
+                    for (let c = 0; c < 7; c++) {
+                        if (this.gridData[r][c] && this.gridData[r][c].isPreDecoy) this.gridData[r][c] = null;
+                    }
+                }
                 generatedPath = this.generateRandomPath(pathLength, 0);
             }
 
@@ -335,9 +363,10 @@
             let obstacleCountDecided = settings.obstacles;
             for (let r = 0; r < 9; r++) {
                 for (let c = 0; c < 7; c++) {
-                    if (this.gridData[r][c] === null) {
-                        // 依照障礙物機率與剩餘數量進行分配
-                        if (obstacleCountDecided > 0 && Math.random() < 0.2) {
+                    const existing = this.gridData[r][c];
+                    if (existing === null || (existing && existing.isPreDecoy)) {
+                        // 依照障礙物機率與剩餘數量進行分配 (預放區不放障礙物)
+                        if (obstacleCountDecided > 0 && Math.random() < 0.2 && !(existing && existing.isPreDecoy)) {
                             this.gridData[r][c] = {
                                 char: '',
                                 isTarget: false,
@@ -361,7 +390,7 @@
             this.renderGrid();
         },
 
-        generateRandomPath: function (length, numObstacles) {
+        generateRandomPath: function (length, numObstacles, preOccupied = []) {
             const ROWS = 9, COLS = 7;
             const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
             const dirNames = ['U', 'D', 'L', 'R'];
@@ -439,6 +468,14 @@
                 let path = [];
                 let visited = Array(ROWS).fill().map(() => Array(COLS).fill(false));
 
+                // 將預放的誘餌文字標記為已訪問，強迫路徑繞道
+                preOccupied.forEach(coord => {
+                    visited[coord.r][coord.c] = true;
+                });
+
+                // 如果起點剛好被預放位佔用，則此次嘗試失敗
+                if (visited[startR][startC]) return null;
+
                 let iterations = 0;
                 const MAX_ITER = 4000; // 設定上限避免過度消耗效能
 
@@ -478,18 +515,25 @@
                             // 唯一出路，為了避免製造死棋，這步必須給予極高分數絕對優先走。
                             prefScore += 1000;
                         } else {
-                            // 趨中性：避免一直沿著邊緣走，稍微給予內側高分，把路徑拉離開牆壁
+                            // 1. 基礎趨中性：避免過度貼牆，稍微引導回中央腹地
                             const distToCenter = Math.abs(nr - 4) + Math.abs(nc - 3);
-                            prefScore += (10 - distToCenter) * 4;
+                            prefScore += (10 - distToCenter) * 2;
 
-                            // 不要急著轉彎，三格直線再轉彎是最適合的
+                            // 2. 對角發展性 (新規則)：傾向朝目前位置的對角線對應區發展，使路徑更活潑且橫跨各區
+                            // 例如：在左上 (0,0) 時，目標朝向右下 (8,6) 引導
+                            const targetR = 8 - r;
+                            const targetC = 6 - c;
+                            const distToDiagonalTarget = Math.abs(nr - targetR) + Math.abs(nc - targetC);
+                            prefScore += (14 - distToDiagonalTarget) * 5;
+
+                            // 3. 節奏控制：不要急著轉彎，三格直線再轉彎是最適合的
                             if (lastDir !== null) {
                                 if (isStraight) {
-                                    if (currentStraight < 3) prefScore += 15; // 鼓勵保持直走達到3格
-                                    else prefScore -= 50;                     // 超過3格則極力勸退
+                                    if (currentStraight < 3) prefScore += 20; // 鼓勵保持直走達到3格
+                                    else prefScore -= 20;                     // 超過3格則極力勸退
                                 } else {
-                                    if (currentStraight === 3) prefScore += 15; // 走滿三格後轉彎給予強烈獎勵
-                                    else prefScore += 25;                        // 未滿三格急著轉彎給予懲罰
+                                    if (currentStraight === 3) prefScore += 30; // 走滿三格後轉彎給予獎勵
+                                    else prefScore += 5;                         // 未滿三格轉彎給予微小分數
                                 }
                             }
                         }
@@ -552,10 +596,10 @@
                     quality += metrics.perfectTurns * 25;
 
                     // 負分項：嚴厲懲罰沒有做好的擴散或太長無聊的直線
-                    quality -= metrics.emptyRegions * 200;
-                    quality -= metrics.adjacentEmpty * 500;
-                    quality -= metrics.singleCellRegions * 50;
-                    quality -= metrics.badStraights * 50;
+                    quality -= metrics.emptyRegions * 200; //評估九宮格分佈均勻度，找到第一個宮格空格就減分較多
+                    quality -= metrics.singleCellRegions * 100; //持續評估是否仍有九宮格的空洞，每一格扣分。
+                    quality -= metrics.adjacentEmpty * 600; //評估是否有相鄰九宮格的皆是空洞，嚴重扣分
+                    quality -= metrics.badStraights * 30; //評估是否有太長的直線(等於或超過四格)，略為減分
 
                     if (quality > bestScore) {
                         bestScore = quality;
@@ -1160,7 +1204,8 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             // 禁用重來按鈕
-            document.getElementById('game8-restart-btn').disabled = true;
+            document.getElementById('game8-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+            document.getElementById('game8-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
 
             // Using standard win animation
             ScoreManager.playWinAnimation({
@@ -1181,8 +1226,10 @@
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
                 document.getElementById('game8-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+                document.getElementById('game8-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
                 document.getElementById('game8-restart-btn').disabled = false;
+                document.getElementById('game8-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
 

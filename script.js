@@ -1,12 +1,16 @@
-/* =========================================
-   全站通用邏輯（已分離至各元件）
-   - 日曆邏輯請見 calendar.js
-   - 卡片邏輯請見 cards.js
-   ========================================= */
-
-/* 
-   此檔案保留以供全局邏輯使用。
-*/
+/* =============================================================================
+   花月共用邏輯核心 (FlowerMoon Core Script)
+   =============================================================================
+   此檔案包含全站通用的基礎功能，包括：
+   1. 詩詞隨機選取邏輯 (getSharedRandomPoem)
+   2. 混淆字元與相似句產生工具 (SharedDecoy)
+   3. 全站通用音效管理工具 (SoundManager)
+   
+   其他專屬邏輯請參考對應檔案：
+   - 日曆相關：calendar.js
+   - 詩詞卡片：cards.js
+   - 各遊戲：game1.js ~ game9.js
+   ========================================================================== */
 
 /**
  * 於詩詞資料庫中隨機選取題目之共用邏輯。
@@ -27,18 +31,37 @@
  */
 function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, keyword = "") {
    if (typeof POEMS === 'undefined' || POEMS.length === 0) return null;
-
+   // 
+   /**
+    * 內部輔助函式：針對單首詩詞檢查是否有符合條件的起始索引。
+    * 
+    * @param {object} poem 詩詞物件
+    * @param {boolean} checkStars 是否嚴格檢查詩句評分 (line_ratings)
+    * @returns {number[]} 符合條件的起始索引陣列 (index 均為偶數)
+    */
    const getValidStarts = (poem, checkStars) => {
       if (!poem.content || poem.content.length < minLines) return [];
       const validStarts = [];
       const lineRatings = poem.line_ratings || [];
 
-      // 奇數句開始 (陣列 index = 0, 2, 4...)
+      // 從奇數句開始遍歷 (陣列 index = 0, 2, 4...)
+      // 理由：詩詞對句通常以「出句」開始，故 index 恆為偶數
       for (let i = 0; i <= poem.content.length - minLines; i += 2) {
-         if (checkStars && (lineRatings[i] || 0) < minRating) continue;
+         // 修改：確保連續 minLines 句的每一句評價都符合要求
+         if (checkStars) {
+            let allLinesOk = true;
+            for (let k = 0; k < minLines; k++) {
+               if ((lineRatings[i + k] || 0) < minRating) {
+                  allLinesOk = false;
+                  break;
+               }
+            }
+            if (!allLinesOk) continue;
+         }
 
          let charCount = 0;
          let combinedText = "";
+         // 計算連續 minLines 句的總字數與合併文字
          for (let j = 0; j < minLines; j++) {
             const raw = poem.content[i + j] || '';
             const clean = raw.replace(/[，。？！、：；「」『』\s]/g, "");
@@ -46,24 +69,26 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
             combinedText += clean;
          }
 
-         // 檢查是否符合關鍵字條件
+         // 如果指定了關鍵字，則該段文字必須包含該關鍵字
          if (keyword && combinedText.indexOf(keyword) === -1) {
             continue;
          }
 
+         // 檢查總字數是否在要求的範圍 [minChars, maxChars] 內
          if (charCount <= maxChars && charCount >= minChars) {
             validStarts.push(i);
          }
       }
-      return validStarts;
+      return validStarts; //回傳符合詩詞評價、字數、關鍵字條件的詩詞編號索引陣列
    };
 
+   //詩詞評價需大於等於minRating
    let validPoems = [];
    POEMS.forEach(poem => {
       if ((poem.rating || 0) >= minRating) {
          const starts = getValidStarts(poem, true);
          if (starts.length > 0) {
-            validPoems.push({ poem, starts });
+            validPoems.push({ poem, starts, isStrict: true });
          }
       }
    });
@@ -73,16 +98,18 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
       POEMS.forEach(poem => {
          const starts = getValidStarts(poem, false);
          if (starts.length > 0) {
-            validPoems.push({ poem, starts });
+            validPoems.push({ poem, starts, isStrict: false });
          }
       });
    }
-
+   //依然找不到就回傳null
    if (validPoems.length === 0) return null;
 
-   // 絕對隨機挑選一首詩
+   // 從上述符合評價的詩詞池中隨機挑選一首詩
+   const isStrict = validPoems[0].isStrict; // 記錄是否為嚴格篩選模式
    const chosen = validPoems[Math.floor(Math.random() * validPoems.length)];
    const chosenPoem = chosen.poem;
+   const lineRatings = chosenPoem.line_ratings || [];
 
    // 絕對隨機選定起始句
    const startIdx = chosen.starts[Math.floor(Math.random() * chosen.starts.length)];
@@ -99,6 +126,14 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
 
    // 嘗試以 2 句為單位往下連續擷取，直到超過字數、句數上限或碰到詩的結尾
    while (startIdx + selectedLineCount + 1 < chosenPoem.content.length && selectedLineCount + 2 <= maxLines) {
+      // 若為嚴格模式，也需檢查後續句子的評分
+      if (isStrict) {
+         if ((lineRatings[startIdx + selectedLineCount] || 0) < minRating ||
+            (lineRatings[startIdx + selectedLineCount + 1] || 0) < minRating) {
+            break;
+         }
+      }
+
       const raw1 = chosenPoem.content[startIdx + selectedLineCount] || '';
       const raw2 = chosenPoem.content[startIdx + selectedLineCount + 1] || '';
       const clean1 = raw1.replace(/[，。？！、：；「」『』\s]/g, "");
@@ -123,7 +158,8 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
 
    return {
       poem: chosenPoem,
-      lines: poemLines
+      lines: poemLines,
+      startIndex: startIdx
    };
 }
 
@@ -131,15 +167,18 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
  * 全站通用的混淆字元與混淆句產生工具
  */
 window.SharedDecoy = {
-   // 常用字庫分類，可以當作備用干擾項目
+   // 預設分類字庫：當找不到動態干擾項時的備用來源
    decoyCharsSets: {
       people: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
-      season: "春夏秋冬晨晝暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
+      season: "春夏秋冬晨朝晝昏暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
       weather: "陰晴風雨雪霜露霧霞虹暖寒涼暑晦暗亮光明清冽空氣嵐",
-      environment: "山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
+      environment: "地山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
       color: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
       plant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
-      common: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長"
+      size: "大中小特巨微長短高矮胖瘦多少",
+      direction: "東南西北上下左右前後",
+      number: "一二三四五六七八九十百千萬億",
+      common: "的是在不了有和這為個國以要時來用們生到作地於出就分對成會可主發年動同工也能過說產種面而方定行學法所民得經之進著等部度家更想樣理心本去現什把那問當沒看起都現兩文正開實事些點只如長"
    },
 
    /**
@@ -150,31 +189,39 @@ window.SharedDecoy = {
     * @param {string[]} targetChars 正確答案的字元陣列
     * @param {number} requiredCount 需要產生的混淆字數量
     * @param {string[]} excludeChars 額外需要排除的字元陣列
+    * @param {number} minRating 最低詩詞評價要求 (預設 4)
     * @returns {string[]} 回傳產出的混淆字陣列
     */
-   getDecoyChars: function (targetChars, requiredCount, excludeChars = []) {
+   getDecoyChars: function (targetChars, requiredCount, excludeChars = [], minRating = 4) {
       let decoys = new Set();
       const allExcluded = new Set([...targetChars, ...excludeChars]);
 
-      // 1. 若有載入最常見字排名，則尋找 seed
+      // 1. 策略 A：動態種子法 (Dynamic Seed Selection)
+      // 若系統已載入「最常見字排名」，則嘗試從正確答案中隨機挑選一個常見字作為「種子」。
       if (typeof CharacterFrequencyRank !== 'undefined' && typeof POEMS !== 'undefined' && POEMS.length > 0) {
-         // 從靶標中整理頻率排名 (使用全域的 CharacterFrequencyRank)
+         // 將 targetChars 對應其在 CharacterFrequencyRank 中的排名
          let rankMap = targetChars.map(c => {
-            let idx = CharacterFrequencyRank.indexOf(c);
+            // 兼容舊格式 ["字", ...] 與新格式 [["字", 次數], ...]
+            let idx = CharacterFrequencyRank.findIndex(item => {
+               if (Array.isArray(item)) return item[0] === c;
+               return item === c;
+            });
+            // 若不在排名中，給予極大值代表不常見
             return { char: c, rank: idx === -1 ? 999999 : idx };
          });
 
-         // 依照 rank 由小至大排序 (也就是最常見到最不常見)
+         // 依照常見度(排名數值越小越常見)排序
          rankMap.sort((a, b) => a.rank - b.rank);
 
-         // 隨機選擇排名靠前的字 (避免每次都是第一名，可以選前 3 名中的 1 個)
+         // 從最常見的前 N 個字中隨機挑選一個作為種子字 (seedChar)
          const topN = Math.min(3, rankMap.length);
          const seedChar = rankMap[Math.floor(Math.random() * topN)].char;
 
-         // 從所有詩詞中尋找含有該 seed 的詩句
+         // 1.1 從所有詩詞中搜尋包含該種子字的詩句，並取出其他字作為干擾項
+         // 這樣產生的混淆字會與正確答案具有某種「文學上的聯繫」
          let candidateSentences = [];
          for (const poem of POEMS) {
-            if (!poem.content) continue;
+            if (!poem.content || (poem.rating || 0) < minRating) continue;
             for (const line of poem.content) {
                const cleanLine = line.replace(/[，。？！、：；「」『』\s]/g, "");
                if (cleanLine.includes(seedChar)) {
@@ -198,15 +245,17 @@ window.SharedDecoy = {
          }
       }
 
-      // 2. 如果透過上述方法找不夠，回退使用舊的分類字庫方法
+      // 2. 策略 B：分類主題法 (Thematic Fallback)
+      // 如果動態法產生的字數不足，則根據正確答案所屬的「主題」 (如：春夏秋冬、草木) 取字。
       if (decoys.size < requiredCount) {
          const sets = Object.values(this.decoyCharsSets);
          for (const targetChar of targetChars) {
             if (decoys.size >= requiredCount) break;
+            // 60% 機率嘗試尋找匹配的主題集
             if (Math.random() < 0.6) {
                const matchedSet = sets.find(s => s.includes(targetChar));
                if (matchedSet) {
-                  const candidates = matchedSet.split('').filter(c => !allExcluded.has(c));
+                  // 從該主題集中過濾掉已使用的字，隨機取出填充
                   candidates.sort(() => Math.random() - 0.5);
                   for (const c of candidates) {
                      if (decoys.size >= requiredCount) break;
@@ -344,7 +393,8 @@ window.SoundManager = {
    },
 
    /**
-    * 喜悅三連音，C5 E5 G5 
+    * 喜悅三連音：清脆的快節奏上升音階 (C5 E5 G5)
+    * 通常用於遊戲獲勝、獲得獎勵等正面場景。
     */
    playJoyfulTriple: function () {
       this.init();
@@ -355,27 +405,31 @@ window.SoundManager = {
       this.playTone(659.25, 0.2, now + 0.1); // E5
       this.playTone(783.99, 0.6, now + 0.2); // G5
    },
+
    /**
-    * 喜悅三連音緩慢，C5 E5 G5 
+    * 喜悅三連音(緩慢)：步調較從容的上升音階
+    * 用於層級晉升或較大幅度的成功回饋。
     */
    playJoyfulTripleSlow: function () {
       this.init();
       if (!this.audioCtx) return;
 
       const now = this.audioCtx.currentTime;
-      this.playTone(523.25, 0.2, now);     // C5
+      this.playTone(523.25, 0.2, now);       // C5
       this.playTone(659.25, 0.4, now + 0.2); // E5
       this.playTone(783.99, 0.8, now + 0.4); // G5
    },
+
    /**
-    * 悲傷三連音，A3 E3 C3 
+    * 悲傷三連音：沉重且節奏綿延的下降音標 (A4 E3 C3)
+    * 用於遊戲結束、挑戰失敗等挫折場景。
     */
    playSadTriple: function () {
       this.init();
       if (!this.audioCtx) return;
 
       const now = this.audioCtx.currentTime;
-      this.playTone(440.00, 0.4, now);     // A4
+      this.playTone(440.00, 0.4, now);       // A4
       this.playTone(164.81, 0.8, now + 0.2); // E3
       this.playTone(130.81, 1.2, now + 0.4); // C3
    },
@@ -419,6 +473,12 @@ window.SoundManager = {
 
    /**
     * 基礎播放正弦波(或其他波形)音調之工具函數
+    * 利用 Web Audio API 建立 Oscillator 與 GainNode 進行發聲。
+    * 
+    * @param {number} freq 頻率 (Hz)
+    * @param {number} duration 持續時間 (秒)
+    * @param {number} startTime 開始播放時間
+    * @param {string} type 波形類別 ('sine', 'square', 'sawtooth', 'triangle')
     */
    playTone: function (freq, duration, startTime, type = 'sine') {
       const osc = this.audioCtx.createOscillator();
@@ -430,6 +490,7 @@ window.SoundManager = {
       osc.connect(gain);
       gain.connect(this.audioCtx.destination);
 
+      // 設定初始音量與指數型衰減，使聲音聽起來較自然
       gain.gain.setValueAtTime(0.3, startTime);
       gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
 
