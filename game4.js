@@ -22,11 +22,11 @@
         game4Area: null,
 
         difficultySettings: {
-            '小學': { time: 60, maxMistakeCount: 4, maxHideCount: 3, maxAddDecoyChars: 6, hideLines: 2, minRating: 7, showDelay: 0 },
-            '中學': { time: 45, maxMistakeCount: 5, maxHideCount: 5, maxAddDecoyChars: 8, hideLines: 2, minRating: 6, showDelay: 4 },
-            '高中': { time: 30, maxMistakeCount: 6, maxHideCount: 7, maxAddDecoyChars: 12, hideLines: 2, minRating: 5, showDelay: 8 },
+            '小學': { time: 60, maxMistakeCount: 4, maxHideCount: 3, maxAddDecoyChars: 6, hideLines: 2, minRating: 6, showDelay: 0 },
+            '中學': { time: 45, maxMistakeCount: 5, maxHideCount: 5, maxAddDecoyChars: 8, hideLines: 2, minRating: 5, showDelay: 4 },
+            '高中': { time: 30, maxMistakeCount: 6, maxHideCount: 7, maxAddDecoyChars: 12, hideLines: 2, minRating: 4, showDelay: 8 },
             '大學': { time: 20, maxMistakeCount: 7, maxHideCount: 10, maxAddDecoyChars: 15, hideLines: 0, minRating: 3, showDelay: 10 },
-            '研究所': { time: 15, maxMistakeCount: 8, maxHideCount: 12, maxAddDecoyChars: 20, hideLines: 3, minRating: 1, showDelay: 12 }
+            '研究所': { time: 15, maxMistakeCount: 8, maxHideCount: 12, maxAddDecoyChars: 20, hideLines: 3, minRating: 2, showDelay: 12 }
         },
 
         // 常用字庫已移至 script.js 的 window.SharedDecoy 中
@@ -60,7 +60,7 @@
                 <div class="game4-header">
                     <div class="game4-score-board">分數: <span id="game4-score">0</span></div>
                     <div class="game4-controls">
-                        <button id="game4-restart-btn" class="nav-btn">重來</button>
+                        <button id="game4-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game4-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
@@ -90,7 +90,7 @@
                 </div>
             `;
             document.body.appendChild(div);
-            document.getElementById('game4-restart-btn').onclick = () => {
+            document.getElementById('game4-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();
             };
@@ -101,7 +101,8 @@
             document.getElementById('game4-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game4-message').classList.add('hidden');
-                this.startNewGame();
+                if (this.isWin) this.startNewGame();
+                else this.retryGame();
             };
 
             this.renderHearts();
@@ -125,7 +126,7 @@
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
-                    this.restartGame();
+                    this.startNewGame();
                 });
             } else {
                 console.warn('[Game4] DifficultySelector not found');
@@ -189,7 +190,7 @@
                 }, settings.showDelay * 1000);
             }
             // 啟用重來按鈕
-            document.getElementById('game4-restart-btn').disabled = false;
+            document.getElementById('game4-retryGame-btn').disabled = false;
             document.getElementById('game4-newGame-btn').disabled = false;
         },
 
@@ -228,12 +229,8 @@
                 this.showDifficultySelector();
             }
             // 啟用重來按鈕
-            document.getElementById('game4-restart-btn').disabled = false;
+            document.getElementById('game4-retryGame-btn').disabled = false;
             document.getElementById('game4-newGame-btn').disabled = false;
-        },
-
-        restartGame: function () {
-            this.startNewGame();
         },
 
         selectRandomPoem: function () {
@@ -402,7 +399,7 @@
                 container.appendChild(btn);
             });
 
-            document.getElementById('game4-restart-btn').disabled = false;
+            document.getElementById('game4-retryGame-btn').disabled = false;
             document.getElementById('game4-newGame-btn').disabled = false;
             this.updateTimerRing(1);
         },
@@ -512,7 +509,7 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);
-            document.getElementById('game4-restart-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕
+            document.getElementById('game4-retryGame-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕
             document.getElementById('game4-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕
             // 立即顯示隱藏的題目內容
             this.isRevealed = true;
@@ -536,12 +533,13 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            this.isWin = win;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game4-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game4-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game4-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
-                document.getElementById('game4-restart-btn').disabled = false;
+                document.getElementById('game4-retryGame-btn').disabled = false;
                 document.getElementById('game4-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
@@ -563,6 +561,12 @@
                     title.textContent = "功敗垂成";
                     title.style.color = "#ff4757";
                     content.textContent = reason || "再試一次吧！";
+                }
+                const msgBtn = document.getElementById('game4-msg-btn');
+                if (win) {
+                    msgBtn.textContent = "下一局";
+                } else {
+                    msgBtn.textContent = "再試一次";
                 }
             }, 500);
         }

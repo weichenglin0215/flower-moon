@@ -208,16 +208,23 @@
     transform: translate(-50%, -50%);
     background: rgba(20, 20, 20, 0.95);
     border: 0.1rem solid hsl(45, 50%, 40%);
-    padding: 1.5rem;
+    padding: 1.0rem;
     border-radius: 1rem;
     text-align: center;
     z-index: 2100;
-    min-width: 6.0rem;
+    min-width: 12.0rem;
     box-shadow: 0 0 0.9rem rgba(0, 0, 0, 0.8);
 }
 
 .game5-message.hidden {
     display: none;
+}
+
+.game5-msg-poem-info {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: hsl(45, 50%, 75%);
 }
 
 .game5-msg-btn {

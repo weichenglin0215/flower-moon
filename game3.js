@@ -35,11 +35,11 @@
         // 難度設定
         difficulty: '小學',
         difficultySettings: {
-            '小學': { incrementSpeed: 0.001, maxSpeed: 0.07, minRating: 7, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, maxMistakeCount: 14, isStrictOrder: false },
-            '中學': { incrementSpeed: 0.002, maxSpeed: 0.08, minRating: 6, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, maxMistakeCount: 14, isStrictOrder: false },
+            '小學': { incrementSpeed: 0.001, maxSpeed: 0.07, minRating: 6, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, maxMistakeCount: 14, isStrictOrder: false },
+            '中學': { incrementSpeed: 0.002, maxSpeed: 0.08, minRating: 5, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, maxMistakeCount: 14, isStrictOrder: false },
             '高中': { incrementSpeed: 0.004, maxSpeed: 0.10, minRating: 4, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, maxMistakeCount: 12, isStrictOrder: false },
             '大學': { incrementSpeed: 0.006, maxSpeed: 0.12, minRating: 3, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, maxMistakeCount: 10, isStrictOrder: true },
-            '研究所': { incrementSpeed: 0.008, maxSpeed: 0.15, minRating: 1, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, maxMistakeCount: 10, isStrictOrder: true }
+            '研究所': { incrementSpeed: 0.008, maxSpeed: 0.15, minRating: 2, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, maxMistakeCount: 10, isStrictOrder: true }
         },
 
         loadCSS: function () {
@@ -63,7 +63,7 @@
             this.historyContainer = document.getElementById('game3-history');
 
             // 綁定關閉按鈕
-            document.getElementById('game3-restart-btn').onclick = () => {
+            document.getElementById('game3-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();// 重來：保留題目
             };
@@ -85,7 +85,7 @@
                 <div class="game3-header">
                     <div class="score-board">分數: <span id="game3-score">0</span></div>
                     <div class="game3-controls">
-                        <button id="game3-restart-btn" class="nav-btn">重來</button>
+                        <button id="game3-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game3-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
@@ -111,7 +111,8 @@
             document.getElementById('game3-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game3-message').classList.remove('visible');
-                this.startNewGame(); // 直接以相同難度開啟下一局
+                if (this.isWin) this.startNewGame();
+                else this.retryGame();
             };
 
             // 增加 result-poem-display 的滑鼠拖曳捲動功能
@@ -174,7 +175,7 @@
                     if (window.updateResponsiveLayout) {
                         window.updateResponsiveLayout();
                     }
-                    this.restartGame();
+                    this.startNewGame();
                 });
             } else {
                 console.warn('[Game3] DifficultySelector not found');
@@ -260,7 +261,7 @@
             if (this.animationId) cancelAnimationFrame(this.animationId);
             this.loop();
             // 啟用重來按鈕
-            document.getElementById('game3-restart-btn').disabled = false;
+            document.getElementById('game3-retryGame-btn').disabled = false;
             document.getElementById('game3-newGame-btn').disabled = false;
         },
 
@@ -285,12 +286,8 @@
             if (this.animationId) cancelAnimationFrame(this.animationId);
             this.loop();
             // 啟用重來按鈕
-            document.getElementById('game3-restart-btn').disabled = false;
+            document.getElementById('game3-retryGame-btn').disabled = false;
             document.getElementById('game3-newGame-btn').disabled = false;
-        },
-
-        restartGame: function () {
-            this.startNewGame();
         },
 
         selectAndPreparePoem: function () {
@@ -581,7 +578,7 @@
             // 檢查勝利
             if (this.currentRowIndex >= this.rows.length) {
                 this.isActive = false;
-                document.getElementById('game3-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game3-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 ScoreManager.playWinAnimation({
                     game: this,
@@ -612,7 +609,7 @@
                 // 也要檢查新定位的行是否結束了
                 if (this.currentRowIndex >= this.rows.length) {
                     this.isActive = false;
-                    document.getElementById('game3-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                    document.getElementById('game3-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                     document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                     ScoreManager.playWinAnimation({
                         game: this,
@@ -771,12 +768,13 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            this.isWin = win;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game3-restart-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game3-retryGame-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
-                document.getElementById('game3-restart-btn').disabled = false;
+                document.getElementById('game3-retryGame-btn').disabled = false;
                 document.getElementById('game3-newGame-btn').disabled = false;
             }
             cancelAnimationFrame(this.animationId);
@@ -857,39 +855,11 @@
                     title.textContent = `過關！得分：${reason}分`;
                     title.style.color = "#4CAF50";
                 }
-
-                // 成功按鈕金句
-                const successQuotes = [
-                    "勸君更進一杯酒",
-                    "欲窮千里目",
-                    "更上一層樓",
-                    "欲窮千里目，更上一層樓",
-                    "大鵬一日同風起",
-                    "扶搖直上九萬里",
-                    "大鵬一日同風起，扶搖直上九萬里",
-                    "莫愁前路無知己",
-                    "天下誰人不識君",
-                    "莫愁前路無知己，天下誰人不識君"
-                ];
-                btn.textContent = successQuotes[Math.floor(Math.random() * successQuotes.length)];
-
+                btn.textContent = "下一局";
             } else {
                 title.textContent = `遊戲失敗 錯過次數達 ${this.mistakeCount} 次`;
                 title.style.color = "hsl(10, 80%, 60%)";
-
-                // 失敗按鈕金句
-                const failQuotes = [
-                    "卷土重來未可知",
-                    "莫道桑榆晚，為霞尚滿天",
-                    "不經一番寒徹骨",
-                    "怎得梅花撲鼻香",
-                    "不經一番寒徹骨，怎得梅花撲鼻香",
-                    "長風破浪會有時",
-                    "直掛雲帆濟滄海",
-                    "長風破浪會有時，直掛雲帆濟滄海",
-                    "天生我材必有用"
-                ];
-                btn.textContent = failQuotes[Math.floor(Math.random() * failQuotes.length)];
+                btn.textContent = "再試一次";
             }
 
             // 動態調整按鍵字體大小

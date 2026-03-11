@@ -20,11 +20,11 @@
 
         // 难度设置
         difficultySettings: {
-            '小學': { time: 60, minRating: 7, maxMistakes: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
-            '中學': { time: 40, minRating: 6, maxMistakes: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
-            '高中': { time: 20, minRating: 5, maxMistakes: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
-            '大學': { time: 10, minRating: 4, maxMistakes: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
-            '研究所': { time: 6, minRating: 1, maxMistakes: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
+            '小學': { time: 60, minRating: 6, maxMistakes: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
+            '中學': { time: 40, minRating: 5, maxMistakes: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
+            '高中': { time: 20, minRating: 4, maxMistakes: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
+            '大學': { time: 10, minRating: 3, maxMistakes: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
+            '研究所': { time: 6, minRating: 2, maxMistakes: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
         },
 
         loadCSS: function () {
@@ -49,7 +49,7 @@
             // Old timer references removed
 
             // 綁定按鈕
-            document.getElementById('game1-restart-btn').onclick = () => {
+            document.getElementById('game1-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame(); // 重來：保留題目
             };
@@ -60,7 +60,8 @@
             document.getElementById('game1-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game1-message').classList.add('hidden');
-                this.startNewGame(); // 訊息視窗按鈕預設開新局
+                if (this.isWin) this.startNewGame();
+                else this.retryGame();
             };
         },
 
@@ -76,7 +77,7 @@
                 <div class="game1-header">
                     <div class="game1-score-board">分數: <span id="game1-score">0</span></div>
                     <div class="game1-controls">
-                        <button id="game1-restart-btn" class="nav-btn">重來</button>
+                        <button id="game1-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game1-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
@@ -119,7 +120,8 @@
             document.getElementById('game1-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game1-message').classList.add('hidden');
-                this.startNewGame(); // 直接以相同難度開啟下一局
+                if (this.isWin) this.startNewGame();
+                else this.retryGame();
             };
 
             this.renderHearts();
@@ -156,7 +158,7 @@
                     if (window.updateResponsiveLayout) {
                         window.updateResponsiveLayout();
                     }
-                    this.restartGame();
+                    this.startNewGame();
                 });
             } else {
                 // 降級處理：直接開始遊戲
@@ -167,7 +169,7 @@
                 if (window.updateResponsiveLayout) {
                     window.updateResponsiveLayout();
                 }
-                this.restartGame();
+                this.startNewGame();
             }
         },
 
@@ -219,7 +221,7 @@
             // 重設計時器
             this.startTimer();
             // 啟用重來按鈕
-            document.getElementById('game1-restart-btn').disabled = false;
+            document.getElementById('game1-retryGame-btn').disabled = false;
             document.getElementById('game1-newGame-btn').disabled = false;
         },
 
@@ -236,12 +238,8 @@
             this.prepareChallenge();
             this.startTimer();
             // 啟用重來按鈕
-            document.getElementById('game1-restart-btn').disabled = false;
+            document.getElementById('game1-retryGame-btn').disabled = false;
             document.getElementById('game1-newGame-btn').disabled = false;
-        },
-
-        restartGame: function () {
-            this.startNewGame();
         },
 
         nextQuestion: function () {
@@ -538,7 +536,7 @@
             if (isCorrect) {
                 btn.classList.add('correct');
                 clearInterval(this.timerInterval);
-                document.getElementById('game1-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game1-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game1-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 ScoreManager.playWinAnimation({
                     game: this,
@@ -601,12 +599,13 @@
         },
         gameOver: function (win, reason) {
             this.isActive = false;
+            this.isWin = win;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game1-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game1-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game1-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
-                document.getElementById('game1-restart-btn').disabled = false;
+                document.getElementById('game1-retryGame-btn').disabled = false;
                 document.getElementById('game1-newGame-btn').disabled = false;
             }
             const msgDiv = document.getElementById('game1-message');
@@ -622,6 +621,13 @@
                 title.textContent = "再接再厲！";
                 title.style.color = "#dc3545";
                 content.textContent = reason;
+            }
+
+            const msgBtn = document.getElementById('game1-msg-btn');
+            if (win) {
+                msgBtn.textContent = "下一局";
+            } else {
+                msgBtn.textContent = "再試一次";
             }
         },
 

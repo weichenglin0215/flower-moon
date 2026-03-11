@@ -187,13 +187,13 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(20, 20, 20, 0.95);
-    padding: 2rem;
+    background: rgba(20, 20, 20, 0.85);
+    padding: 1rem;
     border: 0.1rem solid hsl(36, 80%, 50%);
     border-radius: 0.3rem;
     text-align: center;
     z-index: 100;
-    min-width: 7.5rem;
+    min-width: 15rem;
     box-shadow: 0 0 0.9rem rgba(0, 0, 0, 0.8);
 }
 
@@ -202,18 +202,25 @@
     color: hsl(36, 80%, 50%);
 }
 
+.game6-msg-poem-info {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: hsl(45, 50%, 75%);
+}
+
 .game6-message p {
-    margin: 1.5rem 0;
-    font-size: 1.1rem;
+    margin: 1.0rem 0;
+    font-size: 1.0rem;
 }
 
 .game6-msg-btn {
     background: hsl(0, 60%, 24%);
-    font-size: 1.1rem;
+    font-size: 1.0rem;
     color: white;
     border: none;
-    padding: 0.6rem 1.5rem;
-    border-radius: 0.1rem;
+    padding: 0.3rem 1.5rem;
+    border-radius: 0.5rem;
     cursor: pointer;
     font-family: inherit;
 }

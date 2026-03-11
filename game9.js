@@ -12,6 +12,11 @@
         maxTimer: 0,
         timerInterval: null,
 
+        movesLeft: 0,
+        maxMoves: 0,
+        lastActionTime: 0,
+        inactivityThreshold: 5000,
+
         moveInfo: [], // for undo
 
         // difficulty config
@@ -20,10 +25,10 @@
         //color: hard, expert 可使用深色且難以辨識的顏色
         difficultySettings: {
             '小學': { stars: 6, bolts: 6, emptyBolts: 2, time: 90, hasHint: 'all', undo: true, moveLimit: 0, exchangeQuantity: 2, totalNumberOfExchange: 16 },
-            '中學': { stars: 5, bolts: 6, emptyBolts: 2, time: 120, hasHint: 'firstEnd', undo: true, moveLimit: 0, exchangeQuantity: 3, totalNumberOfExchange: 32 },
-            '高中': { stars: 4, bolts: 6, emptyBolts: 2, time: 150, hasHint: 'first', undo: true, moveLimit: 0, exchangeQuantity: 4, totalNumberOfExchange: 64 },
-            '大學': { stars: 4, bolts: 6, emptyBolts: 2, time: 180, hasHint: 'end', undo: true, moveLimit: 0, exchangeQuantity: 5, totalNumberOfExchange: 96 },
-            '研究所': { stars: 3, bolts: 6, emptyBolts: 2, time: 240, hasHint: 'none', undo: false, moveLimit: 0, color: 'hard', exchangeQuantity: 7, totalNumberOfExchange: 128 }
+            '中學': { stars: 5, bolts: 6, emptyBolts: 2, time: 120, hasHint: 'firstEnd', undo: true, moveLimit: 0, exchangeQuantity: 3, totalNumberOfExchange: 24 },
+            '高中': { stars: 4, bolts: 6, emptyBolts: 2, time: 150, hasHint: 'first', undo: true, moveLimit: 0, exchangeQuantity: 4, totalNumberOfExchange: 32 },
+            '大學': { stars: 3, bolts: 6, emptyBolts: 2, time: 180, hasHint: 'end', undo: true, moveLimit: 0, exchangeQuantity: 5, totalNumberOfExchange: 48 },
+            '研究所': { stars: 2, bolts: 6, emptyBolts: 2, time: 240, hasHint: 'none', undo: false, moveLimit: 0, color: 'hard', exchangeQuantity: 7, totalNumberOfExchange: 56 }
         },
 
         currentPoem: null,
@@ -58,7 +63,7 @@
                     <div class="game9-score-board">分數: <span id="game9-score">0</span></div>
                     <div class="game9-controls">
                         <button id="game9-undo-btn" class="nav-btn game9-undo-btn" disabled>撤銷</button>
-                        <button id="game9-restart-btn" class="nav-btn">重來</button>
+                        <button id="game9-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game9-newGame-btn" class="nav-btn newGame-btn">開新局</button>
                     </div>
                 </div>
@@ -67,7 +72,8 @@
                 </div>
                 <div class="game9-area">
                     <svg id="game9-timer-ring">
-                        <rect id="game9-timer-path" x="2" y="2"></rect>
+                        <rect id="game9-timer-path-white" x="2" y="2"></rect>
+                        <rect id="game9-timer-path-red" x="2" y="2"></rect>
                     </svg>
                     <div class="game9-difficulty-tag" id="game9-diff-tag">小學</div>
                     <div class="game9-info">
@@ -130,7 +136,7 @@
         },
 
         bindEvents: function () {
-            document.getElementById('game9-restart-btn').onclick = () => {
+            document.getElementById('game9-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();
             };
@@ -141,7 +147,8 @@
             document.getElementById('game9-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game9-message').classList.add('hidden');
-                this.startNewGame();
+                if (this.isWin) this.startNewGame();
+                else this.retryGame();
             };
             document.getElementById('game9-poem-info').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -262,16 +269,19 @@
             this.renderLevel();
             this.updateProgressText();
 
-            if (settings.time > 0) {
-                this.maxTimer = settings.time;
-                this.timer = this.maxTimer;
+            // Setup Move limits based on totalNumberOfExchange
+            this.maxMoves = (settings.totalNumberOfExchange || 16) * 2;
+            this.movesLeft = this.maxMoves;
+            this.lastActionTime = Date.now();
+
+            if (this.maxMoves > 0) {
                 document.getElementById('game9-timer-ring').style.display = 'block';
                 this.startTimer();
             } else {
                 document.getElementById('game9-timer-ring').style.display = 'none';
             }
             // 啟用重來按鈕
-            document.getElementById('game9-restart-btn').disabled = false;
+            document.getElementById('game9-retryGame-btn').disabled = false;
             document.getElementById('game9-newGame-btn').disabled = false;
         },
 
@@ -440,11 +450,7 @@
         updateProgressText: function () {
             const settings = this.difficultySettings[this.difficulty];
             const p = document.getElementById('game9-progress-text');
-            if (settings.moveLimit > 0) {
-                p.textContent = `步數: ${this.movesMade}/${settings.moveLimit}`;
-            } else {
-                p.textContent = `步數: ${this.movesMade}`;
-            }
+            p.textContent = `剩餘步數: ${this.movesLeft}`;
         },
 
         handleBoltClick: function (boltIdx, e) {
@@ -529,8 +535,21 @@
                     this.moveInfo.push({ from: this.selectedBoltIndex, to: boltIdx, count: count });
 
                     this.movesMade++;
+                    this.movesLeft--; // Used a move
+                    this.lastActionTime = Date.now(); // Reset inactivity timer
                     this.selectedBoltIndex = -1;
                     this.selectedNutCount = 0;
+
+                    this.updateProgressText();
+                    this.renderLevel();
+
+                    if (this.movesLeft <= 0) {
+                        setTimeout(() => {
+                            if (!this.isActive) return; // In case game already won/stopped
+                            this.gameOver(false, "步數已用盡。");
+                        }, 500);
+                        return;
+                    }
 
                     if (this.checkBoltCompleted(targetBolt)) {
                         this.playNote('complete');
@@ -541,12 +560,10 @@
                             this.newlyCompletedBoltIdx = boltIdx; // Mark for animation
                         }
                         // Score formula calculation for completing a stack
-                        //this.score += 20 * count / this.lines[targetBolt[0].colorGroup].length;
-                        //我把計分改成以該螺絲串的長度為基礎
                         this.score += 20 * (this.lines[targetBolt[0].colorGroup].length - this.difficultySettings[this.difficulty].exchangeQuantity);
                         document.getElementById('game9-score').textContent = Math.round(this.score);
                     } else {
-                        // If it WAS completed but now we pulled something out (not possible if pick blocked), but for safety:
+                        // If it WAS completed but now we pulled something out... 
                         const cIdx = this.completedBolts.indexOf(boltIdx);
                         if (cIdx !== -1) {
                             this.completedBolts.splice(cIdx, 1);
@@ -554,12 +571,8 @@
                         this.playNote('drop');
                     }
 
-                    this.updateProgressText();
-                    this.renderLevel();
-
                     // Reset newly completed flag after one render pass
                     this.newlyCompletedBoltIdx = -1;
-
                     this.checkGameEnd();
                 } else {
                     this.playNote('error');
@@ -596,6 +609,8 @@
                 });
 
                 this.movesMade++;
+                this.movesLeft++; // Return the move
+                this.lastActionTime = Date.now(); // Reset inactivity timer
                 this.selectedBoltIndex = -1;
                 this.selectedNutCount = 0;
                 this.playNote('drop');
@@ -649,31 +664,37 @@
 
         startTimer: function () {
             clearInterval(this.timerInterval);
-            this.lastTime = Date.now();
             this.timerInterval = setInterval(() => {
                 if (!this.isActive) return;
+
                 const now = Date.now();
-                const dt = (now - this.lastTime) / 1000;
-                this.lastTime = now;
-                this.timer -= dt;
+                // Inactivity check: 5 seconds
+                if (now - this.lastActionTime >= this.inactivityThreshold) {
+                    this.movesLeft--;
+                    this.lastActionTime = now; // Give another 5s
+                    this.playNote('error');
+                    this.updateProgressText();
+                    this.updateTimerRing();
+
+                    if (this.movesLeft <= 0) {
+                        setTimeout(() => {
+                            if (this.isActive && this.movesLeft <= 0) {
+                                this.gameOver(false, "步數已用盡(怠功)。");
+                            }
+                        }, 500);
+                    }
+                }
 
                 this.updateTimerRing();
-
-                if (this.timer <= 0) {
-                    this.timer = 0;
-                    this.updateTimerRing();
-                    clearInterval(this.timerInterval);
-                    this.gameOver(false, "時辰已到。");
-                }
-            }, 50);
+            }, 100);
         },
 
         updateTimerRing: function () {
-            const ratio = this.timer / this.maxTimer;
-            const rect = document.getElementById('game9-timer-path');
+            const rectRed = document.getElementById('game9-timer-path-red');
+            const rectWhite = document.getElementById('game9-timer-path-white');
             const wrapper = document.querySelector('.game9-area');
             const svg = document.getElementById('game9-timer-ring');
-            if (!rect || !wrapper || !svg) return;
+            if (!rectRed || !rectWhite || !wrapper || !svg) return;
 
             let w = wrapper.offsetWidth;
             let h = wrapper.offsetHeight;
@@ -688,19 +709,54 @@
             svg.setAttribute('height', h);
             svg.style.display = 'block';
 
-            rect.setAttribute('width', w - 4);
-            rect.setAttribute('height', h - 4);
+            rectRed.setAttribute('width', w - 4);
+            rectRed.setAttribute('height', h - 4);
+            rectWhite.setAttribute('width', w - 4);
+            rectWhite.setAttribute('height', h - 4);
 
-            const perimeter = (w - 4 + h - 4) * 2;
-            rect.style.strokeDasharray = perimeter;
-            rect.style.strokeDashoffset = perimeter * (1 - Math.max(0, Math.min(1, ratio)));
+            const totalLength = (w - 4 + h - 4) * 2;
+            const segment = totalLength / this.maxMoves;
+
+            const dashArrayWhite = [];
+            const dashArrayRed = [];
+
+            // 根據 maxMoves 產生固定數量的段落，確保 transition 平滑
+            for (let i = 1; i <= this.maxMoves; i++) {
+                const isVisible = i <= this.movesLeft;
+                // 奇數格為白色，偶數格為紅色 (假設 maxMoves 為偶數，則最後一格為紅色)
+                // 第一次交換 (32->31) 會移除最後一格 (i=32)，即紅線
+                const isRedSlot = (i % 2 === 0);
+
+                if (isVisible) {
+                    if (isRedSlot) {
+                        // 此格顯示紅色：白環此處為 Gap(0, segment)，紅環此處為 Dash(segment, 0)
+                        dashArrayWhite.push(0, segment);
+                        dashArrayRed.push(segment, 0);
+                    } else {
+                        // 此格顯示白色：白環此處為 Dash(segment, 0)，紅環此處為 Gap(0, segment)
+                        dashArrayWhite.push(segment, 0);
+                        dashArrayRed.push(0, segment);
+                    }
+                } else {
+                    // 已消耗步數：兩環皆為 Gap
+                    dashArrayWhite.push(0, segment);
+                    dashArrayRed.push(0, segment);
+                }
+            }
+
+            rectRed.style.strokeDasharray = dashArrayRed.join(' ');
+            rectWhite.style.strokeDasharray = dashArrayWhite.join(' ');
         },
 
         gameWin: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
+            // 將剩餘步數設定給 timer，讓 ScoreManager 能正確計算加成獎勵
+            this.timer = this.movesLeft;
+            this.maxTimer = this.maxMoves; // just in case
+
             // 禁用重來按鈕
-            document.getElementById('game9-restart-btn').disabled = true;   // 必須在得分表演之前就先禁用重來按鈕
+            document.getElementById('game9-retryGame-btn').disabled = true;
             document.getElementById('game9-newGame-btn').disabled = true;   //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
 
             // Using standard win animation
@@ -723,14 +779,15 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            this.isWin = win;
             // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game9-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+                document.getElementById('game9-retryGame-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
                 document.getElementById('game9-newGame-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
 
             } else {
-                document.getElementById('game9-restart-btn').disabled = false;
+                document.getElementById('game9-retryGame-btn').disabled = false;
                 document.getElementById('game9-newGame-btn').disabled = false;
                 if (window.SoundManager) window.SoundManager.playSadTriple();
             }
@@ -743,6 +800,12 @@
 
             setTimeout(() => {
                 msg.classList.remove('hidden');
+                const msgBtn = document.getElementById('game9-msg-btn');
+                if (win) {
+                    msgBtn.textContent = "下一局";
+                } else {
+                    msgBtn.textContent = "再試一次";
+                }
             }, 500);
         }
     };

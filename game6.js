@@ -12,6 +12,7 @@
         timer: 60,
         timeLeft: 60,
         timerInterval: null,
+        nextEnemyId: 0,
 
         // 介面物件尺寸設定 (單位為 rem, 相對於根字體大小)
         ui: {
@@ -78,11 +79,11 @@
         // 遊戲難度設定
         difficultySettings: {
             // stars: 詩詞星等, lineCount: 敵人由幾句詩組成, baseSpeed: 初始左右移動速度, speedInc: 撞牆後的增加速度, 
-            '小學': { time: 90, hearts: 6, fireRate: 0.8, baseSpeed: 60, speedInc: 6, stars: 7, lineCount: 2 },
-            '中學': { time: 90, hearts: 5, fireRate: 0.7, baseSpeed: 65, speedInc: 7, stars: 6, lineCount: 4 },
-            '高中': { time: 90, hearts: 4, fireRate: 0.6, baseSpeed: 70, speedInc: 8, stars: 5, lineCount: 8 },
-            '大學': { time: 105, hearts: 3, fireRate: 0.5, baseSpeed: 75, speedInc: 9, stars: 4, lineCount: 8 },
-            '研究所': { time: 120, hearts: 2, fireRate: 0.4, baseSpeed: 80, speedInc: 10, stars: 3, lineCount: 8 }
+            '小學': { time: 120, hearts: 6, fireRate: 0.8, baseSpeed: 60, speedInc: 8, stars: 6, lineCount: 2 },
+            '中學': { time: 120, hearts: 5, fireRate: 0.7, baseSpeed: 65, speedInc: 8.5, stars: 5, lineCount: 4 },
+            '高中': { time: 120, hearts: 4, fireRate: 0.6, baseSpeed: 70, speedInc: 9, stars: 4, lineCount: 8 },
+            '大學': { time: 120, hearts: 3, fireRate: 0.5, baseSpeed: 75, speedInc: 9.5, stars: 3, lineCount: 8 },
+            '研究所': { time: 120, hearts: 2, fireRate: 0.4, baseSpeed: 80, speedInc: 10, stars: 2, lineCount: 8 }
         },
 
         enemyDirection: 1, // 1 為右, -1 為左
@@ -102,7 +103,7 @@
                 <div class="game6-header">
                     <div class="game6-score-board">分數: <span id="game6-score">0</span></div>
                     <div class="game6-controls">
-                        <button id="game6-restart-btn" class="nav-btn">重來</button>
+                        <button id="game6-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game6-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
@@ -123,6 +124,7 @@
                 </div>
                 <div id="game6-message" class="game6-message hidden">
                     <h2 id="game6-msg-title">訊息</h2>
+                    <div id="game6-msg-poem-info" class="game6-msg-poem-info"></div>
                     <p id="game6-msg-content"></p>
                     <button id="game6-msg-btn" class="game6-msg-btn">繼續</button>
                 </div>
@@ -134,7 +136,7 @@
         },
 
         bindEvents: function () {
-            document.getElementById('game6-restart-btn').onclick = () => {
+            document.getElementById('game6-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();
             };
@@ -147,6 +149,13 @@
                 document.getElementById('game6-message').classList.add('hidden');
                 if (this.isWin) this.startNewGame();
                 else this.retryGame();
+            };
+            const msgPoemInfo = document.getElementById('game6-msg-poem-info');
+            msgPoemInfo.onclick = () => {
+                if (this.currentPoem) {
+                    if (window.SoundManager) window.SoundManager.playOpenItem();
+                    if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
+                }
             };
 
             // 改為整個 container 都可以偵測拖曳與發射
@@ -281,20 +290,22 @@
             this.renderHearts();
             this.updateScoreUI();
             // 啟用重來按鈕
-            document.getElementById('game6-restart-btn').disabled = false;
+            document.getElementById('game6-retryGame-btn').disabled = false;
             document.getElementById('game6-newGame-btn').disabled = false;
         },
 
         retryGame: function () {
-
+            this.score = 0;
             this.mistakeCount = 0;
+            this.isWin = false;
             this.resetGameStates();
-            this.loadLevel(); // 可以考慮重複同一首詩，或換一首
+            this.loadLevel(true); // 傳入 true 以維持相同題目
             this.startLoop();
             this.startTimer();
             this.renderHearts();
+            this.updateScoreUI();
             // 啟用重來按鈕
-            document.getElementById('game6-restart-btn').disabled = false;
+            document.getElementById('game6-retryGame-btn').disabled = false;
             document.getElementById('game6-newGame-btn').disabled = false;
         },
 
@@ -319,22 +330,27 @@
             document.getElementById('game6-message').classList.add('hidden');
         },
 
-        loadLevel: function () {
+        loadLevel: function (isRetry) {
             const settings = this.difficultySettings[this.difficulty];
             const minRating = settings.stars || 4;
 
-            // 使用共用邏輯取得隨機詩詞
-            if (typeof POEMS !== 'undefined') {
-                const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
-                if (result) {
-                    this.currentPoem = result.poem;
-                    this.createEnemies(result.poem, result.startIndex);
-                } else {
-                    // 備用方案
-                    const eligible = POEMS.filter(p => (p.rating || 0) >= minRating);
-                    const poem = eligible.length > 0 ? eligible[Math.floor(Math.random() * eligible.length)] : POEMS[Math.floor(Math.random() * POEMS.length)];
-                    this.currentPoem = poem;
-                    this.createEnemies(poem, 0);
+            // 如果是重來且已有題目，則維持原題目與起始句
+            if (isRetry && this.currentPoem) {
+                this.createEnemies(this.currentPoem, this.currentPoemLineStart);
+            } else {
+                // 使用共用邏輯取得隨機詩詞
+                if (typeof POEMS !== 'undefined') {
+                    const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+                    if (result) {
+                        this.currentPoem = result.poem;
+                        this.createEnemies(result.poem, result.startIndex);
+                    } else {
+                        // 備用方案
+                        const eligible = POEMS.filter(p => (p.rating || 0) >= minRating);
+                        const poem = eligible.length > 0 ? eligible[Math.floor(Math.random() * eligible.length)] : POEMS[Math.floor(Math.random() * POEMS.length)];
+                        this.currentPoem = poem;
+                        this.createEnemies(poem, 0);
+                    }
                 }
             }
 
@@ -409,6 +425,7 @@
 
                 for (let i = 0; i < cleanLine.length; i++) {
                     this.enemies.push({
+                        id: this.nextEnemyId++,
                         char: cleanLine[i],
                         x: startX + i * charSpacing,
                         y: startY + rowIdx * rowSpacing,
@@ -621,7 +638,8 @@
                     y: py - gunH,
                     speed: bSpeed,
                     type: this.player.pierceLevel > 0 ? 'pierce' : 'normal',
-                    pierceCount: this.player.pierceLevel // 剩餘穿透數
+                    pierceCount: this.player.pierceLevel, // 剩餘穿透數
+                    hitHistory: [] // 記錄已擊中的敵人 ID
                 });
             }
         },
@@ -649,10 +667,16 @@
                 let hitAny = false;
                 for (let j = this.enemies.length - 1; j >= 0; j--) {
                     const e = this.enemies[j];
+
+                    // 檢查是否已經擊中過該敵人
+                    if (b.hitHistory.includes(e.id)) continue;
+
                     const dist = Math.hypot(b.x - e.x, b.y - e.y);
                     if (dist < 25) {
                         e.hp--;
-                        //敵人血量越低，透明度越低
+                        b.hitHistory.push(e.id); // 記錄此敵人已被擊中
+
+                        // 敵人血量越低，透明度越低
                         e.alpha = 0.1 + (e.hp / e.maxHp) * 0.9;
 
                         // 4. 砲彈碰到文字敵人會出現黃色的爆炸特效
@@ -675,7 +699,7 @@
                         break;
                     }
                 }
-                if (hitAny && b.type !== 'pierce') {
+                if (hitAny) {
                     this.player.bullets.splice(i, 1);
                     continue; // 已經擊中敵人，檢查下一顆子彈
                 }
@@ -704,6 +728,7 @@
             // 4. 飛彈與敵人砲彈互相抵消
             for (let i = this.player.bullets.length - 1; i >= 0; i--) {
                 const b = this.player.bullets[i];
+                let hitAny = false;
                 for (let j = this.enemyProjectiles.length - 1; j >= 0; j--) {
                     const p = this.enemyProjectiles[j];
                     const dist = Math.hypot(b.x - p.x, b.y - p.y);
@@ -711,11 +736,20 @@
                         // 同時觸發白色與黃色特效
                         this.spawnExplosion(b.x, b.y, 'yellow', 12);
                         this.spawnExplosion(p.x, p.y, 'white', 12);
-                        this.player.bullets.splice(i, 1);
                         this.enemyProjectiles.splice(j, 1);
                         if (window.SoundManager) window.SoundManager.playHit(24, 0.15);
-                        break;
+
+                        hitAny = true;
+                        if (b.type === 'pierce') {
+                            b.pierceCount--;
+                            if (b.pierceCount < 0) hitAny = true; // 穿透數用完，子彈消失
+                            else hitAny = false; // 繼續前進
+                        }
+                        if (hitAny || b.type === 'pierce') break; // 穿透子彈每幀只抵消一個砲彈以維持效能
                     }
+                }
+                if (hitAny) {
+                    this.player.bullets.splice(i, 1);
                 }
             }
 
@@ -1035,7 +1069,7 @@
             this.isActive = false;
             this.isWin = true;
             clearInterval(this.timerInterval);
-            document.getElementById('game6-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+            document.getElementById('game6-retryGame-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
             document.getElementById('game6-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕
             ScoreManager.playWinAnimation({
                 game: this,
@@ -1054,17 +1088,33 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game6-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game6-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game6-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
-                document.getElementById('game6-restart-btn').disabled = false;
+                document.getElementById('game6-retryGame-btn').disabled = false;
                 document.getElementById('game6-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
             const msgDiv = document.getElementById('game6-message');
-            document.getElementById('game6-msg-title').textContent = win ? "擊退詩陣" : "防禦失敗";
-            document.getElementById('game6-msg-content').textContent = win ? `詩陣已破！得分：${msg}` : msg;
+            document.getElementById('game6-msg-title').textContent = win ? "黃沙百戰穿金甲" : "醉臥沙場君莫笑";
+            document.getElementById('game6-msg-content').textContent = win ? `擊退詩陣！得分：${msg}` : msg;
+
+            const msgPoemInfo = document.getElementById('game6-msg-poem-info');
+            if (this.currentPoem) {
+                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.currentPoem.title}》 / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+            } else {
+                msgPoemInfo.innerHTML = '';
+            }
+
+            this.isWin = win;
             msgDiv.classList.remove('hidden');
+
+            const msgBtn = document.getElementById('game6-msg-btn');
+            if (win) {
+                msgBtn.textContent = "下一局";
+            } else {
+                msgBtn.textContent = "再試一次";
+            }
         },
 
         stopGame: function () {

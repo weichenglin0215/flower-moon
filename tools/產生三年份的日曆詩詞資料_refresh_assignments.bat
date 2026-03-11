@@ -1,1 +1,2 @@
 python refresh_assignments.py
+pause

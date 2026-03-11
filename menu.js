@@ -37,47 +37,47 @@
         menuPanel.className = 'menu-panel';
         menuPanel.innerHTML = `
             <div class="menu-item" data-page="calendar">
-                <span class="menu-number">1</span>
+                <span class="menu-number">日</span>
                 <span class="menu-text">日曆</span>
             </div>
             <div class="menu-item" data-page="cards">
-                <span class="menu-number">2</span>
+                <span class="menu-number">卡</span>
                 <span class="menu-text">卡片(默背)</span>
             </div>
             <div class="menu-item" data-page="game1">
-                <span class="menu-number">3</span>
+                <span class="menu-number">1</span>
                 <span class="menu-text">慢思快選</span>
             </div>
             <div class="menu-item" data-page="game2">
-                <span class="menu-number">4</span>
+                <span class="menu-number">2</span>
                 <span class="menu-text">飛花令</span>
             </div>
             <div class="menu-item" data-page="game3">
-                <span class="menu-number">5</span>
+                <span class="menu-number">3</span>
                 <span class="menu-text">字爬梯</span>
             </div>
             <div class="menu-item" data-page="game4">
-                <span class="menu-number">6</span>
+                <span class="menu-number">4</span>
                 <span class="menu-text">眾裡尋他千百度</span>
             </div>
             <div class="menu-item" data-page="game5">
-                <span class="menu-number">7</span>
+                <span class="menu-number">5</span>
                 <span class="menu-text">詩詞小精靈</span>
             </div>
             <div class="menu-item" data-page="game6">
-                <span class="menu-number">8</span>
+                <span class="menu-number">6</span>
                 <span class="menu-text">詩陣侵略</span>
             </div>
             <div class="menu-item" data-page="game7">
-                <span class="menu-number">9</span>
+                <span class="menu-number">7</span>
                 <span class="menu-text">青鳥雲梯</span>
             </div>
             <div class="menu-item" data-page="game8">
-                <span class="menu-number">10</span>
+                <span class="menu-number">8</span>
                 <span class="menu-text">一筆裁詩</span>
             </div>
             <div class="menu-item" data-page="game9">
-                <span class="menu-number">11</span>
+                <span class="menu-number">9</span>
                 <span class="menu-text">詩韻鎖扣</span>
             </div>
             <div class="menu-item" data-page="author-biography">

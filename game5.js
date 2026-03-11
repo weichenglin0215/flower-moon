@@ -47,11 +47,11 @@
         mistakePenaltyDuration: 150,
         //time遊戲時間，heart生命數，monster怪物數，star詩詞星等，answerLen答案長度，hintDuration下一個文字黃色發光提示時間, lostInt 負值縮短小精靈們頭暈間隔時間表示越弱，lostDur 正值延長小精靈們持續頭昏時間表示越弱。
         difficultySettings: {
-            '小學': { time: 120, hearts: 5, monsters: 2, stars: 7, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
-            '中學': { time: 120, hearts: 3, monsters: 3, stars: 6, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
-            '高中': { time: 120, hearts: 3, monsters: 4, stars: 5, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
-            '大學': { time: 120, hearts: 3, monsters: 4, stars: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 },
-            '研究所': { time: 120, hearts: 3, monsters: 4, stars: 3, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
+            '小學': { time: 120, hearts: 5, monsters: 2, stars: 6, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
+            '中學': { time: 120, hearts: 3, monsters: 3, stars: 5, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
+            '高中': { time: 120, hearts: 3, monsters: 4, stars: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
+            '大學': { time: 120, hearts: 3, monsters: 4, stars: 3, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 },
+            '研究所': { time: 120, hearts: 3, monsters: 4, stars: 2, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
         },
 
         // Maze layout (1 = wall, 0 = path, 2 = ghost house)
@@ -93,7 +93,7 @@
                 <div class="game5-header">
                     <div class="game5-score-board">分數: <span id="game5-score">0</span></div>
                     <div class="game5-controls">
-                        <button id="game5-restart-btn" class="nav-btn">重來</button>
+                        <button id="game5-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game5-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
@@ -119,6 +119,7 @@
                 
                 <div id="game5-message" class="game5-message hidden">
                     <h2 id="game5-msg-title">訊息</h2>
+                    <div id="game5-msg-poem-info" class="game5-msg-poem-info"></div>
                     <p id="game5-msg-content"></p>
                     <button id="game5-msg-btn" class="game5-msg-btn">繼續</button>
                 </div>
@@ -130,9 +131,9 @@
         },
 
         bindEvents: function () {
-            document.getElementById('game5-restart-btn').onclick = () => {
+            document.getElementById('game5-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
-                this.restartGame();
+                this.retryGame();
             };
             document.getElementById('game5-newGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -142,7 +143,14 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game5-message').classList.add('hidden');
                 if (this.isWin) this.startNewGame();
-                else this.restartGame();
+                else this.retryGame();
+            };
+            const msgPoemInfo = document.getElementById('game5-msg-poem-info');
+            msgPoemInfo.onclick = () => {
+                if (this.targetPoem) {
+                    if (window.SoundManager) window.SoundManager.playOpenItem();
+                    if (window.openPoemDialogById) window.openPoemDialogById(this.targetPoem.id);
+                }
             };
 
             // Mouse Swipe
@@ -281,12 +289,12 @@
             this.lastTime = performance.now();
             if (this.requestID) cancelAnimationFrame(this.requestID);
             // 所有遊戲資源準備完畢後才啟用重來按鈕
-            document.getElementById('game5-restart-btn').disabled = false;
+            document.getElementById('game5-retryGame-btn').disabled = false;
             document.getElementById('game5-newGame-btn').disabled = false;
             this.gameLoop(this.lastTime);
         },
 
-        restartGame: function () {
+        retryGame: function () {
             this.mistakes = 0;
             this.collectedCount = 0;
             this.resetEntities();
@@ -298,7 +306,7 @@
             this.foods.forEach(f => f.collected = false);
 
             // 重置完成後才啟用重來按鈕
-            document.getElementById('game5-restart-btn').disabled = false;
+            document.getElementById('game5-retryGame-btn').disabled = false;
             document.getElementById('game5-newGame-btn').disabled = false;
             this.lastTime = performance.now();
             if (this.requestID) cancelAnimationFrame(this.requestID);
@@ -987,10 +995,10 @@
             this.isActive = false;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game5-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game5-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game5-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
-                document.getElementById('game5-restart-btn').disabled = false;
+                document.getElementById('game5-retryGame-btn').disabled = false;
                 document.getElementById('game5-newGame-btn').disabled = false;
             }
             this.isWin = win;
@@ -998,9 +1006,24 @@
             if (this.requestID) cancelAnimationFrame(this.requestID);
 
             const msgDiv = document.getElementById('game5-message');
-            document.getElementById('game5-msg-title').textContent = win ? '大功告成！' : '遺憾中止';
+            document.getElementById('game5-msg-title').textContent = win ? '才思泉湧！' : '筆底乾坤盡';
             document.getElementById('game5-msg-content').textContent = reason;
+
+            const msgPoemInfo = document.getElementById('game5-msg-poem-info');
+            if (this.targetPoem) {
+                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.targetPoem.title}》 / ${this.targetPoem.dynasty} / ${this.targetPoem.author}</span>`;
+            } else {
+                msgPoemInfo.innerHTML = '';
+            }
+
             msgDiv.classList.remove('hidden');
+
+            const msgBtn = document.getElementById('game5-msg-btn');
+            if (win) {
+                msgBtn.textContent = "下一局";
+            } else {
+                msgBtn.textContent = "再試一次";
+            }
 
             if (win && window.ScoreManager) {
                 window.ScoreManager.playWinAnimation({

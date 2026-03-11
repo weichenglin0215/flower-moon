@@ -164,12 +164,19 @@
     display: none;
 }
 
-#game9-timer-path {
+#game9-timer-path-red, #game9-timer-path-white {
     fill: none;
-    stroke: hsl(0, 80%, 36%);
     stroke-width: 0.4rem;
-    stroke-linecap: round;
-    transition: stroke-dashoffset 0.1s linear;
+    stroke-linecap: butt;
+    transition: stroke-dasharray 0.3s ease;
+}
+
+#game9-timer-path-red {
+    stroke: hsl(0, 100%, 50%);
+}
+
+#game9-timer-path-white {
+    stroke: hsl(0, 0%, 100%);
 }
 
 .game9-play-area {

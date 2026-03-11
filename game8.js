@@ -40,19 +40,10 @@
             '小學': { hints: 'all', splitPath: true, maxMistake: 8, time: 80, obstacles: 0, decoyPool: 'normal', stars: 6, minLines: 4, maxChars: 56 },
             '中學': { hints: 'startEnd', splitPath: true, maxMistake: 6, time: 75, obstacles: 0, decoyPool: 'normal', stars: 5, minLines: 4, maxChars: 56 },
             '高中': { hints: 'startEnd', splitPath: true, maxMistake: 4, time: 70, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 4, maxChars: 56 },
-            '大學': { hints: 'start', splitPath: false, maxMistake: 2, time: 65, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 6, maxChars: 56 },
-            '研究所': { hints: 'start', splitPath: false, maxMistake: 1, time: 60, obstacles: 0, decoyPool: 'hard', stars: 3, minLines: 8, maxChars: 56 }
+            '大學': { hints: 'start', splitPath: false, maxMistake: 2, time: 65, obstacles: 0, decoyPool: 'normal', stars: 3, minLines: 6, maxChars: 56 },
+            '研究所': { hints: 'start', splitPath: false, maxMistake: 1, time: 60, obstacles: 0, decoyPool: 'hard', stars: 2, minLines: 8, maxChars: 56 }
         },
 
-        decoySets: {
-            people: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
-            season: "春夏秋冬晨晝暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
-            weather: "陰晴風雨雪霜露霧霞虹暖寒涼暑晦暗亮光明清冽空氣嵐",
-            environment: "山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
-            color: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
-            plant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
-            common: "的一是在不了有和人這中大為上個國以要時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長"
-        },
 
         loadCSS: function () {
             if (!document.getElementById('game8-css')) {
@@ -81,7 +72,7 @@
                 <div class="game8-header">
                     <div class="game8-score-board">分數: <span id="game8-score">0</span></div>
                     <div class="game8-controls">
-                        <button id="game8-restart-btn" class="nav-btn">重來</button>
+                        <button id="game8-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game8-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
@@ -115,7 +106,7 @@
             `;
             document.body.appendChild(div);
 
-            document.getElementById('game8-restart-btn').onclick = () => {
+            document.getElementById('game8-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();
             };
@@ -126,7 +117,8 @@
             document.getElementById('game8-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game8-message').classList.add('hidden');
-                this.startNewGame();
+                if (this.isWin) this.startNewGame();
+                else this.retryGame();
             };
 
             const gridWrapper = document.getElementById('game8-grid-wrapper');
@@ -156,7 +148,7 @@
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
                     if (window.SoundManager) window.SoundManager.init();
-                    this.restartGame();
+                    this.startNewGame();
                 });
             }
         },
@@ -198,9 +190,6 @@
             }
         },
 
-        restartGame: function () {
-            this.startNewGame();
-        },
         //game8只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
             this.isActive = true;
@@ -228,7 +217,7 @@
             this.updateProgressText();
             this.applyHints();
             // 格子、提示、進度都準備完畢後才啟用重來按鈕
-            document.getElementById('game8-restart-btn').disabled = false;
+            document.getElementById('game8-retryGame-btn').disabled = false;
             document.getElementById('game8-newGame-btn').disabled = false;
 
             const diffTag = document.getElementById('game8-diff-tag');
@@ -285,10 +274,10 @@
             const pathLength = this.fullPoemText.length;
 
             // --- 新增：強迫強迫路徑迂迴規則 ---
-            // 在設計路徑之前，先取出非答案文字的 1/4 字數，隨機擺放位置，強迫路徑繞道。
+            // 在設計路徑之前，先取出非答案文字的 1/3 字數，隨機擺放位置，強迫路徑繞道。
             const totalCells = 63; // 9x7
             const emptyCount = totalCells - pathLength;
-            const preDecoyCount = Math.ceil(emptyCount / 4);
+            const preDecoyCount = Math.ceil(emptyCount / 3);
             const preOccupied = [];
 
             // 隨機抽選預放位置
@@ -347,25 +336,15 @@
                 });
             }
 
-            // 準備誘餌文字池
-            let decoyPool = [];
-            if (settings.decoyPool === 'hard') {
-                // 進階模式：使用部首或形態相似的混淆字集
-                const sets = Object.values(this.decoySets).join('');
-                for (let i = 0; i < sets.length; i++) decoyPool.push(sets[i]);
-            } else {
-                // 普通模式：使用常用字池
-                decoyPool = this.decoySets.common.split('');
-            }
-            decoyPool.sort(() => Math.random() - 0.5); // 打亂代幣順序
-
-            // 在路徑之外的空白位置填充障礙物或誘餌文字
+            // 使用新的混淆字取用方法進行填充，參考鄰近正確路徑字元
             let obstacleCountDecided = settings.obstacles;
+            const targetChars = this.fullPoemText.split('');
+            const usedDecoys = new Set();
+
             for (let r = 0; r < 9; r++) {
                 for (let c = 0; c < 7; c++) {
                     const existing = this.gridData[r][c];
                     if (existing === null || (existing && existing.isPreDecoy)) {
-                        // 依照障礙物機率與剩餘數量進行分配 (預放區不放障礙物)
                         if (obstacleCountDecided > 0 && Math.random() < 0.2 && !(existing && existing.isPreDecoy)) {
                             this.gridData[r][c] = {
                                 char: '',
@@ -375,9 +354,28 @@
                             };
                             obstacleCountDecided--;
                         } else {
-                            // 否則從文字池中取出隨機文字進行填充
+                            // 搜尋周圍八格中的正確路徑字
+                            let neighbors = [];
+                            for (let dr = -1; dr <= 1; dr++) {
+                                for (let dc = -1; dc <= 1; dc++) {
+                                    if (dr === 0 && dc === 0) continue;
+                                    const nr = r + dr, nc = c + dc;
+                                    if (nr >= 0 && nr < 9 && nc >= 0 && nc < 7) {
+                                        const n = this.gridData[nr][nc];
+                                        if (n && n.isTarget) {
+                                            neighbors.push(n.char);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 排除題目字與已用過的混淆字
+                            const excludeChars = [...targetChars, ...Array.from(usedDecoys)];
+                            const bestDecoy = window.SharedDecoy.getThematicDecoy(neighbors, excludeChars);
+                            usedDecoys.add(bestDecoy);
+
                             this.gridData[r][c] = {
-                                char: decoyPool.pop() || '之',
+                                char: bestDecoy,
                                 isTarget: false,
                                 targetIndex: -1,
                                 isObstacle: false
@@ -901,6 +899,10 @@
                     if (window.SoundManager) window.SoundManager.playGuzheng((this.currentPath.length - 1) % 21);
                     this.updateCurrentPathDraw();
                     this.updateProgressText();
+
+                    // 自動判斷是否過關 (當連到全題目最後一個字且內容正確時)
+                    this.checkAutoWin();
+
                     if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
                 } else if (visitedIndex === this.currentPath.length - 2) {
                     // 原路退回：這代表玩家後悔了，移除最後一步以達成撤銷
@@ -1041,6 +1043,37 @@
                 this.applyHints();
             }
             if (window.SoundManager) window.SoundManager.playSuccess();
+        },
+
+        // 自動過關檢測：判斷當前一筆劃是否正確畫到了全詩的最後一個字
+        checkAutoWin: function () {
+            if (this.currentPath.length === 0) return;
+
+            const lastPoemCharIndex = this.fullPoemText.length - 1;
+            const lastCellInPath = this.currentPath[this.currentPath.length - 1];
+            const lastCellData = this.gridData[lastCellInPath.row][lastCellInPath.col];
+
+            // 必須畫到全詩最後一個字
+            if (!lastCellData.isTarget || lastCellData.targetIndex !== lastPoemCharIndex) return;
+
+            // 檢查當前路徑內容是否與剩下的詩句完全相符
+            let isValid = true;
+            let targetIdx = this.completedTargetIndex;
+            for (let i = 0; i < this.currentPath.length; i++) {
+                const p = this.currentPath[i];
+                if (this.gridData[p.row][p.col].char !== this.fullPoemText[targetIdx]) {
+                    isValid = false;
+                    break;
+                }
+                targetIdx++;
+            }
+
+            // 如果正確且完成全文
+            if (isValid && targetIdx === this.fullPoemText.length) {
+                const phasesRemaining = this.phases.length - this.currentPhase;
+                this.isDragging = false; // 停止拖曳狀態，避免 onDragEnd 再次處理
+                this.handlePhaseWin(phasesRemaining);
+            }
         },
 
         // 發生錯誤時的處理：震動效果、扣心、以及判斷是否遊戲結束
@@ -1204,7 +1237,7 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             // 禁用重來按鈕
-            document.getElementById('game8-restart-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+            document.getElementById('game8-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             document.getElementById('game8-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
 
             // Using standard win animation
@@ -1223,12 +1256,13 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            this.isWin = win;
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game8-restart-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
+                document.getElementById('game8-retryGame-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
                 document.getElementById('game8-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
             } else {
-                document.getElementById('game8-restart-btn').disabled = false;
+                document.getElementById('game8-retryGame-btn').disabled = false;
                 document.getElementById('game8-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
@@ -1247,6 +1281,12 @@
                     title.textContent = "功敗垂成";
                     title.style.color = "hsl(0, 60%, 50%)";
                     content.textContent = reason || "墨跡已散！";
+                }
+                const msgBtn = document.getElementById('game8-msg-btn');
+                if (win) {
+                    msgBtn.textContent = "下一局";
+                } else {
+                    msgBtn.textContent = "再試一次";
                 }
             }, 500);
         }

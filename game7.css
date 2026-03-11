@@ -167,7 +167,7 @@
     /* 中心點移至右側 3/4 區域的中心: (100% + 25%) / 2 */
     transform: translate(-50%, -50%);
     background: hsla(210, 50%, 60%, 0.95);
-    padding: 1.5rem;
+    padding: 1.0rem;
     border: 1px solid hsla(220, 80%, 50%, 0.5);
     border-radius: 1rem;
     text-align: center;
@@ -199,13 +199,14 @@
 .game7-result-poem {
     flex: 1;
     overflow-y: auto;
-    margin: 1rem 0;
+    margin: 0.5rem 0;
     padding: 0.5rem;
     background: rgba(0, 0, 0, 0.3);
+    color: hsl(200, 50%, 80%);
     border-radius: 0.5rem;
-    font-size: 1.1rem;
-    line-height: 1.8;
-    text-align: left;
+    font-size: 1.5rem;
+    line-height: 1.5;
+    text-align: center;
     white-space: pre-wrap;
     scrollbar-width: thin;
     scrollbar-color: hsl(36, 0%, 80%) transparent;
@@ -222,47 +223,57 @@
     border-radius: 3px;
 }
 
-/*打中*/
+/*結算顯示被打中的字*/
 .char-hit {
     color: gold;
     font-weight: bold;
 }
 
-/*未打中*/
+/*結算顯示未打中的字*/
 .char-skipped {
-    color: hsla(0, 100%, 70%, 0.6);
-    text-decoration: line-through;
+    color: hsla(0, 80%, 40%, 1);
+    font-weight: bold;
+    /*text-decoration: line-through;*/
 }
 
-/*未打中*/
+/*結算顯示尚未出現的字*/
 .char-pending {
-    color: hsla(0, 0%, 100%, 0.4);
+    color: hsla(0, 0%, 100%, 0.6);
 }
 
-/*標點符號*/
+/*結算顯示標點符號*/
 .char-punctuation {
     color: hsla(0, 0%, 100%, 0.6);
 }
 
-/*標題*/
+/*結算顯示標題*/
 .game7-message h2 {
-    margin: 0 0 1rem;
+    margin: 0 0 0.2rem;
     color: hsl(220, 40%, 30%);
     font-size: 2rem;
 }
 
+/*結算顯示詩句資訊*/
+.game7-msg-poem-info {
+    margin-top: 0.2rem;
+    margin-bottom: 0.2rem;
+    font-size: 1.0rem;
+    color: hsl(45, 50%, 100%);
+}
+
+/*結算顯示說明文字*/
 .game7-message p {
-    margin: 0.5rem 0 2rem;
+    margin: 0.3rem 0 2rem;
     font-size: 1.2rem;
     line-height: 1.6;
 }
 
 /*訊息框按鍵*/
-.game7-btn {
+.game7-msg-btn {
     background: hsl(220, 40%, 30%);
     color: white;
     border: 1px solid hsla(180, 60%, 80%, 0.3);
-    padding: 0.8rem 2rem;
+    padding: 0.3rem 2rem;
     border-radius: 0.5rem;
     font-size: 1.2rem;
     cursor: pointer;

@@ -170,15 +170,16 @@ window.SharedDecoy = {
    // 預設分類字庫：當找不到動態干擾項時的備用來源
    decoyCharsSets: {
       people: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
-      season: "春夏秋冬晨朝晝昏暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
+      season: "春夏秋冬晨朝晝昏暮夜夕宵年日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
       weather: "陰晴風雨雪霜露霧霞虹暖寒涼暑晦暗亮光明清冽空氣嵐",
-      environment: "地山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
+      environment: "地山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水火淵深潭泉",
       color: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
       plant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
       size: "大中小特巨微長短高矮胖瘦多少",
       direction: "東南西北上下左右前後",
-      number: "一二三四五六七八九十百千萬億",
-      common: "的是在不了有和這為個國以要時來用們生到作地於出就分對成會可主發年動同工也能過說產種面而方定行學法所民得經之進著等部度家更想樣理心本去現什把那問當沒看起都現兩文正開實事些點只如長"
+      number: "一二三四五六七八九十百千萬億兩",
+      truefalse: "是否不可真假對錯知同正確錯誤",
+      common: "之乎者也了工文方心只分來去出入本沒有些什以作個們到動和問在如學定家國事實就度得想成所把於時更會樣現理當看起那都開點"
    },
 
    /**
@@ -281,6 +282,57 @@ window.SharedDecoy = {
       }
 
       return Array.from(decoys).sort(() => Math.random() - 0.5);
+   },
+
+   /**
+    * 根據輸入的鄰近字元陣列，從主題字庫中挑選最適合的混淆字。
+    * 
+    * @param {string[]} neighborChars 周圍已放置的正確題目字元
+    * @param {string[]} excludeChars 需排除的字元 (如已使用的字)
+    * @returns {string} 挑選出的混淆字
+    */
+   getThematicDecoy: function (neighborChars, excludeChars = []) {
+      // 1. 統計鄰近字屬於哪些分類集
+      let counts = {};
+      const sets = this.decoyCharsSets;
+
+      // 合併排除名單：外部傳入的 + 傳入的鄰近字本身 (避免重複)
+      const allExcludes = [...excludeChars, ...neighborChars];
+
+      neighborChars.forEach(char => {
+         for (const [setName, setChars] of Object.entries(sets)) {
+            if (setChars.includes(char)) {
+               counts[setName] = (counts[setName] || 0) + 1;
+            }
+         }
+      });
+
+      // 2. 找出最匹配的主題集 (若無匹配則預設為 common)
+      let bestSet = 'common';
+      let maxCount = 0;
+      for (const [setName, count] of Object.entries(counts)) {
+         if (count > maxCount) {
+            maxCount = count;
+            bestSet = setName;
+         }
+      }
+
+      // 3. 從選定的主題集中挑選一個未被排除的字
+      let pool = sets[bestSet].split('');
+      pool.sort(() => Math.random() - 0.5);
+
+      for (const char of pool) {
+         if (!allExcludes.includes(char)) return char;
+      }
+
+      // 4. 若全集都被排除，則從 common 補位
+      let commonPool = sets.common.split('');
+      commonPool.sort(() => Math.random() - 0.5);
+      for (const char of commonPool) {
+         if (!allExcludes.includes(char)) return char;
+      }
+
+      return '巃'; // 萬用保底
    }
 };
 
