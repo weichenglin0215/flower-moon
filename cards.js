@@ -1,3 +1,14 @@
+// 確保 cards.css 已載入
+(function loadCSS() {
+    if (!document.getElementById('cards-css')) {
+        const link = document.createElement('link');
+        link.id = 'cards-css';
+        link.rel = 'stylesheet';
+        link.href = 'cards.css';
+        document.head.appendChild(link);
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // ---------------------------------------------------------
@@ -125,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         bestLines.forEach(line => {
             const lineDiv = document.createElement('div');
-            lineDiv.className = 'poem-line';
+            lineDiv.className = 'cards-poem-line';
 
             // 將每個字符包裝成 span，以便逐字顯示
             const chars = line.text.split('');

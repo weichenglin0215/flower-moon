@@ -176,13 +176,13 @@ body {
     transform: scaleX(0.8);
 }
 
-.poem-line {
+.cards-poem-line {
     position: relative;
     /*display: inline-block;*/
 }
 
 /* 左邊第一句詩往上移半個字高 */
-.poem-line:first-child {
+.cards-poem-line:first-child {
     transform: translateY(-1.8rem);
 }
 

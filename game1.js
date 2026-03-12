@@ -20,11 +20,11 @@
 
         // 难度设置
         difficultySettings: {
-            '小學': { time: 60, minRating: 6, maxMistakes: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
-            '中學': { time: 40, minRating: 5, maxMistakes: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
+            '小學': { time: 40, minRating: 6, maxMistakes: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
+            '中學': { time: 30, minRating: 5, maxMistakes: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
             '高中': { time: 20, minRating: 4, maxMistakes: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
-            '大學': { time: 10, minRating: 3, maxMistakes: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
-            '研究所': { time: 6, minRating: 2, maxMistakes: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
+            '大學': { time: 15, minRating: 3, maxMistakes: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
+            '研究所': { time: 10, minRating: 2, maxMistakes: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
         },
 
         loadCSS: function () {
@@ -386,8 +386,10 @@
                 return result;
             };
 
-            let finalOptions = [{ text: applyOptionMask(correct, true), isCorrect: true }];
+            const correctText = applyOptionMask(correct, true);
+            let finalOptions = [{ text: correctText, isCorrect: true }];
             let usedLines = [correct];
+            let usedTexts = new Set([correctText]);
 
             // 使用 SharedDecoy 產生相似句子
             if (window.SharedDecoy) {
@@ -403,7 +405,7 @@
                     for (const line of p.content) {
                         const clean = line.replace(/[，。？！、：；]/g, '');
                         if (clean.length === lineLen && !usedLines.includes(line)) {
-                            // 計算相似度 (包含多少 distractorPool 或 targetChars 中的字)
+                            // 計算相似度
                             let similarity = 0;
                             for (const char of clean) {
                                 if (distractorPool.includes(char)) similarity++;
@@ -419,21 +421,32 @@
                 // 優先選擇相似度高的句子
                 candidates.sort((a, b) => b.similarity - a.similarity);
 
-                for (let i = 0; i < Math.min(candidates.length, 3); i++) {
+                for (let i = 0; i < candidates.length; i++) {
+                    if (finalOptions.length >= 4) break;
                     const decoyLine = candidates[i].line;
-                    finalOptions.push({ text: applyOptionMask(decoyLine), isCorrect: false });
-                    usedLines.push(decoyLine);
+                    const maskedText = applyOptionMask(decoyLine);
+                    if (!usedTexts.has(maskedText)) {
+                        finalOptions.push({ text: maskedText, isCorrect: false });
+                        usedLines.push(decoyLine);
+                        usedTexts.add(maskedText);
+                    }
                 }
             }
 
             // 如果不夠 4 個，補充隨機項
             while (finalOptions.length < 4) {
                 const rndPoem = POEMS[Math.floor(Math.random() * POEMS.length)];
+                if (!rndPoem || !rndPoem.content) continue;
                 const rndLine = rndPoem.content[Math.floor(Math.random() * rndPoem.content.length)];
                 const clean = rndLine.replace(/[，。？！、：；]/g, '');
+                
                 if (clean.length === lineLen && !usedLines.includes(rndLine)) {
-                    finalOptions.push({ text: applyOptionMask(rndLine), isCorrect: false });
-                    usedLines.add(rndLine);
+                    const maskedText = applyOptionMask(rndLine);
+                    if (!usedTexts.has(maskedText)) {
+                        finalOptions.push({ text: maskedText, isCorrect: false });
+                        usedLines.push(rndLine);
+                        usedTexts.add(maskedText);
+                    }
                 }
             }
 

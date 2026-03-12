@@ -15,15 +15,15 @@ const ScoreManager = {
     // 各個遊戲的分數基準設定
     // base: 過關基礎分, heart: 每顆剩餘紅心得分, time: 每秒剩餘時間得分
     gameSettings: {
-        'game1': { base: 100, heart: 30, time: 3 },
-        'game2': { base: 100, heart: 10, time: 3 },
-        'game3': { base: 100, heart: 10, time: 3 },
-        'game4': { base: 100, heart: 10, time: 3 },
+        'game1': { base: 100, heart: 30, time: 2 },
+        'game2': { base: 100, heart: 10, time: 2 },
+        'game3': { base: 100, heart: 10, time: 2 },
+        'game4': { base: 100, heart: 10, time: 2 },
         'game5': { base: 100, heart: 10, time: 1 },
-        'game6': { base: 100, heart: 10, time: 2 },
+        'game6': { base: 100, heart: 10, time: 1 },
         'game7': { base: 100, heart: 10, time: 0 },
         'game8': { base: 100, heart: 10, time: 1 },
-        'game9': { base: 100, heart: 10, time: 2 }
+        'game9': { base: 100, heart: 10, time: 5 }
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -246,10 +246,19 @@ const ScoreManager = {
         document.getElementById(options.scoreElementId).textContent = currentScore;
 
         // 計算剩餘時間
-        const duration = gameInst.timer ? (gameInst.maxTimer || gameInst.timer) * 1000 : 60000;
-        const elapsed = gameInst.startTime ? Date.now() - gameInst.startTime : duration;
-        let remainingMs = Math.max(0, duration - elapsed);
-        let remainingSeconds = Math.floor(remainingMs / 1000);
+        let remainingSeconds = 0;
+        let duration = 60000; // 預設 60秒
+
+        if (gameInst.startTime) {
+            duration = (gameInst.maxTimer || gameInst.timer || 60) * 1000;
+            const elapsed = Date.now() - gameInst.startTime;
+            remainingSeconds = Math.floor(Math.max(0, duration - elapsed) / 1000);
+        } else if (typeof gameInst.timer === 'number') {
+            // 如果沒有 startTime 但有 timer，則 timer 本身就是剩餘秒數 (例如 Game 9)
+            remainingSeconds = Math.round(gameInst.timer);
+            duration = (gameInst.maxTimer || gameInst.timer) * 1000;
+        }
+
 
         const multiplier = this.multipliers[options.difficulty] || 1;
 
@@ -365,11 +374,15 @@ const ScoreManager = {
     getTimerPathPoint: function (containerId, ratio) {
         const container = document.getElementById(containerId);
         if (!container) return { x: 0, y: 0 };
-        const w = container.offsetWidth;
-        const h = container.offsetHeight;
+
+        const rect = container.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
         // 考量到 SVG 邊框的偏移 (3px padding)
         const rw = Math.max(0, w - 6);
         const rh = Math.max(0, h - 6);
+
         const perimeter = 2 * (rw + rh);
         let dist = perimeter * (1 - ratio);
 

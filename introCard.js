@@ -13,6 +13,15 @@
             // 如果已经在 DOM 中则不处理
             if (document.getElementById('introOverlay')) return;
 
+            // 確保 introCard.css 已載入
+            if (!document.getElementById('intro-card-css')) {
+                const link = document.createElement('link');
+                link.id = 'intro-card-css';
+                link.rel = 'stylesheet';
+                link.href = 'introCard.css';
+                document.head.appendChild(link);
+            }
+
             this.createDOM();
             this.bindEvents();
 

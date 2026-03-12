@@ -48,6 +48,14 @@
 
         init: function () {
             if (this.overlay) return;
+            // 確保 achievement.css 已載入
+            if (!document.getElementById('achievement-css')) {
+                const link = document.createElement('link');
+                link.id = 'achievement-css';
+                link.rel = 'stylesheet';
+                link.href = 'achievement.css';
+                document.head.appendChild(link);
+            }
             this.createDOM();
             this.bindEvents();
         },

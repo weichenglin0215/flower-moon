@@ -15,6 +15,14 @@
          */
         init: function () {
             if (this.overlay) return;
+            // 確保 poem_dialog.css 已載入
+            if (!document.getElementById('poem-dialog-css')) {
+                const link = document.createElement('link');
+                link.id = 'poem-dialog-css';
+                link.rel = 'stylesheet';
+                link.href = 'poem_dialog.css';
+                document.head.appendChild(link);
+            }
             this.createDOM();
             this.bindEvents();
         },

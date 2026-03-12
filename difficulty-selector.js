@@ -18,8 +18,17 @@
          * 初始化组件
          */
         init: function () {
-            // 如果已经初始化，直接返回
+            // 如果已經初始化，直接返回
             if (this.overlay) return;
+
+            // 確保 difficulty-selector.css 已載入
+            if (!document.getElementById('difficulty-selector-css')) {
+                const link = document.createElement('link');
+                link.id = 'difficulty-selector-css';
+                link.rel = 'stylesheet';
+                link.href = 'difficulty-selector.css';
+                document.head.appendChild(link);
+            }
 
             // 创建 DOM 结构
             this.createDOM();

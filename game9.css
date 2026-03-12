@@ -71,8 +71,14 @@
     z-index: 9;
     border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    /*height: 2.0rem;*/
+    height: 0.1rem;
+    justify-content: right;
+    align-items: right;
+    padding: 0.0rem 0.5rem;
 }
+
+
 
 .game9-hearts {
     display: flex;
@@ -110,8 +116,8 @@
 /* 難度標籤 */
 .game9-difficulty-tag {
     position: absolute;
-    top: 0.3rem;
-    left: 0.3rem;
+    top: 0.5rem;
+    left: 0.5rem;
     background: hsla(0, 0%, 33%, 0.66);
     padding: 0.1rem 0.6rem;
     border-radius: 0.3rem;
@@ -119,6 +125,31 @@
     color: hsl(45, 50%, 75%);
     border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
+}
+
+.game9-undo-btn {
+    position: absolute;
+    top: 0.6rem;
+    left: 5.0rem;
+    padding: 0.0rem 0.5rem;
+    background: hsl(0, 60%, 25%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+
+}
+
+.game9-undo-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game9-undo-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
 }
 
 /* 訊息區域 (提示步數/目標) */
@@ -164,7 +195,8 @@
     display: none;
 }
 
-#game9-timer-path-red, #game9-timer-path-white {
+#game9-timer-path-red,
+#game9-timer-path-white {
     fill: none;
     stroke-width: 0.4rem;
     stroke-linecap: butt;
@@ -172,11 +204,11 @@
 }
 
 #game9-timer-path-red {
-    stroke: hsl(0, 100%, 50%);
+    stroke: hsl(0, 100%, 40%);
 }
 
 #game9-timer-path-white {
-    stroke: hsl(0, 0%, 100%);
+    stroke: hsl(33, 50%, 75%);
 }
 
 .game9-play-area {

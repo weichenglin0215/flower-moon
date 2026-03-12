@@ -9,6 +9,15 @@ window.AuthorBio = (function () {
     let surnames = [];
 
     function init() {
+        // 確保 author_bio.css 已載入
+        if (!document.getElementById('author-bio-css')) {
+            const link = document.createElement('link');
+            link.id = 'author-bio-css';
+            link.rel = 'stylesheet';
+            link.href = 'author_bio.css';
+            document.head.appendChild(link);
+        }
+
         if (typeof POEMS === 'undefined') {
             console.error('POEMS data not found');
             return;

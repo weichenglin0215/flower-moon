@@ -38,6 +38,7 @@
         bolts: [],
         completedBolts: [], // Track completed bolts to prevent repeated animations
         newlyCompletedBoltIdx: -1, // Specifically for the one-time jump animation
+        isWinning: false, // Flag for win animation
         selectedNut: null,
         selectedBoltIndex: -1,
         selectedNutCount: 0, // Track how many nuts are selected
@@ -62,21 +63,22 @@
                 <div class="game9-header">
                     <div class="game9-score-board">分數: <span id="game9-score">0</span></div>
                     <div class="game9-controls">
-                        <button id="game9-undo-btn" class="nav-btn game9-undo-btn" disabled>撤銷</button>
                         <button id="game9-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game9-newGame-btn" class="nav-btn newGame-btn">開新局</button>
                     </div>
                 </div>
                 <div class="game9-sub-header">
                     <div id="game9-hearts" class="game9-hearts"></div>
+
                 </div>
                 <div class="game9-area">
                     <svg id="game9-timer-ring">
-                        <rect id="game9-timer-path-white" x="2" y="2"></rect>
-                        <rect id="game9-timer-path-red" x="2" y="2"></rect>
+                        <rect id="game9-timer-path-white" x="3" y="3"></rect>
+                        <rect id="game9-timer-path-red" x="3" y="3"></rect>
                     </svg>
                     <div class="game9-difficulty-tag" id="game9-diff-tag">小學</div>
-                    <div class="game9-info">
+                    <button id="game9-undo-btn" class="game9-undo-btn" disabled>撤銷</button>
+                  <div class="game9-info">
                         <div id="game9-poem-info" class="game9-poem-info"></div>
                         <div id="game9-progress-text" class="game9-progress-text"></div>
                     </div>
@@ -231,8 +233,9 @@
         startGameProcess: function (isRetry) {
             this.isActive = true;
             this.score = 0;
-            this.movesMade = 0;
             this.moveInfo = [];
+            this.isWinning = false;
+            this.newlyCompletedBoltIdx = -1;
 
             const settings = this.difficultySettings[this.difficulty];
             document.getElementById('game9-diff-tag').textContent = this.difficulty;
@@ -270,8 +273,9 @@
             this.updateProgressText();
 
             // Setup Move limits based on totalNumberOfExchange
-            this.maxMoves = (settings.totalNumberOfExchange || 16) * 2;
+            this.maxMoves = (settings.totalNumberOfExchange || 16) * 1.5;
             this.movesLeft = this.maxMoves;
+            this.updateProgressText(); //起動遊戲時更新剩餘步數
             this.lastActionTime = Date.now();
 
             if (this.maxMoves > 0) {
@@ -431,8 +435,8 @@
                 if (this.completedBolts.includes(boltIdx)) {
                     boltEl.classList.add('is-completed'); // Standard completed look (no animation)
 
-                    // Only apply animation class if it's the one that JUST finished
-                    if (this.newlyCompletedBoltIdx === boltIdx) {
+                    // Apply animation if it's newly completed OR if we're in winning state
+                    if (this.newlyCompletedBoltIdx === boltIdx || this.isWinning) {
                         boltEl.classList.add('completed');
                     }
                 }
@@ -558,9 +562,11 @@
                         if (!this.completedBolts.includes(boltIdx)) {
                             this.completedBolts.push(boltIdx);
                             this.newlyCompletedBoltIdx = boltIdx; // Mark for animation
+                            // 重繪以顯示完成動畫
+                            this.renderLevel();
                         }
                         // Score formula calculation for completing a stack
-                        this.score += 20 * (this.lines[targetBolt[0].colorGroup].length - this.difficultySettings[this.difficulty].exchangeQuantity);
+                        this.score += 0.5 * this.difficultySettings[this.difficulty].exchangeQuantity * this.difficultySettings[this.difficulty].totalNumberOfExchange;
                         document.getElementById('game9-score').textContent = Math.round(this.score);
                     } else {
                         // If it WAS completed but now we pulled something out... 
@@ -572,7 +578,10 @@
                     }
 
                     // Reset newly completed flag after one render pass
-                    this.newlyCompletedBoltIdx = -1;
+                    setTimeout(() => {
+                        this.newlyCompletedBoltIdx = -1;
+                    }, 600);
+
                     this.checkGameEnd();
                 } else {
                     this.playNote('error');
@@ -689,7 +698,12 @@
             }, 100);
         },
 
-        updateTimerRing: function () {
+        updateTimerRing: function (ratio) {
+            // 如果傳入了比例（例如結算動畫時），則更新 movesLeft 以便同步顯示
+            if (typeof ratio === 'number') {
+                this.movesLeft = Math.round(ratio * this.maxMoves);
+            }
+
             const rectRed = document.getElementById('game9-timer-path-red');
             const rectWhite = document.getElementById('game9-timer-path-white');
             const wrapper = document.querySelector('.game9-area');
@@ -709,12 +723,12 @@
             svg.setAttribute('height', h);
             svg.style.display = 'block';
 
-            rectRed.setAttribute('width', w - 4);
-            rectRed.setAttribute('height', h - 4);
-            rectWhite.setAttribute('width', w - 4);
-            rectWhite.setAttribute('height', h - 4);
+            rectRed.setAttribute('width', w - 6);
+            rectRed.setAttribute('height', h - 6);
+            rectWhite.setAttribute('width', w - 6);
+            rectWhite.setAttribute('height', h - 6);
 
-            const totalLength = (w - 4 + h - 4) * 2;
+            const totalLength = (w - 6 + h - 6) * 2;
             const segment = totalLength / this.maxMoves;
 
             const dashArrayWhite = [];
@@ -750,10 +764,15 @@
 
         gameWin: function () {
             this.isActive = false;
+            this.isWinning = true;
             clearInterval(this.timerInterval);
+
+            // 立即重繪盤面以表演四柱齊跳動畫
+            this.renderLevel();
+
             // 將剩餘步數設定給 timer，讓 ScoreManager 能正確計算加成獎勵
             this.timer = this.movesLeft;
-            this.maxTimer = this.maxMoves; // just in case
+            this.maxTimer = this.maxMoves;
 
             // 禁用重來按鈕
             document.getElementById('game9-retryGame-btn').disabled = true;
@@ -765,9 +784,9 @@
                     game: this,
                     difficulty: this.difficulty,
                     gameKey: 'game9',
-                    timerContainerId: 'game9-timer-ring', // Optional, depends on game structure, using ring container
+                    timerContainerId: 'game9-timer-ring',
                     scoreElementId: 'game9-score',
-                    heartsSelector: '#game9-hearts .game9-heart.score', // Ensure we only count active hearts if any (game9 doesn't use hearts strictly, but we can pass it if we add them later)
+                    heartsSelector: '#game9-hearts .game9-heart.score',
                     onComplete: (finalScore) => {
                         this.gameOver(true, finalScore);
                     }

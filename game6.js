@@ -79,11 +79,11 @@
         // 遊戲難度設定
         difficultySettings: {
             // stars: 詩詞星等, lineCount: 敵人由幾句詩組成, baseSpeed: 初始左右移動速度, speedInc: 撞牆後的增加速度, 
-            '小學': { time: 120, hearts: 6, fireRate: 0.8, baseSpeed: 60, speedInc: 8, stars: 6, lineCount: 2 },
-            '中學': { time: 120, hearts: 5, fireRate: 0.7, baseSpeed: 65, speedInc: 8.5, stars: 5, lineCount: 4 },
-            '高中': { time: 120, hearts: 4, fireRate: 0.6, baseSpeed: 70, speedInc: 9, stars: 4, lineCount: 8 },
-            '大學': { time: 120, hearts: 3, fireRate: 0.5, baseSpeed: 75, speedInc: 9.5, stars: 3, lineCount: 8 },
-            '研究所': { time: 120, hearts: 2, fireRate: 0.4, baseSpeed: 80, speedInc: 10, stars: 2, lineCount: 8 }
+            '小學': { time: 80, hearts: 6, fireRate: 0.8, baseSpeed: 80, speedInc: 10, maxSpeed: 300, stars: 6, lineCount: 2 },
+            '中學': { time: 75, hearts: 5, fireRate: 0.75, baseSpeed: 80, speedInc: 10, maxSpeed: 350, stars: 5, lineCount: 4 },
+            '高中': { time: 70, hearts: 4, fireRate: 0.7, baseSpeed: 80, speedInc: 10, maxSpeed: 400, stars: 4, lineCount: 6 },
+            '大學': { time: 70, hearts: 3, fireRate: 0.65, baseSpeed: 80, speedInc: 11, maxSpeed: 500, stars: 3, lineCount: 8 },
+            '研究所': { time: 70, hearts: 2, fireRate: 0.6, baseSpeed: 80, speedInc: 12, maxSpeed: 600, stars: 2, lineCount: 8 }
         },
 
         enemyDirection: 1, // 1 為右, -1 為左
@@ -413,6 +413,7 @@
                 if (line) linesToShow.push(line);
             }
             const totalLines = linesToShow.length;
+            this.totalEnemyLines = totalLines; // 記録總行數供計分使用
             this.currentPoemLineStart = lineStart; // 記録起始句索引
 
             linesToShow.forEach((line, rowIdx) => {
@@ -421,7 +422,9 @@
                 const startX = (this.canvas.width - rowWidth) / 2 + charSpacing / 2;
 
                 // 5. 血量計算：最下方 2, 往上 4, 8, 16...
-                const rowHP = Math.pow(2, (totalLines - rowIdx));
+                // const rowHP = Math.pow(2, (totalLines - rowIdx));
+                // 血量計算：最下方 1, 往上 3, 5, 7...
+                const rowHP = ((totalLines - rowIdx) * 2) - 1;
 
                 for (let i = 0; i < cleanLine.length; i++) {
                     this.enemies.push({
@@ -515,7 +518,7 @@
 
             // 1. 砲台發射：玩家點擊或按住時才發射
             this.player.lastFired += dt;
-            const speedMult = 1 + (this.player.swiftLevel * 1.0);
+            const speedMult = 1 + (this.player.swiftLevel * 0.5);
             const rate = settings.fireRate / speedMult;
 
             if (this.player.isFiring && this.player.lastFired >= rate) {
@@ -553,7 +556,7 @@
             let shiftDown = false;
             if (edgeHit) {
                 this.enemyDirection *= -1;
-                this.currentEnemySpeed += settings.speedInc;
+                if (this.currentEnemySpeed < settings.maxSpeed) this.currentEnemySpeed += settings.speedInc;
                 shiftDown = true;
             }
 
@@ -796,7 +799,10 @@
 
         destroyEnemy: function (idx, e) {
             this.enemies.splice(idx, 1);
-            this.score += 10;
+            // 分數根據敵機位置的行數來增加，位置越高的敵機的分數越高
+            // rowIdx 0 是最上方
+            const multiplier = (this.totalEnemyLines || 1) - e.rowIdx;
+            this.score += 5 * Math.max(1, multiplier);
             this.updateScoreUI();
 
             // 標記進度區已收集 (使用屬性選擇器精確匹配該排的該字)
@@ -985,7 +991,7 @@
                     if (c.type === 'Swift') {
                         label1 = "快速";
                         label2 = "射擊";
-                        val = (2.0 + this.player.swiftLevel * 1.0).toFixed(1) + "x";
+                        val = (1.5 + this.player.swiftLevel * 0.5).toFixed(1) + "x";
                     } else if (c.type === 'Multi-shot') {
                         label1 = "多發";
                         label2 = "子彈";
@@ -1005,7 +1011,7 @@
             this.ctx.fillStyle = 'gold';
             this.ctx.font = "0.75rem sans-serif";
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(`速: ${(1.0 + this.player.swiftLevel * 1.0).toFixed(1)}x | 彈: ${this.player.multiShotLevel} | 穿: ${this.player.pierceLevel}`, 10, this.canvas.height - 10);
+            this.ctx.fillText(`速: ${(1.0 + this.player.swiftLevel * 0.5).toFixed(1)}x | 彈: ${this.player.multiShotLevel} | 穿: ${this.player.pierceLevel}`, 10, this.canvas.height - 10);
         },
 
         startTimer: function () {

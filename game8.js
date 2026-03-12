@@ -37,11 +37,11 @@
         minLines 最少句數（必須偶數，從奇數句開始連續挑選）
         maxChars 總字數上限*/
         difficultySettings: {
-            '小學': { hints: 'all', splitPath: true, maxMistake: 8, time: 80, obstacles: 0, decoyPool: 'normal', stars: 6, minLines: 4, maxChars: 56 },
-            '中學': { hints: 'startEnd', splitPath: true, maxMistake: 6, time: 75, obstacles: 0, decoyPool: 'normal', stars: 5, minLines: 4, maxChars: 56 },
+            '小學': { hints: 'all', splitPath: true, maxMistake: 6, time: 80, obstacles: 0, decoyPool: 'normal', stars: 6, minLines: 4, maxChars: 56 },
+            '中學': { hints: 'startEnd', splitPath: true, maxMistake: 5, time: 75, obstacles: 0, decoyPool: 'normal', stars: 5, minLines: 4, maxChars: 56 },
             '高中': { hints: 'startEnd', splitPath: true, maxMistake: 4, time: 70, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 4, maxChars: 56 },
-            '大學': { hints: 'start', splitPath: false, maxMistake: 2, time: 65, obstacles: 0, decoyPool: 'normal', stars: 3, minLines: 6, maxChars: 56 },
-            '研究所': { hints: 'start', splitPath: false, maxMistake: 1, time: 60, obstacles: 0, decoyPool: 'hard', stars: 2, minLines: 8, maxChars: 56 }
+            '大學': { hints: 'start', splitPath: false, maxMistake: 3, time: 65, obstacles: 0, decoyPool: 'normal', stars: 3, minLines: 6, maxChars: 56 },
+            '研究所': { hints: 'start', splitPath: false, maxMistake: 2, time: 60, obstacles: 0, decoyPool: 'hard', stars: 2, minLines: 8, maxChars: 56 }
         },
 
 

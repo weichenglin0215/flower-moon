@@ -1,3 +1,14 @@
+// 確保 calendar.css 已載入（防止其他共用 CSS 的 class 名稱污染）
+(function loadCSS() {
+    if (!document.getElementById('calendar-css')) {
+        const link = document.createElement('link');
+        link.id = 'calendar-css';
+        link.rel = 'stylesheet';
+        link.href = 'calendar.css';
+        document.head.appendChild(link);
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
     // ---------------------------------------------------------
     // 狀態 (STATE)
