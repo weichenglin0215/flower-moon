@@ -574,7 +574,7 @@
 
     window.Game4 = Game4;
 
-    if (window.location.search.includes('game=4')) {
+    if (new URLSearchParams(window.location.search).get('game') === '4') {
         setTimeout(() => {
             if (window.Game4) window.Game4.show();
             const newUrl = window.location.pathname;

@@ -189,7 +189,7 @@
                 cardContainer.style.display = 'none';
             }
 
-            // 隐藏其他游戏
+            // 隐藏其他遊戲
             const game1 = document.getElementById('game1-container');
             const game2 = document.getElementById('game2-container');
             if (game1) game1.classList.add('hidden');
@@ -679,7 +679,7 @@
 
         // 更新歷史紀錄中的字符狀態
         updateHistoryStatus: function (charIndex, status) {
-            // 因為 historyData 可能包含逗號，需要找對應的非分隔符索引
+            // 因為 historyData 可能包含逗號，需要找對應的 non-分隔符索引
             let realIdx = 0;
             for (let i = 0; i < this.historyData.length; i++) {
                 if (!this.historyData[i].isSep) {
@@ -880,7 +880,7 @@
     window.Game3 = Game3;
 
     // 自動檢查是否需要啟動 (從 URL 參數)
-    if (window.location.search.includes('game=3')) {
+    if (new URLSearchParams(window.location.search).get('game') === '3') {
         setTimeout(() => {
             if (window.Game3) window.Game3.show();
             const newUrl = window.location.pathname;

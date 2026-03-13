@@ -22,8 +22,9 @@ const ScoreManager = {
         'game5': { base: 100, heart: 10, time: 1 },
         'game6': { base: 100, heart: 10, time: 1 },
         'game7': { base: 100, heart: 10, time: 0 },
-        'game8': { base: 100, heart: 10, time: 1 },
-        'game9': { base: 100, heart: 10, time: 5 }
+        'game9': { base: 100, heart: 10, time: 5 },
+        'game10': { base: 100, heart: 10, time: 0 },
+        'game11': { base: 100, heart: 10, time: 0 }
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -85,6 +86,7 @@ const ScoreManager = {
      * 儲存分數並更新 LocalStorage 中的玩家資料
      */
     saveScore: function (gameKey, difficulty, finalScore) {
+        finalScore = Math.floor(finalScore); // 確保分數為整數
         let data = this.loadPlayerData();
 
         data.totalScore += finalScore;
@@ -136,7 +138,7 @@ const ScoreManager = {
     updateProfileUI: function (data) {
         const scoreEl = document.getElementById('player-total-score');
         if (scoreEl) {
-            scoreEl.textContent = data.totalScore;
+            scoreEl.textContent = Math.floor(data.totalScore);
         }
     },
 
@@ -174,13 +176,22 @@ const ScoreManager = {
         if (!data) return this.getDefaultData();
 
         if (data.version && parseFloat(data.version) >= 1.1) {
+            // 即便版本符合，也要確保分數是整數 (針對已污染的資料)
+            data.totalScore = Math.floor(data.totalScore || 0);
+            if (data.games) {
+                for (let key in data.games) {
+                    if (data.games[key].highScore) {
+                        data.games[key].highScore = Math.floor(data.games[key].highScore);
+                    }
+                }
+            }
             return data;
         }
 
         // 基礎遷移邏輯
         const newData = this.getDefaultData();
         newData.nickname = data.nickname || '訪客';
-        newData.totalScore = data.totalScore || 0;
+        newData.totalScore = Math.floor(data.totalScore || 0); // 確保舊資料遷移後也是整數
         newData.globalRank = this.getCurrentRank(newData.totalScore);
 
         if (data.difficultyCounts) {
@@ -227,6 +238,16 @@ const ScoreManager = {
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
         }
 
+        // 再次確保返回的內容沒有小數點 (針對既有污染資料的清理)
+        data.totalScore = Math.floor(data.totalScore || 0);
+        if (data.games) {
+            for (let key in data.games) {
+                if (data.games[key].highScore) {
+                    data.games[key].highScore = Math.floor(data.games[key].highScore);
+                }
+            }
+        }
+
         return data;
     },
 
@@ -237,7 +258,7 @@ const ScoreManager = {
     playWinAnimation: function (options) {
         this.initCSS();
 
-        let currentScore = options.game.score || 0;
+        let currentScore = Math.floor(options.game.score || 0); // 初始分數去小數點
         const gameInst = options.game;
         const gameKey = options.gameKey || 'game4';
 
@@ -255,7 +276,8 @@ const ScoreManager = {
             remainingSeconds = Math.floor(Math.max(0, duration - elapsed) / 1000);
         } else if (typeof gameInst.timer === 'number') {
             // 如果沒有 startTime 但有 timer，則 timer 本身就是剩餘秒數 (例如 Game 9)
-            remainingSeconds = Math.round(gameInst.timer);
+            // 一律無條件捨棄小數點
+            remainingSeconds = Math.floor(gameInst.timer);
             duration = (gameInst.maxTimer || gameInst.timer) * 1000;
         }
 
@@ -264,7 +286,7 @@ const ScoreManager = {
 
         // 子階段：套用難度乘數，並實現數字捲動效果
         const applyMultiplier = () => {
-            const finalScore = currentScore * multiplier;
+            const finalScore = Math.floor(currentScore * multiplier); // 乘數後再次確保整數
             let tempScore = currentScore;
             const diff = finalScore - currentScore;
             const steps = 20;

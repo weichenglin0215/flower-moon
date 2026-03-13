@@ -1055,8 +1055,12 @@
     window.Game5 = Game5;
 
     // Auto-start check
-    if (window.location.search.includes('game=5')) {
-        setTimeout(() => { if (window.Game5) window.Game5.show(); }, 100);
+    if (new URLSearchParams(window.location.search).get('game') === '5') {
+        setTimeout(() => {
+            if (window.Game5) window.Game5.show();
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }, 50);
     }
 
 })();

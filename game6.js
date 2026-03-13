@@ -1134,10 +1134,11 @@
 
     window.Game6 = Game6;
 
-    if (window.location.search.includes('game=6')) {
+    if (new URLSearchParams(window.location.search).get('game') === '6') {
         setTimeout(() => {
             if (window.Game6) window.Game6.show();
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }, 100);
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }, 50);
     }
 })();

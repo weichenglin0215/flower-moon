@@ -31,6 +31,15 @@
             '研究所': { stars: 2, bolts: 6, emptyBolts: 2, time: 240, hasHint: 'none', undo: false, moveLimit: 0, color: 'hard', exchangeQuantity: 7, totalNumberOfExchange: 56 }
         },
 
+        loadCSS: function () {
+            if (!document.getElementById('game9-css')) {
+                const link = document.createElement('link');
+                link.id = 'game9-css';
+                link.rel = 'stylesheet';
+                link.href = 'game9.css';
+                document.head.appendChild(link);
+            }
+        },
         currentPoem: null,
         lines: [], // array of objects parsing the poem into lines
 
@@ -50,6 +59,7 @@
         audioCtx: null,
 
         init: function () {
+            this.loadCSS();
             if (this.container) return;
             this.createDOM();
             this.bindEvents();
@@ -831,10 +841,11 @@
 
     window.Game9 = Game9;
 
-    if (window.location.search.includes('game=9')) {
+    if (new URLSearchParams(window.location.search).get('game') === '9') {
         setTimeout(() => {
             if (window.Game9) window.Game9.show();
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }, 100);
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }, 50);
     }
 })();

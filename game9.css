@@ -225,7 +225,7 @@
 .game9-bolt-container {
     display: flex;
     flex-direction: row;
-    gap: 1.0rem;
+    gap: 2.0rem;
     align-items: flex-end;
     justify-content: center;
     width: 100%;
@@ -239,7 +239,7 @@
 /* 單根螺絲樁 */
 .game9-bolt {
     position: relative;
-    width: 3.0rem;
+    width: 2.0rem;
     /* Height set dynamically in JS */
     /* Enough height for 5 nuts */
     background: linear-gradient(to right, hsl(40, 20%, 30%), hsl(40, 30%, 50%), hsl(40, 20%, 30%));
@@ -309,7 +309,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 1.8rem;
+    font-size: 2.0rem;
     font-weight: bold;
     color: hsl(40, 50%, 90%);
     text-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.8);

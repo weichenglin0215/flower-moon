@@ -17,8 +17,9 @@
             'game5': '詩詞小精靈',
             'game6': '詩陣侵略',
             'game7': '青鳥雲梯',
-            'game8': '一筆裁詩',
-            'game9': '詩韻鎖扣'
+            'game9': '詩韻鎖扣',
+            'game10': '擊石鳴詩',
+            'game11': '翻墨識蹤'
         },
 
         rankCertTexts: {
@@ -248,7 +249,7 @@
             const data = window.ScoreManager.loadPlayerData();
 
             // 填寫總覽
-            const totalScore = data.totalScore || 0;
+            const totalScore = Math.floor(data.totalScore || 0);
             const currentRankName = data.globalRank || '書僮';
             const claimed = data.achievements?.claimed || [];
 
@@ -318,7 +319,7 @@
                         card.innerHTML = `
                             <div class="ach-game-name">${this.gameNames[gameKey] || gameKey.toUpperCase()}</div>
                             <div class="ach-game-details">
-                                最高分: <b>${gameInfo.highScore.toLocaleString()}</b><br>
+                                最高分: <b>${Math.floor(gameInfo.highScore).toLocaleString()}</b><br>
                                 最高難度: ${gameInfo.highestDifficulty}<br>
                                 遊玩次數: ${gameInfo.playCount.toLocaleString()}
                             </div>

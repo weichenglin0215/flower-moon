@@ -395,6 +395,31 @@ window.SoundManager = {
       osc.stop(this.audioCtx.currentTime + 1.2);
    },
 
+   playGuzhengLow: function (index) {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+
+      osc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+
+      // 根據索引決定頻率。若越過 5 聲，則自動升八度處理。
+      const baseFreq = this.guzhengNotesLow[index % this.guzhengNotesLow.length];
+      const octave = Math.floor(index / this.guzhengNotesLow.length);
+      const finalFreq = baseFreq * Math.pow(2, octave);
+
+      osc.type = 'sine'; // 使用正弦波模擬柔和的古音
+      osc.frequency.setValueAtTime(finalFreq, this.audioCtx.currentTime);
+
+      gain.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
+      // 模擬聲音隨時間由強變弱消失（衰減）
+      gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 1.2);
+
+      osc.start();
+      osc.stop(this.audioCtx.currentTime + 1.2);
+   },
    /**
     * 撞擊聲 
     */
@@ -442,6 +467,18 @@ window.SoundManager = {
 
       const now = this.audioCtx.currentTime;
       this.playTone(440.00, 1, now);     // A4
+   },
+
+   /**
+ * 正確回饋音效：兩聲向上跳動的清脆頻率
+ */
+   playBreakEnemy: function () {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      this.playTone(880.00, 0.3, now);     // A5
+      this.playTone(1760.00, 0.6, now + 0.1); // A6
    },
 
    /**

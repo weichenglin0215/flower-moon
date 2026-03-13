@@ -1,0 +1,380 @@
+/* =========================================
+   遊戲十：擊石鳴詩（Arkanoid Verse）
+   - 中國風打磚塊，消除詩詞
+   ========================================= */
+
+/* 遊戲全屏遮罩：背景使用放射狀漸變，營造深邃感 */
+.game10-overlay {
+    background: radial-gradient(circle at center, hsl(210, 30%, 20%) 0%, hsl(0, 0%, 0%) 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    zoom: 1;
+    -webkit-text-size-adjust: 100%;
+}
+
+/* 通用隱藏類別 */
+.hidden {
+    display: none !important;
+}
+
+/* 遊戲頂部資訊列（分數與控制） */
+.game10-header {
+    padding: 0.1rem 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    width: 100%;
+    height: 2.0rem;
+}
+
+.game10-score-board {
+    color: hsl(40, 50%, 80%);
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding-left: 3rem;
+}
+
+/* 控制按鈕（重來／開新局） */
+.game10-controls .nav-btn {
+    padding: 0.0rem 0.5rem;
+    background: hsl(0, 60%, 25%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game10-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game10-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+/*紅心區域*/
+.game10-sub-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 2.0rem;
+}
+
+.hearts {
+    display: flex;
+    gap: 0.1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 1.6rem;
+}
+
+.heart.empty {
+    opacity: 0.9;
+}
+
+/* 遊戲遊玩核心區域：限制所有內容在此範圍內 */
+.game10-area {
+    display: block;
+    flex: 1;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    touch-action: none;
+    /* 禁用瀏覽器預設觸控行為，防止滾動 */
+}
+
+/* 難度標籤 */
+.game10-difficulty-tag {
+    position: absolute;
+    top: 0.3rem;
+    left: 0.3rem;
+    background: hsla(0, 0%, 33%, 0.66);
+    padding: 0.1rem 0.6rem;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    color: hsl(45, 50%, 75%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+}
+
+/* 詩詞資訊 */
+.game10-poem-info {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    font-size: 1rem;
+    color: hsl(40, 50%, 80%);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+    z-index: 100;
+}
+
+/* Paddle (玉如意 / 墨錠) */
+/* 撞擊條 (Jade Paddle)：使用玉石般的漸變與邊框 */
+.game10-paddle {
+    position: absolute;
+    height: 0.8rem;
+    background: linear-gradient(to top, hsl(150, 20%, 30%), hsl(150, 30%, 50%));
+    border: 0.1rem solid hsl(150, 40%, 70%);
+    border-radius: 0.4rem;
+    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.5), inset 0 0.1rem 0.2rem hsla(0, 0%, 100%, 0.3);
+    z-index: 50;
+    transform: translate(-50%, -50%);
+    /* 確保 JS 設定的 left/top 對準中心點 */
+}
+
+/* 圓球 (Pearl Ball)：白色珍珠質感與外發光效果 */
+.game10-ball {
+    position: absolute;
+    width: 0.8rem;
+    height: 0.8rem;
+    background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+    border-radius: 50%;
+    box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.5), 0 0 0.5rem hsla(0, 0%, 100%, 0.8);
+    z-index: 49;
+    transform: translate(-50%, -50%);
+    /* 確保 JS 設定的 left/top 對準中心點 */
+}
+
+/* 球軌跡的粒子 */
+.game10-trail-particle {
+    position: absolute;
+    width: 0.4rem;
+    height: 0.4rem;
+    background: hsla(0, 0%, 100%, 0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 48;
+    animation: game10-trail-fade 0.5s linear forwards;
+}
+
+@keyframes game10-trail-fade {
+    to {
+        transform: scale(0.1);
+        opacity: 0;
+    }
+}
+
+/* 磚塊容器與個別磚塊 */
+.game10-bricks-container {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 45;
+}
+
+.game10-brick {
+    position: absolute;
+    width: 2.5rem;
+    /* 由 JS 動態設定，這裡設定預設值 */
+    height: 2.5rem;
+    pointer-events: none;
+    /* 由 JS 判定碰撞，DOM 僅作渲染 */
+    z-index: 45;
+}
+
+.game10-brick-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    /*方塊與字體控制部分是寫在game10.js*/
+    font-weight: bold;
+    color: hsl(0, 0%, 100%);
+    background: hsl(32, 100%, 100%);
+    border: 0.1rem solid hsla(0, 0%, 100%, 0.3);
+    border-radius: 0.3rem;
+    box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.1);
+    transition: background-color 0.1s;
+    /* 只允許背景顏色過渡 */
+}
+
+/* 磚塊被撞擊後的震動階段 */
+.game10-brick-inner.shake {
+    animation: game10-hit-shake 0.15s ease-out;
+}
+
+/* 磚塊被擊碎後的狀態：隱藏邊框與底色，僅保留半透明文字 */
+.game10-brick.broken {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none;
+    color: hsl(0, 0%, 100%);
+    border: 0.1rem solid hsla(0, 0%, 0%, 0.0);
+    /*border也無法消除被擊破的文字的邊框*/
+    text-shadow: 0 0 0.2rem rgba(255, 200, 0, 1);
+    pointer-events: none;
+    opacity: 0.3;
+    /* 半透明顯示，避免干擾玩家 */
+    /* 擊碎後不再接收碰撞 */
+}
+
+/* 震動動畫定義 */
+@keyframes game10-hit-shake {
+    0% {
+        transform: scale(1) rotate(0deg);
+    }
+
+    25% {
+        transform: scale(1.1) rotate(-3deg);
+    }
+
+    50% {
+        transform: scale(1.1) rotate(3deg);
+    }
+
+    75% {
+        transform: scale(1.1) rotate(0deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+.game10-brick.shake {
+    display: none;
+}
+
+/* 舊類別棄用 */
+
+/* Fly away animation (拓印) */
+.game10-brick.fly-away {
+    transition: transform 1.5s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 1.5s ease-out;
+    opacity: 0 !important;
+}
+
+/* 文字框碎片 */
+.game10-shatter-particle {
+    position: absolute;
+    width: 0.5rem;
+    height: 0.5rem;
+    background: #fff;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 48;
+    transition: transform 0.66s ease-out, opacity 0.66s ease-out;
+}
+
+/* 煙火粒子 */
+.game10-firework-particle {
+    position: absolute;
+    width: 0.5rem;
+    height: 0.5rem;
+    background: #ff0;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 55;
+    transition: transform 1s ease-out, opacity 1s ease-out;
+    filter: blur(0.05rem);
+    box-shadow: 0 0 0.2rem #fff;
+}
+
+/* 倒數計時 */
+.game10-countdown {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 5rem;
+    font-weight: bold;
+    color: hsl(50, 100%, 70%);
+    /* 淡黃色 */
+    text-shadow: 0 0 1rem rgba(0, 0, 0, 0.5), 0 0 2rem hsl(50, 100%, 50%);
+    z-index: 150;
+    pointer-events: none;
+    animation: game10-cd-pulse 1s linear infinite;
+}
+
+@keyframes game10-cd-pulse {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+    }
+
+    90% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0.5;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 0;
+    }
+}
+
+/* Message Box */
+.game10-message {
+    position: absolute;
+    top: 94%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 1);
+    padding: 0.5rem;
+    padding-bottom: 3rem;
+    border-radius: 1rem;
+    text-align: center;
+    color: #333;
+    box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.8);
+    z-index: 200;
+    width: 90%;
+}
+
+.game10-message h2 {
+    font-size: 1.2rem;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+    margin: 0.3rem 0;
+}
+
+.game10-message p {
+    font-size: 1rem;
+    display: inline-block;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.game10-message .nav-btn {
+    background: hsl(145, 50%, 40%);
+    color: white;
+    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
+    border: none;
+    border-radius: 1.5rem;
+    padding: 0.2rem 2rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game10-message .nav-btn:hover {
+    background: hsl(145, 50%, 30%);
+}

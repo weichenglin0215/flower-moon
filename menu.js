@@ -80,6 +80,14 @@
                 <span class="menu-number">9</span>
                 <span class="menu-text">詩韻鎖扣</span>
             </div>
+            <div class="menu-item" data-page="game10">
+                <span class="menu-number">10</span>
+                <span class="menu-text">擊石鳴詩</span>
+            </div>
+            <div class="menu-item" data-page="game11">
+                <span class="menu-number">11</span>
+                <span class="menu-text">翻墨識蹤</span>
+            </div>
             <div class="menu-item" data-page="author-biography">
                 <span class="menu-number">人</span>
                 <span class="menu-text">名人列傳</span>
@@ -121,7 +129,7 @@
         console.log('[Menu] 正在執行全域清理...');
 
         // 3. 停止所有正在運作的遊戲
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -291,6 +299,16 @@
                         console.log('[Menu] 開啟 詩韻鎖扣');
                         if (window.Game9) window.Game9.show();
                         else window.location.href = 'index.html?game=9';
+                        break;
+                    case 'game10':
+                        console.log('[Menu] 開啟 擊石鳴詩');
+                        if (window.Game10) window.Game10.show();
+                        else window.location.href = 'index.html?game=10';
+                        break;
+                    case 'game11':
+                        console.log('[Menu] 開啟 翻墨識蹤');
+                        if (window.Game11) window.Game11.show();
+                        else window.location.href = 'index.html?game=11';
                         break;
                     case 'author-biography':
                         console.log('[Menu] 開啟 名人列傳');

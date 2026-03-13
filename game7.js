@@ -914,4 +914,12 @@
     };
 
     window.Game7 = Game7;
+
+    if (new URLSearchParams(window.location.search).get('game') === '7') {
+        setTimeout(() => {
+            if (window.Game7) window.Game7.show();
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }, 50);
+    }
 })();

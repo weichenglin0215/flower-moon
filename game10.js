@@ -1,0 +1,896 @@
+(function () {
+    // 遊戲十：擊石鳴詩 (Arkanoid Verse)
+    const Game10 = {
+        isActive: false,        // 遊戲是否進行中
+        difficulty: '小學',    // 當前難度
+        score: 0,              // 當前分數
+        mistakes: 0,           // 當前失誤次數 (掉球)
+        maxMistakes: 5,        // 最大允許失誤次數
+        currentPoem: null,     // 當前挑戰的詩詞資料
+
+        // 物理與遊戲狀態
+        animationFrameId: null, // requestAnimationFrame 的 ID
+        lastTime: 0,           // 上一幀的時間戳記
+        container: null,       // 遊戲主容器 DOM
+        gameArea: null,        // 遊戲遊玩區域 DOM
+        paddleEl: null,        // 撞擊條 (Paddle) DOM
+        ballEl: null,          // 球 (Ball) DOM
+        bricksContainer: null, // 磚塊容器 DOM
+
+        areaRect: { width: 0, height: 0, left: 0, top: 0 }, // 遊玩區域的矩形資訊
+        remToPx: 10, // 單位換算：1rem 等於多少像素
+        countdown: 0, // 倒數計時秒數
+        dropTimer: 0, // 磚塊下移計時器
+
+        // 撞擊條狀態 (使用 rem 單位)
+        paddle: { x: 0, width: 0, height: 0.8 },
+        // 球狀態 (使用 rem 單位)
+        ball: { x: 0, y: 0, dx: 0, dy: 0, radius: 0.4, isMoving: false, speed: 0, maxSpeed: 0 },
+        bricks: [], // 磚塊陣列：儲存位置、文字、血量、是否損壞等資訊
+
+        // 難度參數
+        difficultySettings: {
+            '小學': { stars: 6, growRate: 0.2, dropInterval: 3, dropStep: 0.6, paddleBase: 10, balls: 5, blackHP: 1, lineHeight: 2.0, minLines: 2, minChars: 10, maxChars: 20, ballSpeed: 20, ballMaxSpeed: 30 },
+            '中學': { stars: 5, growRate: 0.15, dropInterval: 3, dropStep: 0.5, paddleBase: 9, balls: 5, blackHP: 2, lineHeight: 1.5, minLines: 4, minChars: 14, maxChars: 21, ballSpeed: 24, ballMaxSpeed: 34 },
+            '高中': { stars: 4, growRate: 0.1, dropInterval: 3, dropStep: 0.4, paddleBase: 8, balls: 5, blackHP: 3, lineHeight: 1.2, minLines: 4, minChars: 20, maxChars: 28, ballSpeed: 28, ballMaxSpeed: 38 },
+            '大學': { stars: 3, growRate: 0.1, dropInterval: 3, dropStep: 0.3, paddleBase: 7, balls: 4, blackHP: 3, lineHeight: 1.0, minLines: 6, minChars: 25, maxChars: 35, ballSpeed: 32, ballMaxSpeed: 42 },
+            '研究所': { stars: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.25, paddleBase: 6, balls: 3, blackHP: 3, lineHeight: 1, minLines: 6, minChars: 30, maxChars: 42, ballSpeed: 36, ballMaxSpeed: 46 }
+        },
+
+        loadCSS: function () {
+            if (!document.getElementById('game10-css')) {
+                const link = document.createElement('link');
+                link.id = 'game10-css';
+                link.rel = 'stylesheet';
+                link.href = 'game10.css';
+                document.head.appendChild(link);
+            }
+        },
+
+        init: function () {
+            this.loadCSS();
+            if (!document.getElementById('game10-container')) {
+                this.createDOM();
+            }
+            this.container = document.getElementById('game10-container');
+            this.gameArea = document.getElementById('game10-area');
+            this.paddleEl = document.getElementById('game10-paddle');
+            this.ballEl = document.getElementById('game10-ball');
+            this.bricksContainer = document.getElementById('game10-bricks-container');
+
+            // 綁定按鈕
+            document.getElementById('game10-retryGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame();
+            };
+            document.getElementById('game10-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();
+            };
+            document.getElementById('game10-msg-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                document.getElementById('game10-message').classList.add('hidden');
+                if (this.isWin) this.startNewGame();
+                else this.retryGame();
+            };
+
+            // 綁定輸入 (Drag)
+            this.setupInput();
+        },
+
+        createDOM: function () {
+            const div = document.createElement('div');
+            div.id = 'game10-container';
+            div.className = 'game10-overlay aspect-5-8 hidden';
+            div.innerHTML = `
+                <div class="game10-header">
+                    <div class="game10-score-board">分數: <span id="game10-score">0</span></div>
+                    <div class="game10-controls">
+                        <button id="game10-retryGame-btn" class="nav-btn">重來</button>
+                        <button id="game10-newGame-btn" class="nav-btn">開新局</button>
+                    </div>
+                </div>
+                <div class="game10-sub-header">
+                    <div id="game10-hearts" class="hearts"></div>
+                </div>
+                <div id="game10-area" class="game10-area">
+                    <div class="game10-difficulty-tag" id="game10-diff-tag">小學</div>
+                    <div id="game10-poem-info" class="game10-poem-info"></div>
+
+                    <!-- 遊玩實體 -->
+                    <div id="game10-bricks-container" class="game10-bricks-container"></div>
+                    <div id="game10-paddle" class="game10-paddle"></div>
+                    <div id="game10-ball" class="game10-ball"></div>
+                    <div id="game10-countdown" class="game10-countdown hidden">3</div>
+                </div>
+
+                <div id="game10-message" class="game10-message hidden">
+                    <h2 id="game10-msg-title">遊戲結束</h2>
+                    <p id="game10-msg-content"></p>
+                    <button id="game10-msg-btn" class="nav-btn">再試一次</button>
+                </div>
+            `;
+            document.body.appendChild(div);
+        },
+
+        setupInput: function () {
+            const handleMove = (e) => {
+                if (!this.isActive) return;
+                e.preventDefault();
+                let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+
+                // 將滑鼠座標轉為相對寬度中的座標
+                let x = clientX - this.areaRect.left;
+
+                // 轉成 rem
+                let remX = x / this.remToPx;
+
+                // 暫存 targetX，在 gameLoop 中平滑移動
+                this.paddle.targetX = remX;
+            };
+
+            this.gameArea.addEventListener('touchmove', handleMove, { passive: false });
+            this.gameArea.addEventListener('mousemove', handleMove);
+
+            const handleDown = (e) => {
+                if (!this.isActive) return;
+                // e.preventDefault();
+                // 遊戲一開始發射球
+                if (!this.ball.isMoving) {
+                    this.launchBall();
+                }
+            };
+
+            this.gameArea.addEventListener('touchstart', handleDown, { passive: false });
+            this.gameArea.addEventListener('mousedown', handleDown);
+        },
+
+        launchBall: function () {
+            if (this.ball.isMoving) return;
+            this.ball.isMoving = true;
+            // 隨機往左或往右發射
+            const angle = -Math.PI / 2 + (Math.random() * 0.5 - 0.25); // 向上約75度
+            this.ball.dx = this.ball.speed * Math.cos(angle);
+            this.ball.dy = this.ball.speed * Math.sin(angle);
+
+            const cdEl = document.getElementById('game10-countdown');
+            if (cdEl) cdEl.classList.add('hidden');
+            this.countdown = 0;
+        },
+
+        show: function () {
+            this.init();
+
+            // 顯示難度選擇器
+            if (window.DifficultySelector) {
+                this.hideOtherContents();
+                window.DifficultySelector.show('擊石鳴詩', (selectedLevel) => {
+                    this.difficulty = selectedLevel;
+                    this.startGameFlow();
+                });
+            } else {
+                this.hideOtherContents();
+                this.startGameFlow();
+            }
+        },
+
+        startGameFlow: function () {
+            const settings = this.difficultySettings[this.difficulty];
+            this.maxMistakes = settings.balls;
+
+            this.container.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            document.body.classList.add('overlay-active');
+
+            if (window.updateResponsiveLayout) {
+                window.updateResponsiveLayout();
+            }
+            // 等待 layout 計算完成再開始
+            setTimeout(() => {
+                this.startNewGame();
+            }, 100);
+        },
+
+        hideOtherContents: function () {
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) cardContainer.style.display = 'none';
+            const game1 = document.getElementById('game1-container');
+            if (game1) game1.classList.add('hidden');
+        },
+        showOtherContents: function () {
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) cardContainer.style.display = '';
+        },
+
+        stopGame: function () {
+            this.isActive = false;
+            cancelAnimationFrame(this.animationFrameId);
+            if (this.container) {
+                this.container.classList.add('hidden');
+            }
+            document.body.style.overflow = '';
+            document.body.classList.remove('overlay-active');
+            this.showOtherContents();
+        },
+
+        retryGame: function () {
+            if (!this.currentPoem) return;
+            this.score = 0;
+            this.mistakes = 0;
+
+            // 完全重置磚塊到初始位置與狀態
+            this.bricks.forEach(b => {
+                b.hp = b.maxHp;
+                b.isBroken = false;
+                b.y = b.startY; // 回到最初生成的 Y 座標
+                if (b.element) {
+                    b.element.className = 'game10-brick';
+                }
+                if (b.innerElement) {
+                    b.innerElement.className = 'game10-brick-inner';
+                    b.innerElement.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+                }
+            });
+
+            this.resetGameRound();
+        },
+
+        startNewGame: function () {
+            document.getElementById('game10-diff-tag').textContent = this.difficulty;
+            this.score = 0;
+            this.mistakes = 0;
+            this.prepareChallenge();
+            this.resetGameRound();
+        },
+
+        prepareChallenge: function () {
+            const settings = this.difficultySettings[this.difficulty];
+            const result = getSharedRandomPoem(settings.stars, settings.minLines, settings.minLines + 2, settings.minChars, settings.maxChars);
+            if (!result) {
+                alert('找不到符合評分的詩詞。');
+                return;
+            }
+            this.currentPoem = result.poem;
+
+            const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const infoEl = document.getElementById('game10-poem-info');
+            infoEl.textContent = infoText;
+
+            // Generate Bricks Data
+            this.bricks = [];
+            let contentLines = this.currentPoem.content.slice(result.startIndex, result.startIndex + settings.minLines);
+
+            // Calculate screen dimensions
+            const rect = this.gameArea.getBoundingClientRect();
+            this.remToPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 10;
+            const wRem = rect.width / this.remToPx;
+
+            let startY = 2.0; // 從頂部向下偏移一點，避開分數列
+
+            contentLines.forEach((line, rowIdx) => {
+                const chars = line.split('');
+                const charWidth = 2.5;  // 磚塊寬度
+                const charHeight = 2.5; // 磚塊高度
+
+                // 排版：計算整句所需寬度
+                const totalWidth = chars.length * charWidth;
+                let startX = (wRem - totalWidth) / 2;
+                // 產生磚塊
+                chars.forEach((char, colIdx) => {
+                    // 如果是標點，略過或設為 isSpace (為了簡單起見，直接不生成)
+                    if (/[，。？！、：；]/.test(char)) return;
+
+                    this.bricks.push({
+                        row: rowIdx,
+                        col: colIdx,
+                        text: char,
+                        x: startX + colIdx * charWidth + charWidth / 2, // 中心點
+                        y: startY + rowIdx * (charHeight + this.difficultySettings[this.difficulty].lineHeight), // 中心點（配合 CSS translate 居中）
+                        startY: startY + rowIdx * (charHeight + this.difficultySettings[this.difficulty].lineHeight), // 紀錄初始位置供重來使用
+                        width: charWidth - 0.2, // 留邊距
+                        height: charHeight - 0.2,
+                        hp: this.difficultySettings[this.difficulty].blackHP + (contentLines.length - rowIdx - 1),
+                        maxHp: this.difficultySettings[this.difficulty].blackHP + (contentLines.length - rowIdx - 1), // 初始血量
+                        isBroken: false,
+                        originalLine: line
+                    });
+                });
+            });
+
+            this.totalRows = contentLines.length;
+            this.clearedRows = 0;
+            this.renderBricks();
+        },
+
+        renderBricks: function () {
+            this.bricksContainer.innerHTML = '';
+            this.bricks.forEach((b, i) => {
+                const el = document.createElement('div');
+                el.className = 'game10-brick';
+                el.style.width = `${b.width}rem`;
+                el.style.height = `${b.height}rem`;
+                // 初始化位置設為 0，後續由 updateRender 透過 transform 控制
+                el.style.left = '0';
+                el.style.top = '0';
+
+                // 內層元素：負責邊框、背景、震動動畫與文字顯示
+                const inner = document.createElement('div');
+                inner.className = 'game10-brick-inner';
+                inner.textContent = b.text;
+
+                el.appendChild(inner);
+                this.bricksContainer.appendChild(el);
+
+                b.element = el;
+                b.innerElement = inner;
+            });
+        },
+
+        renderHearts: function () {
+            const hearts = document.getElementById('game10-hearts');
+            if (!hearts) return;
+            hearts.innerHTML = '';
+            for (let i = 0; i < this.maxMistakes; i++) {
+                const span = document.createElement('span');
+                span.className = 'heart';
+                span.textContent = '♥';
+                hearts.appendChild(span);
+            }
+        },
+
+        updateHearts: function () {
+            const hearts = document.querySelectorAll('#game10-hearts .heart');
+            hearts.forEach((h, i) => {
+                if (i < this.mistakes) {
+                    h.classList.add('empty');
+                    h.textContent = '♡';
+                } else {
+                    h.classList.remove('empty');
+                    h.textContent = '♥';
+                }
+            });
+        },
+
+        resetGameRound: function (keepBricks = false) {
+            this.isActive = true;
+            document.getElementById('game10-score').textContent = this.score;
+            document.getElementById('game10-message').classList.add('hidden');
+            this.renderHearts();
+            this.updateHearts();
+
+            // 啟用重來按鈕
+            document.getElementById('game10-retryGame-btn').disabled = false;
+            document.getElementById('game10-newGame-btn').disabled = false;
+
+            // 計算視窗
+            this.areaRect = this.gameArea.getBoundingClientRect();
+            this.remToPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 10;
+            const wRem = this.areaRect.width / this.remToPx;
+            const hRem = this.areaRect.height / this.remToPx;
+
+            // 初始化 Paddle
+            const settings = this.difficultySettings[this.difficulty];
+            // 計算目前長度：根據 mistakes (掉球次數) 進行放大協助
+            const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes) * (this.areaRect.width / 640);
+
+            this.paddle.width = currentPaddleWidth;
+            this.paddle.x = wRem / 2;
+            this.paddle.prevX = wRem / 2; // 初始化上一幀位置
+            this.paddle.targetX = wRem / 2;
+            this.paddle.y = hRem - 2.4;
+            this.paddle.velX = 0;
+
+            // 初始化 Ball
+            this.ball.isMoving = false;
+            this.ball.x = this.paddle.x;
+            this.ball.y = this.paddle.y - this.paddle.height / 2 - this.ball.radius;
+            this.ball.dx = 0;
+            this.ball.dy = 0;
+            this.ball.speed = settings.ballSpeed;
+            this.ball.maxSpeed = settings.ballMaxSpeed;
+            this.dropTimer = 0; // 重置下移計時
+
+            // 開始倒數計時提醒玩家
+            this.countdown = 3.9; // 略大於 3，讓玩家看到 3 兩秒
+            const cdEl = document.getElementById('game10-countdown');
+            if (cdEl) {
+                cdEl.textContent = '3';
+                cdEl.classList.remove('hidden');
+            }
+
+            this.updateRender();
+
+            if (keepBricks) {
+                // 回復血量或位置？ 其實重來可以保留位置就好，或者全部重設 HP
+                this.bricks.forEach(b => {
+                    b.hp = b.maxHp;
+                    b.isBroken = false;
+                    if (b.element) {
+                        b.element.className = 'game10-brick';
+                        if (b.innerElement) {
+                            b.innerElement.className = 'game10-brick-inner';
+                            b.innerElement.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+                        }
+                    }
+                });
+            }
+
+            cancelAnimationFrame(this.animationFrameId);
+            this.lastTime = performance.now();
+            this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+        },
+
+        // 遊戲主迴圈
+        gameLoop: function (timestamp) {
+            if (!this.isActive) return;
+            const dt = (timestamp - this.lastTime) / 1000; // 計算幀與幀之間的時間差 (秒)
+            this.lastTime = timestamp;
+
+            const wRem = this.areaRect.width / this.remToPx;
+            const hRem = this.areaRect.height / this.remToPx;
+
+            // 更新撞擊條位置 (跟隨滑鼠/手指，使用平滑補間)
+            this.paddle.prevX = this.paddle.x;
+            this.paddle.x += (this.paddle.targetX - this.paddle.x) * 0.4;
+            this.paddle.velX = (this.paddle.x - this.paddle.prevX) / dt; // 計算目前的左右移動速度
+
+            // 限制撞擊條邊界，不超出畫面
+            if (this.paddle.x - this.paddle.width / 2 < 0) {
+                this.paddle.x = this.paddle.width / 2;
+                this.paddle.velX = 0;
+            }
+            if (this.paddle.x + this.paddle.width / 2 > wRem) {
+                this.paddle.x = wRem - this.paddle.width / 2;
+                this.paddle.velX = 0;
+            }
+
+            // 讓所有磚塊根據難度設定定期下移，以消除整數偏移造成的抖動感
+            const settings = this.difficultySettings[this.difficulty];
+            this.dropTimer += dt;
+            if (this.dropTimer >= settings.dropInterval) {
+                this.dropTimer = 0;
+                const step = settings.dropStep;
+                this.bricks.forEach(b => {
+                    b.y += step;
+                });
+            }
+
+            // 計算目前活著的最底端磚塊位置，用於失敗判定
+            let lowestActiveBrickY = 0;
+            this.bricks.forEach(b => {
+                if (!b.isBroken && b.y > lowestActiveBrickY) {
+                    lowestActiveBrickY = b.y;
+                }
+            });
+
+            // 失敗判定：若任一存活磚塊碰到撞擊條 (Paddle) 的 Y 座標
+            // 以磚塊中心加上一半高度作為邊界判定
+            if (lowestActiveBrickY + 1.25 > this.paddle.y) {
+                this.gameOver(false, "詩句下沉到底了！");
+                return;
+            }
+
+            // 處裡倒數計時發射球
+            if (!this.ball.isMoving && this.countdown > 0) {
+                this.countdown -= dt;
+                const cdEl = document.getElementById('game10-countdown');
+                if (cdEl) {
+                    const displayVal = Math.max(0, Math.floor(this.countdown));
+                    cdEl.textContent = displayVal;
+                    if (this.countdown <= 0) {
+                        cdEl.classList.add('hidden');
+                        // 自動發射球
+                        this.launchBall();
+                    }
+                }
+            } else if (this.ball.isMoving) {
+                const cdEl = document.getElementById('game10-countdown');
+                if (cdEl) cdEl.classList.add('hidden');
+            }
+
+            // 更新球的位置與碰撞處理
+            if (this.ball.isMoving) {
+                // 分次檢測碰撞以增加物理穩定性
+                const steps = 2;
+                for (let s = 0; s < steps; s++) {
+                    const stepDt = dt / steps;
+                    this.ball.x += this.ball.dx * stepDt;
+                    this.ball.y += this.ball.dy * stepDt;
+
+                    // 牆壁碰撞檢測 (左、右、上)
+                    if (this.ball.x - this.ball.radius < 0) {
+                        this.ball.x = this.ball.radius;
+                        this.ball.dx *= -1;
+                        this.playSound('porcelain');
+                    }
+                    if (this.ball.x + this.ball.radius > wRem) {
+                        this.ball.x = wRem - this.ball.radius;
+                        this.ball.dx *= -1;
+                        this.playSound('porcelain');
+                    }
+                    if (this.ball.y - this.ball.radius < 0) {
+                        this.ball.y = this.ball.radius;
+                        this.ball.dy *= -1;
+                        this.playSound('porcelain');
+                    }
+
+                    // 掉落判定 (出界下缘)
+                    if (this.ball.y + this.ball.radius > hRem) {
+                        this.handleBallDrop();
+                        break; // 停止目前的物理步進，交給 handleBallDrop 處理狀態
+                    }
+
+                    // 撞擊條碰撞檢測
+                    this.checkPaddleCollision();
+
+                    // 磚塊碰撞檢測
+                    this.checkBricksCollision();
+                }
+
+                // 在球後方隨機產生拖尾粒子效果
+                if (Math.random() < 0.3) {
+                    this.createTrailParticle(this.ball.x, this.ball.y);
+                }
+            } else {
+                // 球尚未發射時，固定在撞擊條上方
+                this.ball.x = this.paddle.x;
+                this.ball.y = this.paddle.y - this.paddle.height / 2 - this.ball.radius;
+            }
+
+            // 更新畫面渲染
+            this.updateRender();
+
+            // 勝利判定：所有磚塊皆已消除
+            const allBroken = this.bricks.every(b => b.isBroken);
+            if (allBroken && this.isActive) {
+                this.handleWin();
+                return;
+            }
+
+            this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+        },
+
+        // 撞擊條碰撞檢測：使用 AABB 盒子模型
+        checkPaddleCollision: function () {
+            const br = this.ball.radius;
+            const px = this.paddle.x - this.paddle.width / 2;
+            const py = this.paddle.y - this.paddle.height / 2;
+
+            // 判斷球體是否與撞擊條矩形重疊
+            if (this.ball.x + br > px &&
+                this.ball.x - br < px + this.paddle.width &&
+                this.ball.y + br > py &&
+                this.ball.y - br < py + this.paddle.height) {
+
+                // 物理優化：只在球往下移動時才進行反彈，防止球困在撞擊條內部
+                if (this.ball.dy > 0) {
+                    // 計算碰撞點距離撞擊條中心的偏移值 (-1 到 1)
+                    const hitPos = (this.ball.x - this.paddle.x) / (this.paddle.width / 2);
+
+                    // 根據碰撞位置動態改變反彈角度 (讓玩家可以控制球的方向)
+                    const speed = Math.sqrt(this.ball.dx * this.ball.dx + this.ball.dy * this.ball.dy);
+
+                    // 2. 計算基礎反射角 (假設地面在下方，dy 需反轉)
+                    // Math.atan2(y, x) 回傳弧度Radian
+                    let reflectionRadian = Math.atan2(-this.ball.dy, this.ball.dx);
+                    let reflectionDegree = reflectionRadian * (180 / Math.PI); //改成角度
+
+                    const maxBouncDegree = 15; // 最大偏轉約 15 度 (hitPos 從 -1 到 1)
+
+                    // C 規則：若反彈棒正在移動，根據速度增減反射角度
+                    // 將 velX 轉換為角度影響值 (0.02 係數：當速度為 10rem/s 時約造成 0.2 弧度偏移)
+                    let moveInfluenceDegree = (this.paddle.velX || 0) * 10;
+                    if (moveInfluenceDegree > (maxBouncDegree * 2)) {
+                        moveInfluenceDegree = maxBouncDegree * 2;
+                    }
+                    if (moveInfluenceDegree < -(maxBouncDegree * 2)) {
+                        moveInfluenceDegree = -(maxBouncDegree * 2);
+                    }
+
+                    // 3. 產生隨機誤差 (Random Offset)
+                    const offsetDegree = (hitPos * maxBouncDegree) + moveInfluenceDegree;
+
+                    // 4. 套用誤差
+                    let finalDegree = reflectionDegree + offsetDegree;
+                    //document.getElementById('game10-diff-tag').textContent = finalDegree;
+                    if (finalDegree > -15) {
+                        finalDegree = -15;
+                    }
+                    if (finalDegree < -165) {
+                        finalDegree = -165;
+                    }
+                    const finalRadian = finalDegree * (Math.PI / 180);
+                    this.ball.dx = speed * Math.cos(finalRadian);
+                    this.ball.dy = speed * Math.sin(finalRadian);
+
+                    // 修正位置：將球置於撞擊條上方邊界，防止黏球現象
+                    this.ball.y = py - br - 0.1;
+                    this.playSound('drum'); // 播放撥弦/鼓聲回饋
+                }
+            }
+        },
+
+        // 磚塊碰撞檢測：檢測球體與每塊存活磚塊的距離
+        checkBricksCollision: function () {
+            const br = this.ball.radius;
+
+            for (let i = 0; i < this.bricks.length; i++) {
+                let b = this.bricks[i];
+                if (b.isBroken) continue; // 略過已擊碎的磚塊
+
+                const hw = b.width / 2;
+                const hh = b.height / 2;
+
+                // 尋找磚塊上距離球心最近的點
+                let testX = this.ball.x;
+                let testY = this.ball.y;
+
+                if (this.ball.x < b.x - hw) testX = b.x - hw;
+                else if (this.ball.x > b.x + hw) testX = b.x + hw;
+
+                if (this.ball.y < b.y - hh) testY = b.y - hh;
+                else if (this.ball.y > b.y + hh) testY = b.y + hh;
+
+                let distX = this.ball.x - testX;
+                let distY = this.ball.y - testY;
+                let distance = Math.sqrt(distX * distX + distY * distY);
+
+                // 若球心到最近點的距離小於半徑，則發生碰撞
+                if (distance <= br) {
+                    this.handleBrickHit(b);
+
+                    // 簡單反射邏輯：判斷是牆面碰撞還是頂底碰撞
+                    if (Math.abs(distX) > Math.abs(distY)) {
+                        this.ball.dx *= -1;
+                    } else {
+                        this.ball.dy *= -1;
+                    }
+
+                    this.playSound('chimes'); // 播放編鐘/清亮回饋
+                    break; // 每幀只處理一個磚塊碰撞，穩定物理解算
+                }
+            }
+        },
+
+        handleBrickHit: function (brick) {
+            brick.hp--;
+            this.score += 2;
+            document.getElementById('game10-score').textContent = this.score;
+
+            if (brick.innerElement) {
+                // 對內層元素發動震動動畫，不干擾外層物理容器的位移
+                brick.innerElement.classList.remove('shake');
+                void brick.innerElement.offsetWidth; // trigger reflow
+                brick.innerElement.classList.add('shake');
+
+                // 根據血量更新內層底色透明度: Alpha = hp / maxHp
+                const alpha = Math.max(0, brick.hp / brick.maxHp);
+                brick.innerElement.style.backgroundColor = `rgba(255, 255, 255, ${alpha})`;
+
+                this.createShatterParticle(brick.x, brick.y);
+            }
+
+            if (brick.hp <= 0) {
+                brick.isBroken = true;
+                if (brick.element) {
+                    brick.element.classList.add('broken');
+                }
+                if (brick.innerElement) {
+                    brick.innerElement.style.backgroundColor = 'transparent';
+                }
+                if (this.ball.speed < this.ball.maxSpeed) {
+                    this.ball.speed *= 1.05;
+                    this.ball.dx *= 1.05;
+                    this.ball.dy *= 1.05;
+                }
+                this.playSound('shatter'); // 撥放擊破高頻音效
+                this.checkRowClear(brick.row);
+            }
+        },
+
+        checkRowClear: function (rowIdx) {
+            const rowBricks = this.bricks.filter(b => b.row === rowIdx);
+            const isCleared = rowBricks.every(b => b.isBroken);
+
+            if (isCleared) {
+                this.clearedRows++;
+
+                // (原本此處會有 fly-away 動畫，現已依照需求移除，讓文字繼續保留顯示)
+
+                // 播放吟誦 (若有)
+                // if(window.SoundManager && this.currentPoem.audioPath) { ... }
+
+                // (依照需求移除原本的縮短反彈棒邏輯)
+
+                this.score += 50;
+                document.getElementById('game10-score').textContent = this.score;
+            }
+        },
+
+        handleBallDrop: function () {
+            this.mistakes++;
+            this.updateHearts();
+            this.playSound('failure');
+
+            // 掉球後放大反彈棒以協助玩家
+            const settings = this.difficultySettings[this.difficulty];
+            const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes) * (this.areaRect.width / 640);
+            this.paddle.width = currentPaddleWidth;
+
+            if (this.mistakes >= this.maxMistakes) {
+                this.gameOver(false, "掉球次數過多！");
+            } else {
+                // 重新發球
+                this.ball.isMoving = false;
+            }
+        },
+
+        handleWin: function () {
+            this.isActive = false;
+            cancelAnimationFrame(this.animationFrameId);
+
+            document.getElementById('game10-retryGame-btn').disabled = true;
+            document.getElementById('game10-newGame-btn').disabled = true;
+
+            ScoreManager.playWinAnimation({
+                game: this,
+                difficulty: this.difficulty,
+                gameKey: 'game10',
+                timerContainerId: 'game10-bricks-container', // placeholder
+                scoreElementId: 'game10-score',
+                heartsSelector: '#game10-hearts .heart:not(.empty)',
+                onComplete: (finalScore) => {
+                    this.gameOver(true, "最終得分：" + finalScore);
+                }
+            });
+
+            // 在白球附近放置五個大型煙火
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    this.createFirework(this.ball.x + (Math.random() * 4 - 2), this.ball.y + (Math.random() * 4 - 2));
+                }, i * 200);
+            }
+        },
+
+        gameOver: function (win, reason) {
+            this.isActive = false;
+            this.isWin = win;
+            cancelAnimationFrame(this.animationFrameId);
+
+            if (win) {
+                document.getElementById('game10-retryGame-btn').disabled = true;
+                document.getElementById('game10-newGame-btn').disabled = true;
+            } else {
+                document.getElementById('game10-retryGame-btn').disabled = false;
+                document.getElementById('game10-newGame-btn').disabled = false;
+            }
+
+            const msgDiv = document.getElementById('game10-message');
+            const title = document.getElementById('game10-msg-title');
+            const content = document.getElementById('game10-msg-content');
+
+            msgDiv.classList.remove('hidden');
+            if (win) {
+                title.textContent = "破陣成功！";
+                title.style.color = "#28a745";
+                content.textContent = reason;
+            } else {
+                title.textContent = "再接再厲！";
+                title.style.color = "#dc3545";
+                content.textContent = reason;
+            }
+
+            const msgBtn = document.getElementById('game10-msg-btn');
+            msgBtn.textContent = win ? "下一局" : "再試一次";
+        },
+
+        updateRender: function () {
+            // Paddle
+            if (this.paddleEl) {
+                this.paddleEl.style.width = `${this.paddle.width}rem`;
+                this.paddleEl.style.left = `${this.paddle.x}rem`;
+                this.paddleEl.style.top = `${this.paddle.y}rem`;
+            }
+            // Ball
+            if (this.ballEl) {
+                this.ballEl.style.left = `${this.ball.x}rem`;
+                this.ballEl.style.top = `${this.ball.y}rem`;
+            }
+            // Bricks down render
+            this.bricks.forEach(b => {
+                if (b.element) {
+                    // 使用 transform: translate3d 提高渲染效能並消除抖動
+                    // 座標直接映射自物理引擎中的 b.x 與 b.y
+                    b.element.style.transform = `translate3d(-50%, -50%, 0) translate(${b.x}rem, ${b.y}rem)`;
+                }
+            });
+        },
+
+        createTrailParticle: function (x, y) {
+            const p = document.createElement('div');
+            p.className = 'game10-trail-particle';
+            p.style.left = `${x}rem`;
+            p.style.top = `${y}rem`;
+            this.gameArea.appendChild(p);
+            setTimeout(() => {
+                if (p.parentNode) p.parentNode.removeChild(p);
+            }, 500);
+        },
+
+        createShatterParticle: function (x, y) {
+            for (let i = 0; i < 6; i++) {
+                const p = document.createElement('div');
+                p.className = 'game10-shatter-particle'; //文字框碎片
+                p.style.left = `${x}rem`;
+                p.style.top = `${y}rem`;
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 2 + 1;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist;
+
+                this.gameArea.appendChild(p);
+
+                // 動畫
+                setTimeout(() => {
+                    p.style.transform = `translate(${dx}rem, ${dy}rem)`;
+                    p.style.opacity = '0';
+                }, 10);
+
+                setTimeout(() => {
+                    if (p.parentNode) p.parentNode.removeChild(p);
+                }, 1000);
+            }
+        },
+
+        playSound: function (type) {
+            if (!window.SoundManager) return;
+            // Map our sounds to existing SoundManager if custom ones don't exist
+            switch (type) {
+                case 'porcelain': window.SoundManager.playGuzhengLow(4); break; //撞牆
+                case 'drum': window.SoundManager.playConfirmItem(); break; //撞到反彈棒
+                case 'chimes': window.SoundManager.playOpenItem(); break; //打中磚塊
+                case 'shatter': window.SoundManager.playBreakEnemy(); break; // 高頻擊破聲
+                case 'failure': window.SoundManager.playFailure(); break;
+            }
+        },
+
+        createFirework: function (x, y) {
+            for (let i = 0; i < 30; i++) {
+                const p = document.createElement('div');
+                p.className = 'game10-firework-particle';
+                const hue = Math.floor(Math.random() * 60) + 10; // 金黃色系
+                p.style.backgroundColor = `hsl(${hue}, 100%, 60%)`;
+                p.style.left = `${x}rem`;
+                p.style.top = `${y}rem`;
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 4 + 2;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist;
+
+                this.gameArea.appendChild(p);
+
+                setTimeout(() => {
+                    p.style.transform = `translate(${dx}rem, ${dy}rem) scale(0)`;
+                    p.style.opacity = '0';
+                }, 10);
+
+                setTimeout(() => {
+                    if (p.parentNode) p.parentNode.removeChild(p);
+                }, 1500);
+            }
+        }
+    };
+
+    window.Game10 = Game10;
+
+    // 自動檢查是否需要啟動
+    if (new URLSearchParams(window.location.search).get('game') === '10') {
+        setTimeout(() => {
+            if (window.Game10) window.Game10.show();
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }, 50);
+    }
+})();

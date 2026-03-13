@@ -657,7 +657,7 @@
     window.Game1 = Game1;
 
     // 自動檢查是否需要啟動 (從 URL 參數)
-    if (window.location.search.includes('game=1')) {
+    if (new URLSearchParams(window.location.search).get('game') === '1') {
         setTimeout(() => {
             if (window.Game1) window.Game1.show();
             const newUrl = window.location.pathname;
