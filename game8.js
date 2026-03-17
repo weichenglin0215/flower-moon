@@ -154,7 +154,7 @@
         },
 
         hideOtherContents: function () {
-            const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container', 'game4-container', 'game5-container', 'game6-container', 'game7-container'];
+            const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container', 'game4-container', 'game5-container', 'game6-container', 'game7-container', 'game8-container'];
             els.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -192,6 +192,7 @@
 
         //game8只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;

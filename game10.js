@@ -214,6 +214,7 @@
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
             this.score = 0;
             this.mistakes = 0;
@@ -236,6 +237,7 @@
         },
 
         startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             document.getElementById('game10-diff-tag').textContent = this.difficulty;
             this.score = 0;
             this.mistakes = 0;
@@ -252,9 +254,11 @@
             }
             this.currentPoem = result.poem;
 
-            const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
-            const infoEl = document.getElementById('game10-poem-info');
-            infoEl.textContent = infoText;
+            const info = document.getElementById('game10-poem-info');
+            info.innerHTML = `<span>${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+            info.onclick = () => {
+                if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
+            };
 
             // Generate Bricks Data
             this.bricks = [];
@@ -470,7 +474,7 @@
                 return;
             }
 
-            // 處裡倒數計時發射球
+            // 處理倒數計時發射球，時間到就自動發球
             if (!this.ball.isMoving && this.countdown > 0) {
                 this.countdown -= dt;
                 const cdEl = document.getElementById('game10-countdown');
@@ -565,15 +569,20 @@
                 // 物理優化：只在球往下移動時才進行反彈，防止球困在撞擊條內部
                 if (this.ball.dy > 0) {
                     // 計算碰撞點距離撞擊條中心的偏移值 (-1 到 1)
+                    // 根據碰撞位置動態改變反彈角度 (讓玩家可以控制球的方向)
                     const hitPos = (this.ball.x - this.paddle.x) / (this.paddle.width / 2);
 
-                    // 根據碰撞位置動態改變反彈角度 (讓玩家可以控制球的方向)
+                    //求出速度
                     const speed = Math.sqrt(this.ball.dx * this.ball.dx + this.ball.dy * this.ball.dy);
 
                     // 2. 計算基礎反射角 (假設地面在下方，dy 需反轉)
                     // Math.atan2(y, x) 回傳弧度Radian
                     let reflectionRadian = Math.atan2(-this.ball.dy, this.ball.dx);
                     let reflectionDegree = reflectionRadian * (180 / Math.PI); //改成角度
+                    //每次碰撞讓角度趨向垂直往上(-90度)
+                    reflectionDegree = (reflectionDegree - 90) / 2; //每次撞擊就拉回靠近-90度，平均原有角度與-90之中間。
+                    //reflectionDegree = ((reflectionDegree * 2) - 90) / 3; //每次撞擊就拉回靠近-90度，平均原有角度與-90的三分之一，拉正比較少。
+
 
                     const maxBouncDegree = 15; // 最大偏轉約 15 度 (hitPos 從 -1 到 1)
 
@@ -721,6 +730,13 @@
                 this.gameOver(false, "掉球次數過多！");
             } else {
                 // 重新發球
+                // 開始倒數計時提醒玩家
+                this.countdown = 3.9; // 略大於 3，讓玩家看到 3 兩秒
+                const cdEl = document.getElementById('game10-countdown');
+                if (cdEl) {
+                    cdEl.textContent = '3';
+                    cdEl.classList.remove('hidden');
+                }
                 this.ball.isMoving = false;
             }
         },

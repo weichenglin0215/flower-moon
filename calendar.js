@@ -189,11 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const currentJieQi = lunar.getJieQi();
             if (currentJieQi) {
-                lunarHtml += ` · ${toT(currentJieQi)}`;
+                lunarHtml += `·${toT(currentJieQi)}`;
             } else {
                 const nextJieQi = lunar.getNextJieQi();
                 if (nextJieQi) {
-                    lunarHtml += ` · 近${toT(nextJieQi.getName())}`;
+                    lunarHtml += `·近${toT(nextJieQi.getName())}`;
                 }
             }
             cardInner.querySelector('.lunar-info').textContent = lunarHtml;
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const uniqueFests = [...new Set(festivals)];
             let combinedText = lunarHtml;
             if (uniqueFests.length > 0) {
-                combinedText += " · " + uniqueFests.join(" · ");
+                combinedText += "·" + uniqueFests.join("·");
             }
 
             // 全部顯示在 holidays-container，清空 lunar-info 以達成單一行效果
@@ -405,10 +405,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         return holidays[`${m}-${d}`] || "";
     }
-
+    //產生宜忌文字
     function getLuckyUnluckyBySolarTerm(solarTerm, lunarMonth, seed) {
-        const luckyPool = ["已讀不回", "手抄詩詞", "月下獨酌", "享受孤獨", "看恐怖電影", "半夜寫小說", "古裝自拍", "手寫情書告白", "吃冰淇淋", "吃荔枝", "發早安圖", "圖書館補眠", "刪掉社交軟體", "改同事暱稱", "考試折紙飛機", "手機調成靜音", "電視音量開最大", "把鬧鐘砸了", "投稿匿名詩", "取消追蹤", "咖啡廳裝忙", "自己逛夜市", "念詩給貓聽", "拒絕加班", "放空一整天", "放風箏", "湖上泛舟", "泡茶聽平劇", "泡溫泉發限動", "爬山發限動", "竹杖芒鞋輕勝馬", "挑戰素食", "上山看雪", "發呆看雲", "罵老闆", "背包客窮遊", "換手機", "家族群組靜音", "送手寫卡片", "採菊東籬", "報名爵士舞", "尋仙訪聖", "登高望遠", "結伴翹班", "買書不看", "買新衣", "視訊會議露下巴", "開會時發呆", "陽台發呆", "約閨蜜", "準時下班", "浮生半日閒", "睡到自然醒", "偷吃雞排", "跳廣場舞", "訪故人", "窩沙發", "裸辭追夢", "寫日記", "寫詩作畫", "練字", "賞荷", "學冷門技能", "斷捨離", "整理舊書", "舉杯邀明月", "靜坐觀心", "煮泡麵", "舊城區漫遊", "離線模式", "騎單車", "關閉通知", "看星星", "聽雨", "聽琴品茗", "曬書", "賞花"];
-        const unluckyPool = ["雨天沒帶傘", "已讀不回", "分手快樂", "分組被丟包", "午睡流口水", "裝逼", "比較IG限動", "加班到半夜", "打卡書店", "打卡網美景點", "發現白髮", "請沒生病假", "吃微波食品", "試吃吃到飽", "老眼昏花", "收好人卡", "告白選節日", "忘記密碼", "沒酒了", "刷短影音", "孤枕難眠", "拍馬屁", "出差", "相信購物專家", "穿新鞋被踩", "音樂節人擠人", "通勤地獄", "借酒澆愁", "借筆記給學霸", "借錢給同事", "被催婚", "迷路", "吃土", "二倍速追劇", "耍帥裝逼", "叫外送", "古典樂", "前任婚禮", "深夜回訊息", "猜另一半心思", "聊政治毀友情", "藕斷絲連", "小人纏身", "報復性消費", "復合又後悔", "背唐詩裝文青", "等不到人", "買琴當家具", "週一提離職", "想家", "群發訊息", "落榜", "修理遙控器", "跟老闆撞衫", "看經典文學", "不懂流行語", "買參考書", "買基金", "斷食法", "跟酸民吵架", "無效社交", "遇到強盜", "團建尬聊", "團購美食", "夢醒了", "網購解憂", "寫詩不押韻", "模仿簽名", "熬夜K書", "獨愴涕下", "薪水微薄", "失戀/單相思", "懷才不遇", "看藝術展", "邊吃邊回", "戀愛腦"];
+        const luckyPool = ["已讀不回", "手抄詩詞", "月下獨酌", "享受孤獨", "恐怖電影", "寫小說", "著漢服", "自拍", "手寫情書", "告白", "吃冰淇淋", "吃荔枝", "補眠", "拒社交", "折紙飛機", "靜音", "放風箏", "砸鬧鐘", "投稿", "取消追蹤", "泡咖啡", "逛夜市", "念詩給貓", "準時下班", "放空", "湖上泛舟", "泡茶", "聽平劇", "泡溫泉", "發限動", "爬山", "竹杖芒鞋", "素食", "上山看雪", "發呆看雲", "背包窮遊", "手寫卡片", "採菊東籬", "爵士舞", "尋仙訪聖", "登高望遠", "結伴翹班", "買書不看", "買新衣", "開會時發呆", "陽台發呆", "約閨蜜", "浮生半日", "背唐詩", "自然醒", "跳廣場舞", "訪故人", "窩沙發", "裸辭追夢", "寫日記", "寫詩作畫", "練字", "賞荷", "冷門技能", "斷捨離", "整理舊書", "打包舊愛", "舉杯邀明月", "靜坐觀心", "煮泡麵", "舊城漫遊", "離線模式", "騎單車", "關閉通知", "看星星", "聽雨", "聽琴品茗", "曬書", "賞花"];
+        const unluckyPool = ["雨天沒傘", "已讀不回", "分手快樂", "被丟包", "流口水", "裝逼", "發限動", "熬夜加班", "打卡書店", "打卡景點", "愛上網美", "發現白髮", "假裝生病", "微波食品", "吃到飽", "老眼昏花", "收好人卡", "告白", "忘記密碼", "沒酒了", "刷短影音", "孤枕難眠", "拍馬屁", "出差", "瘋狂購物", "人擠人", "通勤地獄", "借酒澆愁", "借筆記", "借錢", "催婚", "迷路", "吃土", "倍速追劇", "耍帥裝逼", "叫外送", "古典樂", "前任婚禮", "視訊", "回訊息", "猜心思", "聊政治", "吃雞排", "藕斷絲連", "小人纏身", "報復消費", "後悔復合", "裝文青", "等不到人", "買琴不彈", "買書不看", "買酒不喝", "喝酒不醉", "提離職", "想家", "群發訊息", "落榜", "撞衫", "經典文學", "流行語", "買參考書", "買基金", "斷食法", "酸民吵架", "無效社交", "手機焦慮", "里程焦慮", "團建尬聊", "團購美食", "夢醒了", "網購解憂", "寫詩", "模仿簽名", "熬夜K書", "獨愴涕下", "薪水微薄", "失戀", "單相思", "懷才不遇", "藝術展", "畫展", "書展", "電玩展", "動漫展", "成人展", "邊吃邊回", "戀愛腦"];
 
         function createSeededRandom(baseSeed) {
             let state = baseSeed;
@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const unluckyItems = [];
 
         const luckyCount = Math.floor(seededRandom(10) * 2) + 2;
-        const luckyStringMaxLength = 13;
+        const luckyStringMaxLength = 10;
         let luckyString = "";
         let attempts = 0;
         while (luckyItems.length < luckyCount && attempts < 100) {
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const unluckyCount = Math.floor(seededRandom(200) * 2) + 2;
-        const unluckyStringMaxLength = 13;
+        const unluckyStringMaxLength = 10;
         let unluckyString = "";
         attempts = 0;
         while (unluckyItems.length < unluckyCount && attempts < 100) {
@@ -474,4 +474,30 @@ document.addEventListener('DOMContentLoaded', () => {
         selected.sort((a, b) => a.index - b.index);
         return selected;
     }
+
+    // ---------------------------------------------------------
+    // 對外控制 API（供自動截圖等工具使用）
+    // ---------------------------------------------------------
+    window.CalendarController = {
+        /**
+         * 跳躍到指定日期並重新渲染日曆堆疊
+         * @param {Date|string} date  Date 物件，或 "YYYYMMDD" / "YYYY-MM-DD" 字串
+         */
+        jumpToDate: function (date) {
+            if (typeof date === 'string') {
+                const s = date.replace(/-/g, '');
+                const y = parseInt(s.slice(0, 4), 10);
+                const mo = parseInt(s.slice(4, 6), 10) - 1;
+                const d = parseInt(s.slice(6, 8), 10);
+                currentDate = new Date(y, mo, d);
+            } else {
+                currentDate = new Date(date);
+            }
+            renderStack();
+        },
+        /** 取得目前顯示日期 */
+        getCurrentDate: function () {
+            return new Date(currentDate);
+        }
+    };
 });

@@ -873,6 +873,7 @@
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame(true); // 傳入 true 表示維持同一首詩
             // 不再自動 startGame，等待玩家點擊後起跳
             document.getElementById('game7-message').classList.add('hidden');
@@ -881,6 +882,7 @@
         },
 
         newGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame();
             // 不再自動 startGame，等待玩家點擊後起跳
             document.getElementById('game7-message').classList.add('hidden');

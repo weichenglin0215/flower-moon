@@ -15,14 +15,16 @@
         isPlayerPhase: false, // 是否為玩家輸入階段
 
         lastClickTime: 0,    // 防止連點的計時器
+        timerInterval: null,
+        turnId: 0,
 
         // 獲取各難度配置參數
         difficultySettings: {
-            '小學': { stars: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', maxMistakes: 5, minLines: 1, maxLines: 2, minChars: 5, maxChars: 10 },
-            '中學': { stars: 5, rows: 5, cols: 3, mode: 'all', feedback: 'keep', maxMistakes: 6, minLines: 2, maxLines: 2, minChars: 10, maxChars: 14 },
-            '高中': { stars: 4, rows: 5, cols: 4, mode: 'all', feedback: 'keep', maxMistakes: 7, minLines: 2, maxLines: 4, minChars: 14, maxChars: 20 },
-            '大學': { stars: 3, rows: 6, cols: 5, mode: 'all', feedback: 'hide', maxMistakes: 8, minLines: 3, maxLines: 4, minChars: 20, maxChars: 28 },
-            '研究所': { stars: 2, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', maxMistakes: 9, minLines: 4, maxLines: 6, minChars: 28, maxChars: 35 }
+            '小學': { stars: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', maxMistakes: 5, minLines: 1, maxLines: 2, minChars: 5, maxChars: 10, passChars: 0, revealStep: 1 },
+            '中學': { stars: 5, rows: 5, cols: 3, mode: 'all', feedback: 'keep', maxMistakes: 8, minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, passChars: 3, revealStep: 1 },
+            '高中': { stars: 4, rows: 5, cols: 4, mode: 'all', feedback: 'keep', maxMistakes: 10, minLines: 2, maxLines: 4, minChars: 14, maxChars: 21, passChars: 6, revealStep: 2 },
+            '大學': { stars: 3, rows: 6, cols: 5, mode: 'all', feedback: 'hide', maxMistakes: 12, minLines: 3, maxLines: 4, minChars: 20, maxChars: 28, passChars: 9, revealStep: 2 },
+            '研究所': { stars: 2, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', maxMistakes: 14, minLines: 4, maxLines: 6, minChars: 28, maxChars: 35, passChars: 12, revealStep: 3 }
         },
 
         loadCSS: function () {
@@ -92,11 +94,30 @@
 
         show: function () {
             this.init();
+
+            // 確保主頁面的 IntroOverlay 隱藏
+            const intro = document.getElementById('introOverlay');
+            if (intro && !intro.classList.contains('hidden')) {
+                intro.classList.add('hidden', 'hide-fade');
+                document.body.classList.remove('overlay-active');
+            }
+
             if (window.DifficultySelector) {
-                this.hideOtherContents();
                 window.DifficultySelector.show('翻墨識蹤', (selectedLevel) => {
                     this.difficulty = selectedLevel;
-                    this.startGameFlow();
+                    const settings = this.difficultySettings[selectedLevel];
+                    if (!settings) {
+                        console.error("Invalid difficulty level selected:", selectedLevel);
+                        return;
+                    }
+                    this.maxMistakes = settings.maxMistakes; // Update maxMistakes based on selected difficulty
+
+                    this.container.classList.remove('hidden');
+                    document.body.classList.add('overlay-active'); // Ensure overlay-active is added
+                    if (window.updateResponsiveLayout) {
+                        window.updateResponsiveLayout();
+                    }
+                    this.startNewGame();
                 });
             } else {
                 this.hideOtherContents();
@@ -125,25 +146,36 @@
 
         stopGame: function () {
             this.isActive = false;
+            this.stopAllTimers();
             if (this.container) {
                 this.container.classList.add('hidden');
             }
             this.showOtherContents();
         },
 
+        stopAllTimers: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            this.turnId++;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        },
+
         retryGame: function () {
             if (!this.currentPoem) return;
+            this.isActive = true;
             this.score = 0;
             this.mistakes = 0;
             this.resetGameRound(true);
         },
 
         startNewGame: function () {
+            this.isActive = true;
             document.getElementById('game11-diff-tag').textContent = this.difficulty;
             this.score = 0;
             this.mistakes = 0;
-            this.prepareChallenge();
-            this.resetGameRound();
+            if (this.prepareChallenge()) {
+                this.resetGameRound();
+            }
         },
 
         prepareChallenge: function () {
@@ -158,8 +190,11 @@
             }
             this.currentPoem = result.poem;
 
-            const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
-            document.getElementById('game11-poem-info').textContent = infoText;
+            const info = document.getElementById('game11-poem-info');
+            info.innerHTML = `<span>${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+            info.onclick = () => {
+                if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
+            };
 
             // Extract pure chars up to maxChars available, but bounded by grid capacity
             const rawChars = result.lines.join('').split('').slice(0, settings.maxChars);
@@ -186,6 +221,7 @@
             }
 
             this.setupGrid(settings.rows, settings.cols, numGrids);
+            return true;
         },
 
         // 初始化網格與字塊
@@ -205,8 +241,21 @@
                 const lum = Math.floor(Math.random() * 30) + 50;
                 const frontColor = `hsl(${hue}, 70%, ${lum}%)`;
 
-                // 為每一格指定一個固定的音調索引 (0-14)，強化聽覺記憶
-                const audioIdx = Math.floor(Math.random() * 15);
+                // 為每一格指定一個固定的音調索引，強化聽覺記憶
+                // 規則：從左下角開始編號 (1,2,3...21)，超過 21 則重回 1。
+                // 座標計算：r 為列 (0-rows-1, 0是頂部), c 為欄 (0-cols-1)
+                // 左下角座標為 (rows-1, 0)，編號 1 應對應到此位置。
+                const r = Math.floor(i / cols);
+                const c = i % cols;
+                // 轉換為從底部開始的 row index (0是底部)
+                const bottomUpRow = (rows - 1) - r;
+                // 計算格子在「左下起算」邏輯下的序號 (1-based)
+                const gridSequenceNum = (bottomUpRow * cols) + c + 1;
+                // 音符索引採 21 音循環 (1-21)
+                const pitchMode = ((gridSequenceNum - 1) % 21) + 1;
+                // 最終傳給 SoundManager 的索引偏移：
+                // 使用 playGuzhengLow() 並維持先前 5-25 的範圍感受，故 +4 (讓 1-21 變成 5-25)
+                const audioIdx = pitchMode + 4;
 
                 // 檢查此格子是否對應到詩詞字元
                 const mappedCharObj = this.poemChars.find(pc => pc.gridIdx === i);
@@ -252,13 +301,14 @@
         },
 
         resetGameRound: function (isRetry = false) {
-            this.isActive = true;
+            this.stopAllTimers();
             document.getElementById('game11-score').textContent = this.score;
             document.getElementById('game11-message').classList.add('hidden');
             this.renderHearts();
             this.updateHearts();
 
-            this.currentStep = 1;
+            const settings = this.difficultySettings[this.difficulty];
+            this.currentStep = Math.min((settings.passChars || 0) + 1, this.poemChars.length);
             this.playerProgress = 0;
             this.isPlayerPhase = false;
 
@@ -283,6 +333,7 @@
 
         // 開始「展示階段」：翻開順序讓玩家記憶
         startShowPhase: async function () {
+            const currentTurn = this.turnId;
             if (!this.isActive) return;
             this.isPlayerPhase = false; // 鎖定點擊
             this.gridContainer.classList.remove('is-player-phase');
@@ -300,16 +351,16 @@
             if (settings.mode === 'all') {
                 // 'all' 模式：逐一翻開，但翻開後保持不蓋上，直到全部顯示完畢
                 for (let item of currentSequence) {
-                    if (!this.isActive) return;
+                    if (!this.isActive || this.turnId !== currentTurn) return;
                     const t = this.tiles[item.gridIdx];
                     t.el.classList.add('flipped');
                     this.playPitchSound(t.audioIdx);
-                    await this.delay(500); 
+                    await this.delay(500);
                 }
 
                 await this.delay(1000); // 全部顯示後的記憶停留時間
 
-                if (!this.isActive) return;
+                if (!this.isActive || this.turnId !== currentTurn) return;
                 // 展示結束，全部蓋上
                 for (let item of currentSequence) {
                     const t = this.tiles[item.gridIdx];
@@ -318,19 +369,20 @@
             } else {
                 // 'seq' 模式：一次只翻開一個，蓋上後才翻下一個 (更難)
                 for (let item of currentSequence) {
-                    if (!this.isActive) return;
+                    if (!this.isActive || this.turnId !== currentTurn) return;
                     const t = this.tiles[item.gridIdx];
                     t.el.classList.add('flipped');
                     this.playPitchSound(t.audioIdx);
 
                     await this.delay(800);
+                    if (this.turnId !== currentTurn) return;
 
                     t.el.classList.remove('flipped');
                     await this.delay(200);
                 }
             }
 
-            if (!this.isActive) return;
+            if (!this.isActive || this.turnId !== currentTurn) return;
             // 轉入玩家階段
             statusEl.textContent = `第 ${this.currentStep} 輪，玩家回合：請依序點擊`;
             this.playerProgress = 0;
@@ -379,7 +431,7 @@
             }
 
             this.playerProgress++;
-            this.score += 10;
+            this.score += 5;
             document.getElementById('game11-score').textContent = this.score;
 
             if (this.playerProgress >= this.currentStep) {
@@ -393,7 +445,9 @@
 
                 setTimeout(() => {
                     this.setAllTilesState(false);
-                    this.currentStep++;
+                    const settings = this.difficultySettings[this.difficulty];
+                    const stepInc = settings.revealStep || 1;
+                    this.currentStep += stepInc;
 
                     if (this.currentStep > this.poemChars.length) {
                         this.handleWin();
@@ -434,8 +488,8 @@
         playPitchSound: function (audioIdx) {
             if (!window.SoundManager) return;
             // 使用固定的古箏音階索引播放，增強空間音律記憶
-            if (typeof window.SoundManager.playGuzheng === 'function') {
-                window.SoundManager.playGuzheng(audioIdx);
+            if (typeof window.SoundManager.playGuzhengLow === 'function') {
+                window.SoundManager.playGuzhengLow(audioIdx);
             } else {
                 window.SoundManager.playOpenItem();
             }

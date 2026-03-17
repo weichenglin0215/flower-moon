@@ -17,9 +17,11 @@
             'game5': '詩詞小精靈',
             'game6': '詩陣侵略',
             'game7': '青鳥雲梯',
+            'game8': '一筆裁詩',
             'game9': '詩韻鎖扣',
             'game10': '擊石鳴詩',
-            'game11': '翻墨識蹤'
+            'game11': '翻墨識蹤',
+            'game12': '疏影橫斜'
         },
 
         rankCertTexts: {
@@ -121,7 +123,6 @@
         },
 
         bindEvents: function () {
-            // 移除背景點擊消失的功能
             // 頁籤切換
             const tabs = this.overlay.querySelectorAll('.ach-tab');
             tabs.forEach(tab => {
@@ -147,7 +148,7 @@
             let momentumID = null;
 
             const startInertia = () => {
-                const friction = 0.95; // 摩擦力
+                const friction = 0.95; // 摩擦係數
                 const step = () => {
                     if (Math.abs(velocity) < 0.1) {
                         cancelAnimationFrame(momentumID);
@@ -240,8 +241,6 @@
                 isDown = false;
                 startInertia();
             });
-            // 手機觸控慣性由瀏覽器原生支援，但若要統一體驗也可加
-            // 這裡暫以滑鼠拖拽實作為主
         },
 
         renderData: function () {

@@ -22,14 +22,15 @@
         // Entities
         player: null,
         monsters: [],
-        playerPath: [], // 記錄玩家經過的最後 4 個網格位置
-        isGhostHouseClosed: false, // 基地是否已封裝為牆壁
+        playerPath: [], // 記錄玩家移動的路徑資料
+        isGhostHouseClosed: false, // 鬼屋是否已經關閉
         foods: [], // { char, row, col, index }
         collectedCount: 0,
         targetPoem: null,
         targetChars: [], // The characters to collect in order
 
         // Effects
+        enemyDirection: 1, // 1 向右, -1 向左
         trails: [], // {x, y, alpha}
 
         // Animation
@@ -40,16 +41,18 @@
         touchStart: { x: 0, y: 0 },
         minSwipeDist: 30,
 
-        // 放大倍率調整 (1.0 = 充滿寬度, 2.0 = 雙倍寬度)
+        // 地圖比例調整 (1.0 = 原始寬度比例, 2.0 = 兩倍寬度)
         mapScale: 1.0,
 
-        // 撞擊錯誤文字時的停頓時間 (毫秒)
+        // 失誤後冷卻與閃爍
         mistakePenaltyDuration: 150,
-        //time遊戲時間，heart生命數，monster怪物數，star詩詞星等，answerLen答案長度，hintDuration下一個文字黃色發光提示時間, lostInt 負值縮短小精靈們頭暈間隔時間表示越弱，lostDur 正值延長小精靈們持續頭昏時間表示越弱。
+        // 難度設定對照表
+        // time: 倒計時秒數, hearts: 初始紅心數, monsters: 怪物數量, stars: 詩詞評分要求, answerLen: 需收集的文字長度,
+        // hintDuration: 下一個字提示閃爍持續時間, lostInt/lostDur: 失誤後相關時間控制
         difficultySettings: {
             '小學': { time: 120, hearts: 5, monsters: 2, stars: 6, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
             '中學': { time: 120, hearts: 3, monsters: 3, stars: 5, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
-            '高中': { time: 120, hearts: 3, monsters: 4, stars: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
+            '高中': { time: 120, hearts: 3, monsters: 4, stars: 4, answerLen: 10, hintDuration: -1, lostInt: 0, lostDur: 0 },
             '大學': { time: 120, hearts: 3, monsters: 4, stars: 3, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 },
             '研究所': { time: 120, hearts: 3, monsters: 4, stars: 2, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
         },
@@ -91,7 +94,7 @@
             container.className = 'game5-overlay aspect-5-8 hidden';
             container.innerHTML = `
                 <div class="game5-header">
-                    <div class="game5-score-board">分數: <span id="game5-score">0</span></div>
+                    <div class="game5-score-board">得分: <span id="game5-score">0</span></div>
                     <div class="game5-controls">
                         <button id="game5-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game5-newGame-btn" class="nav-btn">開新局</button>
@@ -113,12 +116,12 @@
                 
                 <div class="game5-ui-area">
                     <div class="game5-difficulty-tag" id="game5-diff-tag">小學</div>
-                    <div id="game5-timer" class="game5-timer-container">時間：--</div>
-                    <div class="game5-instruction">滑動螢幕改變方向</div>
+                    <div id="game5-timer" class="game5-timer-container">時間：-</div>
+                    <div class="game5-instruction">拖曳或滑動以移動角色</div>
                 </div>
                 
                 <div id="game5-message" class="game5-message hidden">
-                    <h2 id="game5-msg-title">訊息</h2>
+                    <h2 id="game5-msg-title">遊戲結束</h2>
                     <div id="game5-msg-poem-info" class="game5-msg-poem-info"></div>
                     <p id="game5-msg-content"></p>
                     <button id="game5-msg-btn" class="game5-msg-btn">繼續</button>
@@ -171,7 +174,7 @@
                 if (Math.abs(dx) > this.minSwipeDist || Math.abs(dy) > this.minSwipeDist) {
                     if (Math.abs(dx) > Math.abs(dy)) this.handleInput(dx > 0 ? 'RIGHT' : 'LEFT');
                     else this.handleInput(dy > 0 ? 'DOWN' : 'UP');
-                    isMouseDown = false; // 觸發後重置
+                    isMouseDown = false; // 避免重複觸發
                 }
             });
 
@@ -213,12 +216,10 @@
             this.cols = this.mazeLayout[0].length;
             this.maze = this.mazeLayout.map(row => [...row]);
 
-            // 取得容器寬度
             const mazeCont = document.querySelector('.game5-maze-container');
+            if (!mazeCont) return;
             const cw = mazeCont.offsetWidth || document.getElementById('game5-container').offsetWidth;
 
-            // 計算格子大小：滿版寬度除以總欄數，再乘以放大倍率
-            // 修改此處的 this.mapScale 即可控制地圖放大倍率
             this.gridSize = Math.floor(cw / this.cols) * this.mapScale;
 
             this.canvas.width = this.cols * this.gridSize;
@@ -226,7 +227,6 @@
 
             this.updateTimerRing(1);
 
-            // 動態找出傳送道所在的列
             this.warpRowIndex = -1;
             for (let r = 0; r < this.rows; r++) {
                 if (this.maze[r][0] === 0 && this.maze[r][this.cols - 1] === 0) {
@@ -244,8 +244,6 @@
         show: function () {
             this.init();
 
-            // 修正第一次載入時，AboutDialog 尚未完全消失導致 UI 遮擋的問題
-            // 如果 AboutDialog 還在 DOM 中且正在顯示，先強制隱藏
             const intro = document.getElementById('introOverlay');
             if (intro && !intro.classList.contains('hidden')) {
                 intro.classList.add('hidden', 'hide-fade');
@@ -256,13 +254,19 @@
                 window.DifficultySelector.show('詩詞小精靈', (level) => {
                     this.difficulty = level;
                     const settings = this.difficultySettings[level];
+                    if (!settings) {
+                        console.error('Invalid difficulty:', level);
+                        return;
+                    }
                     this.maxMistakes = settings.hearts;
                     this.maxTimer = settings.time;
 
-                    document.getElementById('game5-container').classList.remove('hidden');
-                    document.body.classList.add('overlay-active');
+                    const container = document.getElementById('game5-container');
+                    if (container) {
+                        container.classList.remove('hidden');
+                        document.body.classList.add('overlay-active');
+                    }
 
-                    // 必須在顯示容器後才計算地圖大小，否則 offsetWidth 會是 0
                     this.setupMaze();
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
                     this.startNewGame();
@@ -271,6 +275,7 @@
         },
 
         startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             document.getElementById('game5-diff-tag').textContent = this.difficulty;
             this.score = 0;
             this.mistakes = 0;
@@ -288,13 +293,14 @@
 
             this.lastTime = performance.now();
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            // 所有遊戲資源準備完畢後才啟用重來按鈕
+            // 確保重來/開新局按鈕在遊戲結束時可以再次點擊
             document.getElementById('game5-retryGame-btn').disabled = false;
             document.getElementById('game5-newGame-btn').disabled = false;
             this.gameLoop(this.lastTime);
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.mistakes = 0;
             this.collectedCount = 0;
             this.resetEntities();
@@ -305,7 +311,7 @@
             // Reset food visibility
             this.foods.forEach(f => f.collected = false);
 
-            // 重置完成後才啟用重來按鈕
+            // 確保重來/開新局按鈕在遊戲結束時可以再次點擊
             document.getElementById('game5-retryGame-btn').disabled = false;
             document.getElementById('game5-newGame-btn').disabled = false;
             this.lastTime = performance.now();
@@ -318,45 +324,45 @@
             const settings = this.difficultySettings[this.difficulty];
             const minRating = settings.stars || 4;
 
-            // 使用共用邏輯取得隨機詩詞
+            // 使用共享的隨機詩詞
             const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
             if (!result) return;
 
             const poem = result.poem;
             this.targetPoem = poem;
 
-            // 從 getSharedRandomPoem 找到的起始句開始挑選 (僅挑選單數句子：1, 3, 5...)
+            // getSharedRandomPoem 預設會從偶數行開始 (例如 0, 2, 4...)
             let fullStr = "";
             let startLineIndex = result.startIndex;
             for (let i = startLineIndex; i < poem.content.length; i += 2) {
-                fullStr += poem.content[i].replace(/[，。？！、：；「」『』\s]/g, '');
+                fullStr += poem.content[i].replace(/[，。？！、；：「」（）《》s]/g, '');
                 if (fullStr.length > settings.answerLen) break;
             }
 
-            // 如果從 random 開始湊不夠，從頭開始湊 (僅挑選單數句子)
+            // 如果隨機選取的行數不夠，則從頭開始選取
             if (fullStr.length <= settings.answerLen) {
                 fullStr = "";
                 for (let i = 0; i < poem.content.length; i += 2) {
-                    fullStr += poem.content[i].replace(/[，。？！、：；「」『』\s]/g, '');
+                    fullStr += poem.content[i].replace(/[，。？！、；：「」（）《》s]/g, '');
                     if (fullStr.length > settings.answerLen) break;
                 }
             }
 
-            // [優化] 限制總字數最高為 16 字，避免介面位置排版錯誤
+            // [待辦] 確保選取後的字串長度不超過 16 個字，否則截斷
             if (fullStr.length > 16) {
                 fullStr = fullStr.substring(fullStr.length - 16);
             }
-
-            // 分割為題目(提示)與答案(迷宮字)
+            this.hitTimer = 0;       // 受傷閃爍計時器
+            // 根據難度設定，將字串分為提示和答案
             const totalLen = fullStr.length;
             const promptStr = fullStr.substring(0, totalLen - settings.answerLen);
             const answerStr = fullStr.substring(totalLen - settings.answerLen);
 
             this.promptChars = promptStr.split('');
             this.targetChars = answerStr.split('');
-            this.hintStartTime = Date.now(); // 記錄當前提示開始時間
+            this.hintStartTime = Date.now(); // 提示字閃爍計時
 
-            // 分散放置食物 (劃分地圖為四個象限)
+            // 佈局單位定義 (以 rem 為基礎)
             this.foods = [];
             const quadrants = [[], [], [], []]; // [TL, TR, BL, BR]
             const midR = Math.floor(this.rows / 2);
@@ -372,10 +378,10 @@
                     }
                 }
             }
-
-            // 平均分配到各象限
+            this.enemySpacingX = 1.4;    // 橫向間距
+            this.enemySpacingY = 1.4;    // 縱向間距
             this.targetChars.forEach((char, index) => {
-                const qIdx = index % 4; // 依序取 0,1,2,3 象限
+                const qIdx = index % 4; // 確保平均分配到四個象限
                 const pool = quadrants[qIdx];
                 if (pool.length > 0) {
                     const posIdx = Math.floor(Math.random() * pool.length);
@@ -388,7 +394,7 @@
                         collected: false
                     });
                 } else {
-                    // 若象限沒位置，找隨機剩餘位置
+                    // 如果該象限沒有可用位置，則從所有剩餘位置中隨機選取
                     const allRemaining = quadrants.flat();
                     const posIdx = Math.floor(Math.random() * allRemaining.length);
                     const pos = allRemaining.splice(posIdx, 1)[0];
@@ -402,11 +408,11 @@
         },
 
         resetEntities: function () {
-            this.openGhostHouse(); // 開啟基地供怪物出發
+            this.openGhostHouse(); // 確保鬼屋門是開的
             this.isDying = false;
             this.deathStartTime = 0;
             this.trails = [];
-            this.playerPath = []; // 重置路徑記錄
+            this.playerPath = []; // 重置玩家路徑
 
             // Player starts at bottom center
             this.player = {
@@ -414,8 +420,8 @@
                 y: 15 * this.gridSize + this.gridSize / 2,
                 dir: 'LEFT',
                 nextDir: 'LEFT',
-                speedDefault: this.gridSize * 0.08, // 黃色小球預設速度
-                speed: this.gridSize * 0.08, // 黃色小球當前速度
+                speedDefault: this.gridSize * 0.08, // 預設移動速度
+                speed: this.gridSize * 0.08, // 當前移動速度
                 radius: this.gridSize * 0.5
             };
 
@@ -424,12 +430,12 @@
             const settings = this.difficultySettings[this.difficulty];
             const ghostSpawns = [{ r: 9, c: 8 }, { r: 9, c: 9 }, { r: 9, c: 10 }, { r: 9, c: 9 }];
 
-            // 定義四隻小精靈的特色與參數
+            // 根據難度設定怪物數量與行為
             const ghostConfigs = [
-                { ai: 'chase', color: 'hsl(0, 100%, 50%)', lostInt: 6000, lostDur: 1000 }, // 紅: 追擊
-                { ai: 'trail', color: 'hsl(180, 100%, 75%)', lostInt: 3000, lostDur: 1500 }, // 淺藍: 跟蹤
-                { ai: 'ambush', color: 'hsl(120, 100%, 50%)', lostInt: 4000, lostDur: 2000 }, // 綠: 伏擊
-                { ai: 'distant', color: 'hsl(280, 100%, 60%)', lostInt: 3000, lostDur: 2500 }  // 紫: 遠距離追擊
+                { ai: 'chase', color: 'hsl(0, 100%, 50%)', lostInt: 6000, lostDur: 1000 }, // 紅色 追擊
+                { ai: 'trail', color: 'hsl(180, 100%, 75%)', lostInt: 3000, lostDur: 1500 }, // 青色: 追蹤玩家路徑
+                { ai: 'ambush', color: 'hsl(120, 100%, 50%)', lostInt: 4000, lostDur: 2000 }, // 綠色 伏擊
+                { ai: 'distant', color: 'hsl(280, 100%, 60%)', lostInt: 3000, lostDur: 2500 }  // 紫色 遠離玩家
             ];
 
             for (let i = 0; i < settings.monsters; i++) {
@@ -439,12 +445,12 @@
                     x: spawn.c * this.gridSize + this.gridSize / 2,
                     y: spawn.r * this.gridSize + this.gridSize / 2,
                     dir: 'UP',
-                    speed: this.player.speed * 0.7, // 速度預設為玩家的 0.7
+                    speed: this.player.speed * 0.7, // 怪物速度是玩家的 0.7 倍
                     color: config.color,
                     ai: config.ai,
-                    lastLostTime: Date.now() + Math.random() * 3000, // 初始恍神時間隨機偏移
-                    lostInterval: config.lostInt + settings.lostInt, // 間隔觸發時間，加上難度設定的時間
-                    lostDuration: config.lostDur + settings.lostDur, // 觸發後的恍神時間，加上難度設定的時間
+                    lastLostTime: Date.now() + Math.random() * 3000, // 初始隨機失去方向時間
+                    lostInterval: config.lostInt + settings.lostInt, // 失去方向間隔時間 (受難度影響)
+                    lostDuration: config.lostDur + settings.lostDur, // 失去方向持續時間 (受難度影響)
                     isStunned: false
                 });
             }
@@ -453,7 +459,7 @@
         startTimer: function () {
             clearInterval(this.timerInterval);
             if (this.maxTimer <= 0) {
-                document.getElementById('game5-timer').textContent = '時間：不限時';
+                document.getElementById('game5-timer').textContent = '時間：無限';
                 this.updateTimerRing(1);
                 return;
             }
@@ -471,7 +477,7 @@
 
                 if (ratio <= 0) {
                     this.updateTimerRing(0);
-                    this.gameOver(false, '時間到！');
+                    this.gameOver(false, '時間用盡');
                 } else {
                     this.updateTimerRing(ratio);
                 }
@@ -519,7 +525,7 @@
             for (let i = 0; i < this.maxMistakes; i++) {
                 const span = document.createElement('span');
                 span.className = 'heart' + (i < this.mistakes ? ' empty' : '');
-                span.textContent = i < this.mistakes ? '♡' : '♥';
+                span.textContent = i < this.mistakes ? '💔' : '❤️';
                 cont.appendChild(span);
             }
         },
@@ -547,11 +553,11 @@
         update: function (dt) {
             if (!this.isDying) {
                 this.moveEntity(this.player, true);
-                this.updatePlayerPath(); // 更新玩家歷史路徑
+                this.updatePlayerPath(); // 更新玩家路徑資料
                 this.monsters.forEach(m => this.moveMonster(m));
                 this.checkCollisions();
 
-                // 檢查是否所有小精靈都已離開基地
+                // 檢查是否所有怪物都已離開鬼屋，如果是則關閉鬼屋
                 if (!this.isGhostHouseClosed && this.monsters.length > 0) {
                     const anyInside = this.monsters.some(m => this.isInsideGhostHouse(m.x, m.y));
                     if (!anyInside) {
@@ -567,17 +573,17 @@
             const centerX = gp.c * this.gridSize + gridMid;
             const centerY = gp.r * this.gridSize + gridMid;
 
-            // 檢查是否處於中心點附近 (用於轉彎)
-            // 增加容差 (Tolerance) 確保在接近路口時即可預約轉向
+            // 檢查是否到達中心點附近 (用於轉彎)
+            // 增加容忍度 (Tolerance) 以避免因浮點數誤差導致無法轉彎
             const turnTolerance = this.gridSize * 0.45;
             const offX = ent.x - centerX;
             const offY = ent.y - centerY;
             const isNearCenter = Math.abs(offX) < turnTolerance && Math.abs(offY) < turnTolerance;
 
-            // 處理轉向 (包含預約轉向 nextDir)
+            // 嘗試轉彎 (如果靠近中心點且有下一個方向)
             if (isNearCenter && ent.nextDir && ent.nextDir !== ent.dir) {
                 if (this.canMoveFromCell(gp.r, gp.c, ent.nextDir, isPlayer)) {
-                    // 轉向時對齊中線，避免卡進牆壁
+                    // 轉彎時將實體精確對齊到中心點
                     ent.x = centerX;
                     ent.y = centerY;
                     ent.dir = ent.nextDir;
@@ -585,8 +591,8 @@
                 }
             }
 
-            // 自動校準中線 (Alignment)：垂直走位時修正水平偏移，反之亦然
-            // 這能確保玩家即使微偏也能順暢通過窄道而不卡住
+            // 確保實體在移動時保持對齊 (Alignment)
+            // 避免因速度過快導致偏離中心線
             const alignSpeed = ent.speed * 0.8;
             if (ent.dir === 'UP' || ent.dir === 'DOWN') {
                 if (Math.abs(offX) < alignSpeed) ent.x = centerX;
@@ -604,7 +610,7 @@
             if (ent.dir === 'LEFT') nextX -= ent.speed;
             if (ent.dir === 'RIGHT') nextX += ent.speed;
 
-            // 傳送道邏輯 (支援動態列索引)
+            // 處理傳送門 (Warp tunnel)
             const isWarpRow = gp.r === this.warpRowIndex;
 
             if (isWarpRow && (nextX < 0 || nextX > this.canvas.width)) {
@@ -615,14 +621,14 @@
                 ent.x = nextX;
                 ent.y = nextY;
 
-                // 玩家墨跡效果
+                // 玩家移動軌跡
                 if (isPlayer && Math.random() < 0.3) {
                     this.trails.push({ x: ent.x, y: ent.y, alpha: 0.5 });
                 }
             } else {
-                // 撞牆了
+                // 撞牆
                 if (!isPlayer) {
-                    // 怪物撞牆後隨機轉向
+                    // 怪物撞牆時隨機改變方向
                     ent.dir = this.getRandomValidDir(gp.r, gp.c);
                 }
             }
@@ -635,7 +641,7 @@
             const offY = Math.abs(m.y - (gp.r * this.gridSize + gridMid));
             const isAtCenter = offX < m.speed && offY < m.speed;
 
-            // 更新恍神狀態邏輯 (Lost/Stunned state)
+            // 更新怪物失去方向狀態 (Lost/Stunned state)
             const now = Date.now();
             if (m.isStunned) {
                 if (now - m.lostTriggerTime > m.lostDuration) {
@@ -655,41 +661,41 @@
                 const distToPlayer = Math.abs(gp.r - pg.r) + Math.abs(gp.c - pg.c);
 
                 if (options.length > 0) {
-                    // 如果恍神或是路徑只有一條，隨機或順著走
+                    // 如果怪物處於失去方向狀態或只有一個方向可走，則隨機選擇方向
                     if (m.isStunned || options.length === 1) {
                         m.dir = options[Math.floor(Math.random() * options.length)];
                     } else {
-                        // 根據小精靈特色決定目標格子 (Target Tile)
+                        // 根據AI行為設定目標方塊 (Target Tile)
                         let targetR = pg.r;
                         let targetC = pg.c;
 
-                        if (m.ai === 'trail') { // 淺藍: 跟蹤包抄
+                        if (m.ai === 'trail') { // 青色: 追蹤玩家路徑
                             if (distToPlayer >= 6 && this.playerPath.length > 0) {
-                                // 目標是玩家 4 步前的位置
+                                // 如果距離玩家超過 6 格，追蹤玩家路徑的起點
                                 const pNode = this.playerPath[0];
                                 targetR = pNode.r;
                                 targetC = pNode.c;
                             }
-                            // 距離小於 6 直接追擊
-                        } else if (m.ai === 'ambush') { // 綠: 伏擊前方
+                            // 否則追蹤玩家
+                        } else if (m.ai === 'ambush') { // 綠色 伏擊
                             if (distToPlayer >= 6) {
-                                // 推測未來 5 格位置
+                                // 如果距離玩家超過 6 格，預測玩家前方 5 格
                                 const offsets = { 'UP': [-5, 0], 'DOWN': [5, 0], 'LEFT': [0, -5], 'RIGHT': [0, 5] };
                                 const off = offsets[this.player.dir] || [0, 0];
                                 targetR = Math.max(0, Math.min(this.rows - 1, pg.r + off[0]));
                                 targetC = Math.max(0, Math.min(this.cols - 1, pg.c + off[1]));
                             }
-                            // 距離小於 6 直接追擊
-                        } else if (m.ai === 'distant') { // 紫: 遠距離追擊
+                            // 否則追蹤玩家
+                        } else if (m.ai === 'distant') { // 紫色 遠離玩家
                             if (distToPlayer < 9) {
-                                // 距離小於 9 則在路口自由選擇方向 (隨機)
+                                // 如果距離玩家小於 9 格，則隨機選擇方向遠離玩家 (逃跑)
                                 m.dir = options[Math.floor(Math.random() * options.length)];
                                 this.moveEntity(m, false);
                                 return;
                             }
                         }
 
-                        // 紅色 (chase) 或其他追擊邏輯: 尋找離目標最近的方向
+                        // 追擊 (chase) AI 或其他AI的預設行為是追蹤玩家
                         let bestDir = options[0];
                         let minDist = Infinity;
                         options.forEach(d => {
@@ -726,7 +732,7 @@
             const opposite = { 'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT' };
             const valid = dirs.filter(d => this.canMoveFromCell(r, c, d));
 
-            // 除非是死路，否則不走回頭路
+            // 避免怪物立即掉頭
             if (valid.length > 1) {
                 return valid.filter(d => d !== opposite[currentDir]);
             }
@@ -750,7 +756,7 @@
             for (let r = 0; r < this.rows; r++) {
                 for (let c = 0; c < this.cols; c++) {
                     if (this.mazeLayout[r][c] === 2) {
-                        this.maze[r][c] = 1; // 封閉後地圖邏輯變為牆壁 (1)
+                        this.maze[r][c] = 1; // 將鬼屋入口變成牆壁 (1)
                     }
                 }
             }
@@ -761,7 +767,7 @@
             for (let r = 0; r < this.rows; r++) {
                 for (let c = 0; c < this.cols; c++) {
                     if (this.mazeLayout[r][c] === 2) {
-                        this.maze[r][c] = 2; // 重置為基地狀態 (2)
+                        this.maze[r][c] = 2; // 重置鬼屋入口為可通行 (2)
                     }
                 }
             }
@@ -774,8 +780,8 @@
             if (dir === 'LEFT') nc--;
             if (dir === 'RIGHT') nc++;
             const cell = (this.maze[nr] && this.maze[nr][nc] !== undefined) ? this.maze[nr][nc] : 1;
-            if (isPlayer) return cell === 0; // 玩家只准走一般路徑
-            return cell === 0 || cell === 2; // 怪物可走一般路徑或開放中的基地
+            if (isPlayer) return cell === 0; // 玩家只能走通道
+            return cell === 0 || cell === 2; // 怪物可以走通道或鬼屋
         },
 
         canMove: function (x, y, dir, isPlayer = false) {
@@ -790,8 +796,8 @@
                 const gp = this.getGridPos(p.x, p.y);
                 if (gp.c < 0 || gp.c >= this.cols) return true; // Tunnel
                 const cell = this.maze[gp.r] ? this.maze[gp.r][gp.c] : 1;
-                if (isPlayer) return cell === 0; // 玩家物物理碰撞僅限路徑 (0)
-                return cell !== 1; // 怪物物理碰撞排除牆壁 (1)
+                if (isPlayer) return cell === 0; // 玩家不能穿牆 (1)
+                return cell !== 1; // 怪物不能穿牆 (1)
             });
         },
 
@@ -808,7 +814,7 @@
         },
 
         checkCollisions: function () {
-            // Monster collision 小精靈碰撞
+            // Monster collision 怪物碰撞
             for (let m of this.monsters) {
                 const dist = Math.hypot(m.x - this.player.x, m.y - this.player.y);
                 if (dist < this.gridSize * 0.8) {
@@ -816,7 +822,8 @@
                     return;
                 }
             }
-
+            this.monumentCols = 8;       // 掩體橫列數
+            this.monumentRows = 4;       // 掩體縱列數
             // Food collision 食物碰撞
             const pg = this.getGridPos(this.player.x, this.player.y);
             this.foods.forEach(f => {
@@ -826,12 +833,12 @@
                         // Correct order
                         f.collected = true;
                         this.collectedCount++;
-                        this.score += 20; // 答對一個字加20分
+                        this.score += 20; // 收集正確文字得分
                         document.getElementById('game5-score').textContent = this.score;
-                        this.hintStartTime = Date.now(); // 重置提示時間
+                        this.hintStartTime = Date.now(); // 重置提示計時
 
                         if (this.collectedCount === this.targetChars.length) {
-                            this.gameOver(true, '墨蹤已續，文心復位！');
+                            this.gameOver(true, '順利收集所有詩句！');
                         } else {
                             // Update UI hints
                             const prevHint = document.getElementById(`hint-${f.index}`);
@@ -845,8 +852,8 @@
                         // Wrong order - subtle penalty or shake?
                         //document.querySelector('.game5-maze-container').classList.add('shake');
                         setTimeout(() => document.querySelector('.game5-maze-container').classList.remove('shake'), 100);
-                        // 撞擊錯誤文字時的懲罰停頓時間 (penalty)
-                        this.player.speed *= 0.5; // 降低移動速度
+                        // 錯誤收集的懲罰 (penalty)
+                        this.player.speed *= 0.5; // 減速懲罰
                         setTimeout(() => this.player.speed = this.player.speedDefault, this.mistakePenaltyDuration);
                     }
                 }
@@ -855,19 +862,19 @@
 
         handleHit: function () {
             if (this.isDying) return;
-            if (window.SoundManager) window.SoundManager.playSadTriple(); //被抓到了
+            if (window.SoundManager) window.SoundManager.playSadTriple(); // 玩家受傷
             this.isDying = true;
             this.deathStartTime = Date.now();
             this.mistakes++;
             this.renderHearts();
 
             if (this.mistakes >= this.maxMistakes) {
-                setTimeout(() => this.gameOver(false, '靈感耗盡，墨跡散亂...'), 1000);
+                setTimeout(() => this.gameOver(false, '墨香耗盡，下次再努力！'), 1000);
             } else {
-                // 播放死亡動畫後重生
+                // 玩家重生的處理
                 setTimeout(() => {
-                    this.resetEntities(); // 先重置位置
-                    this.isDying = false;  // 再取消死亡狀態
+                    this.resetEntities(); // 重置地圖物件
+                    this.isDying = false;  // 結束受傷狀態
                 }, 1500);
             }
         },
@@ -875,7 +882,7 @@
         draw: function () {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // Draw Maze Walls with Watermark/Ink effect畫牆壁
+            // 繪製牆壁
             this.ctx.strokeStyle = 'hsl(240, 70%, 36%)';
             this.ctx.lineWidth = 3;
             for (let r = 0; r < this.rows; r++) {
@@ -966,7 +973,7 @@
             } else {
                 this.ctx.save();
                 this.ctx.translate(this.player.x, this.player.y);
-                this.ctx.globalAlpha = 1.0; // 強制重置透明度，確保重生後可見
+                this.ctx.globalAlpha = 1.0; // 重置透明度
             }
 
             this.ctx.fillStyle = 'hsl(45, 100%, 60%)';
@@ -993,10 +1000,9 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game5-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game5-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game5-retryGame-btn').disabled = true;
+                document.getElementById('game5-newGame-btn').disabled = true;
             } else {
                 document.getElementById('game5-retryGame-btn').disabled = false;
                 document.getElementById('game5-newGame-btn').disabled = false;
@@ -1006,12 +1012,12 @@
             if (this.requestID) cancelAnimationFrame(this.requestID);
 
             const msgDiv = document.getElementById('game5-message');
-            document.getElementById('game5-msg-title').textContent = win ? '才思泉湧！' : '筆底乾坤盡';
+            document.getElementById('game5-msg-title').textContent = win ? '恭喜挑戰成功！' : '可惜挑戰失敗了';
             document.getElementById('game5-msg-content').textContent = reason;
 
             const msgPoemInfo = document.getElementById('game5-msg-poem-info');
             if (this.targetPoem) {
-                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.targetPoem.title}》 / ${this.targetPoem.dynasty} / ${this.targetPoem.author}</span>`;
+                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.targetPoem.title}》/ ${this.targetPoem.dynasty} / ${this.targetPoem.author}</span>`;
             } else {
                 msgPoemInfo.innerHTML = '';
             }
@@ -1020,7 +1026,7 @@
 
             const msgBtn = document.getElementById('game5-msg-btn');
             if (win) {
-                msgBtn.textContent = "下一局";
+                msgBtn.textContent = "繼續";
             } else {
                 msgBtn.textContent = "再試一次";
             }
@@ -1034,7 +1040,7 @@
                     scoreElementId: 'game5-score',
                     heartsSelector: '#game5-hearts .heart:not(.empty)',
                     onComplete: (finalScore) => {
-                        document.getElementById('game5-msg-content').textContent = `得分：${finalScore}\n${reason}`;
+                        document.getElementById('game5-msg-content').textContent = `最終得分：${finalScore}\n${reason}`;
                     }
                 });
             }

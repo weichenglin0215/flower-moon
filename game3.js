@@ -219,6 +219,7 @@
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem || this.rows.length === 0) return;
             this.isActive = true;
             this.score = 0;
@@ -266,6 +267,7 @@
         },
 
         startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             document.getElementById('game3-diff-tag').textContent = this.difficulty;
             this.isActive = true;
             this.score = 0;

@@ -241,6 +241,7 @@
         },
         //game9只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
             this.score = 0;
             this.moveInfo = [];

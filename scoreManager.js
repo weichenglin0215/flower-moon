@@ -12,6 +12,9 @@ const ScoreManager = {
         '研究所': 5
     },
 
+    // 追蹤當前正在執行的結算動畫，以便在中途開新局時取消
+    activeIntervals: [],
+
     // 各個遊戲的分數基準設定
     // base: 過關基礎分, heart: 每顆剩餘紅心得分, time: 每秒剩餘時間得分
     gameSettings: {
@@ -22,9 +25,11 @@ const ScoreManager = {
         'game5': { base: 100, heart: 10, time: 1 },
         'game6': { base: 100, heart: 10, time: 1 },
         'game7': { base: 100, heart: 10, time: 0 },
+        'game8': { base: 100, heart: 10, time: 2 },
         'game9': { base: 100, heart: 10, time: 5 },
         'game10': { base: 100, heart: 10, time: 0 },
-        'game11': { base: 100, heart: 10, time: 0 }
+        'game11': { base: 100, heart: 10, time: 0 },
+        'game12': { base: 100, heart: 10, time: 2 }
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -256,6 +261,7 @@ const ScoreManager = {
      * 包含三個階段：紅心計算 -> 時間計算與星星飛舞 -> 難度加成捲動
      */
     playWinAnimation: function (options) {
+        this.cancelAnimation(); // 在開始新的動畫前，先取消舊的
         this.initCSS();
 
         let currentScore = Math.floor(options.game.score || 0); // 初始分數去小數點
@@ -308,12 +314,15 @@ const ScoreManager = {
                     tempScore += stepValue;
                     document.getElementById(options.scoreElementId).textContent = Math.floor(tempScore);
                     if (currentStep >= steps) {
+                        const idx = this.activeIntervals.indexOf(rollInterval);
+                        if (idx > -1) this.activeIntervals.splice(idx, 1);
                         clearInterval(rollInterval);
                         document.getElementById(options.scoreElementId).textContent = finalScore;
                         this.saveScore(gameKey, options.difficulty, finalScore);
                         if (options.onComplete) options.onComplete(finalScore);
                     }
                 }, 40);
+                this.activeIntervals.push(rollInterval);
             } else {
                 document.getElementById(options.scoreElementId).textContent = finalScore;
                 this.saveScore(gameKey, options.difficulty, finalScore);
@@ -358,6 +367,8 @@ const ScoreManager = {
                     // 更新遊戲畫面上的計時環 (如果有對應的方法)
                     if (gameInst.updateTimerRing) gameInst.updateTimerRing(newRatio);
                 } else {
+                    const idx = this.activeIntervals.indexOf(winInterval);
+                    if (idx > -1) this.activeIntervals.splice(idx, 1);
                     clearInterval(winInterval);
                     if (gameInst.updateTimerRing) gameInst.updateTimerRing(0);
                     isLaunchComplete = true;
@@ -366,6 +377,7 @@ const ScoreManager = {
                     }
                 }
             }, tickDelay);
+            this.activeIntervals.push(winInterval);
         };
 
         // 階段 0：將剩餘紅心轉為分數
@@ -380,10 +392,13 @@ const ScoreManager = {
                     document.getElementById(options.scoreElementId).textContent = currentScore;
                     hIdx--;
                 } else {
+                    const idx = this.activeIntervals.indexOf(heartInterval);
+                    if (idx > -1) this.activeIntervals.splice(idx, 1);
                     clearInterval(heartInterval);
                     setTimeout(convertTime, 150);
                 }
             }, 150);
+            this.activeIntervals.push(heartInterval);
         } else {
             convertTime();
         }
@@ -518,6 +533,17 @@ const ScoreManager = {
             `;
             document.head.appendChild(style);
         }
+    },
+
+    /**
+     * 取消目前正在執行的結算動畫與計時器
+     */
+    cancelAnimation: function () {
+        this.activeIntervals.forEach(id => clearInterval(id));
+        this.activeIntervals = [];
+        // 清除所有飛行星星
+        const stars = document.querySelectorAll('.flying-star');
+        stars.forEach(s => s.remove());
     }
 };
 

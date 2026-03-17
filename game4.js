@@ -160,6 +160,7 @@
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
             this.isActive = true;
             this.score = 0;
@@ -195,6 +196,7 @@
         },
 
         startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             document.getElementById('game4-diff-tag').textContent = this.difficulty;
             this.isActive = true;
             this.score = 0;

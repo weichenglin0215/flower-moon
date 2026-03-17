@@ -14,60 +14,60 @@
         timerInterval: null,
         nextEnemyId: 0,
 
-        // 介面物件尺寸設定 (單位為 rem, 相對於根字體大小)
+        // 佈局單位定義 (以 rem 為基礎)
         ui: {
-            // 敵人文字
-            enemySize: 1.5,        // 尺寸
-            enemySpacingX: 1.4,    // 橫向間隔倍數 (文字尺寸 * 此值)
-            enemySpacingY: 1.4,    // 縱向間隔倍數 (文字尺寸 * 此值)
+            // 敵人相關
+            enemySize: 1.5,        // 敵人大小
+            enemySpacingX: 1.4,    // 橫向間距
+            enemySpacingY: 1.4,    // 縱向間距
 
-            // 落下砲彈
-            enemyBulletSize: 0.2,  // 直徑
+            // 敵人子彈
+            enemyBulletSize: 0.2,  // 子彈大小
 
-            // 地面防禦石碑
-            monumentBlockSize: 0.4, // 每一小格的尺寸
-            monumentCols: 8,       // 橫向顆數
-            monumentRows: 4,       // 縱向顆數
+            // 掩體（碑林）
+            monumentBlockSize: 0.4, // 碑林方塊大小
+            monumentCols: 8,       // 掩體橫列數
+            monumentRows: 4,       // 掩體縱列數
 
-            // 我方砲台
-            playerWidth: 2.0,      // 寬度
-            playerHeight: 0.8,     // 高度
-            gunWidth: 0.3,         // 砲管寬度
-            gunHeight: 0.3,        // 砲管高度
+            // 玩家外觀控制
+            playerWidth: 2.0,      // 玩家寬度
+            playerHeight: 0.8,     // 玩家高度
+            gunWidth: 0.3,         // 槍管寬度
+            gunHeight: 0.3,        // 槍管高度
 
-            // 我方射擊飛彈
-            bulletSize: 0.3,       // 一般彈直徑
-            bulletSizePierce: 0.3, // 穿透彈直徑
+            // 玩家攻擊設定
+            bulletSize: 0.3,       // 子彈大小
+            bulletSizePierce: 0.3, // 穿透子彈大小
 
-            // 獎勵介面
-            powerUpBoxSizeWidth: 5,    // 黃底白框尺寸
-            powerUpBoxSizeHeight: 6    // 黃底白框尺寸
+            // 寶箱界面參數
+            powerUpBoxSizeWidth: 5,    // 寶箱寬度
+            powerUpBoxSizeHeight: 6    // 寶箱高度
         },
 
-        // 核心遊戲對象
+        // 玩家與怪物
         player: {
             x: 0,
             width: 50,
             height: 20,
             bullets: [],
-            fireRate: 0.5, // 秒/發 (由難度設定)
+            fireRate: 0.5, // 射速 (每秒射擊次數)
             lastFired: 0,
-            // 獎勵能力等級 (可疊加)
-            isFiring: false,   // 是否正在按住/觸碰發射
-            swiftLevel: 0,     // 射擊速度提升次數
-            multiShotLevel: 1, // 同時發射子彈數量
-            pierceLevel: 0,    // 穿透敵人數量
+            // 玩家狀態設定
+            isFiring: false,   // 是否正在射擊/連按射擊
+            swiftLevel: 0,     // 玩家移動速度等級
+            multiShotLevel: 1, // 多重射擊等級
+            pierceLevel: 0,    // 穿透射擊等級
             powerUpTime: 0,
-            hitTimer: 0       // 受傷閃紅計時器
+            hitTimer: 0       // 受傷閃爍計時器
         },
         enemies: [], // { char, x, y, hp, alpha, rowIdx }
         enemyProjectiles: [],
         chestItems: [], // { type, x, y, width, height }
         monuments: [], // { blocks: [] }
-        particles: [], // { x, y, color, life, vx, vy } 爆炸特效
-        isPausedForPowerUp: false, // 是否因為選擇獎勵而暫停
+        particles: [], // { x, y, color, life, vx, vy } 粒子效果
+        isPausedForPowerUp: false, // 是否因寶箱介面而暫停
 
-        // 視覺與佈局
+        // 渲染與控制變數
         canvas: null,
         ctx: null,
         container: null,
@@ -76,17 +76,17 @@
         touchStartX: 0,
         dragStartX: 0,
 
-        // 遊戲難度設定
+        // 難度等級設定
         difficultySettings: {
-            // stars: 詩詞星等, lineCount: 敵人由幾句詩組成, baseSpeed: 初始左右移動速度, speedInc: 撞牆後的增加速度, 
+            // stars: 詩詞等級, lineCount: 敵人波次詩句數, baseSpeed: 基礎速度, speedInc: 增量
             '小學': { time: 80, hearts: 6, fireRate: 0.8, baseSpeed: 80, speedInc: 10, maxSpeed: 300, stars: 6, lineCount: 2 },
-            '中學': { time: 75, hearts: 5, fireRate: 0.75, baseSpeed: 80, speedInc: 10, maxSpeed: 350, stars: 5, lineCount: 4 },
-            '高中': { time: 70, hearts: 4, fireRate: 0.7, baseSpeed: 80, speedInc: 10, maxSpeed: 400, stars: 4, lineCount: 6 },
-            '大學': { time: 70, hearts: 3, fireRate: 0.65, baseSpeed: 80, speedInc: 11, maxSpeed: 500, stars: 3, lineCount: 8 },
-            '研究所': { time: 70, hearts: 2, fireRate: 0.6, baseSpeed: 80, speedInc: 12, maxSpeed: 600, stars: 2, lineCount: 8 }
+            '中學': { time: 80, hearts: 5, fireRate: 0.75, baseSpeed: 80, speedInc: 11, maxSpeed: 350, stars: 5, lineCount: 4 },
+            '高中': { time: 80, hearts: 4, fireRate: 0.7, baseSpeed: 80, speedInc: 12, maxSpeed: 400, stars: 4, lineCount: 6 },
+            '大學': { time: 80, hearts: 3, fireRate: 0.65, baseSpeed: 80, speedInc: 13, maxSpeed: 500, stars: 3, lineCount: 8 },
+            '研究所': { time: 80, hearts: 2, fireRate: 0.6, baseSpeed: 80, speedInc: 14, maxSpeed: 600, stars: 2, lineCount: 8 }
         },
 
-        enemyDirection: 1, // 1 為右, -1 為左
+        enemyDirection: 1, // 1 向右, -1 向左
         currentEnemySpeed: 0,
 
         init: function () {
@@ -101,7 +101,7 @@
             div.className = 'game6-overlay aspect-5-8 hidden';
             div.innerHTML = `
                 <div class="game6-header">
-                    <div class="game6-score-board">分數: <span id="game6-score">0</span></div>
+                    <div class="game6-score-board">得分: <span id="game6-score">0</span></div>
                     <div class="game6-controls">
                         <button id="game6-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game6-newGame-btn" class="nav-btn">開新局</button>
@@ -120,10 +120,10 @@
                 </div>
                 <div class="game6-footer">
                     <div class="game6-difficulty-tag" id="game6-diff-tag">小學</div>
-                    <div class="game6-drag-hint">左右滑動控制砲台 (按住或拖曳時發射飛彈)</div>
+                    <div class="game6-drag-hint">左右拖曳以移動玩家 (按住或連按以發動連按)</div>
                 </div>
                 <div id="game6-message" class="game6-message hidden">
-                    <h2 id="game6-msg-title">訊息</h2>
+                    <h2 id="game6-msg-title">遊戲結束</h2>
                     <div id="game6-msg-poem-info" class="game6-msg-poem-info"></div>
                     <p id="game6-msg-content"></p>
                     <button id="game6-msg-btn" class="game6-msg-btn">繼續</button>
@@ -158,14 +158,14 @@
                 }
             };
 
-            // 改為整個 container 都可以偵測拖曳與發射
+            // 綁定容器事件以支援拖曳與連發
             const dragArea = this.container;
 
             // 觸控事件
             dragArea.addEventListener('touchstart', (e) => {
                 this.touchStartX = e.touches[0].clientX;
                 this.dragStartX = this.player.x;
-                this.player.isFiring = true; // 觸碰開始發射
+                this.player.isFiring = true; // 開始連發射擊
             }, { passive: true });
 
             dragArea.addEventListener('touchmove', (e) => {
@@ -175,21 +175,21 @@
             }, { passive: true });
 
             dragArea.addEventListener('touchend', () => {
-                this.player.isFiring = false; // 觸碰結束停止發射
+                this.player.isFiring = false; // 停止連發射擊
             });
             dragArea.addEventListener('touchcancel', () => {
                 this.player.isFiring = false;
             });
 
-            // 滑鼠模仿事件
+            // 滑鼠事件
             let isDragging = false;
             dragArea.addEventListener('mousedown', (e) => {
-                // 如果是在點擊獎勵方塊，不觸發加速拖曳 (雖然 handleChestClick 也在 canvas 上)
+                // 如果是在點擊獎勵選擇時，不執行連發行為
                 if (this.isPausedForPowerUp) return;
                 isDragging = true;
                 this.touchStartX = e.clientX;
                 this.dragStartX = this.player.x;
-                this.player.isFiring = true; // 滑鼠按住開始發射
+                this.player.isFiring = true; // 滑鼠按下開始射擊
             });
 
             window.addEventListener('mousemove', (e) => {
@@ -200,10 +200,10 @@
 
             window.addEventListener('mouseup', () => {
                 isDragging = false;
-                this.player.isFiring = false; // 放開按鈕停止發射
+                this.player.isFiring = false; // 放開按鍵停止射擊
             });
 
-            // 獎勵選擇點擊事件 (在畫布上點擊)
+            // 獎勵點擊事件
             this.canvas.addEventListener('mousedown', (e) => {
                 if (!this.isActive || !this.isPausedForPowerUp) return;
                 const rect = this.canvas.getBoundingClientRect();
@@ -240,7 +240,7 @@
             const boxSizeHeight = this.ui.powerUpBoxSizeHeight * this.u;
             for (let i = 0; i < this.chestItems.length; i++) {
                 const c = this.chestItems[i];
-                // 檢查是否點擊到金黃色方塊
+                // 檢查是否點擊到寶箱區域
                 if (x > c.x - boxSizeWidth / 2 && x < c.x + boxSizeWidth / 2 && y > c.y - boxSizeHeight / 2 && y < c.y + boxSizeHeight / 2) {
                     this.applyPowerUp(c.type);
                     this.chestItems = [];
@@ -251,9 +251,20 @@
 
         show: function () {
             this.init();
+
+            // 確保主頁面的 IntroOverlay 隱藏
+            const intro = document.getElementById('introOverlay');
+            if (intro && !intro.classList.contains('hidden')) {
+                intro.classList.add('hidden', 'hide-fade');
+                document.body.classList.remove('overlay-active');
+            }
+
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('遊戲六：詩陣侵略', (level) => {
+                window.DifficultySelector.show('詩陣侵略', (level) => {
                     this.difficulty = level;
+                    const settings = this.difficultySettings[level];
+                    if (!settings) return;
+
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active');
                     this.setupCanvas();
@@ -268,17 +279,18 @@
             this.canvas.width = area.offsetWidth;
             this.canvas.height = area.offsetHeight;
 
-            // 使用 rem 作為基準單位，確保在不同裝置上比例與視覺效果一致
+            // 使用 rem 作為基本單位，確保在不同解析度下有一致的顯示效果
             const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
             this.u = rootFontSize;
 
-            // 砲塔尺寸根據 ui 設定調整
+            // 初始化玩家尺寸
             this.player.width = this.ui.playerWidth * this.u;
             this.player.height = this.ui.playerHeight * this.u;
             this.player.x = this.canvas.width / 2;
         },
 
         startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             document.getElementById('game6-diff-tag').textContent = this.difficulty;
             this.score = 0;
             this.mistakeCount = 0;
@@ -289,22 +301,23 @@
             this.startTimer();
             this.renderHearts();
             this.updateScoreUI();
-            // 啟用重來按鈕
+            // 啟用按鈕
             document.getElementById('game6-retryGame-btn').disabled = false;
             document.getElementById('game6-newGame-btn').disabled = false;
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.score = 0;
             this.mistakeCount = 0;
             this.isWin = false;
             this.resetGameStates();
-            this.loadLevel(true); // 傳入 true 以維持相同題目
+            this.loadLevel(true); // 傳入 true 保持同一首詩
             this.startLoop();
             this.startTimer();
             this.renderHearts();
             this.updateScoreUI();
-            // 啟用重來按鈕
+            // 啟用按鈕
             document.getElementById('game6-retryGame-btn').disabled = false;
             document.getElementById('game6-newGame-btn').disabled = false;
         },
@@ -318,8 +331,8 @@
             this.chestItems = [];
             this.monuments = [];
             this.particles = [];
-            // 重置獎勵等級
-            this.player.isFiring = false; // 初始為不發射
+            // 重置玩家狀態
+            this.player.isFiring = false; // 重置射擊狀態
             this.player.swiftLevel = 0;
             this.player.multiShotLevel = 1;
             this.player.pierceLevel = 0;
@@ -334,11 +347,11 @@
             const settings = this.difficultySettings[this.difficulty];
             const minRating = settings.stars || 4;
 
-            // 如果是重來且已有題目，則維持原題目與起始句
+            // 如果是重來且已有詩詞，則直接使用目前的題目
             if (isRetry && this.currentPoem) {
                 this.createEnemies(this.currentPoem, this.currentPoemLineStart);
             } else {
-                // 使用共用邏輯取得隨機詩詞
+                // 使用共用函式來取得詩詞
                 if (typeof POEMS !== 'undefined') {
                     const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
                     if (result) {
@@ -354,11 +367,11 @@
                 }
             }
 
-            // 根據難度設定初始速度與方向
+            // 設置敵人的速度與方向
             this.enemyDirection = 1;
             this.currentEnemySpeed = settings.baseSpeed;
 
-            // 創建石碑：四組橫向排列
+            // 建立掩體：石碑陣
             const mCount = 4;
             const blockW = this.ui.monumentBlockSize * this.u;
             const blockH = this.ui.monumentBlockSize * this.u;
@@ -369,9 +382,9 @@
 
             for (let i = 0; i < mCount; i++) {
                 const startX = spacing * (i + 1) - mTotalWidth / 2;
-                const startY = this.canvas.height - 7.5 * this.u; // 底部高度比例
+                const startY = this.canvas.height - 7.5 * this.u; // 底部高度調整
                 const blocks = [];
-                // 每個石碑由設定的行列數組成
+                // 每個掩體由方塊組成
                 for (let r = 0; r < mRows; r++) {
                     for (let c = 0; c < mCols; c++) {
                         blocks.push({
@@ -393,11 +406,11 @@
             const fontSize = this.ui.enemySize * rootFontSize;
             this.enemyFontSize = fontSize;
 
-            const startY = fontSize / 1; // 1. 緊貼畫布上緣
-            const charSpacing = fontSize * this.ui.enemySpacingX; //敵人字的左右間隔
-            const rowSpacing = fontSize * this.ui.enemySpacingY; //敵人字的上下間隔
+            const startY = fontSize / 1; // 1. 文字渲染位置
+            const charSpacing = fontSize * this.ui.enemySpacingX; // 敵人字元間距
+            const rowSpacing = fontSize * this.ui.enemySpacingY; // 敵人列間距
 
-            // 如果沒有傳入 lineStart，則使用隨機策略 (回退用)
+            // 如果沒有指定 lineStart，則隨機挑選起始行
             if (lineStart === undefined) {
                 const possibleStarts = [];
                 for (let i = 0; i < poem.content.length; i += 2) {
@@ -413,17 +426,15 @@
                 if (line) linesToShow.push(line);
             }
             const totalLines = linesToShow.length;
-            this.totalEnemyLines = totalLines; // 記録總行數供計分使用
-            this.currentPoemLineStart = lineStart; // 記録起始句索引
+            this.totalEnemyLines = totalLines; // 記錄總行數供之後使用
+            this.currentPoemLineStart = lineStart; // 記錄起始行索引
 
             linesToShow.forEach((line, rowIdx) => {
-                const cleanLine = line.replace(/[，。？！、：；]/g, '');
+                const cleanLine = line.replace(/[，。？！、；：「」（）《》]/g, '');
                 const rowWidth = cleanLine.length * charSpacing;
                 const startX = (this.canvas.width - rowWidth) / 2 + charSpacing / 2;
 
-                // 5. 血量計算：最下方 2, 往上 4, 8, 16...
-                // const rowHP = Math.pow(2, (totalLines - rowIdx));
-                // 血量計算：最下方 1, 往上 3, 5, 7...
+                // 血量設計：最下層 1, 向上遞增 3, 5, 7...
                 const rowHP = ((totalLines - rowIdx) * 2) - 1;
 
                 for (let i = 0; i < cleanLine.length; i++) {
@@ -448,7 +459,7 @@
             const progress = document.getElementById('game6-progress');
             const settings = this.difficultySettings[this.difficulty];
             if (this.currentPoem) {
-                // 使用與 createEnemies 相同的起始句索引
+                // 使用 createEnemies 的起始行
                 const lineStart = this.currentPoemLineStart || 0;
                 const linesToShow = [];
                 for (let i = 0; i < settings.lineCount; i++) {
@@ -457,17 +468,17 @@
                 }
                 let html = '';
 
-                // 每兩句詩顯示成同一行 (Progress UI 的視覺分行)
+                // 每兩句顯示為一行 (Progress UI)
                 for (let i = 0; i < linesToShow.length; i += 2) {
-                    const row1 = linesToShow[i].replace(/[，。？！、：；]/g, '');
-                    const row2 = linesToShow[i + 1] ? linesToShow[i + 1].replace(/[，。？！、：；]/g, '') : '';
+                    const row1 = linesToShow[i].replace(/[，。？！、；：「」（）《》]/g, '');
+                    const row2 = linesToShow[i + 1] ? linesToShow[i + 1].replace(/[，。？！、；：「」（）《》]/g, '') : '';
 
                     html += `<div class="game6-poem-row">`;
                     // 第一句
                     for (let char of row1) {
                         html += `<span class="game6-poem-char" data-row="${i}" data-char="${char}">${char}</span>`;
                     }
-                    // 逗號或間隔
+                    // 間隔
                     if (row2) html += `<span style="margin: 0 0.5rem; opacity: 0.5;"></span>`;
                     // 第二句
                     for (let char of row2) {
@@ -496,15 +507,15 @@
         update: function (dt) {
             const settings = this.difficultySettings[this.difficulty];
 
-            // 如果正在選擇獎勵，則暫停物理更新
+            // 如果是獎勵選擇，則暫停更新
             if (this.isPausedForPowerUp) return;
 
-            // 受傷紅閃計時
+            // 受傷閃爍計時
             if (this.player.hitTimer > 0) {
                 this.player.hitTimer -= dt;
             }
 
-            // 更新粒子：在 isEnding 判定之前，確保爆炸特效持續演出
+            // 更新粒子：在 isEnding 結束前，確保爆炸效果完整
             for (let i = this.particles.length - 1; i >= 0; i--) {
                 const part = this.particles[i];
                 part.x += part.vx * dt;
@@ -513,10 +524,10 @@
                 if (part.life <= 0) this.particles.splice(i, 1);
             }
 
-            // 如果正在結束動畫（成功/失敗），則停止其餘物理更新 (子彈、敵人、玩家移動)
+            // 如果是結算畫面，則停止移動物件
             if (this.isEnding) return;
 
-            // 1. 砲台發射：玩家點擊或按住時才發射
+            // 1. 自動發射
             this.player.lastFired += dt;
             const speedMult = 1 + (this.player.swiftLevel * 0.5);
             const rate = settings.fireRate / speedMult;
@@ -538,12 +549,12 @@
                 if (p.y > this.canvas.height) this.enemyProjectiles.splice(idx, 1);
             });
 
-            // 敵人整體移動逻辑 (Space Invaders 經典模式)
+            // 敵人移動邏輯 (Space Invaders 經典模式)
             let edgeHit = false;
             const fontSize = this.enemyFontSize || 36;
             const margin = 20;
 
-            // 1. 檢查是否碰牆
+            // 1. 檢查是否撞牆
             this.enemies.forEach(e => {
                 e.x += this.enemyDirection * this.currentEnemySpeed * dt;
                 if ((this.enemyDirection > 0 && e.x > this.canvas.width - margin) ||
@@ -552,7 +563,7 @@
                 }
             });
 
-            // 2. 若碰牆則轉向、加速、準備下移
+            // 2. 執行轉向、加速與下移
             let shiftDown = false;
             if (edgeHit) {
                 this.enemyDirection *= -1;
@@ -560,7 +571,7 @@
                 shiftDown = true;
             }
 
-            // 3. 處理下移與碰撞
+            // 3. 執行下移與檢測
             let lowestY = 0;
             const px = this.player.x - this.player.width / 2;
             const py = this.canvas.height - this.player.height - 20;
@@ -568,11 +579,11 @@
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const e = this.enemies[i];
                 if (shiftDown) {
-                    e.y += fontSize / 4; // 碰牆時向下移動 1/4 字體高度
+                    e.y += fontSize / 4; // 每次撞牆下移 1/4 字體高度
                 }
                 if (e.y > lowestY) lowestY = e.y;
 
-                // 文字敵人碰到防禦石碑
+                // 敵人碰撞掩體
                 this.monuments.forEach(m => {
                     m.blocks.forEach(b => {
                         if (b.alive && this.rectIntersect(b.x, b.y, b.w, b.h, e.x - 15, e.y - 15, 30, 30)) {
@@ -581,14 +592,14 @@
                     });
                 });
 
-                // 文字敵人碰到砲塔：任務失敗，演出爆破並轉為紅色
+                // 敵人碰撞玩家：觸發失敗
                 if (this.rectIntersect(px, py, this.player.width, this.player.height, e.x - 15, e.y - 15, 30, 30)) {
-                    this.triggerFailAnimation("詩陣入侵，防線崩潰...");
+                    this.triggerFailAnimation("詩陣陷落，文心已失...");
                 }
             }
 
-            // 3. 敵人射擊邏輯：只有最下方的敵人會往下方發射子彈
-            // 先找出每一列中 rowIdx 最大的敵人
+            // 3. 敵人射擊：只有最下層的敵人才會發射子彈
+            // 尋找每一行中最下方的敵人
             const bottomEnemies = {};
             this.enemies.forEach(e => {
                 if (!bottomEnemies[e.colIdx] || e.rowIdx > bottomEnemies[e.colIdx].rowIdx) {
@@ -597,26 +608,26 @@
             });
 
             Object.values(bottomEnemies).forEach(e => {
-                // 基礎發射機率隨難度與石碑數量調整
-                if (Math.random() < 0.005) {
+                // 發射子彈機率
+                if (Math.random() < 0.0066) {
                     this.enemyProjectiles.push({ x: e.x, y: e.y, speed: 180, radius: 5 });
                 }
             });
 
-            // 3. 取消地平線失敗判斷，目前判斷已移動至 enemies.forEach 內的撞擊砲塔判斷
+            // 3. 碰撞檢測已移至 enemies.forEach
 
-            // 碰撞檢測
+            // 處理碰撞
             this.checkCollisions();
 
             // 更新寶箱
             this.chestItems.forEach((c, idx) => {
-                // 檢查玩家是否碰觸
+                // 檢查玩家是否獲得
                 const px = this.player.x - this.player.width / 2;
                 const py = this.canvas.height - this.player.height - 1.25 * this.u;
                 const hitSize = 2.5 * this.u;
                 if (this.rectIntersect(px, py, this.player.width, this.player.height, c.x - hitSize / 2, c.y - hitSize / 2, hitSize, hitSize)) {
                     this.applyPowerUp(c.type);
-                    this.chestItems = []; // 撿起一個，其餘消失
+                    this.chestItems = []; // 獲得一項後消失
                 }
             });
 
@@ -626,11 +637,11 @@
                 if (this.player.powerUpTime <= 0) this.player.powerUp = null;
             }
         },
-
+        //玩家發射子彈
         fireBullet: function () {
             const bSpeed = 400;
             const count = this.player.multiShotLevel;
-            const spread = 0.9 * this.u; // 與 draw 函式中的間距保持一致
+            const spread = 0.9 * this.u; // 與 draw 保持一致
             const gunH = this.ui.gunHeight * this.u;
             const py = this.canvas.height - this.player.height - 1.25 * this.u;
 
@@ -641,13 +652,13 @@
                     y: py - gunH,
                     speed: bSpeed,
                     type: this.player.pierceLevel > 0 ? 'pierce' : 'normal',
-                    pierceCount: this.player.pierceLevel, // 剩餘穿透數
-                    hitHistory: [] // 記錄已擊中的敵人 ID
+                    pierceCount: this.player.pierceLevel, // 穿透次數
+                    hitHistory: [] // 記錄已命中敵人 ID
                 });
             }
         },
 
-        // 產生爆炸特效渲染
+        // 產生炸裂粒子效果
         spawnExplosion: function (x, y, color, count) {
             for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
@@ -671,23 +682,23 @@
                 for (let j = this.enemies.length - 1; j >= 0; j--) {
                     const e = this.enemies[j];
 
-                    // 檢查是否已經擊中過該敵人
+                    // 檢查是否已命中此敵人
                     if (b.hitHistory.includes(e.id)) continue;
 
                     const dist = Math.hypot(b.x - e.x, b.y - e.y);
                     if (dist < 25) {
                         e.hp--;
-                        b.hitHistory.push(e.id); // 記錄此敵人已被擊中
+                        b.hitHistory.push(e.id); // 記錄此敵人已命中
 
-                        // 敵人血量越低，透明度越低
+                        // 敵人血量對應透明度
                         e.alpha = 0.1 + (e.hp / e.maxHp) * 0.9;
 
-                        // 4. 砲彈碰到文字敵人會出現黃色的爆炸特效
+                        // 普通命中噴發粒子
                         this.spawnExplosion(b.x, b.y, 'yellow', 12);
                         if (window.SoundManager) window.SoundManager.playHit(15, 1.0);
 
                         if (e.hp <= 0) {
-                            // 4. 砲彈碰到文字敵人死亡了，會出現更大的黃色的爆炸特效
+                            // 敵人報銷噴發大量粒子
                             this.spawnExplosion(b.x, b.y, 'yellow', 36);
                             this.destroyEnemy(j, e);
                             if (window.SoundManager) setTimeout(() => window.SoundManager.playHit(22, 2.0), 150);
@@ -696,18 +707,18 @@
                         hitAny = true;
                         if (b.type === 'pierce') {
                             b.pierceCount--;
-                            if (b.pierceCount < 0) hitAny = true; // 穿透數用完，子彈消失
-                            else hitAny = false; // 繼續前進
+                            if (b.pierceCount < 0) hitAny = true; // 穿透次數用完，子彈消失
+                            else hitAny = false; // 穿透子彈繼續
                         }
                         break;
                     }
                 }
                 if (hitAny) {
                     this.player.bullets.splice(i, 1);
-                    continue; // 已經擊中敵人，檢查下一顆子彈
+                    continue; // 已命中，不處理其他
                 }
 
-                // 玩家子彈 vs 石碑小方塊 (子彈也會破壞石碑)
+                // 玩家子彈 vs 掩體
                 let hitBlock = false;
                 for (let j = 0; j < this.monuments.length; j++) {
                     const m = this.monuments[j];
@@ -722,13 +733,14 @@
                     if (hitBlock) break;
                 }
                 if (hitBlock) {
-                    this.spawnExplosion(b.x, b.y, 'white', 12); // 子彈射中石碑的小特效
+                    this.spawnExplosion(b.x, b.y, 'white', 12); // 命中粒子
                     this.player.bullets.splice(i, 1);
                     if (window.SoundManager) window.SoundManager.playHit(5, 0.6);
                 }
             }
 
-            // 4. 飛彈與敵人砲彈互相抵消
+            // 雙方子彈攔截，取消，避免玩家不閃躲只以強火力進攻。
+            /*
             for (let i = this.player.bullets.length - 1; i >= 0; i--) {
                 const b = this.player.bullets[i];
                 let hitAny = false;
@@ -736,7 +748,7 @@
                     const p = this.enemyProjectiles[j];
                     const dist = Math.hypot(b.x - p.x, b.y - p.y);
                     if (dist < (p.radius + 5)) {
-                        // 同時觸發白色與黃色特效
+                        // 產生對撞粒子
                         this.spawnExplosion(b.x, b.y, 'yellow', 12);
                         this.spawnExplosion(p.x, p.y, 'white', 12);
                         this.enemyProjectiles.splice(j, 1);
@@ -745,22 +757,23 @@
                         hitAny = true;
                         if (b.type === 'pierce') {
                             b.pierceCount--;
-                            if (b.pierceCount < 0) hitAny = true; // 穿透數用完，子彈消失
-                            else hitAny = false; // 繼續前進
+                            if (b.pierceCount < 0) hitAny = true; // 穿透次數用完，子彈消失
+                            else hitAny = false; // 穿透子彈繼續
                         }
-                        if (hitAny || b.type === 'pierce') break; // 穿透子彈每幀只抵消一個砲彈以維持效能
+                        if (hitAny || b.type === 'pierce') break; // 穿透子彈可攔截多個敵人子彈
                     }
                 }
                 if (hitAny) {
                     this.player.bullets.splice(i, 1);
                 }
             }
+            */
 
-            // 敵人攻擊 vs 石碑/玩家
+            // 敵人子彈 vs 掩體/玩家
             for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
                 const p = this.enemyProjectiles[i];
 
-                // 石碑小方塊碰撞 (子彈可破壞個別方塊)
+                // 掩體受損檢測
                 let hitBlock = false;
                 for (let j = 0; j < this.monuments.length; j++) {
                     const m = this.monuments[j];
@@ -769,7 +782,7 @@
                         if (bNode.alive && this.rectIntersect(bNode.x, bNode.y, bNode.w, bNode.h, p.x - p.radius, p.y - p.radius, p.radius * 2, p.radius * 2)) {
                             bNode.alive = false;
                             hitBlock = true;
-                            // 3. 敵人砲彈碰到防禦石碑出現白色的爆炸特效
+                            // 敵人命中掩體效果
                             this.spawnExplosion(p.x, p.y, 'white', 12);
                             if (window.SoundManager) window.SoundManager.playHit(5, 0.6);
                             break;
@@ -782,12 +795,12 @@
                     continue;
                 }
 
-                // 玩家碰撞
+                // 玩家受傷檢測
                 const px = this.player.x - this.player.width / 2;
                 const py = this.canvas.height - this.player.height - 1.25 * this.u;
                 if (this.rectIntersect(px, py, this.player.width, this.player.height, p.x - p.radius, p.y - p.radius, p.radius * 2, p.radius * 2)) {
                     this.enemyProjectiles.splice(i, 1);
-                    // 3. 敵人砲彈碰到砲塔會出現紅色的爆炸特效
+                    // 敵人命中玩家粒子效果
                     this.spawnExplosion(p.x, p.y, 'hsl(0, 100%, 66%)', 36);
                     this.handlePlayerHit();
                     if (window.SoundManager) window.SoundManager.playHit(2, 1.0);
@@ -799,17 +812,17 @@
 
         destroyEnemy: function (idx, e) {
             this.enemies.splice(idx, 1);
-            // 分數根據敵機位置的行數來增加，位置越高的敵機的分數越高
-            // rowIdx 0 是最上方
+            // 敵人死亡得分按行數加成
+            // rowIdx 0 為頂端
             const multiplier = (this.totalEnemyLines || 1) - e.rowIdx;
             this.score += 5 * Math.max(1, multiplier);
             this.updateScoreUI();
 
-            // 標記進度區已收集 (使用屬性選擇器精確匹配該排的該字)
+            // 更新 UI 進度顯示
             const charSpan = document.querySelector(`.game6-poem-char[data-row="${e.rowIdx}"][data-char="${e.char}"]:not(.collected)`);
             if (charSpan) charSpan.classList.add('collected');
 
-            // 2. 檢查是否清空一整排，且非最後一位敵人時才出現三選一獎勵
+            // 檢查是否清場一列，並掉落寶箱
             const remainingInRow = this.enemies.filter(enemy => enemy.rowIdx === e.rowIdx).length;
             if (remainingInRow === 0 && this.enemies.length > 0) {
                 this.isPausedForPowerUp = true; // 暫停遊戲
@@ -818,19 +831,19 @@
 
             if (this.enemies.length === 0) {
                 this.isEnding = true;
-                // 完整表演三倍數量的爆破特效 (約 1 秒)
+                // 勝利噴發大量粒子
                 const lastX = e.x;
                 const lastY = e.y;
                 for (let k = 0; k < 3; k++) {
                     setTimeout(() => {
-                        // 範圍加大兩倍，數量加倍 (原本 30, 分散 50 -> 現在 60, 分散 120)
+                        // 勝利效果
                         this.spawnExplosion(lastX + (Math.random() - 0.5) * 24, lastY + (Math.random() - 0.5) * 24, 'yellow', 180);
                         if (window.SoundManager) window.SoundManager.playHit(10 * (k + 1), 1.0);
                     }, k * 300);
                 }
                 setTimeout(() => {
                     this.gameWin();
-                }, 1500); // 增加一點停留時間，讓最後的大火光完全燃盡
+                }, 1500); // 延遲顯示勝利畫面
             }
         },
 
@@ -842,12 +855,12 @@
                 x: spacing * (i + 1),
                 y: this.canvas.height / 2
             }));
-            // 移除原本的 setTimeout，直到選擇獎勵為止都保持暫停
+            // 移除延遲，直接顯示讓玩家點擊
         },
 
         applyPowerUp: function (type) {
             if (window.SoundManager) window.SoundManager.playSuccess();
-            // 獎勵累積邏輯
+            // 玩家強化效果
             if (type === 'Swift') {
                 this.player.swiftLevel++;
             } else if (type === 'Multi-shot') {
@@ -856,30 +869,30 @@
                 this.player.pierceLevel++;
             }
             this.isPausedForPowerUp = false; // 恢復遊戲
-            this.lastTime = performance.now(); // 修正暫停後的 dt
+            this.lastTime = performance.now(); // 修正時間差
         },
 
         handlePlayerHit: function () {
             if (window.SoundManager) window.SoundManager.playFailure();
             this.mistakeCount++;
-            this.player.hitTimer = 0.5; // 受傷紅閃 0.5 秒
+            this.player.hitTimer = 0.5; // 受傷閃爍
             this.renderHearts();
             if (this.mistakeCount >= (this.difficultySettings[this.difficulty].hearts || 3)) {
-                this.triggerFailAnimation("砲塔受損嚴重，墨跡斑駁...");
+                this.triggerFailAnimation("詩陣失守，玩家出局...");
             }
         },
 
         triggerFailAnimation: function (reason) {
             if (this.isEnding) return;
             this.isEnding = true;
-            this.player.hitTimer = 2.0; // 確保砲塔在表演期間保持紅色
+            this.player.hitTimer = 2.0; // 失败受傷效果
             const px = this.player.x;
             const py = this.canvas.height - this.player.height - 1.25 * this.u;
 
-            // 完整表演三倍數量的紅色被擊中爆破特效 (約 1 秒)
+            // 失敗爆炸效果
             for (let k = 0; k < 3; k++) {
                 setTimeout(() => {
-                    // 範圍加大兩倍，數量加倍 (原本 40, 分散 40 -> 現在 80, 分散 100)
+                    // 失敗粒子
                     this.spawnExplosion(px + (Math.random() - 0.5) * 24, py + (Math.random() - 0.5) * 24, 'red', 180);
                 }, k * 300);
             }
@@ -895,7 +908,7 @@
         draw: function () {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // 畫石碑 (每個石碑由 8*3 小正方塊組成)
+            // 繪製掩體
             this.monuments.forEach(m => {
                 m.blocks.forEach(b => {
                     if (b.alive) {
@@ -907,13 +920,13 @@
                 });
             });
 
-            // 畫敵人
+            // 繪製敵人
             const fontSize = this.enemyFontSize || 36;
             this.ctx.font = `${fontSize}px 'Noto Serif TC'`;
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             this.enemies.forEach(e => {
-                // 紫色霧氣效果
+                // 發光效果
                 this.ctx.shadowBlur = 10;
                 this.ctx.shadowColor = 'hsla(270, 50%, 40%, 0.50)';
                 this.ctx.fillStyle = `hsla(0, 0%, 100%, ${e.alpha})`;
@@ -921,7 +934,7 @@
             });
             this.ctx.shadowBlur = 0;
 
-            // 畫粒子
+            // 繪製粒子
             this.particles.forEach(p => {
                 this.ctx.fillStyle = p.color;
                 this.ctx.globalAlpha = Math.max(0, p.life * 2);
@@ -929,7 +942,7 @@
             });
             this.ctx.globalAlpha = 1.0;
 
-            // 畫玩家子彈
+            // 繪製玩家子彈
             this.player.bullets.forEach(b => {
                 this.ctx.fillStyle = b.type === 'pierce' ? 'gold' : 'yellow';
                 this.ctx.beginPath();
@@ -939,7 +952,7 @@
                 this.ctx.fill();
             });
 
-            // 畫敵人墨點
+            // 繪製敵人子彈
             this.enemyProjectiles.forEach(p => {
                 this.ctx.fillStyle = 'hsl(270, 0%, 80%)';
                 this.ctx.beginPath();
@@ -950,12 +963,12 @@
                 this.ctx.stroke();
             });
 
-            // 畫玩家砲台
+            // 繪製玩家
             this.ctx.fillStyle = this.player.hitTimer > 0 ? 'red' : 'hsl(36, 80%, 50%)';
             const px = this.player.x - this.player.width / 2;
             const py = this.canvas.height - this.player.height - 1.25 * this.u;
             this.ctx.fillRect(px, py, this.player.width, this.player.height);
-            // 砲管
+            // 槍管
             const mCount = this.player.multiShotLevel;
             const gunW = this.ui.gunWidth * this.u;
             const gunH = this.ui.gunHeight * this.u;
@@ -965,14 +978,14 @@
                 this.ctx.fillRect(this.player.x + off - gunW / 2, py - gunH, gunW, gunH);
             }
 
-            // 畫獎勵 UI
+            // 繪製寶箱 UI
             if (this.isPausedForPowerUp) {
                 this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.fillStyle = 'white';
                 this.ctx.font = `bold 2rem 'Noto Serif TC'`;
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText("請選擇獎勵", this.canvas.width / 2, this.canvas.height / 2 - 6.25 * this.u);
+                this.ctx.fillText("請選擇強化項目", this.canvas.width / 2, this.canvas.height / 2 - 6.25 * this.u);
 
                 this.chestItems.forEach(c => {
                     const boxSizeWidth = this.ui.powerUpBoxSizeWidth * this.u;
@@ -990,16 +1003,16 @@
                     let val = "";
                     if (c.type === 'Swift') {
                         label1 = "快速";
-                        label2 = "射擊";
+                        label2 = "發射";
                         val = (1.5 + this.player.swiftLevel * 0.5).toFixed(1) + "x";
                     } else if (c.type === 'Multi-shot') {
-                        label1 = "多發";
-                        label2 = "子彈";
+                        label1 = "多重";
+                        label2 = "發射";
                         val = (this.player.multiShotLevel + 1) + " 發";
                     } else if (c.type === 'Pierce') {
                         label1 = "穿透";
-                        label2 = "敵機";
-                        val = (this.player.pierceLevel + 1) + " 架";
+                        label2 = "攻擊";
+                        val = (this.player.pierceLevel + 1) + " 層";
                     }
                     this.ctx.fillText(label1, c.x, c.y - 1.8 * this.u);
                     this.ctx.fillText(label2, c.x, c.y);
@@ -1007,11 +1020,11 @@
                 });
             }
 
-            // 顯示目前能力狀態
+            // 顯示當前狀態值
             this.ctx.fillStyle = 'gold';
             this.ctx.font = "0.75rem sans-serif";
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(`速: ${(1.0 + this.player.swiftLevel * 0.5).toFixed(1)}x | 彈: ${this.player.multiShotLevel} | 穿: ${this.player.pierceLevel}`, 10, this.canvas.height - 10);
+            this.ctx.fillText(`速 ${(1.0 + this.player.swiftLevel * 0.5).toFixed(1)}x | 彈 ${this.player.multiShotLevel} | 穿 ${this.player.pierceLevel}`, 10, this.canvas.height - 10);
         },
 
         startTimer: function () {
@@ -1022,14 +1035,14 @@
 
             const start = Date.now();
             this.timerInterval = setInterval(() => {
-                if (this.isPausedForPowerUp) return; // 暫停時不計時
+                if (this.isPausedForPowerUp) return; // 暫停時停止計時
                 const elapsed = (Date.now() - start) / 1000;
                 this.timeLeft = this.timer - elapsed;
                 const ratio = Math.max(0, this.timeLeft / this.timer);
                 this.updateTimerRing(ratio);
 
                 if (this.timeLeft <= 0) {
-                    this.gameOver(false, "時限已過！功虧一簣。");
+                    this.gameOver(false, "時間已到，未能清場...");
                 }
             }, 100);
         },
@@ -1061,7 +1074,8 @@
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
                 span.className = 'heart' + (i < this.mistakeCount ? ' empty' : '');
-                span.textContent = i < this.mistakeCount ? '♡' : '♥';
+                span.textContent = i < this.mistakeCount ? '♡' : '❤️';
+                //span.textContent = i < this.mistakeCount ? '💔' : '❤️';
                 container.appendChild(span);
             }
         },
@@ -1075,8 +1089,8 @@
             this.isActive = false;
             this.isWin = true;
             clearInterval(this.timerInterval);
-            document.getElementById('game6-retryGame-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
-            document.getElementById('game6-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕
+            document.getElementById('game6-retryGame-btn').disabled = true; // 避免結算時重複點擊
+            document.getElementById('game6-newGame-btn').disabled = true;//避免結算時重複點擊
             ScoreManager.playWinAnimation({
                 game: this,
                 difficulty: this.difficulty,
@@ -1092,22 +1106,22 @@
 
         gameOver: function (win, msg) {
             this.isActive = false;
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            // 結算畫面時禁止按鈕重複點擊
             if (win) {
-                document.getElementById('game6-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game6-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game6-retryGame-btn').disabled = true;//避免結算時重複點擊
+                document.getElementById('game6-newGame-btn').disabled = true;//避免結算時重複點擊
             } else {
                 document.getElementById('game6-retryGame-btn').disabled = false;
                 document.getElementById('game6-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
             const msgDiv = document.getElementById('game6-message');
-            document.getElementById('game6-msg-title').textContent = win ? "黃沙百戰穿金甲" : "醉臥沙場君莫笑";
-            document.getElementById('game6-msg-content').textContent = win ? `擊退詩陣！得分：${msg}` : msg;
+            document.getElementById('game6-msg-title').textContent = win ? "詩陣侵略已平息" : "墨香散盡，防線崩塌";
+            document.getElementById('game6-msg-content').textContent = win ? `恭喜凱旋！總得分：${msg}` : msg;
 
             const msgPoemInfo = document.getElementById('game6-msg-poem-info');
             if (this.currentPoem) {
-                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.currentPoem.title}》 / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.currentPoem.title}》/ ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
             } else {
                 msgPoemInfo.innerHTML = '';
             }

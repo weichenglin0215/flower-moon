@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isShaking = false;
         dragDistance = 0;
 
-        const poemLines = card.querySelectorAll('.poem-line');
+        const poemLines = card.querySelectorAll('.cards-poem-line');
 
         // 為每一句詩設定顯示邏輯
         poemLines.forEach((line, lineIndex) => {
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function accelerateReveal() {
         if (isShaking) return; // 已經在加速中
 
-        const card = document.getElementById('topCard');
+        const card = document.getElementById('cardsTopCard');
         if (!card) return;
 
         isShaking = true;

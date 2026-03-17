@@ -208,6 +208,7 @@
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
             this.isActive = true;
             this.score = 0;
@@ -226,6 +227,7 @@
         },
 
         startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             document.getElementById('game1-diff-tag').textContent = this.difficulty;
             this.isActive = true;
             this.score = 0;
@@ -285,20 +287,16 @@
             const displayedLine = hideFirst ? line2 : line1;
 
             // 處理隱藏文字 (◎)
-            const maskLine = (text, min, max) => {
+            const getMaskIndices = (text, min, max) => {
                 const chars = text.split('');
-                // 找出非標點的位置
                 let validIndices = [];
                 chars.forEach((c, i) => {
                     if (!/[，。？！、：；]/.test(c)) validIndices.push(i);
                 });
 
-                // 判斷遮蔽數量
-                // 限制不能遮蔽全部文字，至少留下一個字
                 const maxPossible = Math.max(1, validIndices.length - 1);
                 const actualMin = Math.min(maxPossible, Math.max(1, min));
                 const actualMax = Math.min(maxPossible, Math.max(actualMin, max));
-
                 const maskCount = Math.floor(Math.random() * (actualMax - actualMin + 1)) + actualMin;
 
                 let maskedIndices = [];
@@ -306,16 +304,20 @@
                     let r = validIndices[Math.floor(Math.random() * validIndices.length)];
                     if (!maskedIndices.includes(r)) maskedIndices.push(r);
                 }
-
-                return chars.map((c, i) => maskedIndices.includes(i) ? "◎" : c).join('');
+                return maskedIndices;
             };
 
-            this.maskedLineText = maskLine(this.correctAnswer, settings.minMaskCount, settings.maxMaskCount);
+            this.maskedIndices = getMaskIndices(this.correctAnswer, settings.minMaskCount, settings.maxMaskCount);
+            // 純文字版 (供產生成選項邏輯使用)
+            this.maskedLinePlain = this.correctAnswer.split('').map((c, i) => this.maskedIndices.includes(i) ? "◎" : c).join('');
+            // HTML 版 (供題目顯示使用)
+            this.maskedLineHTML = this.correctAnswer.split('').map((c, i) => this.maskedIndices.includes(i) ? `<span class="hidden-char">◎</span>` : c).join('');
+
             this.displayedLine = displayedLine;
             this.hideFirst = hideFirst;
 
-            // 生成選項數據
-            this.generateOptionsData(this.correctAnswer, this.maskedLineText);
+            // 生成選項數據 - 使用純文字版計算
+            this.generateOptionsData(this.correctAnswer, this.maskedLinePlain);
 
             // 渲染 UI
             this.renderChallenge();
@@ -325,17 +327,17 @@
             const qDiv = document.getElementById('game1-question-lines');
             qDiv.innerHTML = '';
 
-            const l1Text = this.hideFirst ? this.maskedLineText : this.displayedLine;
-            const l2Text = this.hideFirst ? this.displayedLine : this.maskedLineText;
+            const l1Text = this.hideFirst ? this.maskedLineHTML : this.displayedLine;
+            const l2Text = this.hideFirst ? this.displayedLine : this.maskedLineHTML;
 
             const l1Div = document.createElement('div');
             l1Div.className = 'poem-lines';
-            l1Div.textContent = l1Text;
+            l1Div.innerHTML = l1Text;
             qDiv.appendChild(l1Div);
 
             const l2Div = document.createElement('div');
             l2Div.className = 'poem-lines';
-            l2Div.textContent = l2Text;
+            l2Div.innerHTML = l2Text;
             qDiv.appendChild(l2Div);
 
             // 動態縮小字體
@@ -434,13 +436,16 @@
             }
 
             // 如果不夠 4 個，補充隨機項
-            while (finalOptions.length < 4) {
+            let attempts = 0;
+            while (finalOptions.length < 4 && attempts < 200) {
+                attempts++;
                 const rndPoem = POEMS[Math.floor(Math.random() * POEMS.length)];
                 if (!rndPoem || !rndPoem.content) continue;
                 const rndLine = rndPoem.content[Math.floor(Math.random() * rndPoem.content.length)];
                 const clean = rndLine.replace(/[，。？！、：；]/g, '');
                 
-                if (clean.length === lineLen && !usedLines.includes(rndLine)) {
+                // 嘗試找長度相同且未被選中的句子
+                if ((clean.length === lineLen || attempts > 150) && !usedLines.includes(rndLine)) {
                     const maskedText = applyOptionMask(rndLine);
                     if (!usedTexts.has(maskedText)) {
                         finalOptions.push({ text: maskedText, isCorrect: false });
@@ -549,6 +554,21 @@
             if (isCorrect) {
                 btn.classList.add('correct');
                 clearInterval(this.timerInterval);
+
+                // 答對之後將題目中的 ◎ 改成綠色的正確文字
+                const qDiv = document.getElementById('game1-question-lines');
+                const lines = qDiv.querySelectorAll('.poem-lines');
+                const targetLineIdx = this.hideFirst ? 0 : 1;
+                const targetLineEl = lines[targetLineIdx];
+
+                // 直接根據 maskedIndices 重新渲染該行
+                targetLineEl.innerHTML = this.correctAnswer.split('').map((c, i) => {
+                    if (this.maskedIndices.includes(i)) {
+                        return `<span class="correct-char">${c}</span>`;
+                    }
+                    return c;
+                }).join('');
+
                 document.getElementById('game1-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 document.getElementById('game1-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
                 ScoreManager.playWinAnimation({

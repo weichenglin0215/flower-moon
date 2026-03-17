@@ -1,0 +1,370 @@
+/* =========================================
+   遊戲十二：疏影橫斜樣式
+   - 結合遊戲四的詩詞展示與遊戲十一的網格記憶
+   ========================================= */
+
+.game12-overlay {
+    background: radial-gradient(circle at center, hsl(210, 30%, 15%) 0%, hsl(0, 0%, 5%) 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    zoom: 1;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 遊戲頂部資訊列 */
+.game12-header {
+    padding: 0.1rem 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 2.5rem;
+}
+
+.game12-score-board {
+    color: hsl(45, 100%, 70%);
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding-left: 3rem;
+}
+
+.game12-controls .nav-btn {
+    padding: 0.0rem 0.5rem;
+    background: hsl(0, 60%, 25%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.game12-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game12-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+.game12-sub-header {
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 2.5rem;
+}
+
+.hearts {
+    display: flex;
+    gap: 0.1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 1.6rem;
+}
+
+.heart.empty {
+    opacity: 0.9;
+}
+
+/* 遊戲主區域 */
+.game12-area {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    position: relative;
+    padding: 0.5rem;
+    width: 100%;
+}
+
+/* 難度標籤 */
+.game12-difficulty-tag {
+    position: absolute;
+    top: 0.3rem;
+    left: 0.3rem;
+    background: hsla(0, 0%, 33%, 0.66);
+    padding: 0.1rem 0.6rem;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    color: hsl(45, 50%, 75%);
+    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+}
+
+/* 問題展示區 */
+.game12-question-area {
+    text-align: center;
+    width: 100%;
+    margin-top: 1.5rem;
+    padding: 0.0rem 1rem;
+    color: hsl(40, 50%, 80%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    min-height: 8rem;
+}
+
+/* 題目展示 */
+.poem-lines {
+    font-size: 2.5rem;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 0.3rem;
+    letter-spacing: 0.3rem;
+    color: hsl(40, 50%, 80%);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.66);
+}
+
+/* 隱藏字元 */
+.poem-lines span.hidden-char {
+    color: hsl(36, 80%, 50%);
+    border-radius: 0.1rem;
+    padding: 0 0.1rem;
+}
+
+/* 正確字元 */
+.poem-lines span.correct-char {
+    color: hsl(145, 68%, 36%);
+    font-weight: bold;
+    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+}
+
+/* 詩詞資料 */
+.poem-info {
+    font-size: 1rem;
+    margin-top: 0.2rem;
+    margin-bottom: 0.5rem;
+    margin-right: 0.5rem;
+    color: hsl(40, 50%, 80%);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+}
+
+/* 玩家操作的狀態提示 */
+.game12-status-msg {
+    color: hsl(45, 80%, 70%);
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+    min-height: 1.5rem;
+}
+
+/* 答案區 */
+.game12-answer-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.grid-container {
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 1rem;
+}
+
+#game12-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#game12-timer-ring.hidden {
+    display: none !important;
+}
+
+#game12-timer-path {
+    fill: none;
+    stroke: hsl(0, 80%, 36%);
+    /* 暗紅色 */
+    stroke-width: 0.5rem;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.1s linear;
+}
+
+.game12-answer-grid {
+    display: grid;
+    gap: 0.3rem;
+    /* Match Game 11 */
+    padding: 1rem;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+}
+
+/* 翻轉字塊樣式 (完全依照 Game 11) */
+.game12-tile {
+    width: 4.0rem;
+    height: 4.0rem;
+    perspective: 1000px;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.game12-tile-inner {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.25s;
+    transform-style: preserve-3d;
+}
+
+.game12-tile.flipped .game12-tile-inner {
+    transform: rotateY(180deg);
+}
+
+.game12-tile-front,
+.game12-tile-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2.8rem;
+    /* Match Game 11 */
+    font-weight: bold;
+    box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.4);
+}
+
+/* 正面 (關閉時，彩色 HSL，依照 Game 11) */
+.game12-tile-front {
+    border: 0.2rem solid hsl(0, 0%, 10%);
+}
+
+.game12-answer-grid.is-player-phase .game12-tile-front {
+    border: 0.1rem solid hsl(51, 100%, 90%);
+}
+
+/* 背面 (打開時，宣紙色) */
+.game12-tile-back {
+    background: #fdfaf0;
+    color: #111;
+    transform: rotateY(180deg);
+    border: 0.1rem solid #bd9b70;
+}
+
+.game12-tile.disabled {
+    cursor: default;
+    pointer-events: none;
+}
+
+.game12-tile.correct .game12-tile-back {
+    background: #2ecc71 !important;
+    /* 更鮮明的綠色 */
+    color: white !important;
+    border-color: #27ae60;
+}
+
+.game12-tile.wrong-reveal .game12-tile-back {
+    background: #c0392b !important;
+    /* 暗紅色 */
+    color: white !important;
+    border-color: #922b21;
+}
+
+.game12-tile.error .game12-tile-inner {
+    animation: game12-shake 0.4s;
+}
+
+@keyframes game12-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-0.3rem);
+    }
+
+    75% {
+        transform: translateX(0.3rem);
+    }
+}
+
+/* 訊息視窗 */
+.game12-message {
+    position: absolute;
+    top: 92%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: hsl(40, 50%, 95%);
+    padding: 0.5rem;
+    padding-bottom: 4rem;
+    border-radius: 1rem;
+    text-align: center;
+    color: #333;
+    box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.8);
+    z-index: 20;
+    width: 90%;
+}
+
+.game12-message h2 {
+    font-size: 1.2rem;
+    margin: 0.3rem 0;
+}
+
+.game12-message p {
+    font-size: 1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.game12-message .nav-btn {
+    background: hsl(145, 68%, 36%);
+    color: white;
+    border: none;
+    border-radius: 1.5rem;
+    padding: 0.2rem 2rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+/* Flying Star Animation (Legacy from Game 4) */
+.flying-star {
+    position: fixed;
+    z-index: 3000;
+    font-size: 2rem;
+    color: hsl(60, 100%, 50%);
+    pointer-events: none;
+    will-change: transform, opacity;
+}
