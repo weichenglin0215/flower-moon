@@ -70,12 +70,12 @@
     top: 0;
     left: 0;
     /* 寬度：3 格 × 格寬 + 左右 padding */
-    width: 27rem;
+    width: 25rem;
     height: 100vh;
     background: linear-gradient(135deg, rgba(93, 24, 24, 0.95), rgba(70, 18, 18, 0.95));
     backdrop-filter: blur(1rem);
     /* 上方留出漢堡按鈕高度，下方保留一些空白 */
-    padding: calc(100vh / 12 + 1vh) 0.5rem 1rem 0.5rem;
+    padding: calc(100vh / 12 - 1vh) 0.5rem 1rem 0.5rem;
     transform: translateX(-100%);
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 29990;
@@ -109,7 +109,7 @@
 .menu-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.5rem;
+    gap: 1rem 0rem;
     width: 100%;
 }
 
@@ -144,8 +144,8 @@
 
 /* 圖片外框（固定高度） */
 .menu-item-img-wrap {
-    width: 86%;
-    height: 7rem;
+    width: 100%;
+    height: 8rem;
     border-radius: 0.4rem;
     overflow: hidden;
     flex-shrink: 0;
@@ -174,7 +174,7 @@
 
 .menu-item-img-placeholder::after {
     content: '🎮';
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     opacity: 0.3;
 }
 

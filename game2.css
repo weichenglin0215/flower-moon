@@ -39,10 +39,10 @@
 }
 
 .game2-score-board {
-    color: hsl(40, 50%, 80%);
-    font-size: 1.5rem;
+    color: hsl(50, 70%, 60%);
+    font-size: 1.2rem;
     font-weight: bold;
-    padding-left: 3rem;
+    padding-left: 2.5rem;
 }
 
 /* 控制按鈕（重新開始／退出） */
@@ -112,16 +112,39 @@
 
 /* 難度標籤 */
 .game2-difficulty-tag {
-    position: absolute;
-    top: 13.5rem;
-    left: 0.3rem;
-    background: hsla(0, 0%, 33%, 0.66);
-    padding: 0.1rem 0.6rem;
+    padding: 0.1rem 0.3rem;
     border-radius: 0.3rem;
     font-size: 1rem;
-    color: hsl(45, 50%, 75%);
+    color: hsl(45, 30%, 85%);
     border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game2-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game2-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game2-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game2-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game2-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game2-difficulty-tag:hover {
+    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
 }
 
 /* 主字選擇區 */

@@ -59,6 +59,10 @@
                 if (this.isWin) this.startNewGame();
                 else this.retryGame();
             };
+            document.getElementById('game11-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
+            };
         },
 
         createDOM: function () {
@@ -69,6 +73,7 @@
                 <div class="game11-header">
                     <div class="game11-score-board">分數: <span id="game11-score">0</span></div>
                     <div class="game11-controls">
+                        <button class="game11-difficulty-tag" id="game11-diff-tag">小學</button>
                         <button id="game11-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game11-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -77,7 +82,6 @@
                     <div id="game11-hearts" class="hearts"></div>
                 </div>
                 <div id="game11-area" class="game11-area">
-                    <div class="game11-difficulty-tag" id="game11-diff-tag">小學</div>
                     <div id="game11-poem-info" class="game11-poem-info"></div>
                     <div id="game11-status" class="game11-status-msg">準備中...</div>
                     <div id="game11-grid" class="game11-grid-container"></div>
@@ -90,6 +94,30 @@
                 </div>
             `;
             document.body.appendChild(div);
+        },
+
+        showDifficultySelector: function () {
+            this.isActive = false;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            document.getElementById('game11-message').classList.add('hidden');
+
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('翻墨識蹤', (level) => {
+                    this.difficulty = level;
+                    const settings = this.difficultySettings[level];
+                    if (!settings) return;
+                    this.maxMistakes = settings.maxMistakes;
+
+                    const container = document.getElementById('game11-container');
+                    if (container) {
+                        container.classList.remove('hidden');
+                        document.body.classList.add('overlay-active');
+                    }
+
+                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    this.startNewGame();
+                });
+            }
         },
 
         show: function () {
@@ -170,7 +198,11 @@
 
         startNewGame: function () {
             this.isActive = true;
-            document.getElementById('game11-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game11-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             this.score = 0;
             this.mistakes = 0;
             if (this.prepareChallenge()) {

@@ -72,6 +72,7 @@
                 <div class="game8-header">
                     <div class="game8-score-board">分數: <span id="game8-score">0</span></div>
                     <div class="game8-controls">
+                        <button class="game8-difficulty-tag" id="game8-diff-tag">小學</button>
                         <button id="game8-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game8-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -80,7 +81,6 @@
                     <div id="game8-hearts" class="hearts"></div>
                 </div>
                 <div class="game8-area">
-                    <div class="game8-difficulty-tag" id="game8-diff-tag">小學</div>
                     <div class="game8-info">
                         <div id="game8-poem-info" class="poem-info" style="cursor: pointer; text-decoration: underline; opacity: 0.8;"></div>
                         <div id="game8-progress-text" class="game8-progress-text"></div>
@@ -113,6 +113,10 @@
             document.getElementById('game8-newGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
+            };
+            document.getElementById('game8-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
             };
             document.getElementById('game8-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -200,6 +204,11 @@
             this.currentPhase = 0;
             this.successfulStrokes = [];
 
+            const diffTag = document.getElementById('game8-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             document.getElementById('game8-score').textContent = this.score;
             document.getElementById('game8-message').classList.add('hidden');
             document.getElementById('game8-current-path').setAttribute('d', '');
@@ -221,7 +230,6 @@
             document.getElementById('game8-retryGame-btn').disabled = false;
             document.getElementById('game8-newGame-btn').disabled = false;
 
-            const diffTag = document.getElementById('game8-diff-tag');
             if (diffTag) diffTag.textContent = this.difficulty;
 
             if (settings.time > 0) {

@@ -73,6 +73,7 @@
                 <div class="game9-header">
                     <div class="game9-score-board">分數: <span id="game9-score">0</span></div>
                     <div class="game9-controls">
+                        <button class="game9-difficulty-tag" id="game9-diff-tag">小學</button>
                         <button id="game9-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game9-newGame-btn" class="nav-btn newGame-btn">開新局</button>
                     </div>
@@ -86,7 +87,6 @@
                         <rect id="game9-timer-path-white" x="3" y="3"></rect>
                         <rect id="game9-timer-path-red" x="3" y="3"></rect>
                     </svg>
-                    <div class="game9-difficulty-tag" id="game9-diff-tag">小學</div>
                     <button id="game9-undo-btn" class="game9-undo-btn" disabled>撤銷</button>
                   <div class="game9-info">
                         <div id="game9-poem-info" class="game9-poem-info"></div>
@@ -146,6 +146,30 @@
             osc.start();
             osc.stop(ctx.currentTime + 0.3);
         },
+        
+        showDifficultySelector: function () {
+            this.isActive = false;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            document.getElementById('game9-message').classList.add('hidden');
+
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('詩韻鎖扣', (level) => {
+                    this.difficulty = level;
+                    const settings = this.difficultySettings[level];
+                    if (!settings) return;
+                    this.maxTimer = settings.time;
+
+                    const container = document.getElementById('game9-container');
+                    if (container) {
+                        container.classList.remove('hidden');
+                        document.body.classList.add('overlay-active');
+                    }
+
+                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    this.startNewGame();
+                });
+            }
+        },
 
         bindEvents: function () {
             document.getElementById('game9-retryGame-btn').onclick = () => {
@@ -169,6 +193,10 @@
             document.getElementById('game9-undo-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.undoMove();
+            };
+            document.getElementById('game9-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
             };
         },
 
@@ -249,7 +277,11 @@
             this.newlyCompletedBoltIdx = -1;
 
             const settings = this.difficultySettings[this.difficulty];
-            document.getElementById('game9-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game9-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             document.getElementById('game9-score').textContent = this.score;
             document.getElementById('game9-message').classList.add('hidden');
 

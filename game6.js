@@ -103,6 +103,7 @@
                 <div class="game6-header">
                     <div class="game6-score-board">得分: <span id="game6-score">0</span></div>
                     <div class="game6-controls">
+                        <button class="game6-difficulty-tag" id="game6-diff-tag">小學</button>
                         <button id="game6-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game6-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -119,7 +120,6 @@
                     <canvas id="game6-canvas"></canvas>
                 </div>
                 <div class="game6-footer">
-                    <div class="game6-difficulty-tag" id="game6-diff-tag">小學</div>
                     <div class="game6-drag-hint">左右拖曳以移動玩家 (按住或連按以發動連按)</div>
                 </div>
                 <div id="game6-message" class="game6-message hidden">
@@ -149,6 +149,10 @@
                 document.getElementById('game6-message').classList.add('hidden');
                 if (this.isWin) this.startNewGame();
                 else this.retryGame();
+            };
+            document.getElementById('game6-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
             };
             const msgPoemInfo = document.getElementById('game6-msg-poem-info');
             msgPoemInfo.onclick = () => {
@@ -249,6 +253,30 @@
             }
         },
 
+        showDifficultySelector: function () {
+            this.isActive = false;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            document.getElementById('game6-message').classList.add('hidden');
+
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('詩陣侵略', (level) => {
+                    this.difficulty = level;
+                    const settings = this.difficultySettings[level];
+                    if (!settings) return;
+
+                    const container = document.getElementById('game6-container');
+                    if (container) {
+                        container.classList.remove('hidden');
+                        document.body.classList.add('overlay-active');
+                    }
+
+                    this.setupCanvas();
+                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    this.startNewGame();
+                });
+            }
+        },
+
         show: function () {
             this.init();
 
@@ -291,7 +319,11 @@
 
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            document.getElementById('game6-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game6-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             this.score = 0;
             this.mistakeCount = 0;
             this.isWin = false;

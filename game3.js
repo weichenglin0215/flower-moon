@@ -71,6 +71,10 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();// 開新局：換新題目
             };
+            document.getElementById('game3-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
+            };
         },
 
         createDOM: function () {
@@ -83,8 +87,9 @@
                 <div class="debug-frame"></div>
                 
                 <div class="game3-header">
-                    <div class="score-board">分數: <span id="game3-score">0</span></div>
+                    <div class="game3-score-board">分數: <span id="game3-score">0</span></div>
                     <div class="game3-controls">
+                        <button class="game3-difficulty-tag" id="game3-diff-tag">小學</button>
                         <button id="game3-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game3-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -95,7 +100,6 @@
                 <div id="game3-area" class="game3-area">
                     <!-- 遊戲內容將在此生成 -->
                 </div>
-                <div class="game3-difficulty-tag" id="game3-diff-tag">小學</div>
                 <div id="game3-history" class="game3-history"></div>
                 <div id="game3-message" class="game3-message">
                     <div id="game3-result-poem" class="game3-result-poem-display"></div>
@@ -268,7 +272,11 @@
 
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            document.getElementById('game3-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game3-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             this.isActive = true;
             this.score = 0;
             this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;

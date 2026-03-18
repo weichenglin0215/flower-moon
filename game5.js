@@ -96,6 +96,7 @@
                 <div class="game5-header">
                     <div class="game5-score-board">得分: <span id="game5-score">0</span></div>
                     <div class="game5-controls">
+                        <button class="game5-difficulty-tag" id="game5-diff-tag">小學</button>
                         <button id="game5-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game5-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -115,7 +116,6 @@
                 </div>
                 
                 <div class="game5-ui-area">
-                    <div class="game5-difficulty-tag" id="game5-diff-tag">小學</div>
                     <div id="game5-timer" class="game5-timer-container">時間：-</div>
                     <div class="game5-instruction">拖曳或滑動以移動角色</div>
                 </div>
@@ -147,6 +147,10 @@
                 document.getElementById('game5-message').classList.add('hidden');
                 if (this.isWin) this.startNewGame();
                 else this.retryGame();
+            };
+            document.getElementById('game5-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
             };
             const msgPoemInfo = document.getElementById('game5-msg-poem-info');
             msgPoemInfo.onclick = () => {
@@ -241,6 +245,31 @@
             this.player.nextDir = dir;
         },
 
+        showDifficultySelector: function () {
+            this.isActive = false;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            if (this.requestID) cancelAnimationFrame(this.requestID);
+            document.getElementById('game5-message').classList.add('hidden');
+
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('迷途弄墨', (level) => {
+                    this.difficulty = level;
+                    const settings = this.difficultySettings[level];
+                    if (!settings) return;
+                    this.maxTimer = settings.time;
+
+                    const container = document.getElementById('game5-container');
+                    if (container) {
+                        container.classList.remove('hidden');
+                        document.body.classList.add('overlay-active');
+                    }
+
+                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    this.startNewGame();
+                });
+            }
+        },
+
         show: function () {
             this.init();
 
@@ -276,7 +305,11 @@
 
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            document.getElementById('game5-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game5-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             this.score = 0;
             this.mistakes = 0;
             this.collectedCount = 0;

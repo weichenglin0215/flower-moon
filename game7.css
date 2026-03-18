@@ -25,10 +25,10 @@
 
 /* 分數看板 */
 .game7-score-board {
-    font-size: 1.5rem;
+    color: hsl(50, 70%, 60%);
+    font-size: 1.2rem;
     font-weight: bold;
-    color: hsl(45, 80%, 70%);
-    padding-left: 3rem;
+    padding-left: 2.5rem;
 }
 
 /* 控制按鈕組 */
@@ -255,7 +255,7 @@
 
 /*結算顯示詩句資訊*/
 .game7-msg-poem-info {
-    margin-top: 0.2rem;
+    margin-top: 0.0rem;
     margin-bottom: 0.2rem;
     font-size: 1.0rem;
     color: hsl(45, 50%, 100%);
@@ -331,14 +331,37 @@
 
 /* 難度標籤 */
 .game7-difficulty-tag {
-    position: absolute;
-    top: 0.6rem;
-    left: 0.6rem;
-    background: hsla(210, 60%, 40%, 0.5);
-    padding: 0.2rem 0.6rem;
+    padding: 0.1rem 0.3rem;
     border-radius: 0.3rem;
     font-size: 1rem;
-    color: hsl(180, 20%, 90%);
+    color: hsl(45, 30%, 85%);
     border: 1px solid hsla(180, 80%, 60%, 0.3);
     z-index: 80;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game7-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game7-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game7-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game7-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game7-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game7-difficulty-tag:hover {
+    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
 }

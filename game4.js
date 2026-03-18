@@ -48,6 +48,10 @@
             }
             this.container = document.getElementById('game4-container');
             this.game4Area = document.getElementById('game4-area');
+            document.getElementById('game4-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
+            };
         },
 
         createDOM: function () {
@@ -60,6 +64,7 @@
                 <div class="game4-header">
                     <div class="game4-score-board">分數: <span id="game4-score">0</span></div>
                     <div class="game4-controls">
+                        <button class="game4-difficulty-tag" id="game4-diff-tag">小學</button>
                         <button id="game4-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game4-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -68,7 +73,6 @@
                     <div id="game4-hearts" class="hearts"></div>
                 </div>
                 <div id="game4-area" class="game4-area">
-                    <div class="game4-difficulty-tag" id="game4-diff-tag">小學</div>
                     <div id="game4-question" class="game4-question-area">
                         <div id="game4-line1" class="poem-lines"></div>
                         <div id="game4-line2" class="poem-lines"></div>
@@ -197,7 +201,11 @@
 
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            document.getElementById('game4-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game4-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;

@@ -49,13 +49,13 @@
         bgTime: 'morning',
 
         // 難度設定
-        // g:重力, jump:跳躍力, width:方塊寬度, heightVar:高度變異, move:移動, hearts:生命值, speed:速度, minChars:最少字數, stopOnLand:是否停留, stars:詩詞星等
+        // g:重力, jump:跳躍力, width:方塊寬度, maxDist:最大間距, heightVar:高度變異, move:移動, hearts:生命值, speed:速度, minChars:最少字數, stopOnLand:是否停留, stars:詩詞星等
         difficultySettings: {
-            '小學': { g: 0.4, jump: 8.0, width: 100, heightVar: 200, move: false, hearts: 5, speed: 100, minChars: 20, stopOnLand: true, stars: 6, time: 90 },
-            '中學': { g: 0.45, jump: 10, width: 80, heightVar: 300, move: false, hearts: 4, speed: 120, minChars: 28, stopOnLand: true, stars: 5, time: 90 },
-            '高中': { g: 0.5, jump: 12.0, width: 70, heightVar: 400, move: false, hearts: 3, speed: 140, minChars: 40, stopOnLand: false, stars: 4, time: 100 },
-            '大學': { g: 0.65, jump: 14.0, width: 60, heightVar: 500, move: true, hearts: 2, speed: 160, minChars: 56, stopOnLand: false, stars: 3, time: 120 },
-            '研究所': { g: 0.7, jump: 16.0, width: 50, heightVar: 600, move: true, hearts: 1, speed: 180, minChars: 56, stopOnLand: false, stars: 2, time: 150 }
+            '小學': { g: 0.4, jump: 8.0, width: 90, maxDist: 400, heightVar: 200, move: false, hearts: 5, speed: 100, minChars: 20, stopOnLand: true, stars: 6, time: 90 },
+            '中學': { g: 0.45, jump: 10, width: 80, maxDist: 350, heightVar: 300, move: false, hearts: 4, speed: 120, minChars: 28, stopOnLand: true, stars: 5, time: 100 },
+            '高中': { g: 0.5, jump: 12.0, width: 70, maxDist: 300, heightVar: 400, move: false, hearts: 3, speed: 140, minChars: 40, stopOnLand: false, stars: 4, time: 120 },
+            '大學': { g: 0.65, jump: 14.0, width: 60, maxDist: 250, heightVar: 500, move: true, hearts: 2, speed: 160, minChars: 56, stopOnLand: false, stars: 3, time: 135 },
+            '研究所': { g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, hearts: 1, speed: 180, minChars: 56, stopOnLand: false, stars: 2, time: 150 }
         },
 
         init: function () {
@@ -75,6 +75,7 @@
                         <span id="game7-score">0</span>
                     </div>
                     <div class="game7-controls">
+                        <button class="game7-difficulty-tag" id="game7-diff-tag">小學</button>
                         <button id="game7-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game7-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -83,7 +84,6 @@
                     <div id="game7-hearts" class="game7-hearts"></div>
                 </div>
                 <div class="game7-area">
-                    <div class="game7-difficulty-tag" id="game7-diff-tag">小學</div>
                     <div class="game7-poem-info">
                         <div class="game7-poem-name" id="game7-poem-display"></div>
                     </div>
@@ -133,6 +133,11 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.newGame();
             };
+            document.getElementById('game7-diff-tag').onclick = (e) => {
+                e.stopPropagation();
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
+            };
             document.getElementById('game7-msg-btn').onclick = (e) => {
                 e.stopPropagation();
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -174,20 +179,31 @@
             });
         },
 
-        show: function () {
-            this.init();
+        showDifficultySelector: function () {
+            this.isActive = false;
+            document.getElementById('game7-message').classList.add('hidden');
+
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('遊戲七：青鳥雲梯', (level) => {
+                window.DifficultySelector.show('青鳥雲梯', (level) => {
                     this.difficulty = level;
-                    document.getElementById('game7-diff-tag').textContent = level;
+                    const diffTag = document.getElementById('game7-diff-tag');
+                    if (diffTag) {
+                        diffTag.textContent = level;
+                        diffTag.setAttribute('data-level', level);
+                    }
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active');
                     this.setupCanvas();
-                    this.setupTimerPath(); // 確保路徑有正確寬高
+                    this.setupTimerPath();
                     this.resetGame();
                     this.showStartMessage();
                 });
             }
+        },
+
+        show: function () {
+            this.init();
+            this.showDifficultySelector();
         },
 
         setupCanvas: function () {
@@ -218,6 +234,11 @@
 
         //game7只有resetGame() 透過isRetry控制是否重來或是開新局
         resetGame: function (isRetry = false) {
+            const diffTag = document.getElementById('game7-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             const settings = this.difficultySettings[this.difficulty];
             this.score = 0;
             this.mistakeCount = 0;
@@ -335,7 +356,7 @@
             if (nextIdx >= this.poemChars.length) return; // 已全部生成
             /*水平間距*/
             const minDist = 100;
-            const maxDist = 400;
+            const maxDist = settings.maxDist;
             const dx = minDist + Math.random() * (maxDist - minDist);
             /*相對於上一塊高度*/
             const dy = (Math.random() * 0.66 + 0.33) * (Math.random() < 0.5 ? 1 : -1) * settings.heightVar;

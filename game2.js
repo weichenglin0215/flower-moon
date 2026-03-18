@@ -60,6 +60,10 @@
             }
             this.container = document.getElementById('game2-container');
             this.game2Area = document.getElementById('game2-area');
+            document.getElementById('game2-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
+            };
         },
 
         createDOM: function () {
@@ -74,6 +78,7 @@
                 <div class="game2-header">
                     <div class="game2-score-board">分數: <span id="game2-score">0</span></div>
                     <div class="game2-controls">
+                        <button class="game2-difficulty-tag" id="game2-diff-tag">小學</button>
                         <button id="game2-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game2-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -82,7 +87,6 @@
                     <div id="game2-hearts" class="hearts"></div>
                 </div>
                 <div id="game2-area" class="game2-area">
-                    <div class="game2-difficulty-tag" id="game2-diff-tag">小學</div>
                     <!-- 遊戲內容將在此生成 -->
                     <div class="game2-keyword-selector" id="game2-keywords">
                         <!-- 主字按鈕將在此生成 -->
@@ -244,7 +248,11 @@
 
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            document.getElementById('game2-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game2-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;

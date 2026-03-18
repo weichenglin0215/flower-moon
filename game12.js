@@ -32,13 +32,14 @@
         //hasDistractors 是否有干擾字
         //minRating 最低等級
         //showDelay 顯示延遲
-        //hideMode 隱藏模式
+        //hideMode 隱藏模式 line2:第二行, random1or2:隨機只有第一行或只有第二行, line1or12:隨機第一行或第一加第二行, both:第一行與第二行
+        //total:總字數, cols:每行字數
         difficultySettings: {
             '小學': { time: 30, maxMistakeCount: 4, minShowCount: 1, maxShowCount: 4, minTotalHideCount: 4, memorySeconds: 5, isSequentialHide: true, hasDistractors: false, minRating: 6, showDelay: 0, hideMode: 'line2', total: 6, cols: 3 },
             '中學': { time: 30, maxMistakeCount: 6, minShowCount: 1, maxShowCount: 3, minTotalHideCount: 6, memorySeconds: 7, isSequentialHide: true, hasDistractors: false, minRating: 5, showDelay: 8, hideMode: 'random1or2', total: 8, cols: 4 },
-            '高中': { time: 30, maxMistakeCount: 8, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 8, memorySeconds: 10, isSequentialHide: false, hasDistractors: false, minRating: 4, showDelay: 16, hideMode: 'line1or12', total: 12, cols: 4 },
-            '大學': { time: 30, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 10, memorySeconds: 12, isSequentialHide: false, hasDistractors: true, minRating: 3, showDelay: 18, hideMode: 'both', total: 15, cols: 5 },
-            '研究所': { time: 30, maxMistakeCount: 14, minShowCount: 0, maxShowCount: 0, minTotalHideCount: 10, memorySeconds: 15, isSequentialHide: false, hasDistractors: true, minRating: 2, showDelay: 31, hideMode: 'both', total: 20, cols: 5 }
+            '高中': { time: 30, maxMistakeCount: 8, minShowCount: 2, maxShowCount: 3, minTotalHideCount: 8, memorySeconds: 10, isSequentialHide: true, hasDistractors: false, minRating: 4, showDelay: 16, hideMode: 'line1or12', total: 10, cols: 5 },
+            '大學': { time: 30, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 10, memorySeconds: 12, isSequentialHide: false, hasDistractors: true, minRating: 3, showDelay: 24, hideMode: 'both', total: 12, cols: 4 },
+            '研究所': { time: 30, maxMistakeCount: 14, minShowCount: 0, maxShowCount: 0, minTotalHideCount: 10, memorySeconds: 15, isSequentialHide: false, hasDistractors: true, minRating: 2, showDelay: 32, hideMode: 'both', total: 16, cols: 4 }
         },
         showTimeout: null,
         cluesRevealed: false,
@@ -70,6 +71,7 @@
                 <div class="game12-header">
                     <div class="game12-score-board">分數: <span id="game12-score">0</span></div>
                     <div class="game12-controls">
+                        <button class="game12-difficulty-tag" id="game12-diff-tag">小學</button>
                         <button id="game12-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game12-newGame-btn" class="nav-btn">開新局</button>
                     </div>
@@ -78,7 +80,6 @@
                     <div id="game12-hearts" class="hearts"></div>
                 </div>
                 <div id="game12-area" class="game12-area">
-                    <div class="game12-difficulty-tag" id="game12-diff-tag">小學</div>
                     <div id="game12-question" class="game12-question-area">
                         <div id="game12-line1" class="poem-lines"></div>
                         <div id="game12-line2" class="poem-lines"></div>
@@ -114,6 +115,10 @@
                 document.getElementById('game12-message').classList.add('hidden');
                 if (this.isWin) this.startNewGame();
                 else this.retryGame();
+            };
+            document.getElementById('game12-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
             };
 
             this.renderHearts();
@@ -182,7 +187,11 @@
         },
 
         startNewGame: function () {
-            document.getElementById('game12-diff-tag').textContent = this.difficulty;
+            const diffTag = document.getElementById('game12-diff-tag');
+            if (diffTag) {
+                diffTag.textContent = this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+            }
             // 啟用按鈕 (修正 Rule 3)
             document.getElementById('game12-retryGame-btn').disabled = false;
             document.getElementById('game12-newGame-btn').disabled = false;
