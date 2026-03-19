@@ -457,7 +457,7 @@
             // 初始化 Paddle
             const settings = this.difficultySettings[this.difficulty];
             // 計算目前長度：根據 mistakes (掉球次數) 進行放大協助
-            const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes) * (this.areaRect.width / 640);
+            const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes);
 
             this.paddle.width = currentPaddleWidth;
             this.paddle.x = wRem / 2;
@@ -837,7 +837,7 @@
 
                 // 掉球後放大反彈棒以協助玩家
                 const settings = this.difficultySettings[this.difficulty];
-                const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes) * (this.areaRect.width / 640);
+                const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes);
                 this.paddle.width = currentPaddleWidth;
 
                 if (this.mistakes >= this.maxMistakes) {

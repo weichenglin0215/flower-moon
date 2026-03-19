@@ -115,8 +115,6 @@
     display: flex;
     gap: 0.1rem;
     justify-content: center;
-    align-items: center;
-    /* 垂直居中 */
     flex-wrap: wrap;
 }
 
@@ -477,4 +475,8 @@
     border-radius: 1.0rem;
     padding: 0.2rem 2rem;
     font-size: 1.2rem;
+}
+
+.game8-message .nav-btn:hover {
+    filter: brightness(1.5);
 }

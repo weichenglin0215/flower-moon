@@ -69,14 +69,16 @@
 
 
 /*紅心區域*/
-.game2-sub-header {
+.game1-sub-header {
     display: flex;
     justify-content: center;
+    align-items: center;
+    /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
     border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.5rem;
+    height: 2.0rem;
 }
 
 .hearts {
@@ -384,7 +386,7 @@
 }
 
 .game2-message .nav-btn:hover {
-    background: hsl(145, 68%, 50%);
+    filter: brightness(1.5);
 }
 
 

@@ -16,7 +16,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: hsla(210, 36%, 40%, 0.6);
+    background: hsla(210, 100%, 50%, 0.5);
     z-index: 100;
     width: 100%;
     height: 2.5rem;
@@ -58,23 +58,66 @@
     color: hsl(45, 0%, 70%);
 }
 
+/* 難度標籤 */
+.game7-difficulty-tag {
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.3rem;
+    font-size: 1rem;
+    color: hsl(45, 30%, 85%);
+    border: 1px solid hsla(180, 80%, 60%, 0.3);
+    z-index: 80;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game7-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game7-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game7-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game7-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game7-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game7-difficulty-tag:hover {
+    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
 /* 生命值列 */
 .game7-sub-header {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: hsla(210, 36%, 40%, 0.6);
-    z-index: 90;
-    border-bottom: 1px solid hsla(0, 0%, 100%, 0.2);
+    /* 垂直居中 */
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
     width: 100%;
     height: 2.0rem;
 }
 
 .game7-hearts {
     display: flex;
-    gap: 0.3rem;
-    font-size: 1.5rem;
+    gap: 0.1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.game7-hearts .heart {
     color: hsl(4, 90%, 60%);
+    font-size: 1.6rem;
 }
 
 .game7-heart.empty {
@@ -282,8 +325,7 @@
 }
 
 .game7-btn:hover {
-    background: hsl(200, 80%, 40%);
-    transform: scale(1.05);
+    filter: brightness(1.5);
 }
 
 /* 點擊回饋：印章效果 */
@@ -327,41 +369,4 @@
 
 .hidden {
     display: none !important;
-}
-
-/* 難度標籤 */
-.game7-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
-    color: hsl(45, 30%, 85%);
-    border: 1px solid hsla(180, 80%, 60%, 0.3);
-    z-index: 80;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.game7-difficulty-tag[data-level="小學"] {
-    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
-}
-
-.game7-difficulty-tag[data-level="中學"] {
-    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
-}
-
-.game7-difficulty-tag[data-level="高中"] {
-    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
-}
-
-.game7-difficulty-tag[data-level="大學"] {
-    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
-}
-
-.game7-difficulty-tag[data-level="研究所"] {
-    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
-}
-
-.game7-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
-    filter: brightness(1.5);
 }
