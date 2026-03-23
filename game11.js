@@ -463,15 +463,15 @@
             }
 
             this.playerProgress++;
-            this.score += 5;
+            this.score += 5; // 每一句增加得分
             document.getElementById('game11-score').textContent = this.score;
-
+            // 檢查是否完成所有回合
             if (this.playerProgress >= this.currentStep) {
                 // Round Complete
                 this.isPlayerPhase = false;
                 document.getElementById('game11-status').textContent = `第 ${this.currentStep} 輪，正確！`;
 
-                // Add score bonus for completing round
+                // 已取消，每一輪完成之後增加得分
                 //this.score += 50;
                 document.getElementById('game11-score').textContent = this.score;
 
@@ -479,17 +479,19 @@
                     this.setAllTilesState(false);
                     const settings = this.difficultySettings[this.difficulty];
                     const stepInc = settings.revealStep || 1;
-                    this.currentStep += stepInc;
 
-                    if (this.currentStep > this.poemChars.length) {
+                    // 若剛完成的這一輪已經是整首詩的字數，則獲勝
+                    if (this.currentStep >= this.poemChars.length) {
                         this.handleWin();
                     } else {
+                        // 否則增加字數挑戰，並確保最後一輪一定會包含到詩詞的所有字元
+                        this.currentStep = Math.min(this.currentStep + stepInc, this.poemChars.length);
                         this.startShowPhase();
                     }
                 }, 1000);
             }
         },
-
+        // 處理錯誤點擊事件
         handleWrongClick: function (idx) {
             const tile = this.tiles[idx];
 
@@ -516,7 +518,7 @@
                 }, 1000);
             }
         },
-
+        // 播放音調
         playPitchSound: function (audioIdx) {
             if (!window.SoundManager) return;
             // 使用固定的古箏音階索引播放，增強空間音律記憶
@@ -526,11 +528,11 @@
                 window.SoundManager.playOpenItem();
             }
         },
-
+        // 延遲
         delay: function (ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         },
-
+        // 處理勝利事件
         handleWin: function () {
             this.isActive = false;
             this.gridContainer.classList.remove('is-player-phase');
@@ -555,7 +557,7 @@
                 }
             });
         },
-
+        // 處理遊戲結束事件
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
