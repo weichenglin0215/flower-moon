@@ -11,7 +11,7 @@
         line2: "",
         hiddenPositions: [], // [{line: 1|2, charIdx, char}]
         currentInputIndex: 0,
-        timer: 60,
+        timeLimit: 60,
         timeLeft: 60,
         timerInterval: null,
         showTimeout: null, // 用於延遲顯示完整句子的計時器
@@ -20,13 +20,19 @@
         cluesRevealed: false, // 題目提示句是否已過延遲時間而顯示
         container: null,
         game4Area: null,
-
+        //timeLimit: 時間限制
+        //poemMinRating: 最低詩詞評分
+        //maxMistakeCount: 最大錯誤次數
+        //answerAtLine: 答案出現在第幾行，0=第一行或第二行，1=第一行，2=第二行，3=第一行和第二行
+        //maxMaskCount: 最多遮罩數量
+        //maxAddDecoyChars: 最多干擾字數量
+        //showDelay: 顯示延遲時間
         difficultySettings: {
-            '小學': { time: 60, maxMistakeCount: 4, maxHideCount: 3, maxAddDecoyChars: 6, hideLines: 2, minRating: 6, showDelay: 0 },
-            '中學': { time: 45, maxMistakeCount: 5, maxHideCount: 5, maxAddDecoyChars: 8, hideLines: 2, minRating: 5, showDelay: 4 },
-            '高中': { time: 30, maxMistakeCount: 6, maxHideCount: 7, maxAddDecoyChars: 12, hideLines: 2, minRating: 4, showDelay: 8 },
-            '大學': { time: 20, maxMistakeCount: 7, maxHideCount: 10, maxAddDecoyChars: 15, hideLines: 0, minRating: 3, showDelay: 10 },
-            '研究所': { time: 15, maxMistakeCount: 8, maxHideCount: 12, maxAddDecoyChars: 20, hideLines: 3, minRating: 2, showDelay: 12 }
+            '小學': { timeLimit: 60, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0 },
+            '中學': { timeLimit: 45, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 4 },
+            '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 8 },
+            '大學': { timeLimit: 20, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 10 },
+            '研究所': { timeLimit: 15, poemMinRating: 2, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 12, maxAddDecoyChars: 20, showDelay: 12 }
         },
 
         // 常用字庫已移至 script.js 的 window.SharedDecoy 中
@@ -121,7 +127,7 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             document.getElementById('game4-message').classList.add('hidden');
-            this.hideOtherContents();
+            this.maskOtherContents();
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('遊戲四：眾裡尋他千百度', (selectedLevel) => {
@@ -137,7 +143,7 @@
             }
         },
 
-        hideOtherContents: function () {
+        maskOtherContents: function () {
             ['cardContainer', 'game1-container', 'game2-container', 'game3-container'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -177,8 +183,8 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.time;
-            this.timer = settings.time;
+            this.timeLeft = settings.timeLimit;
+            this.timeLimit = settings.timeLimit;
 
             this.renderQuestion();
             this.renderGrid(true); // 使用舊有的 gridChars
@@ -217,8 +223,8 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.time;
-            this.timer = settings.time;
+            this.timeLeft = settings.timeLimit;
+            this.timeLimit = settings.timeLimit;
 
             if (this.selectRandomPoem()) {
                 this.renderQuestion();
@@ -246,10 +252,10 @@
         selectRandomPoem: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
-            const minR = settings.minRating || 4;
+            const minR = settings.poemMinRating || 4;
 
             // 使用共用邏輯取得隨機詩詞 (要求至少 2 句)
-            const result = getSharedRandomPoem(minR, 2, 4, 10, 100);
+            const result = getSharedRandomPoem(minR, 2, 4, 10, 20);
             if (!result) return false;
 
             this.currentPoem = result.poem;
@@ -275,24 +281,24 @@
             const chars1 = processLine(this.line1, 1);
             const chars2 = processLine(this.line2, 2);
 
-            let linesToHide = [];
-            if (settings.hideLines === 1) {
-                linesToHide = [1];
-            } else if (settings.hideLines === 2) {
-                linesToHide = [2];
-            } else if (settings.hideLines === 3) {
-                linesToHide = [1, 2];
+            let linesToMask = [];
+            if (settings.answerAtLine === 1) {
+                linesToMask = [1];
+            } else if (settings.answerAtLine === 2) {
+                linesToMask = [2];
+            } else if (settings.answerAtLine === 3) {
+                linesToMask = [1, 2];
             } else {
-                // hideLines === 0: 隨機選第一行或第二行
-                linesToHide = [Math.random() < 0.5 ? 1 : 2];
+                // answerAtLine === 0: 隨機選第一行或第二行
+                linesToMask = [Math.random() < 0.5 ? 1 : 2];
             }
 
-            linesToHide.forEach(lineNum => {
+            linesToMask.forEach(lineNum => {
                 const lineChars = lineNum === 1 ? chars1 : chars2;
                 // 洗牌選取要隱藏的字
                 const shuffled = [...lineChars].sort(() => Math.random() - 0.5);
-                const numToHide = Math.min(lineChars.length, settings.maxHideCount);
-                const picked = shuffled.slice(0, numToHide).map(c => ({ ...c, line: lineNum }));
+                const numToMask = Math.min(lineChars.length, settings.maxMaskCount);
+                const picked = shuffled.slice(0, numToMask).map(c => ({ ...c, line: lineNum }));
                 this.hiddenPositions.push(...picked);
             });
 
@@ -353,7 +359,12 @@
             l1.innerHTML = renderText(this.line1, 1);
             l2.innerHTML = renderText(this.line2, 2);
 
-            info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+            //info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+            info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">
+                                ${this.currentPoem.title.length > 12 ? this.currentPoem.title.slice(0, 10)
+                    + "..." : this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}
+                            </span>`;
+
             info.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -382,7 +393,7 @@
                 const neededDecoys = Math.max(0, targetTotal - answerChars.length);
                 let decoys = [];
                 if (window.SharedDecoy) {
-                    // 使用預設的 minRating 4 來確保混淆句來自高知名度詩詞
+                    // 使用預設的 poemMinRating 4 來確保混淆句來自高知名度詩詞
                     decoys = window.SharedDecoy.getDecoyChars(answerChars, neededDecoys, [], 4);
                 }
 
@@ -455,7 +466,7 @@
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
-            const duration = this.timer * 1000;
+            const duration = this.timeLimit * 1000;
 
             this.timerInterval = setInterval(() => {
                 const elapsed = Date.now() - this.startTime;

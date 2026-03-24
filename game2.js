@@ -4,7 +4,7 @@
         difficulty: '小學',
         score: 0,
         questionCount: 3, // 每行要問幾個字
-        questionAtLine: 2, // 問題出現在第幾行，0=第一行或第二行，1=第二行，2=第三行
+        answerAtLine: 2, // 答案出現在第幾行，0=第一行或第二行，1=第二行，2=第三行
         mistakeCount: 0,
         selectedKeyword: '花',
         keywords: ['花', '月', '清', '雲', '玉', '霞', '國', '家', '酒', '愛', '恨', '春', '雨', '山', '水', '夢'],
@@ -20,28 +20,20 @@
         isRevealed: false, // 是否已顯示答案
         container: null, // 遊戲容器
         game2Area: null, // 遊戲區域
-        /*grid: [行, 列]
-        time: 時間限制
-        maxMistakeCount: 最大錯誤次數
-        questionCount: 每行要問幾個字
-        questionAtLine: 問題出現在第幾行，0=第一行或第二行，1=第二行，2=第三行
-        minRating: 最低評分
-        */
+
+        //timeLimit: 時間限制
+        //poemMinRating: 最低詩詞評分
+        //maxMistakeCount: 最大錯誤次數
+        //answerAtLine: 答案出現在第幾行，0=第一行或第二行，1=第一行，2=第二行，3=第一行和第二行
+        //grid: [行, 列]
+        //questionCount: 每行要問幾個字
         difficultySettings: {
-            '小學': { grid: [3, 2], time: 60, maxMistakeCount: 4, questionCount: 1, questionAtLine: 2, minRating: 6 },
-            '中學': { grid: [3, 3], time: 45, maxMistakeCount: 5, questionCount: 3, questionAtLine: 2, minRating: 5 },
-            '高中': { grid: [4, 3], time: 30, maxMistakeCount: 6, questionCount: 4, questionAtLine: 0, minRating: 4 },
-            '大學': { grid: [4, 4], time: 20, maxMistakeCount: 7, questionCount: 6, questionAtLine: 0, minRating: 3 },
-            '研究所': { grid: [5, 4], time: 15, maxMistakeCount: 8, questionCount: 7, questionAtLine: 1, minRating: 2 }
+            '小學': { timeLimit: 60, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
+            '中學': { timeLimit: 45, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
+            '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, grid: [4, 3], questionCount: 4 },
+            '大學': { timeLimit: 20, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
+            '研究所': { timeLimit: 15, poemMinRating: 2, maxMistakeCount: 8, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
         },
-        // 常用字庫 (用於生成干擾項)
-        decoyCharsPeople: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
-        decoyCharsSeason: "春夏秋冬晨晝暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
-        decoyCharsWeather: "陰晴風雨雪霜露霧霞虹暖寒涼暑晦暗亮光明清冽空氣嵐",
-        decoyCharsEnvironment: "山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
-        decoyCharsColor: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
-        decoyCharsPlant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
-        decoyChars: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長",
 
         loadCSS: function () {
             if (!document.getElementById('game2-css')) {
@@ -235,8 +227,8 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.time;
-            this.timer = settings.time;
+            this.timeLeft = settings.timeLimit; // 遊戲時間
+            this.timer = settings.timeLimit; // 倒數計時
 
             this.renderQuestion();
             this.renderGrid(true); // 使用舊有的 gridChars
@@ -263,8 +255,8 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.time;
-            this.timer = settings.time;
+            this.timeLeft = settings.timeLimit; // 遊戲時間
+            this.timer = settings.timeLimit; // 倒數計時
 
             if (this.selectPoem()) {
                 this.renderQuestion();
@@ -314,15 +306,15 @@
                 this.answerLine = 1;
             }
 
-            // 根據 questionAtLine 設定決定問題出現在哪一行
+            // 根據 answerAtLine 設定決定問題出現在哪一行
             // 0 = 隨機選擇第一行或第二行，1 = 第一行，2 = 第二行
-            if (settings.questionAtLine === 0) {
+            if (settings.answerAtLine === 0) {
                 // 隨機選擇，保持原有邏輯
                 // this.answerLine 已經在上面設定好了
-            } else if (settings.questionAtLine === 1) {
+            } else if (settings.answerAtLine === 1) {
                 // 強制使用第一行
                 this.answerLine = 1;
-            } else if (settings.questionAtLine === 2) {
+            } else if (settings.answerAtLine === 2) {
                 // 強制使用第二行
                 this.answerLine = 2;
             }

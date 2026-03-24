@@ -24,22 +24,22 @@
         container: null,
         gridArea: null,
         currentGridChars: [], // 儲存網格中的字元物件 {char, gridIdx, isSolution, audioIdx}
-        //time 思考秒數
+        //timeLimit 時間限制
+        //poemMinRating: 最低詩詞評分
         //maxMistakeCount 最多錯誤次數
         //maxShowCount 最多顯示字數
         //memorySeconds 記憶秒數
         //isSequentialHide 是否依序隱藏答案卡
         //hasDistractors 是否有干擾字
-        //minRating 最低等級
         //showDelay 顯示延遲
         //hideMode 隱藏模式 line2:第二行, random1or2:隨機只有第一行或只有第二行, line1or12:隨機第一行或第一加第二行, both:第一行與第二行
         //total:總字數, cols:每行字數
         difficultySettings: {
-            '小學': { time: 30, maxMistakeCount: 4, minShowCount: 1, maxShowCount: 4, minTotalHideCount: 4, memorySeconds: 5, isSequentialHide: true, hasDistractors: false, minRating: 6, showDelay: 0, hideMode: 'line2', total: 6, cols: 3 },
-            '中學': { time: 30, maxMistakeCount: 6, minShowCount: 1, maxShowCount: 3, minTotalHideCount: 6, memorySeconds: 7, isSequentialHide: true, hasDistractors: false, minRating: 5, showDelay: 8, hideMode: 'random1or2', total: 8, cols: 4 },
-            '高中': { time: 30, maxMistakeCount: 8, minShowCount: 2, maxShowCount: 3, minTotalHideCount: 8, memorySeconds: 10, isSequentialHide: true, hasDistractors: false, minRating: 4, showDelay: 16, hideMode: 'line1or12', total: 10, cols: 5 },
-            '大學': { time: 30, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 10, memorySeconds: 12, isSequentialHide: false, hasDistractors: true, minRating: 3, showDelay: 24, hideMode: 'both', total: 12, cols: 4 },
-            '研究所': { time: 30, maxMistakeCount: 14, minShowCount: 0, maxShowCount: 0, minTotalHideCount: 10, memorySeconds: 15, isSequentialHide: false, hasDistractors: true, minRating: 2, showDelay: 32, hideMode: 'both', total: 16, cols: 4 }
+            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 4, minShowCount: 1, maxShowCount: 4, minTotalHideCount: 4, memorySeconds: 5, isSequentialHide: true, hasDistractors: false, showDelay: 0, hideMode: 'line2', total: 6, cols: 3 },
+            '中學': { timeLimit: 30, poemMinRating: 5, maxMistakeCount: 6, minShowCount: 1, maxShowCount: 3, minTotalHideCount: 6, memorySeconds: 7, isSequentialHide: true, hasDistractors: false, showDelay: 8, hideMode: 'random1or2', total: 8, cols: 4 },
+            '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 8, minShowCount: 2, maxShowCount: 3, minTotalHideCount: 8, memorySeconds: 10, isSequentialHide: true, hasDistractors: false, showDelay: 16, hideMode: 'line1or12', total: 10, cols: 5 },
+            '大學': { timeLimit: 30, poemMinRating: 3, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 10, memorySeconds: 12, isSequentialHide: false, hasDistractors: true, showDelay: 24, hideMode: 'both', total: 12, cols: 4 },
+            '研究所': { timeLimit: 30, poemMinRating: 2, maxMistakeCount: 14, minShowCount: 0, maxShowCount: 0, minTotalHideCount: 10, memorySeconds: 15, isSequentialHide: false, hasDistractors: true, showDelay: 32, hideMode: 'both', total: 16, cols: 4 }
         },
         showTimeout: null,
         cluesRevealed: false,
@@ -250,7 +250,7 @@
             let attempts = 0; //嘗試次數
             while (attempts < 30) {
                 attempts++;
-                const result = getSharedRandomPoem(settings.minRating || 4, 2, 2, 8, 30);
+                const result = getSharedRandomPoem(settings.poemMinRating || 4, 2, 2, 8, 30);
                 if (!result) return false;
 
                 this.currentPoem = result.poem;
@@ -513,7 +513,7 @@
             this.isPlayerPhase = true;
             document.getElementById('game12-grid').classList.add('is-player-phase');
             // 開始遊戲總計時
-            this.startTimer(settings.time, () => {
+            this.startTimer(settings.timeLimit, () => {
                 if (this.turnId === currentTurn) {
                     this.gameOver(false, "時間到！");
                 }

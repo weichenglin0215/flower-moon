@@ -144,9 +144,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const titleEl = cardInner.querySelector('.poem-title');
         const authorEl = cardInner.querySelector('.poem-author');
-        titleEl.textContent = poem.title || "無題";
-        authorEl.textContent = `${poem.dynasty || ''} · ${poem.author || '佚名'}`;
+
+        //titleEl.textContent = poem.title || "無題";
+        // 1. 先取得原始標題（處理無題或空內容的情況）
+        let rawTitle = (poem.title && poem.title.trim())
+            ? poem.title
+            : (Array.isArray(poem.content) && poem.content.length ? poem.content[0] : "無題");
+
+        // 2. 限制字數在 12 個字以內並加上 "..."
+        titleEl.textContent = rawTitle.length > 12
+            ? rawTitle.slice(0, 10) + "..."
+            : rawTitle;
+
         titleEl.setAttribute('data-poem-id', poem.id);
+
+        authorEl.textContent = `${poem.dynasty || ''} · ${poem.author || '佚名'}`;
         authorEl.setAttribute('data-poem-id', poem.id);
 
         cardInner.querySelector('.activity.good .value').textContent = luckyText;

@@ -111,6 +111,8 @@ body {
 .poem-title,
 .poem-author {
     font-size: 1.2rem;
+    /*字距*/
+    letter-spacing: 0.2em;
     opacity: 1;
     white-space: nowrap;
     /* 防止换列 */

@@ -19,16 +19,23 @@
 
         moveInfo: [], // for undo
 
-        // difficulty config
-        // 難度設定：星星數、螺絲數、空槽數、時間(秒)、是否有提示、是否有撤銷、移動次數上限、每回合可交換螺絲數
-        /*難度參數詳細說明，hasHint: true表示有提示，undo: true表示有撤銷，moveLimit: 0表示沒有移動次數上限，exchangeQuantity: 2表示控制題目難度的預先的交換螺絲數，totalNumberOfExchange: 16表示題目總共預先交換的次數(越多次越難)*/
+        // 難度設定：
+        // timeLimit 時間限制
+        // poemMinRating 最低詩詞評分
+        // bolts 螺絲數
+        // emptyBolts 空槽數
+        // hasHint 是否有提示
+        // undo 是否有撤銷
+        // moveLimit 移動次數上限
+        // exchangeQuantity 每回合可交換螺絲數
+        //難度參數詳細說明，hasHint: true表示有提示，undo: true表示有撤銷，moveLimit: 0表示沒有移動次數上限，exchangeQuantity: 2表示控制題目難度的預先的交換螺絲數，totalNumberOfExchange: 16表示題目總共預先交換的次數(越多次越難)
         //color: hard, expert 可使用深色且難以辨識的顏色
         difficultySettings: {
-            '小學': { stars: 6, bolts: 6, emptyBolts: 2, time: 90, hasHint: 'all', undo: true, moveLimit: 0, exchangeQuantity: 2, totalNumberOfExchange: 16 },
-            '中學': { stars: 5, bolts: 6, emptyBolts: 2, time: 120, hasHint: 'firstEnd', undo: true, moveLimit: 0, exchangeQuantity: 3, totalNumberOfExchange: 24 },
-            '高中': { stars: 4, bolts: 6, emptyBolts: 2, time: 150, hasHint: 'first', undo: true, moveLimit: 0, exchangeQuantity: 4, totalNumberOfExchange: 32 },
-            '大學': { stars: 3, bolts: 6, emptyBolts: 2, time: 180, hasHint: 'end', undo: true, moveLimit: 0, exchangeQuantity: 5, totalNumberOfExchange: 48 },
-            '研究所': { stars: 2, bolts: 6, emptyBolts: 2, time: 240, hasHint: 'none', undo: false, moveLimit: 0, color: 'hard', exchangeQuantity: 7, totalNumberOfExchange: 56 }
+            '小學': { timeLimit: 90, poemMinRating: 6, bolts: 6, emptyBolts: 2, hasHint: 'all', undo: true, moveLimit: 0, exchangeQuantity: 2, totalNumberOfExchange: 16 },
+            '中學': { timeLimit: 120, poemMinRating: 5, bolts: 6, emptyBolts: 2, hasHint: 'firstEnd', undo: true, moveLimit: 0, exchangeQuantity: 3, totalNumberOfExchange: 24 },
+            '高中': { timeLimit: 150, poemMinRating: 4, bolts: 6, emptyBolts: 2, hasHint: 'first', undo: true, moveLimit: 0, exchangeQuantity: 4, totalNumberOfExchange: 32 },
+            '大學': { timeLimit: 180, poemMinRating: 3, bolts: 6, emptyBolts: 2, hasHint: 'end', undo: true, moveLimit: 0, exchangeQuantity: 5, totalNumberOfExchange: 48 },
+            '研究所': { timeLimit: 240, poemMinRating: 2, bolts: 6, emptyBolts: 2, hasHint: 'none', undo: false, moveLimit: 0, color: 'hard', exchangeQuantity: 7, totalNumberOfExchange: 56 }
         },
 
         loadCSS: function () {
@@ -146,7 +153,7 @@
             osc.start();
             osc.stop(ctx.currentTime + 0.3);
         },
-        
+
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -157,7 +164,7 @@
                     this.difficulty = level;
                     const settings = this.difficultySettings[level];
                     if (!settings) return;
-                    this.maxTimer = settings.time;
+                    this.maxTimer = settings.timeLimit;
 
                     const container = document.getElementById('game9-container');
                     if (container) {

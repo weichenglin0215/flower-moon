@@ -10,7 +10,7 @@
         mistakes: 0,
         maxMistakes: 5,
         timer: 0,
-        maxTimer: 0,
+        timeLimit: 0,
         timerInterval: null,
 
         // Maze configuration
@@ -47,14 +47,19 @@
         // 失誤後冷卻與閃爍
         mistakePenaltyDuration: 150,
         // 難度設定對照表
-        // time: 倒計時秒數, hearts: 初始紅心數, monsters: 怪物數量, stars: 詩詞評分要求, answerLen: 需收集的文字長度,
-        // hintDuration: 下一個字提示閃爍持續時間, lostInt/lostDur: 失誤後相關時間控制
+        // timeLimit: 倒計時秒數,
+        // poemMinRating: 詩詞評分要求, 
+        // maxMistakeCount: 最大錯誤次數,
+        // monsters: 怪物數量, 
+        // answerLen: 需收集的文字長度,
+        // hintDuration: 下一個字提示閃爍持續時間, 
+        // lostInt/lostDur: 小精靈故意失誤的相隔時間與失誤持續時間
         difficultySettings: {
-            '小學': { time: 120, hearts: 5, monsters: 2, stars: 6, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
-            '中學': { time: 120, hearts: 3, monsters: 3, stars: 5, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
-            '高中': { time: 120, hearts: 3, monsters: 4, stars: 4, answerLen: 10, hintDuration: -1, lostInt: 0, lostDur: 0 },
-            '大學': { time: 120, hearts: 3, monsters: 4, stars: 3, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 },
-            '研究所': { time: 120, hearts: 3, monsters: 4, stars: 2, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
+            '小學': { timeLimit: 120, poemMinRating: 6, maxMistakeCount: 6, monsters: 2, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
+            '中學': { timeLimit: 120, poemMinRating: 5, maxMistakeCount: 5, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
+            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 4, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: 0, lostDur: 0 },
+            '大學': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 },
+            '研究所': { timeLimit: 120, poemMinRating: 2, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
         },
 
         // Maze layout (1 = wall, 0 = path, 2 = ghost house)
@@ -256,7 +261,7 @@
                     this.difficulty = level;
                     const settings = this.difficultySettings[level];
                     if (!settings) return;
-                    this.maxTimer = settings.time;
+                    this.timeLimit = settings.timeLimit;
 
                     const container = document.getElementById('game5-container');
                     if (container) {
@@ -287,8 +292,8 @@
                         console.error('Invalid difficulty:', level);
                         return;
                     }
-                    this.maxMistakes = settings.hearts;
-                    this.maxTimer = settings.time;
+                    this.maxMistakes = settings.maxMistakeCount;
+                    this.timeLimit = settings.timeLimit;
 
                     const container = document.getElementById('game5-container');
                     if (container) {
@@ -355,10 +360,11 @@
         preparePoem: function () {
             if (typeof POEMS === 'undefined') return;
             const settings = this.difficultySettings[this.difficulty];
-            const minRating = settings.stars || 4;
+            const minRating = settings.poemMinRating || 4;
+            const anserlength = settings.answerLen;
 
             // 使用共享的隨機詩詞
-            const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+            const result = getSharedRandomPoem(minRating, 2, 4, anserlength, 200);
             if (!result) return;
 
             const poem = result.poem;
@@ -367,17 +373,17 @@
             // getSharedRandomPoem 預設會從偶數行開始 (例如 0, 2, 4...)
             let fullStr = "";
             let startLineIndex = result.startIndex;
-            for (let i = startLineIndex; i < poem.content.length; i += 2) {
+            for (let i = startLineIndex; i < poem.content.length; i += 1) {
                 fullStr += poem.content[i].replace(/[，。？！、；：「」（）《》s]/g, '');
-                if (fullStr.length > settings.answerLen) break;
+                if (fullStr.length > anserlength) break;
             }
 
             // 如果隨機選取的行數不夠，則從頭開始選取
-            if (fullStr.length <= settings.answerLen) {
+            if (fullStr.length <= anserlength) {
                 fullStr = "";
-                for (let i = 0; i < poem.content.length; i += 2) {
+                for (let i = 0; i < poem.content.length; i += 1) {
                     fullStr += poem.content[i].replace(/[，。？！、；：「」（）《》s]/g, '');
-                    if (fullStr.length > settings.answerLen) break;
+                    if (fullStr.length > anserlength) break;
                 }
             }
 
@@ -388,8 +394,8 @@
             this.hitTimer = 0;       // 受傷閃爍計時器
             // 根據難度設定，將字串分為提示和答案
             const totalLen = fullStr.length;
-            const promptStr = fullStr.substring(0, totalLen - settings.answerLen);
-            const answerStr = fullStr.substring(totalLen - settings.answerLen);
+            const promptStr = fullStr.substring(0, totalLen - anserlength);
+            const answerStr = fullStr.substring(totalLen - anserlength);
 
             this.promptChars = promptStr.split('');
             this.targetChars = answerStr.split('');
@@ -491,21 +497,21 @@
 
         startTimer: function () {
             clearInterval(this.timerInterval);
-            if (this.maxTimer <= 0) {
+            if (this.timeLimit <= 0) {
                 document.getElementById('game5-timer').textContent = '時間：無限';
                 this.updateTimerRing(1);
                 return;
             }
-            this.timer = this.maxTimer;
+            this.timer = this.timeLimit;
             this.updateTimerUI();
             this.startTime = Date.now();
-            const duration = this.maxTimer * 1000;
+            const duration = this.timeLimit * 1000;
 
             this.timerInterval = setInterval(() => {
                 const elapsed = Date.now() - this.startTime;
                 const ratio = 1 - (elapsed / duration);
 
-                this.timer = Math.ceil(this.maxTimer - (elapsed / 1000));
+                this.timer = Math.ceil(this.timeLimit - (elapsed / 1000));
                 this.updateTimerUI();
 
                 if (ratio <= 0) {

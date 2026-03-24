@@ -33,12 +33,25 @@
         bricks: [], // 磚塊陣列：儲存位置、文字、血量、是否損壞等資訊
 
         // 難度參數
+        //poemMinRating: 詩詞評分最低要求，
+        // growRate: 磚塊生長速度，
+        // dropInterval: 磚塊下落間隔(秒)，
+        // dropStep: 磚塊下落距離(rem)，
+        // paddleBase: 撞擊條基礎寬度(rem)，
+        // balls: 球數，blackHP: 黑磚血量，
+        // lineHeight: 詩句間距(rem)，
+        // minLines: 最少詩句數，
+        // minChars: 最少總字數，
+        // maxChars: 最多總字數，
+        // maxCharsInLine: 每行最多字數，
+        // ballSpeed: 球初始速度，
+        // ballMaxSpeed: 球最大速度
         difficultySettings: {
-            '小學': { stars: 6, growRate: 0.2, dropInterval: 3, dropStep: 0.6, paddleBase: 10, balls: 5, blackHP: 1, lineHeight: 2.0, minLines: 2, minChars: 10, maxChars: 20, maxCharsInLine: 5, ballSpeed: 20, ballMaxSpeed: 30 },
-            '中學': { stars: 5, growRate: 0.15, dropInterval: 3, dropStep: 0.5, paddleBase: 9, balls: 5, blackHP: 2, lineHeight: 1.5, minLines: 4, minChars: 14, maxChars: 21, maxCharsInLine: 7, ballSpeed: 22, ballMaxSpeed: 33 },
-            '高中': { stars: 4, growRate: 0.1, dropInterval: 3, dropStep: 0.4, paddleBase: 8, balls: 5, blackHP: 3, lineHeight: 1.2, minLines: 4, minChars: 20, maxChars: 28, maxCharsInLine: 9, ballSpeed: 24, ballMaxSpeed: 36 },
-            '大學': { stars: 3, growRate: 0.1, dropInterval: 3, dropStep: 0.3, paddleBase: 7, balls: 4, blackHP: 3, lineHeight: 1.0, minLines: 6, minChars: 25, maxChars: 35, maxCharsInLine: 10, ballSpeed: 26, ballMaxSpeed: 39 },
-            '研究所': { stars: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.25, paddleBase: 6, balls: 3, blackHP: 3, lineHeight: 1, minLines: 6, minChars: 30, maxChars: 42, maxCharsInLine: 11, ballSpeed: 28, ballMaxSpeed: 42 }
+            '小學': { poemMinRating: 6, growRate: 0.2, dropInterval: 3, dropStep: 0.6, paddleBase: 10, balls: 5, blackHP: 1, lineHeight: 2.0, minLines: 2, minChars: 10, maxChars: 20, maxCharsInLine: 5, ballSpeed: 20, ballMaxSpeed: 30 },
+            '中學': { poemMinRating: 5, growRate: 0.15, dropInterval: 3, dropStep: 0.5, paddleBase: 9, balls: 5, blackHP: 2, lineHeight: 1.5, minLines: 4, minChars: 14, maxChars: 21, maxCharsInLine: 7, ballSpeed: 22, ballMaxSpeed: 33 },
+            '高中': { poemMinRating: 4, growRate: 0.1, dropInterval: 3, dropStep: 0.4, paddleBase: 8, balls: 5, blackHP: 3, lineHeight: 1.2, minLines: 4, minChars: 20, maxChars: 28, maxCharsInLine: 9, ballSpeed: 24, ballMaxSpeed: 36 },
+            '大學': { poemMinRating: 3, growRate: 0.1, dropInterval: 3, dropStep: 0.3, paddleBase: 7, balls: 4, blackHP: 3, lineHeight: 1.0, minLines: 6, minChars: 25, maxChars: 35, maxCharsInLine: 10, ballSpeed: 26, ballMaxSpeed: 39 },
+            '研究所': { poemMinRating: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.25, paddleBase: 6, balls: 3, blackHP: 3, lineHeight: 1, minLines: 6, minChars: 30, maxChars: 42, maxCharsInLine: 11, ballSpeed: 28, ballMaxSpeed: 42 }
         },
 
         loadCSS: function () {
@@ -313,7 +326,7 @@
         prepareChallenge: function () {
             const settings = this.difficultySettings[this.difficulty];
             // 隨機選取詩詞
-            const result = getSharedRandomPoem(settings.stars, settings.minLines, settings.minLines + 2, settings.minChars, settings.maxChars);
+            const result = getSharedRandomPoem(settings.poemMinRating, settings.minLines, settings.minLines + 2, settings.minChars, settings.maxChars);
             if (!result) {
                 alert('找不到符合評分的詩詞。');
                 return;

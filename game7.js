@@ -49,13 +49,24 @@
         bgTime: 'morning',
 
         // 難度設定
-        // g:重力, jump:跳躍力, width:方塊寬度, maxDist:最大間距, heightVar:高度變異, move:移動, hearts:生命值, speed:速度, minChars:最少字數, stopOnLand:是否停留, stars:詩詞星等
+        // timeLimit:時間限制
+        // poemMinRating:詩詞星等
+        // maxMistakeCount:最大錯誤次數, 
+        // g:重力,
+        // jump:跳躍力,
+        // width:方塊寬度, 
+        // maxDist:最大間距, 
+        // heightVar:高度變異, 
+        // move:移動, 
+        // speed:速度, 
+        // minChars:最少字數, 
+        // stopOnLand:是否停留, 
         difficultySettings: {
-            '小學': { g: 0.4, jump: 8.0, width: 90, maxDist: 400, heightVar: 200, move: false, hearts: 5, speed: 100, minChars: 20, stopOnLand: true, stars: 6, time: 90 },
-            '中學': { g: 0.45, jump: 10, width: 80, maxDist: 350, heightVar: 300, move: false, hearts: 4, speed: 120, minChars: 28, stopOnLand: true, stars: 5, time: 100 },
-            '高中': { g: 0.5, jump: 12.0, width: 70, maxDist: 300, heightVar: 400, move: false, hearts: 3, speed: 140, minChars: 40, stopOnLand: false, stars: 4, time: 120 },
-            '大學': { g: 0.65, jump: 14.0, width: 60, maxDist: 250, heightVar: 500, move: true, hearts: 2, speed: 160, minChars: 56, stopOnLand: false, stars: 3, time: 135 },
-            '研究所': { g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, hearts: 1, speed: 180, minChars: 56, stopOnLand: false, stars: 2, time: 150 }
+            '小學': { timeLimit: 90, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 400, heightVar: 200, move: false, speed: 100, minChars: 20, stopOnLand: true },
+            '中學': { timeLimit: 100, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 350, heightVar: 300, move: false, speed: 120, minChars: 28, stopOnLand: true },
+            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 300, heightVar: 400, move: false, speed: 140, minChars: 40, stopOnLand: false },
+            '大學': { timeLimit: 135, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 250, heightVar: 500, move: true, speed: 160, minChars: 56, stopOnLand: false },
+            '研究所': { timeLimit: 150, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 56, stopOnLand: false }
         },
 
         init: function () {
@@ -252,8 +263,8 @@
             this.targetCameraX = 0;
             this.scrollSpeed = settings.speed;
             this.stopOnLand = settings.stopOnLand;
-            this.timeLeft = settings.time;
-            this.maxTime = settings.time;
+            this.timeLeft = settings.timeLimit;
+            this.maxTime = settings.timeLimit;
 
             this.updateScoreUI();
             this.renderHearts();
@@ -263,10 +274,9 @@
                 // 如果是重來，重置命中狀態
                 this.hitStatus = new Array(this.poemChars.length).fill(0);
             }
-            this.timer = settings.time;
-            this.maxTimer = settings.time;
-            this.timeLeft = settings.time;
-            this.maxTime = settings.time;
+            this.timer = settings.timeLimit;
+            this.timeLeft = settings.timeLimit;
+            this.maxTime = settings.timeLimit;
             this.startTime = null; // 重置計時點
 
             this.particles = []; // 確保重來或開新局時先清空所有雲
@@ -281,15 +291,15 @@
             if (typeof POEMS !== 'undefined') {
                 const settings = this.difficultySettings[this.difficulty];
                 const minChars = settings.minChars;
-                const minStars = settings.stars || 4;
+                const minRating = settings.poemMinRating || 4;
 
                 // 使用共用邏輯取得隨機詩詞
-                const result = getSharedRandomPoem(minStars, 4, 8, minChars, 200);
+                const result = getSharedRandomPoem(minRating, 4, 8, minChars, 200);
                 if (result) {
                     this.currentPoem = result.poem;
                 } else {
                     let eligible = POEMS.filter(p => {
-                        if ((p.rating || 0) < minStars) return false;
+                        if ((p.rating || 0) < minRating) return false;
                         let text = p.content.join('').replace(/[，。？！、：；「」『』\s]/g, '');
                         return text.length >= minChars;
                     });

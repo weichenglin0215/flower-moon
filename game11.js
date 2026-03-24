@@ -20,11 +20,11 @@
 
         // 獲取各難度配置參數
         difficultySettings: {
-            '小學': { stars: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', maxMistakes: 5, minLines: 1, maxLines: 2, minChars: 5, maxChars: 10, passChars: 0, revealStep: 1 },
-            '中學': { stars: 5, rows: 5, cols: 3, mode: 'all', feedback: 'keep', maxMistakes: 8, minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, passChars: 3, revealStep: 1 },
-            '高中': { stars: 4, rows: 5, cols: 4, mode: 'all', feedback: 'keep', maxMistakes: 10, minLines: 2, maxLines: 4, minChars: 14, maxChars: 21, passChars: 6, revealStep: 2 },
-            '大學': { stars: 3, rows: 6, cols: 5, mode: 'all', feedback: 'hide', maxMistakes: 12, minLines: 3, maxLines: 4, minChars: 20, maxChars: 28, passChars: 9, revealStep: 2 },
-            '研究所': { stars: 2, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', maxMistakes: 14, minLines: 4, maxLines: 6, minChars: 28, maxChars: 35, passChars: 12, revealStep: 3 }
+            '小學': { poemMinRating: 6, maxMistakeCount: 5, rows: 4, cols: 3, mode: 'all', feedback: 'keep', minLines: 1, maxLines: 2, minChars: 5, maxChars: 10, passChars: 0, revealStep: 1 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 8, rows: 5, cols: 3, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, passChars: 3, revealStep: 1 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 10, rows: 5, cols: 4, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 4, minChars: 14, maxChars: 21, passChars: 6, revealStep: 2 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 12, rows: 6, cols: 5, mode: 'all', feedback: 'hide', minLines: 3, maxLines: 4, minChars: 20, maxChars: 28, passChars: 9, revealStep: 2 },
+            '研究所': { poemMinRating: 2, maxMistakeCount: 14, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', minLines: 4, maxLines: 6, minChars: 28, maxChars: 35, passChars: 12, revealStep: 3 }
         },
 
         loadCSS: function () {
@@ -106,7 +106,7 @@
                     this.difficulty = level;
                     const settings = this.difficultySettings[level];
                     if (!settings) return;
-                    this.maxMistakes = settings.maxMistakes;
+                    this.maxMistakes = settings.maxMistakeCount;
 
                     const container = document.getElementById('game11-container');
                     if (container) {
@@ -138,7 +138,7 @@
                         console.error("Invalid difficulty level selected:", selectedLevel);
                         return;
                     }
-                    this.maxMistakes = settings.maxMistakes; // Update maxMistakes based on selected difficulty
+                    this.maxMistakes = settings.maxMistakeCount; // Update maxMistakes based on selected difficulty
 
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active'); // Ensure overlay-active is added
@@ -212,10 +212,10 @@
 
         prepareChallenge: function () {
             const settings = this.difficultySettings[this.difficulty];
-            this.maxMistakes = settings.maxMistakes;
+            this.maxMistakes = settings.maxMistakeCount;
 
             // Generate Poem
-            const result = getSharedRandomPoem(settings.stars, settings.minLines, settings.maxLines, settings.minChars, settings.maxChars);
+            const result = getSharedRandomPoem(settings.poemMinRating, settings.minLines, settings.maxLines, settings.minChars, settings.maxChars);
             if (!result) {
                 alert('找不到符合評分的詩詞。');
                 return;

@@ -7,8 +7,8 @@
         maxTimer: 10, // 每轮的最大时间（根据难度设置）
         timerInterval: null,
         score: 0,
-        mistakes: 0,
-        maxMistakes: 3,
+        mistakeCount: 0,
+        maxMistakeCount: 3,
         currentPoem: null,
         correctAnswer: "",
         options: [],
@@ -18,13 +18,20 @@
         timerBar: null,
         timerText: null,
 
+
         // 难度设置
+        //timeLimit: 時間限制
+        //poemMinRating: 最低詩詞評分
+        //maxMistakeCount: 最大錯誤次數
+        //answerAtLine: 答案出現在第幾行，0=第一行或第二行，1=第一行，2=第二行，3=第一行和第二行
+        //minMaskCount: 最少遮罩數量
+        //maxMaskCount: 最多遮罩數量
         difficultySettings: {
-            '小學': { time: 40, minRating: 6, maxMistakes: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
-            '中學': { time: 30, minRating: 5, maxMistakes: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
-            '高中': { time: 20, minRating: 4, maxMistakes: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
-            '大學': { time: 15, minRating: 3, maxMistakes: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
-            '研究所': { time: 10, minRating: 2, maxMistakes: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
+            '小學': { timeLimit: 40, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
+            '中學': { timeLimit: 30, poemMinRating: 5, maxMistakeCount: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
+            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
+            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
+            '研究所': { timeLimit: 10, poemMinRating: 2, maxMistakeCount: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
         },
 
         loadCSS: function () {
@@ -150,9 +157,9 @@
                 window.DifficultySelector.show('慢思快選', (selectedLevel) => {
                     this.difficulty = selectedLevel;
                     const settings = this.difficultySettings[selectedLevel];
-                    this.maxTimer = settings.time; // 设置最大时间
-                    this.timer = settings.time;
-                    this.maxMistakes = settings.maxMistakes;
+                    this.maxTimer = settings.timeLimit; // 设置最大时间
+                    this.timer = settings.timeLimit;
+                    this.maxMistakeCount = settings.maxMistakeCount;
 
                     // 顯示遊戲容器
                     this.container.classList.remove('hidden');
@@ -216,7 +223,7 @@
             if (!this.currentPoem) return;
             this.isActive = true;
             this.score = 0;
-            this.mistakes = 0;
+            this.mistakeCount = 0;
             this.renderHearts();
             document.getElementById('game1-score').textContent = this.score;
             document.getElementById('game1-message').classList.add('hidden');
@@ -239,7 +246,7 @@
             }
             this.isActive = true;
             this.score = 0;
-            this.mistakes = 0;
+            this.mistakeCount = 0;
             this.renderHearts();
             document.getElementById('game1-score').textContent = this.score;
             document.getElementById('game1-message').classList.add('hidden');
@@ -266,9 +273,9 @@
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return;
 
             const settings = this.difficultySettings[this.difficulty];
-            const minRating = settings.minRating || 4;
+            const minRating = settings.poemMinRating || 4;
 
-            // 使用全域共用邏輯取得隨機詩詞 (要求至少 2 句)
+            // 使用全域共用邏輯取得隨機詩詞 (要求至少 2 句，最少10個字，最多14字)
             const result = getSharedRandomPoem(minRating, 2, 2, 10, 14);
             if (!result) {
                 alert('找不到符合評分的詩詞。');
@@ -404,7 +411,7 @@
             // 使用 SharedDecoy 產生相似句子
             if (window.SharedDecoy) {
                 const targetChars = correctClean.split('');
-                const minRating = this.difficultySettings[this.difficulty].minRating || 4;
+                const minRating = this.difficultySettings[this.difficulty].poemMinRating || 4;
                 const distractorPool = window.SharedDecoy.getDecoyChars(targetChars, 20, [], minRating);
 
                 // 嘗試從 POEMS 中尋找相似句
@@ -451,7 +458,7 @@
                 if (!rndPoem || !rndPoem.content) continue;
                 const rndLine = rndPoem.content[Math.floor(Math.random() * rndPoem.content.length)];
                 const clean = rndLine.replace(/[，。？！、：；]/g, '');
-                
+
                 // 嘗試找長度相同且未被選中的句子
                 if ((clean.length === lineLen || attempts > 150) && !usedLines.includes(rndLine)) {
                     const maskedText = applyOptionMask(rndLine);
@@ -506,7 +513,7 @@
                 if (ratio <= 0) {
                     this.updateTimerRing(0);
                     clearInterval(this.timerInterval);
-                    this.mistakes++;
+                    this.mistakeCount++;
                     this.updateHearts();
                     // 揭曉答案
                     this.revealAnswer(false);
@@ -593,10 +600,10 @@
             } else {
                 if (btn.classList.contains('wrong')) return;
                 btn.classList.add('wrong');
-                this.mistakes++;
+                this.mistakeCount++;
                 //this.updateLives();
                 this.updateHearts();
-                if (this.mistakes >= this.maxMistakes) {
+                if (this.mistakeCount >= this.maxMistakeCount) {
                     clearInterval(this.timerInterval);
 
                     // 揭曉答案：將正確答案以 .hint 顯示
@@ -612,13 +619,13 @@
 
         updateLives: function () {
             const livesSpan = document.getElementById('game1-lives');
-            livesSpan.textContent = "♥".repeat(this.maxMistakes - this.mistakes) + "♡".repeat(this.mistakes);
+            livesSpan.textContent = "♥".repeat(this.maxMistakeCount - this.mistakeCount) + "♡".repeat(this.mistakeCount);
         },
         renderHearts: function () {
             const hearts = document.getElementById('game1-hearts');
             if (!hearts) return;
             hearts.innerHTML = '';
-            for (let i = 0; i < this.difficultySettings[this.difficulty].maxMistakes; i++) {
+            for (let i = 0; i < this.difficultySettings[this.difficulty].maxMistakeCount; i++) {
                 const span = document.createElement('span');
                 span.className = 'heart';
                 span.textContent = '♥';
@@ -629,7 +636,7 @@
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game1-hearts .heart');
             hearts.forEach((h, i) => {
-                if (i < this.mistakes) {
+                if (i < this.mistakeCount) {
                     h.classList.add('empty');
                     h.textContent = '♡';
                 } else {

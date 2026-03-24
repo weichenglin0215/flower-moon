@@ -23,23 +23,22 @@
         verticalGapRem: 0.8,
         currentRowFontColor: 'rgba(24, 23, 0, 1)',
         nextRowFontColor: 'rgba(24, 23, 0, 0.5)',
-        // 常用字庫 (用於生成干擾項)
-        decoyCharsPeople: "你妳我他她它父母爺娘公婆兄弟姊妹人子吾余夫妻婦妾君卿爾奴汝彼此伊客君主翁",
-        decoyCharsSeason: "春夏秋冬晨晝暮夜夕宵日月星辰漢輝曦雲霓虹雷電霽霄昊蒼溟",
-        decoyCharsWeather: "陰晴風雨雪霜露霧霞虹暖寒涼暑晦暗亮光明清冽空氣嵐",
-        decoyCharsEnvironment: "山嶺峰嶽丘陵原野石岩磐礫沙塵泥壤漠海江河川溪瀑澗流湖泊沼澤水淵深潭泉",
-        decoyCharsColor: "紅絳朱丹彤緋橙黃綠碧翠蔥藍縹蒼靛紫白皓素皚黑玄緇黛烏墨金銀銅鐵灰",
-        decoyCharsPlant: "花草梅蘭竹菊荷蓮桂桃李杏梨棠芍薔榴葵蘆荻芷蕙蘅薇薔薇柳松",
-        decoyChars: "的一是在不了有和人這中大為上個國我以要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更想樣理心她本去現什把那問當沒看起天都現兩文正開實事些點只如水長",
-
         // 難度設定
         difficulty: '小學',
+        //poemMinRating: 詩詞最低評分
+        //maxMistakeCount: 最大錯誤次數
+        //sentenceMinRating: 句子最低評分
+        //minOptions: 最少選項
+        //maxOptions: 最多選項
+        //isStrictOrder: 是否嚴格按照順序
+        //incrementSpeed: 速度增長量
+        //maxSpeed: 最大速度
         difficultySettings: {
-            '小學': { incrementSpeed: 0.001, maxSpeed: 0.07, minRating: 6, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, maxMistakeCount: 14, isStrictOrder: false },
-            '中學': { incrementSpeed: 0.002, maxSpeed: 0.08, minRating: 5, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, maxMistakeCount: 14, isStrictOrder: false },
-            '高中': { incrementSpeed: 0.004, maxSpeed: 0.10, minRating: 4, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, maxMistakeCount: 12, isStrictOrder: false },
-            '大學': { incrementSpeed: 0.006, maxSpeed: 0.12, minRating: 3, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, maxMistakeCount: 10, isStrictOrder: true },
-            '研究所': { incrementSpeed: 0.008, maxSpeed: 0.15, minRating: 2, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, maxMistakeCount: 10, isStrictOrder: true }
+            '小學': { poemMinRating: 6, maxMistakeCount: 14, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.001, maxSpeed: 0.07 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 14, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.002, maxSpeed: 0.08 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 12, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.004, maxSpeed: 0.10 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.006, maxSpeed: 0.12 },
+            '研究所': { poemMinRating: 2, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.008, maxSpeed: 0.15 }
         },
 
         loadCSS: function () {
@@ -307,11 +306,11 @@
             }
 
             const setting = this.difficultySettings[this.difficulty];
-            const minRating = setting.minRating || 4;
+            const poemMinRating = setting.poemMinRating || 4;
 
             // 使用共用邏輯取得隨機詩詞
             // Game 3 喜歡連續的句子，所以我們要求至少 4 句
-            const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+            const result = getSharedRandomPoem(poemMinRating, 4, 8, 20, 200);
             if (!result) {
                 alert('找不到符合該難度評分的詩詞');
                 return;

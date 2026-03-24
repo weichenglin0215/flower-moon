@@ -9,7 +9,7 @@
         score: 0,
         mistakeCount: 0,
         maxMistakeCount: 3,
-        timer: 60,
+        timeLimit: 60,
         timeLeft: 60,
         timerInterval: null,
         nextEnemyId: 0,
@@ -78,12 +78,19 @@
 
         // 難度等級設定
         difficultySettings: {
-            // stars: 詩詞等級, lineCount: 敵人波次詩句數, baseSpeed: 基礎速度, speedInc: 增量
-            '小學': { time: 80, hearts: 6, fireRate: 0.8, baseSpeed: 80, speedInc: 10, maxSpeed: 300, stars: 6, lineCount: 2 },
-            '中學': { time: 80, hearts: 5, fireRate: 0.75, baseSpeed: 80, speedInc: 11, maxSpeed: 350, stars: 5, lineCount: 4 },
-            '高中': { time: 80, hearts: 4, fireRate: 0.7, baseSpeed: 80, speedInc: 12, maxSpeed: 400, stars: 4, lineCount: 6 },
-            '大學': { time: 80, hearts: 3, fireRate: 0.65, baseSpeed: 80, speedInc: 13, maxSpeed: 500, stars: 3, lineCount: 8 },
-            '研究所': { time: 80, hearts: 2, fireRate: 0.6, baseSpeed: 80, speedInc: 14, maxSpeed: 600, stars: 2, lineCount: 8 }
+            //timeLimit: 時間限制
+            //poemMinRating: 詩詞評分要求
+            //maxMistakeCount: 最大錯誤次數
+            //fireRate: 射擊頻率
+            //baseSpeed: 基礎速度
+            //speedInc: 速度增量
+            //maxSpeed: 最大速度
+            //lineCount: 敵人波次詩句數
+            '小學': { timeLimit: 80, poemMinRating: 6, maxMistakeCount: 6, fireRate: 0.8, baseSpeed: 80, speedInc: 10, maxSpeed: 300, lineCount: 2 },
+            '中學': { timeLimit: 80, poemMinRating: 5, maxMistakeCount: 5, fireRate: 0.75, baseSpeed: 80, speedInc: 11, maxSpeed: 350, lineCount: 4 },
+            '高中': { timeLimit: 80, poemMinRating: 4, maxMistakeCount: 4, fireRate: 0.7, baseSpeed: 80, speedInc: 12, maxSpeed: 400, lineCount: 6 },
+            '大學': { timeLimit: 80, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.65, baseSpeed: 80, speedInc: 13, maxSpeed: 500, lineCount: 8 },
+            '研究所': { timeLimit: 80, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.6, baseSpeed: 80, speedInc: 14, maxSpeed: 600, lineCount: 8 }
         },
 
         enemyDirection: 1, // 1 向右, -1 向左
@@ -909,7 +916,7 @@
             this.mistakeCount++;
             this.player.hitTimer = 0.5; // 受傷閃爍
             this.renderHearts();
-            if (this.mistakeCount >= (this.difficultySettings[this.difficulty].hearts || 3)) {
+            if (this.mistakeCount >= (this.difficultySettings[this.difficulty].maxMistakeCount || 3)) {
                 this.triggerFailAnimation("詩陣失守，玩家出局...");
             }
         },
@@ -1062,15 +1069,15 @@
         startTimer: function () {
             clearInterval(this.timerInterval);
             const settings = this.difficultySettings[this.difficulty];
-            this.timer = settings.time;
-            this.timeLeft = settings.time;
+            this.timeLimit = settings.timeLimit;
+            this.timeLeft = settings.timeLimit;
 
             const start = Date.now();
             this.timerInterval = setInterval(() => {
                 if (this.isPausedForPowerUp) return; // 暫停時停止計時
                 const elapsed = (Date.now() - start) / 1000;
-                this.timeLeft = this.timer - elapsed;
-                const ratio = Math.max(0, this.timeLeft / this.timer);
+                this.timeLeft = this.timeLimit - elapsed;
+                const ratio = Math.max(0, this.timeLeft / this.timeLimit);
                 this.updateTimerRing(ratio);
 
                 if (this.timeLeft <= 0) {
@@ -1102,7 +1109,7 @@
             const container = document.getElementById('game6-hearts');
             if (!container) return;
             container.innerHTML = '';
-            const max = this.difficultySettings[this.difficulty].hearts;
+            const max = this.difficultySettings[this.difficulty].maxMistakeCount;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
                 span.className = 'heart' + (i < this.mistakeCount ? ' empty' : '');

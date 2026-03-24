@@ -27,21 +27,21 @@
         maxTimer: 0,          // 根據困難度設定的總限時（秒）
 
         // --- 計時器與進度控制 ---
-        /*hints 提示方式：all/startEnd/start/none
-        splitPath 斷句：true=可分句完成、false=必須一次連完整首
-        maxMistake 最大錯誤次數
-        time 時間限制（秒，0=無限）
-        obstacles 障礙物數量
-        decoyPool 誘餌池：normal/hard
-        stars 最低詩評rating
-        minLines 最少句數（必須偶數，從奇數句開始連續挑選）
-        maxChars 總字數上限*/
+        // timeLimit 時間限制（秒，0= 無限）
+        // poemMinRating 最低詩評rating
+        // maxMistakeCount 最大錯誤次數
+        // hints 提示方式：all/startEnd/start/none
+        // splitPath 斷句：true=可分句完成、false=必須一次連完整首
+        // obstacles 障礙物數量
+        // decoyPool 誘餌池：normal/hard
+        // minLines 最少句數（必須偶數，從奇數句開始連續挑選）
+        // maxChars 總字數上限
         difficultySettings: {
-            '小學': { hints: 'all', splitPath: true, maxMistake: 6, time: 80, obstacles: 0, decoyPool: 'normal', stars: 6, minLines: 4, maxChars: 56 },
-            '中學': { hints: 'startEnd', splitPath: true, maxMistake: 5, time: 75, obstacles: 0, decoyPool: 'normal', stars: 5, minLines: 4, maxChars: 56 },
-            '高中': { hints: 'startEnd', splitPath: true, maxMistake: 4, time: 70, obstacles: 0, decoyPool: 'normal', stars: 4, minLines: 4, maxChars: 56 },
-            '大學': { hints: 'start', splitPath: false, maxMistake: 3, time: 65, obstacles: 0, decoyPool: 'normal', stars: 3, minLines: 6, maxChars: 56 },
-            '研究所': { hints: 'start', splitPath: false, maxMistake: 2, time: 60, obstacles: 0, decoyPool: 'hard', stars: 2, minLines: 8, maxChars: 56 }
+            '小學': { timeLimit: 80, poemMinRating: 6, maxMistakeCount: 6, hints: 'all', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
+            '中學': { timeLimit: 75, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
+            '高中': { timeLimit: 70, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
+            '大學': { timeLimit: 65, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, maxChars: 56 },
+            '研究所': { timeLimit: 60, poemMinRating: 2, maxMistakeCount: 2, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, maxChars: 56 }
         },
 
 
@@ -232,8 +232,8 @@
 
             if (diffTag) diffTag.textContent = this.difficulty;
 
-            if (settings.time > 0) {
-                this.maxTimer = settings.time;
+            if (settings.timeLimit > 0) {
+                this.maxTimer = settings.timeLimit;
                 this.timer = this.maxTimer;
                 document.getElementById('game8-timer-ring').style.display = 'block';
                 this.startTimer();
@@ -251,10 +251,10 @@
             const settings = this.difficultySettings[this.difficulty];
             const minLines = settings.minLines;
             const maxChars = settings.maxChars;
-            const reqStars = settings.stars;
+            const minRating = settings.poemMinRating;
 
             // 呼叫全局選詩函數，maxLines 給 100 代表無上限，minChars 設定為 8 字
-            const result = getSharedRandomPoem(reqStars, minLines, 100, 20, maxChars);
+            const result = getSharedRandomPoem(minRating, minLines, 100, 20, maxChars);
 
             if (!result) return false;
 
@@ -1101,7 +1101,7 @@
             this.mistakeCount++;
             this.updateHearts(); // 更新心心顯示
 
-            const maxM = this.difficultySettings[this.difficulty].maxMistake;
+            const maxM = this.difficultySettings[this.difficulty].maxMistakeCount;
             if (this.mistakeCount >= maxM) {
                 this.gameOver(false, '錯誤次數過多');
             }
@@ -1219,7 +1219,7 @@
             const container = document.getElementById('game8-hearts');
             if (!container) return;
             container.innerHTML = '';
-            let max = this.difficultySettings[this.difficulty].maxMistake;
+            let max = this.difficultySettings[this.difficulty].maxMistakeCount;
             if (max > 10) max = 0; // Don't show if unlimited
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
