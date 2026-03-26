@@ -41,7 +41,7 @@
             '中學': { poemMinRating: 5, maxMistakeCount: 14, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.003, maxSpeed: 0.09 },
             '高中': { poemMinRating: 4, maxMistakeCount: 12, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.004, maxSpeed: 0.11 },
             '大學': { poemMinRating: 3, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.006, maxSpeed: 0.13 },
-            '研究所': { poemMinRating: 2, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.008, maxSpeed: 0.15 }
+            '研究所': { poemMinRating: 3, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.008, maxSpeed: 0.15 }
         },
 
         loadCSS: function () {
@@ -387,7 +387,8 @@
             }
 
             // 合併原本的常用字庫與額外的詩詞字庫
-            const currentDecoyPool = (this.decoyChars + extraDecoyChars).split('');
+            const baseCommonChars = (window.SharedDecoy && window.SharedDecoy.decoyCharsSets) ? window.SharedDecoy.decoyCharsSets.common : "";
+            const currentDecoyPool = (baseCommonChars + extraDecoyChars).split('');
 
             // 將詩詞內容展平為字符陣列，只使用 getSharedRandomPoem 選出的範圍
             let chars = [];
@@ -491,14 +492,9 @@
 
             // 1. 嘗試從分類主題中選取 (40% 機率)
             if (numOptions > 1 && Math.random() < 0.4) {
-                const thematicSets = [
-                    this.decoyCharsPeople,
-                    this.decoyCharsSeason,
-                    this.decoyCharsWeather,
-                    this.decoyCharsEnvironment,
-                    this.decoyCharsColor,
-                    this.decoyCharsPlant
-                ];
+                const thematicSets = (window.SharedDecoy && window.SharedDecoy.decoyCharsSets)
+                    ? Object.values(window.SharedDecoy.decoyCharsSets)
+                    : [];
 
                 const matchedSet = thematicSets.find(set => set && set.includes(correctChar));
                 if (matchedSet) {
@@ -513,7 +509,8 @@
             }
 
             // 2. 如果選項不足，使用原本的 decoyPool 或預設字庫補齊
-            const pool = decoyPool || (this.decoyChars ? this.decoyChars.split('') : []);
+            const baseCommonArr = (window.SharedDecoy && window.SharedDecoy.decoyCharsSets) ? window.SharedDecoy.decoyCharsSets.common.split('') : [];
+            const pool = (decoyPool && decoyPool.length > 0) ? decoyPool : baseCommonArr;
             let safetyCounter = 0;
             while (options.length < numOptions && safetyCounter < 100) {
                 safetyCounter++;
