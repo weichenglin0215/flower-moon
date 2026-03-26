@@ -2,6 +2,8 @@
     const Game8 = {
         isActive: false,
         difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         mistakeCount: 0,
 
@@ -103,6 +105,7 @@
                     <p id="game8-msg-content"></p>
                     <button id="game8-msg-btn" class="nav-btn">繼續</button>
                 </div>
+                <div id="game8-char-preview" class="game8-char-preview hidden"></div>
             `;
             document.body.appendChild(div);
 
@@ -121,8 +124,12 @@
             document.getElementById('game8-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game8-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
 
             const gridWrapper = document.getElementById('game8-grid-wrapper');
@@ -146,8 +153,13 @@
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('遊戲八：一筆裁詩', (selectedLevel) => {
+                window.DifficultySelector.show('一筆裁詩', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+
+                    this.updateUIForMode();
+
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
@@ -155,6 +167,32 @@
                     this.startNewGame();
                 });
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game8-diff-tag');
+            const retryBtn = document.getElementById('game8-retryGame-btn');
+            const newBtn = document.getElementById('game8-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         hideOtherContents: function () {
@@ -185,7 +223,12 @@
             this.startGameProcess(true);
         },
 
-        startNewGame: function () {
+        startNewGame: function (levelIndex) {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
+            }
             if (this.selectRandomPoem()) {
                 this.startGameProcess(false);
             } else {
@@ -194,26 +237,29 @@
             }
         },
 
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
         //game8只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
-            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
+            this.updateUIForMode();
             this.score = 0;
             this.mistakeCount = 0;
             this.completedTargetIndex = 0;
             this.currentPhase = 0;
             this.successfulStrokes = [];
 
-            const diffTag = document.getElementById('game8-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
-            }
             document.getElementById('game8-score').textContent = this.score;
             document.getElementById('game8-message').classList.add('hidden');
             document.getElementById('game8-current-path').setAttribute('d', '');
             document.getElementById('game8-completed-path').setAttribute('d', '');
             document.getElementById('game8-current-path').style.opacity = 1;
+
+            const preview = document.getElementById('game8-char-preview');
+            if (preview) preview.classList.add('hidden');
 
             const settings = this.difficultySettings[this.difficulty];
             this.renderHearts();
@@ -230,7 +276,7 @@
             document.getElementById('game8-retryGame-btn').disabled = false;
             document.getElementById('game8-newGame-btn').disabled = false;
 
-            if (diffTag) diffTag.textContent = this.difficulty;
+            // 標籤文字與顏色由 updateUIForMode 統一管理，此處不再重複更新以免蓋掉關卡編號
 
             if (settings.timeLimit > 0) {
                 this.maxTimer = settings.timeLimit;
@@ -253,8 +299,17 @@
             const maxChars = settings.maxChars;
             const minRating = settings.poemMinRating;
 
-            // 呼叫全局選詩函數，maxLines 給 100 代表無上限，minChars 設定為 8 字
-            const result = getSharedRandomPoem(minRating, minLines, 100, 20, maxChars);
+            // 呼叫全局選詩函數，傳入種子
+            const result = getSharedRandomPoem(
+                settings.poemMinRating,
+                settings.minLines,
+                10,
+                20,
+                settings.maxChars,
+                "",
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game8'
+            );
 
             if (!result) return false;
 
@@ -848,6 +903,37 @@
             return null;
         },
 
+        // 更新手指觸碰處的文字預覽 (解決遮蔽問題)
+        updateCharPreview: function (e) {
+            const preview = document.getElementById('game8-char-preview');
+            if (!preview) return;
+
+            const cell = this.getCellFromEvent(e);
+            if (cell) {
+                const data = this.gridData[cell.r][cell.c];
+                if (data && !data.isObstacle) {
+                    preview.textContent = data.char;
+                    preview.classList.remove('hidden');
+
+                    let clientX, clientY;
+                    if (e.touches && e.touches.length > 0) {
+                        clientX = e.touches[0].clientX;
+                        clientY = e.touches[0].clientY;
+                    } else {
+                        clientX = e.clientX;
+                        clientY = e.clientY;
+                    }
+
+                    const rect = preview.parentNode.getBoundingClientRect();
+                    // 根據使用者要求：左上角左110px、上110px
+                    preview.style.left = (clientX - rect.left - 110) + 'px';
+                    preview.style.top = (clientY - rect.top - 110) + 'px';
+                    return;
+                }
+            }
+            preview.classList.add('hidden');
+        },
+
         // 處理拖曳開始事件：初始化路徑並播放起點音效
         onDragStart: function (e) {
             if (!this.isActive) return;
@@ -875,12 +961,16 @@
             document.getElementById('game8-current-path').style.opacity = 1;
 
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
+            this.updateCharPreview(e);
         },
 
         // 處理拖曳過程中的移動事件：計算鄰近性並支援「原路退回」撤銷操作
         onDragMove: function (e) {
             if (!this.isDragging || !this.isActive) return;
             if (e.cancelable) e.preventDefault();
+
+            // 在任何情況下都即時更新預覽位置
+            this.updateCharPreview(e);
 
             const cell = this.getCellFromEvent(e);
             if (!cell) return;
@@ -933,6 +1023,9 @@
         onDragEnd: function (e) {
             if (!this.isDragging || !this.isActive) return;
             this.isDragging = false;
+
+            const preview = document.getElementById('game8-char-preview');
+            if (preview) preview.classList.add('hidden');
 
             const phase = this.phases[this.currentPhase];
             const settings = this.difficultySettings[this.difficulty];
@@ -1276,26 +1369,44 @@
             }
             clearInterval(this.timerInterval);
 
+            const preview = document.getElementById('game8-char-preview');
+            if (preview) preview.classList.add('hidden');
+
             const msgDiv = document.getElementById('game8-message');
             const title = document.getElementById('game8-msg-title');
             const content = document.getElementById('game8-msg-content');
+            const msgBtn = document.getElementById('game8-msg-btn');
+
+            if (win) {
+                title.textContent = "裁詩圓滿！";
+                title.style.color = "hsl(145, 66%, 30%)";
+                content.textContent = `得分：${reason}`;
+                if (this.isLevelMode) {
+                    msgBtn.textContent = "下一關";
+                } else {
+                    msgBtn.textContent = "下一局";
+                }
+            } else {
+                title.textContent = "功敗垂成";
+                title.style.color = "hsl(0, 60%, 50%)";
+                content.textContent = reason || "墨跡已散！";
+                msgBtn.textContent = "再試一次";
+            }
+
+            const showMessage = () => {
+                msgDiv.classList.remove('hidden');
+            };
 
             setTimeout(() => {
-                msgDiv.classList.remove('hidden');
-                if (win) {
-                    title.textContent = "裁詩圓滿！";
-                    title.style.color = "hsl(145, 66%, 30%)";
-                    content.textContent = `得分：${reason}`;
+                if (win && this.isLevelMode && window.ScoreManager) {
+                    const achId = window.ScoreManager.completeLevel('game8', this.difficulty, this.currentLevelIndex);
+                    if (achId && window.AchievementDialog) {
+                        window.AchievementDialog.showInstantAchievementPop(achId, 'game8', this.currentLevelIndex, showMessage);
+                    } else {
+                        showMessage();
+                    }
                 } else {
-                    title.textContent = "功敗垂成";
-                    title.style.color = "hsl(0, 60%, 50%)";
-                    content.textContent = reason || "墨跡已散！";
-                }
-                const msgBtn = document.getElementById('game8-msg-btn');
-                if (win) {
-                    msgBtn.textContent = "下一局";
-                } else {
-                    msgBtn.textContent = "再試一次";
+                    showMessage();
                 }
             }, 500);
         }

@@ -110,7 +110,7 @@
                             </div>
                         </div>
                         
-                        <!-- 徽章面板 -->
+                        <!-- 成就殿堂徽章面板 -->
                         <div class="ach-panel" id="ach-panel-badges">
                             <div class="ach-badges" id="achBadgesContainer">
                                 <!-- 動態生成 -->
@@ -261,18 +261,13 @@
                 rankViewEl.textContent = '領取稱號榜單';
                 rankViewEl.classList.add('clickable-rank');
                 rankViewEl.onclick = () => {
-                    if (window.SoundManager) window.SoundManager.playJoyfulTriple();
                     const ranks = window.ScoreManager.ranks;
                     const r = ranks.find(rank => rank.name === currentRankName);
                     if (r) {
                         const idx = ranks.indexOf(r);
                         const cImg = this.certImages[Math.min(idx, this.certImages.length - 1)];
                         const cText = this.rankCertTexts[currentRankName] || '恭喜榮升！';
-                        if (!data.achievements.claimed) data.achievements.claimed = [];
-                        data.achievements.claimed.push(rankId);
-                        localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
-                        this.renderData();
-                        this.showCert(cImg, cText);
+                        this.claimAchievementReward(rankId, cImg, cText);
                     }
                 };
             } else {
@@ -331,39 +326,21 @@
                 gamesContainer.innerHTML = '<div style="text-align:center; color:#999; padding:0.9rem;">尚無遊戲紀錄</div>';
             }
 
-            // 渲染徽章殿堂 (成就殿堂)
+            // 渲染成就殿堂
             const badgesContainer = document.getElementById('achBadgesContainer');
             badgesContainer.innerHTML = '';
 
             const claimStatus = data.achievements.claimed || [];
             const thresholds = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
-            const certImages = [
-                'images/九品獎狀.png', 'images/八品獎狀.png', 'images/七品獎狀.png',
-                'images/六品獎狀.png', 'images/五品獎狀.png', 'images/四品獎狀.png',
-                'images/三品獎狀.png', 'images/二品獎狀.png', 'images/一品獎狀.png',
-                'images/聖旨獎狀.png'
-            ];
-
-            const getCertText = (t, title) => {
-                const cleanTitle = title.replace(/」/g, '」\n');
-                if (t <= 50) return `恭賀\n${cleanTitle}。\n青衿志遠，文心雕龍。恭喜閣下於辭海之中撥雲見日，初試啼聲。此番進境，如春草之生於幽谷，芬芳自逸。願君持此文心，更上層樓。`;
-                if (t <= 500) return `恭賀\n${cleanTitle}。\n縹緲詞壇，錦繡華章。恭喜閣下擷取明珠於滄海，拾得紅葉於御溝。任務既成，墨香猶在。望君續筆山川，以詩為引，再續一段千古佳話。`;
-                return `恭賀\n${cleanTitle}。\n筆落驚風雨，詩成泣鬼神。閣下才思敏捷，氣貫長虹，已破此番關隘。正如長風破浪，終抵文學之巔；金石為開，方顯大儒之志。壯哉！`;
-            };
-
-            const diffMap = { '小學': '小學', '中學': '中學', '高中': '高中', '大學': '大學', '研究所': '研究所' };
-            const categories = [
-                { data: data.difficultyCounts || {}, map: diffMap },
-                { data: data.games || {}, map: this.gameNames }
-            ];
+            const certImages = this.certImages;
 
             let lastUnlockedItem = null;
 
-            // 1. 先渲染玩家階級榜單 (最前面)
+            // 1. 渲染玩家階級榜單
             ranks.forEach((r, idx) => {
                 const rankId = `rank_${r.name}`;
                 const isUnlocked = totalScore >= r.minScore;
-                const isClaimed = claimed.includes(rankId) || r.name === '書僮';
+                const isClaimed = claimStatus.includes(rankId) || r.name === '書僮';
 
                 const item = document.createElement('div');
                 item.className = 'ach-badge-item rank-item';
@@ -378,32 +355,13 @@
                 right.className = 'ach-item-right';
 
                 const certImg = certImages[Math.min(idx, certImages.length - 1)];
-                const rankCertTexts = {
-                    '書僮': '自幼好學，手不釋卷。\n今日正式入院為「書僮」，領略墨色清芬。願爾勤勉，志存高遠，於書山之中覓得真意。',
-                    '蒙童': '志學之始，啟蒙之初。\n累積修為已達萬分，榮升「蒙童」品階。初入文林，墨香稍染。願君焚膏繼晷，更上層樓。',
-                    '塾生': '書塾寒暑，心志益堅。\n閣下學識日進，修為已達兩萬分，獲封「塾生」。勤學如春起之苗，不見其增，日有所長。',
-                    '童生': '經史初通，文采斐然。\n恭賀閣下修為跨越四萬分，得授「童生」文位。筆下生風，字句清雅，已具文人之風骨。',
-                    '縣案首': '名震黌宮，冠絕全縣。\n閣下修為已達八萬分，於縣試之中脫穎而出，勇奪「縣案首」。才思敏捷，四鄉驚服。',
-                    '府案首': '府試揚名，魁首之才。\n恭賀閣下修為累積十六萬分，獲封「府案首」。文章錦繡，氣貫長虹，誠為一府之表率。',
-                    '文童': '詞藻華茂，文心雕龍。\n閣下修為突破三十二萬分，晉升「文童」。博覽群書，出口成章，已入大雅之堂。',
-                    '秀才': '身入膠庠，士林楷模。\n恭賀閣下修為達六十四萬分，博得「秀才」功名。志慮忠純，文采煥發，堪稱國之棟樑。',
-                    '舉人': '蟾宮折桂，名滿杏林。\n閣下修為突破一百二十八萬分，榮登「舉人」之列。鵬程萬里，前途無量，正待大展宏圖。',
-                    '貢士': '朝堂受書，天下景仰。\n恭賀閣下修為達二百五十六萬分，获「貢士」之榮。學究天人，德藝雙馨，四海皆知其名。',
-                    '進士': '金榜題名，國之重器。\n閣下修為突破五百一十二萬分，高中「進士」。經世致用，翰墨千秋，其名必傳於後世。',
-                    '探花': '風流倜儻，才貌雙全。\n恭賀閣下修為達一千零二十四萬分，榮膺「探花」。才情絕世，意氣風發，盡顯名士風流。',
-                    '榜眼': '學海無涯，僅次魁星。\n閣下修為突破二千零四十八萬分，获「榜眼」殊榮。文章冠代，識見精深，乃萬人之傑。',
-                    '狀元': '文魁天下，獨占鰲頭。\n恭賀閣下修為達四千零九十六萬分，奪取「狀元」極位。筆落驚風雨，詩成泣鬼神，舉世無雙。',
-                    '大儒': '德被天下，一代宗師。\n閣下修為已逾八千一百九十二萬分，獲尊「大儒」。學貫古今，德侔天地，萬世之師也。'
-                };
-
                 if (isClaimed) {
                     const btn = document.createElement('button');
                     btn.className = 'ach-btn-claim';
                     btn.textContent = '查看獎狀';
                     btn.style.background = 'hsl(44, 60%, 44%)';
                     btn.onclick = () => {
-                        if (window.SoundManager) window.SoundManager.playJoyfulTriple();
-                        this.showCert(certImg, rankCertTexts[r.name] || '恭喜榮升！');
+                        this.showCert(certImg, this.rankCertTexts[r.name] || '恭喜榮升！');
                     };
                     right.appendChild(btn);
                     lastUnlockedItem = item;
@@ -412,12 +370,7 @@
                     btn.className = 'ach-btn-claim';
                     btn.textContent = '領取獎狀';
                     btn.onclick = () => {
-                        if (window.SoundManager) window.SoundManager.playJoyfulTriple();
-                        if (!data.achievements.claimed) data.achievements.claimed = [];
-                        data.achievements.claimed.push(rankId);
-                        localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
-                        this.renderData();
-                        this.showCert(certImg, rankCertTexts[r.name] || '恭喜榮升！');
+                        this.claimAchievementReward(rankId, certImg, this.rankCertTexts[r.name] || '恭喜榮升！');
                     };
                     right.appendChild(btn);
                     lastUnlockedItem = item;
@@ -433,9 +386,76 @@
                 badgesContainer.appendChild(item);
             });
 
-            // 2. 渲染其他成就
+            // 2. 渲染【關卡挑戰】成就 (每個遊戲佔一格)
+            for (let gameKey in this.gameNames) {
+                const gameName = this.gameNames[gameKey];
+                const progress = data.levelProgress[gameKey] || {};
+                const totalPassed = (progress['小學'] || 0) + (progress['中學'] || 0) + (progress['高中'] || 0) + (progress['大學'] || 0) + (progress['研究所'] || 0);
+
+                const milestone = Math.floor(totalPassed / 20) * 20;
+                const nextMilestone = Math.min(300, milestone + 20);
+                const achId = `level_milestone_${gameKey}_${milestone}`;
+
+                const isClaimed = milestone > 0 && claimStatus.includes(achId);
+                const isUnlocked = milestone > 0 && totalPassed >= milestone;
+
+                const item = document.createElement('div');
+                item.className = 'ach-badge-item level-challenge-item';
+
+                const left = document.createElement('div');
+                const displayMilestone = milestone > 0 ? milestone : 20;
+                left.innerHTML = `
+                    <div class="ach-badge-title">《${gameName}》挑戰 ${displayMilestone} 關</div>
+                    <div class="ach-badge-status">關卡挑戰進度 ${totalPassed} / ${nextMilestone}</div>
+                `;
+
+                const right = document.createElement('div');
+                right.className = 'ach-item-right';
+
+                if (milestone === 0) {
+                    const span = document.createElement('span');
+                    span.style.color = '#ccc';
+                    span.textContent = '未達成';
+                    right.appendChild(span);
+                } else if (isClaimed) {
+                    const btn = document.createElement('button');
+                    btn.className = 'ach-btn-claim';
+                    btn.textContent = '查看獎狀';
+                    btn.style.background = 'hsl(44, 60%, 44%)';
+                    btn.onclick = () => {
+                        this.showCert(this.certImages[Math.floor(milestone / 30) % 10], this.getLevelCertText(gameName, milestone));
+                    };
+                    right.appendChild(btn);
+                    lastUnlockedItem = item;
+                } else if (isUnlocked) {
+                    const btn = document.createElement('button');
+                    btn.className = 'ach-btn-claim';
+                    btn.textContent = '領取獎狀';
+                    btn.onclick = () => {
+                        this.claimAchievementReward(achId, this.certImages[Math.floor(milestone / 30) % 10], this.getLevelCertText(gameName, milestone));
+                    };
+                    right.appendChild(btn);
+                    lastUnlockedItem = item;
+                } else {
+                    const span = document.createElement('span');
+                    span.style.color = '#ccc';
+                    span.textContent = '未達成';
+                    right.appendChild(span);
+                }
+
+                item.appendChild(left);
+                item.appendChild(right);
+                badgesContainer.appendChild(item);
+            }
+
+            // 3. 渲染原有次數成就
+            const categories = [
+                { data: data.difficultyCounts || {}, map: { '小學': '小學', '中學': '中學', '高中': '高中', '大學': '大學', '研究所': '研究所' } },
+                { data: data.games || {}, map: this.gameNames }
+            ];
+
             thresholds.forEach((t, i) => {
-                const certImg = certImages[i];
+                const certImg = certImages[i % certImages.length];
                 categories.forEach(cat => {
                     const countsInfo = cat.data;
                     const nameMap = cat.map;
@@ -444,8 +464,15 @@
                         let count = countsInfo[key] || 0;
                         if (typeof count === 'object') count = count.playCount || 0;
                         const dispName = nameMap[key];
-                        const title = `「${dispName}」過關${t}次`;
+                        let title = `「${dispName}」過關${t}次`;
+
+                        if (dispName === '小學' || dispName === '中學' || dispName === '高中' || dispName === '大學' || dispName === '研究所') {
+                            title = `『${dispName}』程度過關${t}次`;
+                        }
+
                         const achId = `${key}_${t}`;
+
+                        if (count < t && !claimStatus.includes(achId)) continue; // 隱藏未達成的舊成就，避免清單過長
 
                         const isClaimed = claimStatus.includes(achId);
                         const isUnlocked = count >= t;
@@ -455,14 +482,12 @@
 
                         const left = document.createElement('div');
                         left.innerHTML = `
-                            <div class="ach-badge-title">${title.replace('\n', '<br>')}</div>
-                            <div class="ach-badge-status">進度: ${count.toLocaleString()} / ${t.toLocaleString()}</div>
+                            <div class="ach-badge-title">${title}</div>
+                            <div class="ach-badge-status">進度: ${count} / ${t}</div>
                         `;
 
                         const right = document.createElement('div');
-                        right.style.display = 'flex';
-                        right.style.gap = '0.3rem';
-                        right.style.alignItems = 'center';
+                        right.className = 'ach-item-right';
 
                         if (isClaimed) {
                             const btn = document.createElement('button');
@@ -470,30 +495,18 @@
                             btn.textContent = '查看獎狀';
                             btn.style.background = 'hsl(44, 60%, 44%)';
                             btn.onclick = () => {
-                                if (window.SoundManager) window.SoundManager.playJoyfulTriple();
-                                this.showCert(certImg, getCertText(t, title));
+                                this.showCert(certImg, `恭賀\n「${dispName}」過關達${t}次。\n才思敏捷，氣貫長虹。望君續筆山川，再現錦繡華章。`);
                             };
                             right.appendChild(btn);
-                            lastUnlockedItem = item;
                         } else if (isUnlocked) {
                             const btn = document.createElement('button');
                             btn.className = 'ach-btn-claim';
                             btn.textContent = '領取獎狀';
                             btn.onclick = () => {
-                                if (window.SoundManager) window.SoundManager.playJoyfulTriple();
-                                if (!data.achievements.claimed) data.achievements.claimed = [];
-                                data.achievements.claimed.push(achId);
-                                localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
-                                this.renderData();
-                                this.showCert(certImg, getCertText(t, title));
+                                this.claimAchievementReward(achId, certImg, `恭賀\n「${dispName}」過關達${t}次。\n才思敏捷，氣貫長虹。望君續筆山川，再續錦繡華章。`);
                             };
                             right.appendChild(btn);
                             lastUnlockedItem = item;
-                        } else {
-                            const span = document.createElement('span');
-                            span.style.color = '#ccc';
-                            span.textContent = '未達成';
-                            right.appendChild(span);
                         }
 
                         item.appendChild(left);
@@ -503,15 +516,14 @@
                 });
             });
 
-            // 捲動至最難的已達成項目
             if (lastUnlockedItem) {
                 setTimeout(() => {
                     lastUnlockedItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 200);
+                }, 300);
             }
         },
-
-        showCert: function (imgUrl, text) {
+        //顯示獎狀
+        showCert: function (imgUrl, text, isNewClaim = false) {
             let overlay = document.getElementById('certOverlay');
             if (!overlay) {
                 overlay = document.createElement('div');
@@ -522,11 +534,12 @@
                         <div class="cert-content" id="certContentBox">
                             <div class="cert-text" id="certText"></div>
                         </div>
+                        <div class="cert-reward-msg" id="certRewardMsg"></div>
                         <div class="cert-close-hint">點擊任意處關閉</div>
                     </div>
+                    <div id="certStarContainer" class="cert-star-container"></div>
                 `;
                 document.body.appendChild(overlay);
-                if (window.updateResponsiveLayout) window.updateResponsiveLayout();
                 overlay.addEventListener('click', () => {
                     if (window.SoundManager) window.SoundManager.playCloseItem();
                     overlay.classList.remove('active');
@@ -536,16 +549,107 @@
             const certCard = document.getElementById('certCard');
             const certText = document.getElementById('certText');
             const certContent = document.getElementById('certContentBox');
+            const rewardMsg = document.getElementById('certRewardMsg');
+            const starContainer = document.getElementById('certStarContainer');
 
             certCard.style.backgroundImage = `url('${imgUrl}')`;
             certText.textContent = text;
+            rewardMsg.style.display = 'none';
+            starContainer.innerHTML = '';
 
-            // 重置動畫，使其每次都能表演
             certContent.classList.remove('animate');
             void certContent.offsetWidth;
             certContent.classList.add('animate');
 
             overlay.classList.add('active');
+            //顯示領取得分獎勵訊息
+            if (isNewClaim) {
+                rewardMsg.style.display = 'block';
+                rewardMsg.style.opacity = '1';
+
+                let count = 10000;
+                const duration = 3000;
+                const startTime = Date.now();
+
+                const spawnStar = () => {
+                    const star = document.createElement('span');
+                    star.className = 'cert-star';
+                    star.textContent = '★';
+                    star.style.fontSize = (Math.random() * 1 + 0.5) + 'rem';
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.animationDuration = (Math.random() * 1.5 + 0.5) + 's';
+                    starContainer.appendChild(star);
+                    setTimeout(() => star.remove(), 3000);
+                };
+                const starInterval = setInterval(spawnStar, 30);
+
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(1, elapsed / duration);
+                    const current = Math.floor(10000 * progress);
+                    rewardMsg.textContent = `獲贈 ${current.toLocaleString()} 積分`;
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        clearInterval(starInterval);
+                        //取消延遲1秒後消失，留在原地
+                        //setTimeout(() => { rewardMsg.style.opacity = '0'; }, 1000);
+                    }
+                };
+                requestAnimationFrame(animate);
+            }
+        },
+
+        getLevelCertText: function (gameName, milestone) {
+            return `翰墨清芬，詞海揚名。\n閣下於「${gameName}」展現非凡才思，成功通過 ${milestone} 道關隘。經史合參，雅量高致。願君持此文心，再續一段千古佳話。`;
+        },
+        //領取獎勵
+        claimAchievementReward: function (achId, imgUrl, text) {
+            if (window.SoundManager) window.SoundManager.playJoyfulTriple();
+            const data = window.ScoreManager.loadPlayerData();
+            if (!data.achievements.claimed) data.achievements.claimed = [];
+
+            if (data.achievements.claimed.includes(achId)) {
+                this.showCert(imgUrl, text, false);
+                return;
+            }
+
+            data.achievements.claimed.push(achId);
+            data.totalScore += 10000;
+            data.globalRank = window.ScoreManager.getCurrentRank(data.totalScore);
+            localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+
+            this.renderData();
+            this.showCert(imgUrl, text, true);
+        },
+        //顯示即時成就彈窗
+        showInstantAchievementPop: function (achId, gameKey, levelIndex, onComplete) {
+            const data = window.ScoreManager.loadPlayerData();
+            const gameName = this.gameNames[gameKey] || gameKey;
+            const currentRank = data.globalRank || '書僮';
+
+            const popOverlay = document.createElement('div');
+            popOverlay.className = 'ach-instant-pop-overlay aspect-5-8';
+            popOverlay.innerHTML = `
+                <div class="ach-instant-pop">
+                    <h2>恭喜榮獲成就</h2>
+                    <p>翰墨清芬，詞海揚名。閣下「${currentRank}」銳意進取，終破此關，獲積分萬點以表精誠。願君筆耕不輟，再續錦繡華章。</p>
+                    <div class="ach-instant-footer">
+                        <button id="instantClaimBtn" class="ach-instant-btn">領取成就</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(popOverlay);
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+
+            document.getElementById('instantClaimBtn').onclick = () => {
+                popOverlay.remove();
+                const milestone = Math.floor(levelIndex / 20) * 20;
+                const cImg = this.certImages[Math.min(9, Math.floor(milestone / 30))];
+                const cText = this.getLevelCertText(gameName, milestone);
+                this.claimAchievementReward(achId, cImg, cText);
+                setTimeout(onComplete, 2500);
+            };
         },
 
         show: function () {
@@ -566,5 +670,4 @@
     };
 
     window.AchievementDialog = AchievementDialog;
-
 })();

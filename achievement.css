@@ -278,6 +278,7 @@
     font-weight: bold;
 }
 
+/*領獎狀態*/
 .ach-badge-status {
     font-size: 1rem;
     color: hsl(0, 0%, 80%);
@@ -423,5 +424,147 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* 領取積分獎勵與特效樣式 */
+.cert-reward-msg {
+    position: absolute;
+    bottom: 5%;
+    width: 70%;
+    background: rgba(0, 0, 0, 0.3);
+    color: hsl(48, 100%, 65%);
+    border: 0.05rem solid hsla(48, 100%, 65%, 0.5);
+    padding: 0.5rem 1rem;
+    border-radius: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    z-index: 3100;
+    pointer-events: none;
+    transition: opacity 0.5s;
+    border: 0.2 rem solid hsla(48, 100%, 65%, 0.3);
+    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.5);
+}
+
+/*獎勵星星容器*/
+.cert-star-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 3050;
+}
+
+/*獎勵星星*/
+.cert-star {
+    position: absolute;
+    bottom: 0;
+    color: #ffcc00;
+    /*font-size: 1.2rem;*/
+    /*字體尺寸由程式控制*/
+    text-shadow: 0 0 0.25rem #fff;
+    animation: certStarFly linear forwards;
+}
+
+@keyframes certStarFly {
+    0% {
+        transform: translateY(0) rotate(0deg) scale(0.5);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100vh) rotate(360deg) scale(1.2);
+        opacity: 0;
+    }
+}
+
+/* 即時成就領獎彈窗 (Premium古風) */
+.ach-instant-pop-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 4000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(0.2rem);
+}
+
+.ach-instant-pop {
+    background: hsl(40, 60%, 88%);
+    /* 淺金黃底色 */
+    width: 85%;
+    max-width: 25rem;
+    padding: 2rem;
+    border-radius: 1.5rem;
+    border: 0.3rem double hsl(0, 50%, 30%);
+    /* 暗紅豪華邊框 */
+    text-align: center;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6);
+    animation: popScaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.ach-instant-pop h2 {
+    color: hsl(0, 50%, 30%);
+    /* 暗紅色字 */
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.2rem;
+    font-weight: bold;
+    border-bottom: 0.1rem solid hsla(0, 50%, 30%, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+.ach-instant-pop p {
+    color: hsl(0, 40%, 20%);
+    font-size: 1.15rem;
+    line-height: 1.8;
+    margin-bottom: 2rem;
+    text-align: justify;
+    text-indent: 2rem;
+}
+
+.ach-instant-btn {
+    background: linear-gradient(180deg, hsl(45, 100%, 70%), hsl(35, 100%, 50%));
+    color: hsl(0, 50%, 20%);
+    border: 0.15rem solid hsl(35, 100%, 30%);
+    border-radius: 2rem;
+    padding: 0.8rem 3rem;
+    font-size: 1.4rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 0.4rem 0 hsl(35, 100%, 20%);
+    transition: all 0.2s;
+    font-family: 'Noto Serif TC', serif;
+}
+
+.ach-instant-btn:active {
+    transform: translateY(0.2rem);
+    box-shadow: 0 0.2rem 0 hsl(35, 100%, 20%);
+}
+
+@keyframes popScaleIn {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
     }
 }

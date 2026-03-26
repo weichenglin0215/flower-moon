@@ -480,3 +480,27 @@
 .game8-message .nav-btn:hover {
     filter: brightness(1.5);
 }
+
+/* 文字預覽圓圈 (解決手指遮擋問題) */
+.game8-char-preview {
+    position: absolute;
+    /* 使用 absolute 代替 fixed，配合 container 的變形效果 */
+    width: 3.6rem;
+    height: 3.6rem;
+    background: white;
+    color: black;
+    border: 3px solid #333;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2.5rem;
+    padding-bottom: 0.3rem;
+    font-weight: bold;
+    pointer-events: none;
+    /* 穿透點擊 */
+    z-index: 3000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    transform: translate(0, 0);
+    /* 這裡是根據 left/top 定位 */
+}

@@ -7,6 +7,8 @@
         isActive: false,
         state: 'START', // START, PLAYING, LANDED, GAME_OVER, DYING
         difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         mistakeCount: 0,
         maxMistakeCount: 3,
@@ -60,13 +62,14 @@
         // move:移動, 
         // speed:速度, 
         // minChars:最少字數, 
+        // maxChars:最多字數, 
         // stopOnLand:是否停留, 
         difficultySettings: {
-            '小學': { timeLimit: 90, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 400, heightVar: 200, move: false, speed: 100, minChars: 20, stopOnLand: true },
-            '中學': { timeLimit: 100, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 350, heightVar: 300, move: false, speed: 120, minChars: 28, stopOnLand: true },
-            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 300, heightVar: 400, move: false, speed: 140, minChars: 40, stopOnLand: false },
-            '大學': { timeLimit: 135, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 250, heightVar: 500, move: true, speed: 160, minChars: 56, stopOnLand: false },
-            '研究所': { timeLimit: 150, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 56, stopOnLand: false }
+            '小學': { timeLimit: 90, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 300, heightVar: 200, move: false, speed: 100, minChars: 10, maxChars: 14, stopOnLand: true },
+            '中學': { timeLimit: 100, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 275, heightVar: 300, move: false, speed: 120, minChars: 14, maxChars: 20, stopOnLand: true },
+            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 250, heightVar: 400, move: false, speed: 140, minChars: 20, maxChars: 28, stopOnLand: false },
+            '大學': { timeLimit: 135, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 225, heightVar: 500, move: true, speed: 160, minChars: 20, maxChars: 56, stopOnLand: false },
+            '研究所': { timeLimit: 150, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 28, maxChars: 70, stopOnLand: false }
         },
 
         init: function () {
@@ -153,8 +156,12 @@
                 e.stopPropagation();
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 if (this.state === 'GAME_OVER') {
-                    if (this.isWin) this.newGame();
-                    else this.retryGame();
+                    if (this.isWin) {
+                        if (this.isLevelMode) this.startNextLevel();
+                        else this.newGame();
+                    } else {
+                        this.retryGame();
+                    }
                 } else {
                     this.startGame();
                 }
@@ -195,21 +202,51 @@
             document.getElementById('game7-message').classList.add('hidden');
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('青鳥雲梯', (level) => {
-                    this.difficulty = level;
-                    const diffTag = document.getElementById('game7-diff-tag');
-                    if (diffTag) {
-                        diffTag.textContent = level;
-                        diffTag.setAttribute('data-level', level);
-                    }
+                window.DifficultySelector.show('青鳥雲梯', (selectedLevel, levelIndex) => {
+                    this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+
+                    this.updateUIForMode();
+
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active');
-                    this.setupCanvas();
-                    this.setupTimerPath();
-                    this.resetGame();
-                    this.showStartMessage();
+
+                    // 核心修復：使用 setTimeout 確保 DOM 已渲染且 offsetWidth/Height 不為 0
+                    setTimeout(() => {
+                        this.setupCanvas();
+                        this.setupTimerPath();
+                        this.resetGame();
+                        this.showStartMessage();
+                    }, 50);
                 });
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game7-diff-tag');
+            const retryBtn = document.getElementById('game7-retryGame-btn');
+            const newBtn = document.getElementById('game7-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         show: function () {
@@ -244,16 +281,13 @@
         },
 
         //game7只有resetGame() 透過isRetry控制是否重來或是開新局
-        resetGame: function (isRetry = false) {
-            const diffTag = document.getElementById('game7-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
-            }
+        resetGame: function (isRetry = false, levelIndex) {
+            if (levelIndex !== undefined) this.currentLevelIndex = levelIndex;
+            this.updateUIForMode();
             const settings = this.difficultySettings[this.difficulty];
             this.score = 0;
             this.mistakeCount = 0;
-            this.maxMistakeCount = settings.hearts;
+            this.maxMistakeCount = settings.maxMistakeCount;
             this.charIndex = 0;
             this.blocks = [];
             this.isActive = true;
@@ -280,6 +314,7 @@
             this.startTime = null; // 重置計時點
 
             this.particles = []; // 確保重來或開新局時先清空所有雲
+            this.setupCanvas(); // 確保畫布尺寸正確
             this.initClouds();
             this.createInitialBlock();
             // 遊戲盤面準備完成後才啟用重來按鈕
@@ -287,21 +322,36 @@
             document.getElementById('game7-newGame-btn').disabled = false;
         },
 
+        newGame: function (levelIndex) {
+            this.resetGame(false, levelIndex);
+        },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.newGame();
+        },
+
         loadPoem: function () {
             if (typeof POEMS !== 'undefined') {
                 const settings = this.difficultySettings[this.difficulty];
                 const minChars = settings.minChars;
+                const maxChars = settings.maxChars;
                 const minRating = settings.poemMinRating || 4;
 
-                // 使用共用邏輯取得隨機詩詞
-                const result = getSharedRandomPoem(minRating, 4, 8, minChars, 200);
+                // 使用共用邏輯取得隨機詩詞，傳入種子
+                const result = getSharedRandomPoem(
+                    settings.poemMinRating || 4,
+                    2, 2, 8, 30, "",
+                    this.isLevelMode ? this.currentLevelIndex : null, // 僅在關卡模式下進行種子化
+                    'game7'
+                );
                 if (result) {
                     this.currentPoem = result.poem;
                 } else {
                     let eligible = POEMS.filter(p => {
                         if ((p.rating || 0) < minRating) return false;
                         let text = p.content.join('').replace(/[，。？！、：；「」『』\s]/g, '');
-                        return text.length >= minChars;
+                        return text.length >= minChars && text.length <= maxChars;
                     });
                     if (eligible.length === 0) eligible = POEMS; // fallback
                     this.currentPoem = eligible[Math.floor(Math.random() * eligible.length)];
@@ -320,6 +370,7 @@
                         usedLines.push(rawContent[i]);
                         usedLines.push(rawContent[i + 1]);
                         totalCharsNoPunct = usedLines.join('').replace(/[，。？！、：；「」『』\s]/g, '').length;
+                        //
                         if (this.difficulty !== '研究所' && totalCharsNoPunct >= minChars) break;
                     }
                 }
@@ -345,7 +396,8 @@
                 isLanded: true, // 被降落過，初始平台固定不動
                 isGoal: false,
                 index: -1, // 起點不計入詩詞字數
-                moving: false
+                moving: false,
+                isDisplayCollision: true
             });
 
             this.bird.y = this.blocks[0].y - this.bird.height / 2;
@@ -359,40 +411,48 @@
         },
 
         spawnNextBlock: function () {
+            if (!this.poemChars || this.poemChars.length === 0) return;
             const settings = this.difficultySettings[this.difficulty];
-            const lastBlock = this.blocks[this.blocks.length - 1];
-            const nextIdx = lastBlock.index + 1;
+            const size = settings.width;
+            const lastB = this.blocks[this.blocks.length - 1];
 
+            // 下一個方塊的索引
+            const nextIdx = lastB.index + 1;
             if (nextIdx >= this.poemChars.length) return; // 已全部生成
-            /*水平間距*/
-            const minDist = 100;
-            const maxDist = settings.maxDist;
-            const dx = minDist + Math.random() * (maxDist - minDist);
-            /*相對於上一塊高度*/
-            const dy = (Math.random() * 0.66 + 0.33) * (Math.random() < 0.5 ? 1 : -1) * settings.heightVar;
-            let targetY = lastBlock.y + dy;
-            /*限制上下範圍，避免超出螢幕或難以操作*/
-            targetY = Math.max(120, Math.min(this.canvas.height - 120, targetY));
 
-            const char = this.poemChars[nextIdx];
-            const isGoal = nextIdx === this.poemChars.length - 1;
+            // 是否為最後一個 (Goal)
+            const isGoal = (nextIdx === this.poemChars.length - 1);
 
-            this.blocks.push({
-                text: char,
-                x: lastBlock.x + dx,
-                y: targetY,
-                size: settings.width,
-                isLanded: false, // 尚未降落
-                isGoal: isGoal, // 是否為終點
-                index: nextIdx, // 詩詞字數索引
-                moving: settings.move && Math.random() > 0.5, // 是否移動
-                moveRange: 40 + Math.random() * 40, // 移動範圍
-                moveSpeed: 1 + Math.random(), // 移動速度
-                initialY: targetY, // 初始y軸位置
-                time: Math.random() * Math.PI * 2, // 時間
-                isGhost: false, // 是否為已經通過但未降落的深灰色幽靈方塊
-                isDisplayCollision: true//settings.stopOnLand // 是否顯示碰撞區域   
-            });
+            // 計算水平距離 (增加些微隨機性)
+            let dist = size + 80 + Math.random() * settings.maxDist;
+            if (this.difficulty === '研究所' || this.difficulty === '大學') dist *= 1.2;
+
+            const x = lastB.x + dist;
+
+            // y 軸變異
+            let y = lastB.y + (Math.random() - 0.5) * settings.heightVar;
+            // 限制 y 軸範圍，避免超出畫布或太靠頂部
+            y = Math.min(this.canvas.height - 120, Math.max(120, y));
+
+            const nextChar = this.poemChars[nextIdx];
+
+            const block = {
+                text: nextChar,
+                x: x,
+                y: y,
+                size: size,
+                isLanded: false,
+                isGoal: isGoal,
+                index: nextIdx,
+                moving: settings.move,
+                moveRange: 40 + Math.random() * 60,
+                moveSpeed: 1 + Math.random() * 1.5,
+                initialY: y,
+                time: Math.random() * Math.PI * 2,
+                isDisplayCollision: true
+            };
+
+            this.blocks.push(block);
         },
 
         startGame: function () {
@@ -894,7 +954,14 @@
 
             const msgBtn = document.getElementById('game7-msg-btn');
             if (isWin) {
-                msgBtn.textContent = "下一局";
+                if (this.isLevelMode) {
+                    msgBtn.textContent = "下一關";
+                    if (window.ScoreManager) {
+                        window.ScoreManager.completeLevel('game7', this.difficulty, this.currentLevelIndex);
+                    }
+                } else {
+                    msgBtn.textContent = "下一局";
+                }
             } else {
                 msgBtn.textContent = "再試一次";
             }
@@ -906,19 +973,12 @@
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame(true); // 傳入 true 表示維持同一首詩
-            // 不再自動 startGame，等待玩家點擊後起跳
             document.getElementById('game7-message').classList.add('hidden');
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            this.startLoop();
-        },
-
-        newGame: function () {
-            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            this.resetGame();
-            // 不再自動 startGame，等待玩家點擊後起跳
-            document.getElementById('game7-message').classList.add('hidden');
-            if (this.requestID) cancelAnimationFrame(this.requestID);
-            this.startLoop();
+            // 延遲重啟循環
+            setTimeout(() => {
+                this.startLoop();
+            }, 50);
         },
 
         updateScoreUI: function () {
@@ -936,7 +996,7 @@
             const container = document.getElementById('game7-hearts');
             if (!container) return;
             container.innerHTML = '';
-            const max = this.difficultySettings[this.difficulty].hearts;
+            const max = this.difficultySettings[this.difficulty].maxMistakeCount;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
                 span.className = 'heart' + (i < this.mistakeCount ? ' empty' : '');

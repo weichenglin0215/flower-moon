@@ -3,6 +3,8 @@
     const Game10 = {
         isActive: false,        // 遊戲是否進行中
         difficulty: '小學',    // 當前難度
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,              // 當前分數
         mistakes: 0,           // 當前失誤次數 (掉球)
         maxMistakes: 5,        // 最大允許失誤次數
@@ -87,8 +89,12 @@
             document.getElementById('game10-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game10-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
             document.getElementById('game10-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -172,12 +178,14 @@
             document.getElementById('game10-message').classList.add('hidden');
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('擊石鳴詩', (level) => {
-                    this.difficulty = level;
-                    const settings = this.difficultySettings[level];
+                window.DifficultySelector.show('擊石鳴詩', (selectedLevel, levelIndex) => {
+                    this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                    const settings = this.difficultySettings[selectedLevel];
                     if (!settings) return;
-                    // Note: Game 10 uses hearts from settings if available, or default 5
-                    this.maxMistakes = settings.maxMistakes || 5;
+
+                    this.updateUIForMode();
 
                     const container = document.getElementById('game10-container');
                     if (container) {
@@ -189,6 +197,32 @@
                     this.startNewGame();
                 });
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game10-diff-tag');
+            const retryBtn = document.getElementById('game10-retryGame-btn');
+            const newBtn = document.getElementById('game10-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (diffTag) {
+                if (this.isLevelMode) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                } else {
+                    diffTag.textContent = this.difficulty;
+                }
+                diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#ffffffff';
+            }
+
+            if (this.isLevelMode) {
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         launchBall: function () {
@@ -238,8 +272,11 @@
             // 顯示難度選擇器
             if (window.DifficultySelector) {
                 this.hideOtherContents();
-                window.DifficultySelector.show('擊石鳴詩', (selectedLevel) => {
+                window.DifficultySelector.show('擊石鳴詩', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                    this.updateUIForMode();
                     this.startGameFlow();
                 });
             } else {
@@ -310,23 +347,38 @@
             this.resetGameRound();
         },
 
-        startNewGame: function () {
-            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            const diffTag = document.getElementById('game10-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
+        startNewGame: function (levelIndex) {
+            cancelAnimationFrame(this.animationFrameId);
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
             }
+
+            this.updateUIForMode();
             this.score = 0;
             this.mistakes = 0;
             this.prepareChallenge();
             this.resetGameRound();
         },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
         //建立敵陣
         prepareChallenge: function () {
             const settings = this.difficultySettings[this.difficulty];
-            // 隨機選取詩詞
-            const result = getSharedRandomPoem(settings.poemMinRating, settings.minLines, settings.minLines + 2, settings.minChars, settings.maxChars);
+            // 隨機選取詩詞，傳入種子
+            const result = getSharedRandomPoem(
+                settings.poemMinRating,
+                settings.minLines,
+                settings.minLines + 2,
+                settings.minChars,
+                settings.maxChars,
+                "",
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game10'
+            );
             if (!result) {
                 alert('找不到符合評分的詩詞。');
                 return;
@@ -366,8 +418,8 @@
                     const frontCount = Math.floor(diff / 2);
                     const backCount = diff - frontCount;
 
-                    const frontPadding = Array(frontCount).fill('■');
-                    const backPadding = Array(backCount).fill('■');
+                    const frontPadding = Array(frontCount).fill('□'); //■
+                    const backPadding = Array(backCount).fill('□'); //□
                     chars = [...frontPadding, ...chars, ...backPadding];
                 }
 
@@ -939,7 +991,18 @@
             }
 
             const msgBtn = document.getElementById('game10-msg-btn');
-            msgBtn.textContent = win ? "下一局" : "再試一次";
+            if (win) {
+                if (this.isLevelMode) {
+                    msgBtn.textContent = "下一關";
+                    if (window.ScoreManager) {
+                        window.ScoreManager.completeLevel('game10', this.difficulty, this.currentLevelIndex);
+                    }
+                } else {
+                    msgBtn.textContent = "下一局";
+                }
+            } else {
+                msgBtn.textContent = "再試一次";
+            }
         },
 
         updateRender: function () {

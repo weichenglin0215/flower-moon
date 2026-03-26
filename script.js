@@ -29,25 +29,61 @@
  * @param {string} keyword 篩選關鍵字 (選填。若給定，則只挑選含此字元的句對)
  * @returns {object|null} 回傳包含 { poem: 原始詩詞物件, lines: [不含標點之乾淨句子字串陣列] } 的物件，若無結果則回傳 null。
  */
-function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, keyword = "") {
+/**
+ * 於詩詞資料庫中隨機選取題目之共用邏輯。
+ * 遵循以下規則：
+ * 1. 篩選 rating 大於等於 minRating 的詩。若無，則放寬條件。
+ * 2. 由奇數句開始挑選，且該句的 line_ratings 大於等於 minRating。
+ * 3. 確保總句數不小於 minLines 且不大於 maxLines (且維持為偶數)。
+ * 4. 確保總字數不大於 maxChars 且不小於 minChars。
+ * 5. 全程禁止以評分做排序，完全採絕對隨機挑選以維持多樣性。
+ *
+ * @param {number} minRating 最低詩詞/詩句評價要求
+ * @param {number} minLines 最少行數 (必須連貫並保持為偶數)
+ * @param {number} maxLines 最多行數上限 (如無限制可代入很大的數字，例如 100)
+ * @param {number} minChars 最少字數要求
+ * @param {number} maxChars 最多字數要求
+ * @param {string} keyword 篩選關鍵字 (選填。若給定，則只挑選含此字元的句對)
+ * @param {number|null} seed 隨機種子/關卡序號 (若提供此值，則題目將會是確定性的)
+ * @returns {object|null} 回傳包含 { poem: 原始詩詞物件, lines: [不含標點之乾淨句子字串陣列] } 的物件，若無結果則回傳 null。
+ */
+function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, keyword = "", seed = null, gameKey = "") {
    if (typeof POEMS === 'undefined' || POEMS.length === 0) return null;
-   // 
+
+   let currentSeed = seed !== null ? Number(seed) : null;
+
+   // 融入遊戲 ID (gameKey) 進入種子，確保不同遊戲即使在同一關卡也能產生不同題目
+   if (currentSeed !== null && gameKey) {
+      let gameHash = 0;
+      for (let i = 0; i < gameKey.length; i++) {
+         gameHash = (gameHash << 5) - gameHash + gameKey.charCodeAt(i);
+         gameHash |= 0; // Convert to 32bit integer
+      }
+      currentSeed += Math.abs(gameHash) % 10000;
+   }
+
+   // 增加預熱步驟，避免小序號種子產生的隨機值過於集中在清單開頭
+   if (currentSeed !== null) {
+      for (let k = 0; k < 7; k++) {
+         currentSeed = (currentSeed * 16807) % 2147483647;
+      }
+   }
+
+   const nextRand = () => {
+      if (currentSeed === null) return Math.random();
+      currentSeed = (currentSeed * 16807) % 2147483647;
+      return (currentSeed - 1) / 2147483646;
+   };
+
    /**
     * 內部輔助函式：針對單首詩詞檢查是否有符合條件的起始索引。
-    * 
-    * @param {object} poem 詩詞物件
-    * @param {boolean} checkStars 是否嚴格檢查詩句評分 (line_ratings)
-    * @returns {number[]} 符合條件的起始索引陣列 (index 均為偶數)
     */
    const getValidStarts = (poem, checkStars) => {
       if (!poem.content || poem.content.length < minLines) return [];
       const validStarts = [];
       const lineRatings = poem.line_ratings || [];
 
-      // 從奇數句開始遍歷 (陣列 index = 0, 2, 4...)
-      // 理由：詩詞對句通常以「出句」開始，故 index 恆為偶數
       for (let i = 0; i <= poem.content.length - minLines; i += 2) {
-         // 修改：確保連續 minLines 句的每一句評價都符合要求
          if (checkStars) {
             let allLinesOk = true;
             for (let k = 0; k < minLines; k++) {
@@ -61,7 +97,6 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
 
          let charCount = 0;
          let combinedText = "";
-         // 計算連續 minLines 句的總字數與合併文字
          for (let j = 0; j < minLines; j++) {
             const raw = poem.content[i + j] || '';
             const clean = raw.replace(/[，。？！、：；「」『』\s]/g, "");
@@ -69,20 +104,15 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
             combinedText += clean;
          }
 
-         // 如果指定了關鍵字，則該段文字必須包含該關鍵字
-         if (keyword && combinedText.indexOf(keyword) === -1) {
-            continue;
-         }
+         if (keyword && combinedText.indexOf(keyword) === -1) continue;
 
-         // 檢查總字數是否在要求的範圍 [minChars, maxChars] 內
          if (charCount <= maxChars && charCount >= minChars) {
             validStarts.push(i);
          }
       }
-      return validStarts; //回傳符合詩詞評價、字數、關鍵字條件的詩詞編號索引陣列
+      return validStarts;
    };
 
-   //詩詞評價需大於等於minRating
    let validPoems = [];
    POEMS.forEach(poem => {
       if ((poem.rating || 0) >= minRating) {
@@ -93,7 +123,6 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
       }
    });
 
-   // 降級保護：若無符合所有條件的詩詞，放寬評分要求
    if (validPoems.length === 0) {
       POEMS.forEach(poem => {
          const starts = getValidStarts(poem, false);
@@ -102,31 +131,29 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
          }
       });
    }
-   //依然找不到就回傳null
+
    if (validPoems.length === 0) return null;
 
-   // 從上述符合評價的詩詞池中隨機挑選一首詩
-   const isStrict = validPoems[0].isStrict; // 記錄是否為嚴格篩選模式
-   const chosen = validPoems[Math.floor(Math.random() * validPoems.length)];
+   // 確保 validPoems 的順序是穩定的（由 forEach 從 POEMS 推入已保證穩定）
+   const isStrict = validPoems[0].isStrict;
+   const chosenIndex = Math.floor(nextRand() * validPoems.length);
+   const chosen = validPoems[chosenIndex];
    const chosenPoem = chosen.poem;
    const lineRatings = chosenPoem.line_ratings || [];
 
-   // 絕對隨機選定起始句
-   const startIdx = chosen.starts[Math.floor(Math.random() * chosen.starts.length)];
+   // 確保 starts 陣列順序穩定（由 for 迴圈產生已保證遞增穩定）
+   const startIdx = chosen.starts[Math.floor(nextRand() * chosen.starts.length)];
 
    let selectedLineCount = minLines;
    let currentChars = 0;
 
-   // 計算基礎 minLines 句的總字數
    for (let j = 0; j < minLines; j++) {
       const raw = chosenPoem.content[startIdx + j] || '';
       const clean = raw.replace(/[，。？！、：；「」『』\s]/g, "");
       currentChars += clean.length;
    }
 
-   // 嘗試以 2 句為單位往下連續擷取，直到超過字數、句數上限或碰到詩的結尾
    while (startIdx + selectedLineCount + 1 < chosenPoem.content.length && selectedLineCount + 2 <= maxLines) {
-      // 若為嚴格模式，也需檢查後續句子的評分
       if (isStrict) {
          if ((lineRatings[startIdx + selectedLineCount] || 0) < minRating ||
             (lineRatings[startIdx + selectedLineCount + 1] || 0) < minRating) {
@@ -148,7 +175,6 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
       }
    }
 
-   // 輸出最終的連續句子陣列
    const poemLines = [];
    for (let li = 0; li < selectedLineCount; li++) {
       const raw = chosenPoem.content[startIdx + li];
@@ -162,6 +188,7 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
       startIndex: startIdx
    };
 }
+
 
 /**
  * 全站通用的混淆字元與混淆句產生工具
@@ -369,7 +396,7 @@ window.SoundManager = {
     * 撥放古箏音階：根據索引選擇對應頻率，並利用 GainNode 模擬彈撥後的衰竭感
     * @param {number} index 音階索引
     */
-   playGuzheng: function (index) {
+   playGuzhengOLD: function (index) {
       this.init();
       if (!this.audioCtx) return;
 
@@ -395,7 +422,82 @@ window.SoundManager = {
       osc.stop(this.audioCtx.currentTime + 1.2);
    },
 
-   playGuzhengLow: function (index) {
+   /**
+    * 撥放古箏音階：根據索引選擇對應頻率，並利用 GainNode 模擬彈撥後的衰竭感
+    * @param {number} index 音階索引
+    */
+   playGuzheng: function (index) {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+      const filter = this.audioCtx.createBiquadFilter();
+
+      // 1. 計算頻率
+      const baseFreq = this.guzhengNotes[index % this.guzhengNotes.length];
+      const octave = Math.floor(index / this.guzhengNotes.length);
+      const finalFreq = baseFreq * Math.pow(2, octave);
+
+      // 2. 線性計算衰減時間 (300Hz ~ 1000Hz 之間平滑過渡)
+      const minFreq = 300;
+      const maxFreq = 1000;
+      const maxDecay = 2.5; // 低音餘響
+      const minDecay = 1.2; // 高音餘響
+      const maxStartGain = 0.5; // 低音起始音量
+      const minStartGain = 0.1; // 高音起始音量
+
+      let decayTime;
+      if (finalFreq <= minFreq) {
+         decayTime = maxDecay;
+      } else if (finalFreq >= maxFreq) {
+         decayTime = minDecay;
+      } else {
+         // 線性插值公式
+         const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
+         decayTime = maxDecay - fraction * (maxDecay - minDecay);
+      }
+
+      // 3. 音色設定：使用 Triangle 並搭配低通濾波器磨平電子感
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(finalFreq, now);
+
+      filter.type = 'lowpass';
+      // 濾波頻率設為基頻的 1.5 倍，保留溫潤感，濾除高頻刺耳聲
+      filter.frequency.setValueAtTime(finalFreq * 1.5, now);
+      filter.Q.value = 0.7; // 較低的 Q 值讓聲音更自然
+
+      // 4. 振幅包絡 (Envelope)
+      // 稍微降低高音起始音量，讓聽感平衡
+      let startGain;
+      if (finalFreq <= minFreq) {
+         startGain = maxStartGain;
+      } else if (finalFreq >= maxFreq) {
+         startGain = minStartGain;
+      } else {
+         // 線性插值公式
+         const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
+         startGain = maxStartGain - fraction * (maxStartGain - minStartGain);
+      }
+
+      gain.gain.setValueAtTime(0, now);
+      // 0.02s 的極短淡入，消除電子音啟動的「滴答」聲
+      gain.gain.linearRampToValueAtTime(startGain, now + 0.02);
+      // 實現您要求的線性長餘響
+      gain.gain.exponentialRampToValueAtTime(0.001, now + decayTime);
+
+      // 5. 節點連接與播放
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.audioCtx.destination);
+
+      osc.start(now);
+      // 確保 Oscillator 在餘響結束後停止
+      osc.stop(now + decayTime);
+   },
+
+   playGuzhengLowOLD: function (index) {
       this.init();
       if (!this.audioCtx) return;
 
@@ -419,6 +521,77 @@ window.SoundManager = {
 
       osc.start();
       osc.stop(this.audioCtx.currentTime + 1.2);
+   },
+
+   playGuzhengLow: function (index) {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+      const filter = this.audioCtx.createBiquadFilter();
+
+      // 1. 計算頻率
+      const baseFreq = this.guzhengNotesLow[index % this.guzhengNotesLow.length];
+      const octave = Math.floor(index / this.guzhengNotesLow.length);
+      const finalFreq = baseFreq * Math.pow(2, octave);
+
+      // 2. 線性計算衰減時間 (300Hz ~ 1000Hz 之間平滑過渡)
+      const minFreq = 300;
+      const maxFreq = 1000;
+      const maxDecay = 2.5; // 低音餘響
+      const minDecay = 1.2; // 高音餘響
+      const maxStartGain = 0.5; // 低音起始音量
+      const minStartGain = 0.1; // 高音起始音量
+
+      let decayTime;
+      if (finalFreq <= minFreq) {
+         decayTime = maxDecay;
+      } else if (finalFreq >= maxFreq) {
+         decayTime = minDecay;
+      } else {
+         // 線性插值公式
+         const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
+         decayTime = maxDecay - fraction * (maxDecay - minDecay);
+      }
+
+      // 3. 音色設定：使用 Triangle 並搭配低通濾波器磨平電子感
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(finalFreq, now);
+
+      filter.type = 'lowpass';
+      // 濾波頻率設為基頻的 1.5 倍，保留溫潤感，濾除高頻刺耳聲
+      filter.frequency.setValueAtTime(finalFreq * 1.5, now);
+      filter.Q.value = 0.7; // 較低的 Q 值讓聲音更自然
+
+      // 4. 振幅包絡 (Envelope)
+      // 稍微降低高音起始音量，讓聽感平衡
+      let startGain;
+      if (finalFreq <= minFreq) {
+         startGain = maxStartGain;
+      } else if (finalFreq >= maxFreq) {
+         startGain = minStartGain;
+      } else {
+         // 線性插值公式
+         const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
+         startGain = maxStartGain - fraction * (maxStartGain - minStartGain);
+      }
+
+      gain.gain.setValueAtTime(0, now);
+      // 0.02s 的極短淡入，消除電子音啟動的「滴答」聲
+      gain.gain.linearRampToValueAtTime(startGain, now + 0.02);
+      // 實現您要求的線性長餘響
+      gain.gain.exponentialRampToValueAtTime(0.001, now + decayTime);
+
+      // 5. 節點連接與播放
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.audioCtx.destination);
+
+      osc.start(now);
+      // 確保 Oscillator 在餘響結束後停止
+      osc.stop(now + decayTime);
    },
    /**
     * 撞擊聲 
@@ -569,7 +742,7 @@ window.SoundManager = {
     * @param {number} startTime 開始播放時間
     * @param {string} type 波形類別 ('sine', 'square', 'sawtooth', 'triangle')
     */
-   playTone: function (freq, duration, startTime, type = 'sine') {
+   playTone: function (freq, duration, startTime, type = 'triangle') {
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
 

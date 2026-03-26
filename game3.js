@@ -3,6 +3,9 @@
     // 遊戲狀態
     const Game3 = {
         isActive: false,
+        difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         speed: 0.1, // 初始速度 (rem/幀)
         baseSpeed: 0.06,
@@ -34,10 +37,10 @@
         //incrementSpeed: 速度增長量
         //maxSpeed: 最大速度
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 14, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.001, maxSpeed: 0.07 },
-            '中學': { poemMinRating: 5, maxMistakeCount: 14, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.002, maxSpeed: 0.08 },
-            '高中': { poemMinRating: 4, maxMistakeCount: 12, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.004, maxSpeed: 0.10 },
-            '大學': { poemMinRating: 3, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.006, maxSpeed: 0.12 },
+            '小學': { poemMinRating: 6, maxMistakeCount: 14, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.002, maxSpeed: 0.07 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 14, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.003, maxSpeed: 0.09 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 12, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.004, maxSpeed: 0.11 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.006, maxSpeed: 0.13 },
             '研究所': { poemMinRating: 2, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.008, maxSpeed: 0.15 }
         },
 
@@ -83,7 +86,7 @@
             div.className = 'game3-overlay aspect-5-8 hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
-                <div class="debug-frame"></div>
+                <!-- <div class="debug-frame"></div> -->
                 
                 <div class="game3-header">
                     <div class="game3-score-board">分數: <span id="game3-score">0</span></div>
@@ -114,8 +117,12 @@
             document.getElementById('game3-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game3-message').classList.remove('visible');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
 
             // 增加 result-poem-display 的滑鼠拖曳捲動功能
@@ -170,8 +177,13 @@
 
             // 使用全局难度选择器
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('游戏三：字爬梯', (selectedLevel) => {
+                window.DifficultySelector.show('字爬梯', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+
+                    this.updateUIForMode();
+
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
@@ -183,6 +195,32 @@
             } else {
                 console.warn('[Game3] DifficultySelector not found');
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game3-diff-tag');
+            const retryBtn = document.getElementById('game3-retryGame-btn');
+            const newBtn = document.getElementById('game3-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         hideOtherContents: function () {
@@ -269,17 +307,19 @@
             document.getElementById('game3-newGame-btn').disabled = false;
         },
 
-        startNewGame: function () {
+        startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            const diffTag = document.getElementById('game3-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
             }
+
+            this.updateUIForMode();
             this.isActive = true;
             this.score = 0;
-            this.speed = this.baseSpeed + this.difficultySettings[this.difficulty].incrementSpeed;
-            this.maxSpeed = this.difficultySettings[this.difficulty].maxSpeed;
+            const settings = this.difficultySettings[this.difficulty];
+            this.speed = this.baseSpeed + settings.incrementSpeed;
+            this.maxSpeed = settings.maxSpeed;
             this.currentRowIndex = 0;
             this.rows = [];
             this.historyData = [];
@@ -294,9 +334,14 @@
 
             if (this.animationId) cancelAnimationFrame(this.animationId);
             this.loop();
-            // 啟用重來按鈕
+            // 啟用按鈕
             document.getElementById('game3-retryGame-btn').disabled = false;
             document.getElementById('game3-newGame-btn').disabled = false;
+        },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
         },
 
         selectAndPreparePoem: function () {
@@ -308,9 +353,17 @@
             const setting = this.difficultySettings[this.difficulty];
             const poemMinRating = setting.poemMinRating || 4;
 
-            // 使用共用邏輯取得隨機詩詞
-            // Game 3 喜歡連續的句子，所以我們要求至少 4 句
-            const result = getSharedRandomPoem(poemMinRating, 4, 8, 20, 200);
+            // 使用共用邏輯取得隨機詩詞，傳入種子
+            const result = getSharedRandomPoem(
+                setting.poemMinRating || 4,
+                4,
+                10,
+                20,
+                100,
+                "",
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game3'
+            );
             if (!result) {
                 alert('找不到符合該難度評分的詩詞');
                 return;
@@ -864,7 +917,14 @@
                     title.textContent = `過關！得分：${reason}分`;
                     title.style.color = "#4CAF50";
                 }
-                btn.textContent = "下一局";
+                if (this.isLevelMode) {
+                    btn.textContent = "下一關";
+                    if (window.ScoreManager) {
+                        window.ScoreManager.completeLevel('game3', this.difficulty, this.currentLevelIndex);
+                    }
+                } else {
+                    btn.textContent = "下一局";
+                }
             } else {
                 title.textContent = `遊戲失敗 錯過次數達 ${this.mistakeCount} 次`;
                 title.style.color = "hsl(10, 80%, 60%)";

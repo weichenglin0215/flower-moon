@@ -33,16 +33,20 @@
     overflow: hidden;
 }
 
+/*上方按鈕列*/
 .pd-header {
     display: flex;
     gap: 0.6rem;
     padding: 0.6rem;
+    /*靠右排列*/
+    justify-content: flex-end;
     border-bottom: 0.05rem solid hsl(0, 0%, 93%);
     background: hsl(40, 40%, 80%);
     flex-shrink: 0;
     /* 防止頭部被擠壓 */
 }
 
+/*上方按鈕*/
 .pd-header .nav-btn {
     padding: 0.4rem 1rem;
     background-color: hsl(40, 40%, 50%);
@@ -75,6 +79,7 @@
     cursor: grab;
     flex: 1;
     /* 確保佔滿剩餘空間以利捲動 */
+    font-size: 1.5rem;
 }
 
 /* Type (類型) */
@@ -83,7 +88,7 @@
     background-color: hsla(40, 40%, 33%, 0.2);
     padding: 0.3rem 0.6rem;
     border-radius: 0.6rem;
-    font-size: 1rem;
+    font-size: 1.2rem;
     line-height: 1;
     color: hsl(40, 40%, 20%);
 }
@@ -100,7 +105,7 @@
 /* Meta (作者資料) */
 .pd-meta {
     color: hsl(40, 40%, 20%);
-    font-size: 1rem;
+    font-size: 1.5rem;
 }
 
 /* Line Content (詩行內容) */
@@ -116,9 +121,9 @@
 
 /* Section Title (節標題) */
 .pd-section-title {
-    font-size: 1rem;
+    font-size: 1.2rem;
     color: hsl(40, 40%, 20%);
-    margin-top: 1.5rem;
+    margin-top: 1.2rem;
     border-left: 0.5rem solid hsl(210, 60%, 40%);
     padding-left: 1rem;
     font-weight: bold;
@@ -146,7 +151,7 @@
 .pd-placeholder {
     color: hsl(6, 63%, 66%);
     font-style: italic;
-    font-size: 1rem;
+    font-size: 1.5rem;
 }
 
 /* Zhuyin (注音說明) */
@@ -155,7 +160,7 @@
     /*讓瀏覽器保留文字中的換行字元（如 \n），並在該處自動換行顯示*/
     color: hsl(40, 40%, 20%);
     line-height: 1.6;
-    font-size: 1.1rem;
+    font-size: 1.5rem;
     margin-top: 0.5rem;
 }
 

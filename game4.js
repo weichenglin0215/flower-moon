@@ -2,6 +2,8 @@
     const Game4 = {
         isActive: false,
         difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         mistakeCount: 0,
 
@@ -66,7 +68,8 @@
             //檢查responsive.css是否有包括game4 - overlay.aspect - 5 - 8
             div.className = 'game4-overlay aspect-5-8 hidden';
             div.innerHTML = `
-                <div class="debug-frame"></div>
+                <!-- 调试边框 -->
+                <!-- <div class="debug-frame"></div> -->
                 <div class="game4-header">
                     <div class="game4-score-board">分數: <span id="game4-score">0</span></div>
                     <div class="game4-controls">
@@ -111,8 +114,12 @@
             document.getElementById('game4-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game4-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
 
             this.renderHearts();
@@ -130,8 +137,13 @@
             this.maskOtherContents();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('遊戲四：眾裡尋他千百度', (selectedLevel) => {
+                window.DifficultySelector.show('眾裡尋他千百度', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+
+                    this.updateUIForMode();
+
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
@@ -141,6 +153,32 @@
             } else {
                 console.warn('[Game4] DifficultySelector not found');
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game4-diff-tag');
+            const retryBtn = document.getElementById('game4-retryGame-btn');
+            const newBtn = document.getElementById('game4-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         maskOtherContents: function () {
@@ -205,13 +243,14 @@
             document.getElementById('game4-newGame-btn').disabled = false;
         },
 
-        startNewGame: function () {
+        startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            const diffTag = document.getElementById('game4-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
             }
+
+            this.updateUIForMode();
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -244,9 +283,14 @@
                 alert('載入詩詞失敗。');
                 this.showDifficultySelector();
             }
-            // 啟用重來按鈕
+            // 啟用按鈕
             document.getElementById('game4-retryGame-btn').disabled = false;
             document.getElementById('game4-newGame-btn').disabled = false;
+        },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
         },
 
         selectRandomPoem: function () {
@@ -254,8 +298,13 @@
             const settings = this.difficultySettings[this.difficulty];
             const minR = settings.poemMinRating || 4;
 
-            // 使用共用邏輯取得隨機詩詞 (要求至少 2 句)
-            const result = getSharedRandomPoem(minR, 2, 4, 10, 20);
+            // 使用共用邏輯取得隨機詩詞 (要求至少 2 句)，傳入種子
+            const result = getSharedRandomPoem(
+                settings.poemMinRating,
+                2, 2, 8, 30, "",
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game4'
+            );
             if (!result) return false;
 
             this.currentPoem = result.poem;
@@ -585,7 +634,14 @@
                 }
                 const msgBtn = document.getElementById('game4-msg-btn');
                 if (win) {
-                    msgBtn.textContent = "下一局";
+                    if (this.isLevelMode) {
+                        msgBtn.textContent = "下一關";
+                        if (window.ScoreManager) {
+                            window.ScoreManager.completeLevel('game4', this.difficulty, this.currentLevelIndex);
+                        }
+                    } else {
+                        msgBtn.textContent = "下一局";
+                    }
                 } else {
                     msgBtn.textContent = "再試一次";
                 }

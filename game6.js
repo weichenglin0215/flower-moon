@@ -6,6 +6,8 @@
     const Game6 = {
         isActive: false,
         difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         mistakeCount: 0,
         maxMistakeCount: 3,
@@ -154,8 +156,12 @@
             document.getElementById('game6-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game6-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
             document.getElementById('game6-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -266,14 +272,17 @@
             document.getElementById('game6-message').classList.add('hidden');
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('詩陣侵略', (level) => {
-                    this.difficulty = level;
-                    const settings = this.difficultySettings[level];
-                    if (!settings) return;
+                window.DifficultySelector.show('詩陣侵略', (selectedLevel, levelIndex) => {
+                    this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                    
+                    this.updateUIForMode();
 
                     const container = document.getElementById('game6-container');
                     if (container) {
                         container.classList.remove('hidden');
+                        document.body.style.overflow = 'hidden';
                         document.body.classList.add('overlay-active');
                     }
 
@@ -282,6 +291,32 @@
                     this.startNewGame();
                 });
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game6-diff-tag');
+            const retryBtn = document.getElementById('game6-retryGame-btn');
+            const newBtn = document.getElementById('game6-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         show: function () {
@@ -295,12 +330,17 @@
             }
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('詩陣侵略', (level) => {
+                window.DifficultySelector.show('詩陣侵略', (level, levelIndex) => {
                     this.difficulty = level;
+                    this.isLevelMode = (levelIndex !== undefined); // Set isLevelMode here too
+                    this.currentLevelIndex = levelIndex || 1;
                     const settings = this.difficultySettings[level];
                     if (!settings) return;
 
+                    this.updateUIForMode();
+
                     this.container.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden'; // Add this line
                     document.body.classList.add('overlay-active');
                     this.setupCanvas();
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
@@ -324,13 +364,17 @@
             this.player.x = this.canvas.width / 2;
         },
 
-        startNewGame: function () {
+        startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            const diffTag = document.getElementById('game6-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
+            } else if (!this.isLevelMode) { // If not explicitly starting a level, and not already in level mode, reset to default difficulty
+                this.difficulty = '小學'; // Or whatever your default difficulty is
+                this.currentLevelIndex = 1;
             }
+            
+            this.updateUIForMode();
             this.score = 0;
             this.mistakeCount = 0;
             this.isWin = false;
@@ -343,6 +387,11 @@
             // 啟用按鈕
             document.getElementById('game6-retryGame-btn').disabled = false;
             document.getElementById('game6-newGame-btn').disabled = false;
+        },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
         },
 
         retryGame: function () {
@@ -384,15 +433,20 @@
 
         loadLevel: function (isRetry) {
             const settings = this.difficultySettings[this.difficulty];
-            const minRating = settings.stars || 4;
+            const minRating = settings.poemMinRating || 4; // Use poemMinRating from settings
 
             // 如果是重來且已有詩詞，則直接使用目前的題目
             if (isRetry && this.currentPoem) {
                 this.createEnemies(this.currentPoem, this.currentPoemLineStart);
             } else {
-                // 使用共用函式來取得詩詞
+                // 使用共用函式來取得詩詞，傳入種子
                 if (typeof POEMS !== 'undefined') {
-                    const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+                    const result = getSharedRandomPoem(
+                        minRating, 
+                        2, 2, 8, 30, "", // minLines, maxLines, minChars, maxChars, filter
+                        this.isLevelMode ? this.currentLevelIndex : null, // Seed only in level mode
+                        'game6'
+                    );
                     if (result) {
                         this.currentPoem = result.poem;
                         this.createEnemies(result.poem, result.startIndex);
@@ -1170,7 +1224,14 @@
 
             const msgBtn = document.getElementById('game6-msg-btn');
             if (win) {
-                msgBtn.textContent = "下一局";
+                if (this.isLevelMode) {
+                    msgBtn.textContent = "下一關";
+                    if (window.ScoreManager) {
+                        window.ScoreManager.completeLevel('game6', this.difficulty, this.currentLevelIndex);
+                    }
+                } else {
+                    msgBtn.textContent = "下一局";
+                }
             } else {
                 msgBtn.textContent = "再試一次";
             }

@@ -3,6 +3,8 @@
     const Game1 = {
         isActive: false,
         difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         timer: 10,
         maxTimer: 10, // 每轮的最大时间（根据难度设置）
         timerInterval: null,
@@ -67,8 +69,12 @@
             document.getElementById('game1-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game1-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
             document.getElementById('game1-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -83,7 +89,7 @@
             div.className = 'game1-overlay aspect-5-8 hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
-                <div class="debug-frame"></div>
+                <!-- <div class="debug-frame"></div> -->
                 
                 <div class="game1-header">
                     <div class="game1-score-board">分數: <span id="game1-score">0</span></div>
@@ -131,8 +137,12 @@
             document.getElementById('game1-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game1-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
 
             this.renderHearts();
@@ -147,19 +157,25 @@
 
         showDifficultySelector: function () {
             this.isActive = false;
-            clearInterval(this.timerInterval);
-            document.getElementById('game1-message').classList.add('hidden');
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            const msgDiv = document.getElementById('game1-message');
+            if (msgDiv) msgDiv.classList.add('hidden');
 
             // 隐藏主页和其他游戏
             this.hideOtherContents();
             // 顯示難度選擇器
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('慢思快選', (selectedLevel) => {
+                window.DifficultySelector.show('慢思快選', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+
                     const settings = this.difficultySettings[selectedLevel];
                     this.maxTimer = settings.timeLimit; // 设置最大时间
                     this.timer = settings.timeLimit;
                     this.maxMistakeCount = settings.maxMistakeCount;
+
+                    this.updateUIForMode();
 
                     // 顯示遊戲容器
                     this.container.classList.remove('hidden');
@@ -182,6 +198,32 @@
                 }
                 this.startNewGame();
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game1-diff-tag');
+            const retryBtn = document.getElementById('game1-retryGame-btn');
+            const newBtn = document.getElementById('game1-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         hideOtherContents: function () {
@@ -237,13 +279,14 @@
             document.getElementById('game1-newGame-btn').disabled = false;
         },
 
-        startNewGame: function () {
+        startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-            const diffTag = document.getElementById('game1-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
             }
+
+            this.updateUIForMode();
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
@@ -254,9 +297,14 @@
             // 準備新題目並開始
             this.prepareChallenge();
             this.startTimer();
-            // 啟用重來按鈕
+            // 啟用按鈕
             document.getElementById('game1-retryGame-btn').disabled = false;
             document.getElementById('game1-newGame-btn').disabled = false;
+        },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
         },
 
         nextQuestion: function () {
@@ -275,8 +323,13 @@
             const settings = this.difficultySettings[this.difficulty];
             const minRating = settings.poemMinRating || 4;
 
-            // 使用全域共用邏輯取得隨機詩詞 (要求至少 2 句，最少10個字，最多14字)
-            const result = getSharedRandomPoem(minRating, 2, 2, 10, 14);
+            // 使用全域共用邏輯取得隨機詩詞 (要求至少            // 傳入種子
+            const result = getSharedRandomPoem(
+                settings.poemMinRating || 4,
+                2, 2, 8, 30, "",
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game1'
+            );
             if (!result) {
                 alert('找不到符合評分的詩詞。');
                 return;
@@ -347,17 +400,19 @@
 
             const l1Div = document.createElement('div');
             l1Div.className = 'poem-lines';
+            // 動態縮小字體
+            this.adjustFontSize(l1Div, l1Text.length, 7, 2.5);
             l1Div.innerHTML = l1Text;
             qDiv.appendChild(l1Div);
 
             const l2Div = document.createElement('div');
             l2Div.className = 'poem-lines';
+            // 動態縮小字體
+            // 取得遮罩後的文字長度
+            const maskedLength = this.maskedLineHTML.replace(/<[^>]*>/g, '').length;
+            this.adjustFontSize(l2Div, maskedLength, 7, 2.5);
             l2Div.innerHTML = l2Text;
             qDiv.appendChild(l2Div);
-
-            // 動態縮小字體
-            const maxLineLen = Math.max(l1Text.length, l2Text.length);
-            this.adjustFontSize(qDiv, maxLineLen, 7, 2.5);
 
             const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             const infoEl = document.getElementById('game1-poem-info');
@@ -659,23 +714,37 @@
             const msgDiv = document.getElementById('game1-message');
             const title = document.getElementById('game1-msg-title');
             const content = document.getElementById('game1-msg-content');
+            const msgBtn = document.getElementById('game1-msg-btn');
 
-            msgDiv.classList.remove('hidden');
             if (win) {
                 title.textContent = "恭喜過關！";
                 title.style.color = "#28a745";
                 content.textContent = reason || "更上一層樓！";
+                if (this.isLevelMode) {
+                    msgBtn.textContent = "下一關";
+                } else {
+                    msgBtn.textContent = "下一局";
+                }
             } else {
                 title.textContent = "再接再厲！";
                 title.style.color = "#dc3545";
                 content.textContent = reason;
+                msgBtn.textContent = "再試一次";
             }
 
-            const msgBtn = document.getElementById('game1-msg-btn');
-            if (win) {
-                msgBtn.textContent = "下一局";
+            const showMessage = () => {
+                msgDiv.classList.remove('hidden');
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game1', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game1', this.currentLevelIndex, showMessage);
+                } else {
+                    showMessage();
+                }
             } else {
-                msgBtn.textContent = "再試一次";
+                showMessage();
             }
         },
 

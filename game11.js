@@ -2,6 +2,8 @@
     const Game11 = {
         isActive: false,        // 遊戲是否進行中
         difficulty: '小學',    // 當前難度
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,              // 當前分數
         mistakes: 0,           // 當前失誤次數
         maxMistakes: 5,        // 最大允許失誤次數
@@ -19,12 +21,23 @@
         turnId: 0,
 
         // 獲取各難度配置參數
+        //poemMinRating 最低詩詞評分
+        //maxMistakeCount 最多錯誤次數
+        //rows:總行數, cols:每行字數
+        //mode: all:全部顯示, seq:依序顯示
+        //feedback: keep:翻開之後保留翻開狀態, hide:翻開之後再蓋回
+        //minLines:最少顯示行數, maxLines:最多顯示行數
+        //minChars:最少顯示字數, maxChars:最多顯示字數
+        //slowFlipChars:翻開較慢的字數，預設為35，避免拖慢翻開時間長度，可改成3。
+        //舉例：若slowFlipChars = 3，欲翻開文字數為10個(不包括新增翻開字)，前7個字以0.2秒速度翻開，最後3個字會以0.5秒速度翻開。
+        //passChars:起始顯示字數，一開始翻開較多字數來加快遊戲進行節奏，預設為0
+        //revealStep:每輪增加顯示的字數
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 5, rows: 4, cols: 3, mode: 'all', feedback: 'keep', minLines: 1, maxLines: 2, minChars: 5, maxChars: 10, passChars: 0, revealStep: 1 },
-            '中學': { poemMinRating: 5, maxMistakeCount: 8, rows: 5, cols: 3, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, passChars: 3, revealStep: 1 },
-            '高中': { poemMinRating: 4, maxMistakeCount: 10, rows: 5, cols: 4, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 4, minChars: 14, maxChars: 21, passChars: 6, revealStep: 2 },
-            '大學': { poemMinRating: 3, maxMistakeCount: 12, rows: 6, cols: 5, mode: 'all', feedback: 'hide', minLines: 3, maxLines: 4, minChars: 20, maxChars: 28, passChars: 9, revealStep: 2 },
-            '研究所': { poemMinRating: 2, maxMistakeCount: 14, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', minLines: 4, maxLines: 6, minChars: 28, maxChars: 35, passChars: 12, revealStep: 3 }
+            '小學': { poemMinRating: 6, maxMistakeCount: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', minLines: 1, maxLines: 2, minChars: 5, maxChars: 10, slowFlipChars: 7, passChars: 0, revealStep: 1 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 8, rows: 5, cols: 3, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, slowFlipChars: 7, passChars: 3, revealStep: 1 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 10, rows: 5, cols: 4, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 4, minChars: 14, maxChars: 21, slowFlipChars: 7, passChars: 6, revealStep: 2 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 12, rows: 6, cols: 5, mode: 'all', feedback: 'hide', minLines: 3, maxLines: 4, minChars: 20, maxChars: 28, slowFlipChars: 7, passChars: 9, revealStep: 2 },
+            '研究所': { poemMinRating: 2, maxMistakeCount: 14, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', minLines: 4, maxLines: 6, minChars: 28, maxChars: 35, slowFlipChars: 7, passChars: 12, revealStep: 3 }
         },
 
         loadCSS: function () {
@@ -56,8 +69,12 @@
             document.getElementById('game11-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game11-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
             document.getElementById('game11-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -102,11 +119,15 @@
             document.getElementById('game11-message').classList.add('hidden');
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('翻墨識蹤', (level) => {
-                    this.difficulty = level;
-                    const settings = this.difficultySettings[level];
+                window.DifficultySelector.show('翻墨識蹤', (selectedLevel, levelIndex) => {
+                    this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                    const settings = this.difficultySettings[selectedLevel];
                     if (!settings) return;
                     this.maxMistakes = settings.maxMistakeCount;
+
+                    this.updateUIForMode();
 
                     const container = document.getElementById('game11-container');
                     if (container) {
@@ -120,6 +141,32 @@
             }
         },
 
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game11-diff-tag');
+            const retryBtn = document.getElementById('game11-retryGame-btn');
+            const newBtn = document.getElementById('game11-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+        },
+
         show: function () {
             this.init();
 
@@ -131,14 +178,18 @@
             }
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('翻墨識蹤', (selectedLevel) => {
+                window.DifficultySelector.show('翻墨識蹤', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
                     const settings = this.difficultySettings[selectedLevel];
                     if (!settings) {
                         console.error("Invalid difficulty level selected:", selectedLevel);
                         return;
                     }
                     this.maxMistakes = settings.maxMistakeCount; // Update maxMistakes based on selected difficulty
+
+                    this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active'); // Ensure overlay-active is added
@@ -196,13 +247,15 @@
             this.resetGameRound(true);
         },
 
-        startNewGame: function () {
-            this.isActive = true;
-            const diffTag = document.getElementById('game11-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
+        startNewGame: function (levelIndex) {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
             }
+
+            this.updateUIForMode();
+            this.isActive = true;
             this.score = 0;
             this.mistakes = 0;
             if (this.prepareChallenge()) {
@@ -210,12 +263,22 @@
             }
         },
 
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
         prepareChallenge: function () {
             const settings = this.difficultySettings[this.difficulty];
             this.maxMistakes = settings.maxMistakeCount;
 
-            // Generate Poem
-            const result = getSharedRandomPoem(settings.poemMinRating, settings.minLines, settings.maxLines, settings.minChars, settings.maxChars);
+            // Generate Poem，傳入種子
+            const result = getSharedRandomPoem(
+                settings.poemMinRating,
+                2, 2, 8, 30, "",
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game11'
+            );
             if (!result) {
                 alert('找不到符合評分的詩詞。');
                 return;
@@ -382,12 +445,16 @@
 
             if (settings.mode === 'all') {
                 // 'all' 模式：逐一翻開，但翻開後保持不蓋上，直到全部顯示完畢
-                for (let item of currentSequence) {
+                for (let i = 0; i < currentSequence.length; i++) {
                     if (!this.isActive || this.turnId !== currentTurn) return;
+                    const item = currentSequence[i];
                     const t = this.tiles[item.gridIdx];
                     t.el.classList.add('flipped');
                     this.playPitchSound(t.audioIdx);
-                    await this.delay(500);
+
+                    // 判斷是否屬於最後幾張需要放慢進度的字數
+                    const isSlow = (currentSequence.length - i) <= (settings.slowFlipChars || 3);
+                    await this.delay(isSlow ? 500 : 300);
                 }
 
                 await this.delay(1000); // 全部顯示後的記憶停留時間
@@ -399,27 +466,30 @@
                     t.el.classList.remove('flipped');
                 }
             } else {
-                // 'seq' 模式：一次只翻開一個，蓋上後才翻下一個 (更難)
-                for (let item of currentSequence) {
+                // 'seq' 模式：一次只翻開一個，蓋上後才翻下一個
+                for (let i = 0; i < currentSequence.length; i++) {
                     if (!this.isActive || this.turnId !== currentTurn) return;
+                    const item = currentSequence[i];
                     const t = this.tiles[item.gridIdx];
                     t.el.classList.add('flipped');
                     this.playPitchSound(t.audioIdx);
 
-                    await this.delay(800);
+                    const isSlow = (currentSequence.length - i) <= (settings.slowFlipChars || 3);
+                    await this.delay(isSlow ? 800 : 500); // seq 模式整體較慢，但也按比例加速
+
                     if (this.turnId !== currentTurn) return;
 
                     t.el.classList.remove('flipped');
-                    await this.delay(200);
+                    await this.delay(isSlow ? 200 : 100);
                 }
             }
 
             if (!this.isActive || this.turnId !== currentTurn) return;
             // 轉入玩家階段
-            statusEl.textContent = `第 ${this.currentStep} 輪，玩家回合：請依序點擊`;
             this.playerProgress = 0;
             this.isPlayerPhase = true;
             this.gridContainer.classList.add('is-player-phase');
+            statusEl.textContent = `第 ${this.currentStep} 輪，玩家回合：依序點擊 ${this.playerProgress} / ${this.currentStep}`;
             document.getElementById('game11-retryGame-btn').disabled = false;
             document.getElementById('game11-newGame-btn').disabled = false;
         },
@@ -464,6 +534,7 @@
 
             this.playerProgress++;
             this.score += 5; // 每一句增加得分
+            document.getElementById('game11-status').textContent = `第 ${this.currentStep} 輪，玩家回合：依序點擊 ${this.playerProgress} / ${this.currentStep}`;
             document.getElementById('game11-score').textContent = this.score;
             // 檢查是否完成所有回合
             if (this.playerProgress >= this.currentStep) {
@@ -587,7 +658,18 @@
             }
 
             const msgBtn = document.getElementById('game11-msg-btn');
-            msgBtn.textContent = win ? "下一局" : "再試一次";
+            if (win) {
+                if (this.isLevelMode) {
+                    msgBtn.textContent = "下一關";
+                    if (window.ScoreManager) {
+                        window.ScoreManager.completeLevel('game11', this.difficulty, this.currentLevelIndex);
+                    }
+                } else {
+                    msgBtn.textContent = "下一局";
+                }
+            } else {
+                msgBtn.textContent = "再試一次";
+            }
         }
     };
 

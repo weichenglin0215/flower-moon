@@ -177,3 +177,61 @@
         gap: 1rem;
     }
 }
+
+/* 關卡挑戰按鈕 */
+.level-challenge-container {
+    margin-top: 1.0rem;
+    padding-top: 1.0rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.level-challenge-btn {
+    background: hsl(45, 80%, 85%);
+    color: hsl(0, 70%, 33%);
+    border: 0.2rem solid transparent;
+    margin: 0.2rem auto;
+    padding: 0.4rem 0.2rem;
+    border-radius: 1rem;
+    font-size: 1.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80%;
+    /* 每個按鍵寬度相同 */
+    max-width: 10rem;
+    box-shadow: 0 0.3rem 0.5rem rgba(0, 0, 0, 0.66);
+    /* 水平文字 */
+    text-align: center;
+    letter-spacing: 0.1em;
+}
+
+.level-challenge-btn:hover {
+    transform: scale(1.05);
+    background: #f0f0f0;
+}
+
+.new-tag {
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    background: #ff0000;
+    color: #fff;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.5rem;
+    border: 1px solid white;
+    font-weight: bold;
+}

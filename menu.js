@@ -162,6 +162,12 @@
         } catch (e) { console.warn('[Menu] 關閉難度選擇器失敗', e); }
 
         try {
+            if (window.LevelSelector && typeof window.LevelSelector.hide === 'function') {
+                window.LevelSelector.hide();
+            }
+        } catch (e) { console.warn('[Menu] 關閉關卡選擇器失敗', e); }
+
+        try {
             const card1 = document.getElementById('cardContainer');
             const card2 = document.getElementById('calendarCardContainer');
             if (card1) card1.style.display = 'none';
@@ -187,8 +193,12 @@
 
         function toggleMenu() {
             const isActive = menuPanel.classList.toggle('active');
-            if (isActive && window.SoundManager) window.SoundManager.playOpenItem();
-            else if (!isActive && window.SoundManager) window.SoundManager.playCloseItem();
+            if (isActive) {
+                closeAllActiveOverlays(); // 開啟選單時關閉其他覆蓋層
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+            } else if (!isActive && window.SoundManager) {
+                window.SoundManager.playCloseItem();
+            }
             hamburgerBtn.classList.toggle('active');
             menuOverlay.classList.toggle('active');
             document.body.style.overflow = isActive ? 'hidden' : '';

@@ -13,6 +13,24 @@
 
         // 难度级别
         levels: ['小學', '中學', '高中', '大學', '研究所'],
+        
+        // 遊戲標題至代號映射
+        gameTitleToKey: {
+            '慢思快選': 'game1',
+            '飛花令': 'game2',
+            '字爬梯': 'game3',
+            '眾裡尋他': 'game4',
+            '眾裡尋他千百度': 'game4',
+            '詩詞精靈': 'game5',
+            '詩詞小精靈': 'game5',
+            '詩陣侵略': 'game6',
+            '青鳥雲梯': 'game7',
+            '一筆裁詩': 'game8',
+            '詩韻鎖扣': 'game9',
+            '擊石鳴詩': 'game10',
+            '翻墨識蹤': 'game11',
+            '疏影橫斜': 'game12'
+        },
 
         /**
          * 初始化组件
@@ -55,6 +73,11 @@
                     <div class="difficulty-buttons">
                         ${buttonsHTML}
                     </div>
+                    <div class="level-challenge-container">
+                        <button class="level-challenge-btn" id="level-challenge-btn">
+                            關卡挑戰 <span class="new-tag">新</span>
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -88,6 +111,21 @@
                     this.selectDifficulty(level);
                 });
             });
+            
+            // 点击关卡挑战按钮
+            const levelBtn = this.overlay.querySelector('#level-challenge-btn');
+            if (levelBtn) {
+                levelBtn.addEventListener('click', () => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    this.hide();
+                    if (window.LevelSelector) {
+                        const gameKey = this.gameTitleToKey[this.currentGameName] || this.currentGameName;
+                        window.LevelSelector.show(gameKey, this.callback);
+                    } else {
+                        console.error('LevelSelector not found');
+                    }
+                });
+            }
 
             // 点击背景关闭（可选）
             this.overlay.addEventListener('click', (e) => {
@@ -132,15 +170,12 @@
         },
 
         /**
-         * 选择难度
-         * @param {string} level - 选中的难度
+         * 選擇難度
+         * @param {string} level - 選中的難度
          */
         selectDifficulty: function (level) {
-            console.log(`[DifficultySelector] ${this.currentGameName} 选择难度: ${level}`);
-
+            console.log(`[DifficultySelector] ${this.currentGameName} 選擇難度: ${level}`);
             this.hide();
-
-            // 调用回调函数
             if (this.callback && typeof this.callback === 'function') {
                 this.callback(level);
             }

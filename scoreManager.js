@@ -152,13 +152,14 @@ const ScoreManager = {
      */
     getDefaultData: function () {
         return {
-            version: "1.1",
+            version: "1.2",
             nickname: '訪客',
             totalScore: 0,
             globalRank: '書僮',
             playDays: 1,
             lastPlayedDate: new Date().toISOString().split('T')[0],
             games: {},
+            levelProgress: {}, // 格式: { gameKey: { '小學': 0, '中學': 0, ... } }
             difficultyCounts: {
                 '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0
             },
@@ -180,12 +181,18 @@ const ScoreManager = {
     migrateData: function (data) {
         if (!data) return this.getDefaultData();
 
-        if (data.version && parseFloat(data.version) >= 1.1) {
+        // 版本升級檢查
+        if (data.version && parseFloat(data.version) < 1.2) {
+            if (!data.levelProgress) data.levelProgress = {};
+            data.version = "1.2";
+        }
+
+        if (data.version && parseFloat(data.version) >= 1.2) {
             // 即便版本符合，也要確保分數是整數 (針對已污染的資料)
             data.totalScore = Math.floor(data.totalScore || 0);
             if (data.games) {
                 for (let key in data.games) {
-                    if (data.games[key].highScore) {
+                    if (data.games[key] && data.games[key].highScore) {
                         data.games[key].highScore = Math.floor(data.games[key].highScore);
                     }
                 }
@@ -196,7 +203,7 @@ const ScoreManager = {
         // 基礎遷移邏輯
         const newData = this.getDefaultData();
         newData.nickname = data.nickname || '訪客';
-        newData.totalScore = Math.floor(data.totalScore || 0); // 確保舊資料遷移後也是整數
+        newData.totalScore = Math.floor(data.totalScore || 0);
         newData.globalRank = this.getCurrentRank(newData.totalScore);
 
         if (data.difficultyCounts) {
@@ -205,16 +212,15 @@ const ScoreManager = {
         if (data.games) {
             newData.games = data.games;
         }
+        if (data.levelProgress) {
+            newData.levelProgress = data.levelProgress;
+        }
 
         if (data.badges && Array.isArray(data.badges)) {
             newData.achievements.unlocked = data.badges;
         }
         if (data.achievements) {
             if (data.achievements.claimed) newData.achievements.claimed = data.achievements.claimed;
-        }
-
-        if (data.highestDifficulty && data.highestDifficulty !== '未挑戰' && data.highestDifficulty !== '小學') {
-            newData.achievements.unlocked.push(`${data.highestDifficulty}通關`);
         }
 
         localStorage.setItem('flowerMoon_playerData', JSON.stringify(newData));
@@ -235,6 +241,9 @@ const ScoreManager = {
 
         data = this.migrateData(data);
 
+        // 雙重檢查確保 levelProgress 結構正確
+        if (!data.levelProgress) data.levelProgress = {};
+
         // 更新累計登入天數
         const today = new Date().toISOString().split('T')[0];
         if (data.lastPlayedDate !== today) {
@@ -243,17 +252,68 @@ const ScoreManager = {
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
         }
 
-        // 再次確保返回的內容沒有小數點 (針對既有污染資料的清理)
+        // 再次確保返回的內容沒有小數點
         data.totalScore = Math.floor(data.totalScore || 0);
         if (data.games) {
             for (let key in data.games) {
-                if (data.games[key].highScore) {
+                if (data.games[key] && data.games[key].highScore) {
                     data.games[key].highScore = Math.floor(data.games[key].highScore);
                 }
             }
         }
 
         return data;
+    },
+
+    /**
+     * 紀錄關卡通關進度
+     */
+    // 將全域關卡編號 (1~300) 轉換為該難度分類下的相對編號
+    getRelativeLevelIndex: function (globalIndex) {
+        if (globalIndex <= 20) return { difficulty: '小學', relIdx: globalIndex };
+        if (globalIndex <= 50) return { difficulty: '中學', relIdx: globalIndex - 20 };
+        if (globalIndex <= 100) return { difficulty: '高中', relIdx: globalIndex - 50 };
+        if (globalIndex <= 150) return { difficulty: '大學', relIdx: globalIndex - 100 };
+        return { difficulty: '研究所', relIdx: globalIndex - 150 };
+    },
+
+    completeLevel: function (gameKey, difficulty, levelIndex) {
+        let data = this.loadPlayerData();
+        if (!data.levelProgress[gameKey]) {
+            data.levelProgress[gameKey] = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
+        }
+        
+        let finalDifficulty = difficulty;
+        let finalRelIdx = levelIndex;
+
+        if (levelIndex >= 1 && levelIndex <= 300) {
+            const converted = this.getRelativeLevelIndex(levelIndex);
+            finalDifficulty = converted.difficulty;
+            finalRelIdx = converted.relIdx;
+        }
+
+        let achIdToReturn = null;
+
+        // 只有在通關更高關卡時才更新
+        if (finalRelIdx > (data.levelProgress[gameKey][finalDifficulty] || 0)) {
+            data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
+            
+            // 計算總通關數
+            const progress = data.levelProgress[gameKey];
+            const totalPassed = (progress['小學'] || 0) + (progress['中學'] || 0) + (progress['高中'] || 0) + (progress['大學'] || 0) + (progress['研究所'] || 0);
+            
+            // 檢查 20 關里程碑成就
+            if (totalPassed > 0 && totalPassed % 20 === 0) {
+                const milestone = totalPassed;
+                const achId = `level_milestone_${gameKey}_${milestone}`;
+                if (!data.achievements.claimed || !data.achievements.claimed.includes(achId)) {
+                    achIdToReturn = achId;
+                }
+            }
+            
+            localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+        }
+        return achIdToReturn;
     },
 
     /**

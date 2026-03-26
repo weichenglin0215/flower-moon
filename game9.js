@@ -6,6 +6,8 @@
     const Game9 = {
         isActive: false,
         difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         mistakeCount: 0,
         timer: 0,
@@ -160,11 +162,14 @@
             document.getElementById('game9-message').classList.add('hidden');
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('詩韻鎖扣', (level) => {
-                    this.difficulty = level;
-                    const settings = this.difficultySettings[level];
+                window.DifficultySelector.show('詩韻鎖扣', (selectedLevel, levelIndex) => {
+                    this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                    const settings = this.difficultySettings[selectedLevel];
                     if (!settings) return;
-                    this.maxTimer = settings.timeLimit;
+                    
+                    this.updateUIForMode();
 
                     const container = document.getElementById('game9-container');
                     if (container) {
@@ -173,9 +178,37 @@
                     }
 
                     if (window.updateResponsiveLayout) window.updateResponsiveLayout();
-                    this.startNewGame();
+                    setTimeout(() => {
+                        this.startNewGame();
+                    }, 50);
                 });
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game9-diff-tag');
+            const retryBtn = document.getElementById('game9-retryGame-btn');
+            const newBtn = document.getElementById('game9-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
         },
 
         bindEvents: function () {
@@ -190,8 +223,12 @@
             document.getElementById('game9-msg-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 document.getElementById('game9-message').classList.add('hidden');
-                if (this.isWin) this.startNewGame();
-                else this.retryGame();
+                if (this.isWin) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
             };
             document.getElementById('game9-poem-info').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -210,12 +247,19 @@
         show: function () {
             this.init();
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('遊戲九：詩韻鎖扣', (level) => {
-                    this.difficulty = level;
+                window.DifficultySelector.show('詩韻鎖扣', (selectedLevel, levelIndex) => {
+                    this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                    
+                    this.updateUIForMode();
+
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active');
                     this.initAudio();
-                    this.startNewGame();
+                    setTimeout(() => {
+                        this.startNewGame();
+                    }, 50);
                 });
             }
         },
@@ -235,7 +279,8 @@
             this.startGameProcess(true);
         },
 
-        startNewGame: function () {
+        startNewGame: function (levelIndex) {
+            if (levelIndex !== undefined) this.currentLevelIndex = levelIndex;
             if (this.selectRandomPoem()) {
                 this.startGameProcess(false);
             } else {
@@ -244,13 +289,23 @@
             }
         },
 
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
         selectRandomPoem: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
             const minRating = settings.stars || 4;
 
-            // 使用共用邏輯取得隨機詩詞 (要求至少 4 句)
-            const result = getSharedRandomPoem(minRating, 4, 8, 20, 200);
+            // 使用共用邏輯取得隨機詩詞，傳入種子
+            const result = getSharedRandomPoem(
+                settings.poemMinRating,
+                4, 4, 16, 40, "",
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game9'
+            );
             if (!result) return false;
 
             this.currentPoem = result.poem;
@@ -283,15 +338,11 @@
             this.isWinning = false;
             this.newlyCompletedBoltIdx = -1;
 
-            const settings = this.difficultySettings[this.difficulty];
-            const diffTag = document.getElementById('game9-diff-tag');
-            if (diffTag) {
-                diffTag.textContent = this.difficulty;
-                diffTag.setAttribute('data-level', this.difficulty);
-            }
+            this.updateUIForMode();
             document.getElementById('game9-score').textContent = this.score;
             document.getElementById('game9-message').classList.add('hidden');
 
+            const settings = this.difficultySettings[this.difficulty];
             const undoBtn = document.getElementById('game9-undo-btn');
             if (settings.undo) {
                 undoBtn.style.display = 'block';
@@ -871,7 +922,14 @@
                 msg.classList.remove('hidden');
                 const msgBtn = document.getElementById('game9-msg-btn');
                 if (win) {
-                    msgBtn.textContent = "下一局";
+                    if (this.isLevelMode) {
+                        msgBtn.textContent = "下一關";
+                        if (window.ScoreManager) {
+                            window.ScoreManager.completeLevel('game9', this.difficulty, this.currentLevelIndex);
+                        }
+                    } else {
+                        msgBtn.textContent = "下一局";
+                    }
                 } else {
                     msgBtn.textContent = "再試一次";
                 }
