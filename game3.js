@@ -8,9 +8,9 @@
         isLevelMode: false,
         score: 0,
         speed: 0.1, // 初始速度 (rem/幀)
-        baseSpeed: 0.06,
-        incrementSpeed: 0.005,
-        maxSpeed: 0.2,
+        baseSpeed: 0.06,//初始速度
+        incrementSpeed: 0.005,//速度增長量
+        maxSpeed: 0.2,//最大速度
         rows: [], // 存放行元素的陣列
         currentRowIndex: 0, // 當前需要點擊的行索引
         animationId: null,
@@ -19,7 +19,7 @@
         gameArea: null,
         historyContainer: null,
         historyData: [], // 紀錄每個字的狀態 { char, status, isSep }
-        mistakeCount: 0,
+        mistakeCount: 0,//錯誤次數
         updateLayoutMetrics: function () { }, // deprecated
         // 按鈕高度 CSS 定義為 3.5rem，垂直間距固定為 0.8rem
         btnHeightRem: 3.5,
@@ -37,11 +37,11 @@
         //incrementSpeed: 速度增長量
         //maxSpeed: 最大速度
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 14, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.002, maxSpeed: 0.07 },
-            '中學': { poemMinRating: 5, maxMistakeCount: 14, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.003, maxSpeed: 0.09 },
-            '高中': { poemMinRating: 4, maxMistakeCount: 12, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.004, maxSpeed: 0.11 },
-            '大學': { poemMinRating: 3, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.006, maxSpeed: 0.13 },
-            '研究所': { poemMinRating: 3, maxMistakeCount: 10, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.008, maxSpeed: 0.15 }
+            '小學': { poemMinRating: 6, maxMistakeCount: 10, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.003, maxSpeed: 0.07 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 9, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.004, maxSpeed: 0.09 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 8, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.005, maxSpeed: 0.11 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 7, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.006, maxSpeed: 0.13 },
+            '研究所': { poemMinRating: 3, maxMistakeCount: 6, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.008, maxSpeed: 0.15 }
         },
 
         loadCSS: function () {

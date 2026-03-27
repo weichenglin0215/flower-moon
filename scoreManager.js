@@ -24,7 +24,7 @@ const ScoreManager = {
         'game4': { base: 100, heart: 10, time: 2 },
         'game5': { base: 100, heart: 10, time: 1 },
         'game6': { base: 100, heart: 10, time: 1 },
-        'game7': { base: 100, heart: 10, time: 0 },
+        'game7': { base: 100, heart: 10, time: 2 },
         'game8': { base: 100, heart: 10, time: 2 },
         'game9': { base: 100, heart: 10, time: 5 },
         'game10': { base: 100, heart: 10, time: 0 },
@@ -412,6 +412,7 @@ const ScoreManager = {
                     starsLaunched++;
 
                     // 創建飛行星星
+                    let customP0 = options.getStarStartPoint ? options.getStarStartPoint(currentRatio) : null;
                     this.createFlyingStar(options.timerContainerId, options.scoreElementId, currentRatio, () => {
                         currentScore += this.getTimeScore(gameKey);
                         document.getElementById(options.scoreElementId).textContent = currentScore;
@@ -420,7 +421,7 @@ const ScoreManager = {
                         if (isLaunchComplete && starsLanded === starsLaunched) {
                             applyMultiplier();
                         }
-                    });
+                    }, customP0);
 
                     remainingSeconds--;
                     const newRatio = remainingSeconds / (duration / 1000);
@@ -496,17 +497,20 @@ const ScoreManager = {
     /**
      * 創建一顆飛行的星星從計時器飛向分數面板
      */
-    createFlyingStar: function (containerId, scoreElementId, ratio, onLand) {
-        const timerContainer = document.getElementById(containerId);
-        if (!timerContainer) {
-            if (onLand) onLand();
-            return;
+    createFlyingStar: function (containerId, scoreElementId, ratio, onLand, customStartPoint) {
+        let p0;
+        if (customStartPoint) {
+            p0 = customStartPoint;
+        } else {
+            const timerContainer = document.getElementById(containerId);
+            if (!timerContainer) {
+                if (onLand) onLand();
+                return;
+            }
+            const tRect = timerContainer.getBoundingClientRect();
+            const pointOnRect = this.getTimerPathPoint(containerId, ratio);
+            p0 = { x: tRect.left + pointOnRect.x, y: tRect.top + pointOnRect.y };
         }
-
-        // 獲取起始容器在螢幕中的絕對座標
-        const tRect = timerContainer.getBoundingClientRect();
-        const pointOnRect = this.getTimerPathPoint(containerId, ratio);
-        const p0 = { x: tRect.left + pointOnRect.x, y: tRect.top + pointOnRect.y };
 
         // 獲取分數區域在螢幕中的絕對座標
         const scoreEl = document.getElementById(scoreElementId);

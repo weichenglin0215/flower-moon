@@ -295,14 +295,15 @@
             };
 
             let attempts = 0; //嘗試次數
-            while (attempts < 30) {
+            while (attempts < 100) {
                 attempts++;
                 // 傳入種子
+                const requiredChars = Math.max(8, (settings.minTotalHideCount || 2) + (settings.minShowCount || 1) * 2);
                 const result = getSharedRandomPoem(
                     settings.poemMinRating || 4,
                     2,
                     2,
-                    8,
+                    requiredChars,
                     30,
                     "",
                     this.isLevelMode ? this.currentLevelIndex : null,
@@ -317,12 +318,18 @@
                 // 決定隱藏哪幾句 (Rule 1)
                 let hideIndices = [];
                 const modeStr = settings.hideMode;
-                if (modeStr === 'line2') hideIndices = [1]; //隱藏字在第二行
-                else if (modeStr === 'random1or2') hideIndices = [Math.random() < 0.5 ? 0 : 1]; //隱藏字在第一行或第二行
-                else if (modeStr === 'line1or12') { //隱藏字在第一行或第一跟第二行(兩行都有)
+                if (modeStr === 'line2') hideIndices = [1];
+                else if (modeStr === 'random1or2') hideIndices = [Math.random() < 0.5 ? 0 : 1];
+                else if (modeStr === 'line1or12') { 
                     const rand = Math.random();
                     hideIndices = rand < 0.5 ? [0] : [0, 1];
-                } else if (modeStr === 'both') hideIndices = [0, 1]; //隱藏字在第一行和第二行，兩行都有
+                } else if (modeStr === 'both') hideIndices = [0, 1];
+
+                // 如果單行無法滿足 minTotalHideCount，強制使用兩行以避免陷入無窮迴圈
+                const maxHidePerLine = 7 - (settings.minShowCount || 1);
+                if (hideIndices.length === 1 && (settings.minTotalHideCount || 2) > maxHidePerLine) {
+                    hideIndices = [0, 1];
+                }
 
                 this.hiddenPositions = [];
                 const minShow = settings.minShowCount;
@@ -411,6 +418,13 @@
             l1.innerHTML = renderLine(this.line1, 0);
             l2.innerHTML = renderLine(this.line2, 1);
 
+            // 動態縮小字體 (需過濾掉 HTML 標籤)
+            const l1Len = l1.innerHTML.replace(/<[^>]*>/g, '').length;
+            this.adjustFontSize(l1, l1Len, 7, 2.5);
+            
+            const l2Len = l2.innerHTML.replace(/<[^>]*>/g, '').length;
+            this.adjustFontSize(l2, l2Len, 7, 2.5);
+
             // showDelay 邏輯 (修正 Rule 4)
             if (settings.showDelay > 0 && !this.cluesRevealed) {
                 if (this.showTimeout) clearTimeout(this.showTimeout);
@@ -420,7 +434,10 @@
                 }, settings.showDelay * 1000);
             }
 
-            info.innerHTML = `<span>${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+            const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            info.innerHTML = `<span>${infoText}</span>`;
+            this.adjustFontSize(info, infoText.length, 20, 1.0);
+
             info.onclick = () => {
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
             };
@@ -793,6 +810,15 @@
 
         delay: function (ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
+        },
+
+        adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
+            if (textLen > threshold) {
+                const newSize = baseFontSizeRem * (threshold / textLen);
+                element.style.fontSize = `${newSize}rem`;
+            } else {
+                element.style.fontSize = `${baseFontSizeRem}rem`;
+            }
         }
     };
 

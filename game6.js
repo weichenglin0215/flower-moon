@@ -4,24 +4,24 @@
     'use strict';
 
     const Game6 = {
-        isActive: false,
-        difficulty: '小學',
-        currentLevelIndex: 1,
-        isLevelMode: false,
-        score: 0,
-        mistakeCount: 0,
-        maxMistakeCount: 3,
-        timeLimit: 60,
-        timeLeft: 60,
-        timerInterval: null,
-        nextEnemyId: 0,
+        isActive: false, // 遊戲是否啟動
+        difficulty: '小學', // 遊戲難度
+        currentLevelIndex: 1, // 當前關卡索引
+        isLevelMode: false, // 是否為關卡模式
+        score: 0, // 遊戲得分
+        mistakeCount: 0, // 遊戲錯誤次數
+        maxMistakeCount: 3, // 最大錯誤次數
+        timeLimit: 60, // 遊戲時間限制
+        timeLeft: 60, // 剩餘時間
+        timerInterval: null, // 計時器間隔
+        nextEnemyId: 0, // 下一個敵人ID
 
         // 佈局單位定義 (以 rem 為基礎)
         ui: {
             // 敵人相關
             enemySize: 1.5,        // 敵人大小
-            enemySpacingX: 1.4,    // 橫向間距
-            enemySpacingY: 1.4,    // 縱向間距
+            enemySpacingX: 1.2,    // 橫向間距
+            enemySpacingY: 1.2,    // 縱向間距
 
             // 敵人子彈
             enemyBulletSize: 0.2,  // 子彈大小
@@ -88,11 +88,11 @@
             //speedInc: 速度增量
             //maxSpeed: 最大速度
             //lineCount: 敵人波次詩句數
-            '小學': { timeLimit: 80, poemMinRating: 6, maxMistakeCount: 6, fireRate: 0.8, baseSpeed: 80, speedInc: 10, maxSpeed: 300, lineCount: 2 },
-            '中學': { timeLimit: 80, poemMinRating: 5, maxMistakeCount: 5, fireRate: 0.75, baseSpeed: 80, speedInc: 11, maxSpeed: 350, lineCount: 4 },
-            '高中': { timeLimit: 80, poemMinRating: 4, maxMistakeCount: 4, fireRate: 0.7, baseSpeed: 80, speedInc: 12, maxSpeed: 400, lineCount: 6 },
-            '大學': { timeLimit: 80, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.65, baseSpeed: 80, speedInc: 13, maxSpeed: 500, lineCount: 8 },
-            '研究所': { timeLimit: 80, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.6, baseSpeed: 80, speedInc: 14, maxSpeed: 600, lineCount: 8 }
+            '小學': { timeLimit: 120, poemMinRating: 6, maxMistakeCount: 6, fireRate: 0.8, baseSpeed: 50, speedInc: 5, maxSpeed: 200, lineCount: 2 },
+            '中學': { timeLimit: 120, poemMinRating: 5, maxMistakeCount: 5, fireRate: 0.75, baseSpeed: 50, speedInc: 6, maxSpeed: 250, lineCount: 4 },
+            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 4, fireRate: 0.7, baseSpeed: 50, speedInc: 7, maxSpeed: 300, lineCount: 6 },
+            '大學': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.65, baseSpeed: 50, speedInc: 8, maxSpeed: 350, lineCount: 8 },
+            '研究所': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.6, baseSpeed: 50, speedInc: 9, maxSpeed: 400, lineCount: 8 }
         },
 
         enemyDirection: 1, // 1 向右, -1 向左
@@ -276,7 +276,7 @@
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
-                    
+
                     this.updateUIForMode();
 
                     const container = document.getElementById('game6-container');
@@ -370,10 +370,10 @@
                 this.currentLevelIndex = levelIndex;
                 this.isLevelMode = true;
             } else if (!this.isLevelMode) { // If not explicitly starting a level, and not already in level mode, reset to default difficulty
-                this.difficulty = '小學'; // Or whatever your default difficulty is
+                // 移除強制重置為小學的邏輯，保留使用者在選單中選定的難度
                 this.currentLevelIndex = 1;
             }
-            
+
             this.updateUIForMode();
             this.score = 0;
             this.mistakeCount = 0;
@@ -442,8 +442,8 @@
                 // 使用共用函式來取得詩詞，傳入種子
                 if (typeof POEMS !== 'undefined') {
                     const result = getSharedRandomPoem(
-                        minRating, 
-                        2, 2, 8, 30, "", // minLines, maxLines, minChars, maxChars, filter
+                        minRating,
+                        settings.lineCount, settings.lineCount, 8, 200, "", // 確保選取符合 lineCount 參數的行數，並放寬最大字數限制
                         this.isLevelMode ? this.currentLevelIndex : null, // Seed only in level mode
                         'game6'
                     );
@@ -451,18 +451,19 @@
                         this.currentPoem = result.poem;
                         this.createEnemies(result.poem, result.startIndex);
                     } else {
-                        // 備用方案
-                        const eligible = POEMS.filter(p => (p.rating || 0) >= minRating);
-                        const poem = eligible.length > 0 ? eligible[Math.floor(Math.random() * eligible.length)] : POEMS[Math.floor(Math.random() * POEMS.length)];
+                        // 備用方案：確保備用詩詞至少擁有 lineCount 數量的詩句
+                        const eligible = POEMS.filter(p => (p.rating || 0) >= minRating && p.content && p.content.length >= settings.lineCount);
+                        const fallbackPool = eligible.length > 0 ? eligible : POEMS.filter(p => p.content && p.content.length >= settings.lineCount);
+                        const poem = fallbackPool.length > 0 ? fallbackPool[Math.floor(Math.random() * fallbackPool.length)] : POEMS[0];
                         this.currentPoem = poem;
-                        this.createEnemies(poem, 0);
+                        this.createEnemies(poem, undefined);
                     }
                 }
             }
 
-            // 設置敵人的速度與方向
+            // 設置敵人的速度與方向，並依據 rem 縮放速度以確保跨裝置一致
             this.enemyDirection = 1;
-            this.currentEnemySpeed = settings.baseSpeed;
+            this.currentEnemySpeed = settings.baseSpeed * (this.u / 16);
 
             // 建立掩體：石碑陣
             const mCount = 4;
@@ -660,7 +661,9 @@
             let shiftDown = false;
             if (edgeHit) {
                 this.enemyDirection *= -1;
-                if (this.currentEnemySpeed < settings.maxSpeed) this.currentEnemySpeed += settings.speedInc;
+                const maxSpd = settings.maxSpeed * (this.u / 16);
+                const incSpd = settings.speedInc * (this.u / 16);
+                if (this.currentEnemySpeed < maxSpd) this.currentEnemySpeed += incSpd;
                 shiftDown = true;
             }
 
@@ -701,9 +704,11 @@
             });
 
             Object.values(bottomEnemies).forEach(e => {
-                // 發射子彈機率
+                // 產出敵人砲彈機率
                 if (Math.random() < 0.0066) {
-                    this.enemyProjectiles.push({ x: e.x, y: e.y, speed: 180, radius: 5 });
+                    const radius = (this.ui.enemyBulletSize / 2) * this.u;
+                    //產出敵人砲彈，速度 = 50 + 0~150 的隨機值
+                    this.enemyProjectiles.push({ x: e.x, y: e.y, speed: (50 + Math.random() * 150) * (this.u / 16), radius: radius });
                 }
             });
 
@@ -732,9 +737,9 @@
         },
         //玩家發射子彈
         fireBullet: function () {
-            const bSpeed = 400;
+            const bSpeed = 400 * (this.u / 16); // 隨 rem 縮放子彈速度
             const count = this.player.multiShotLevel;
-            const spread = 0.9 * this.u; // 與 draw 保持一致
+            const spread = 0.5 * this.u; // 玩家發射多發子彈的寬度間隔，與 draw 保持一致
             const gunH = this.ui.gunHeight * this.u;
             const py = this.canvas.height - this.player.height - 1.25 * this.u;
 
@@ -755,7 +760,7 @@
         spawnExplosion: function (x, y, color, count) {
             for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 100 + 50;
+                const speed = (Math.random() * 100 + 50) * (this.u / 16);
                 this.particles.push({
                     x: x,
                     y: y,
@@ -1065,7 +1070,7 @@
             const mCount = this.player.multiShotLevel;
             const gunW = this.ui.gunWidth * this.u;
             const gunH = this.ui.gunHeight * this.u;
-            const spread = 0.9 * this.u;
+            const spread = 0.5 * this.u; // 玩家發射多發子彈的寬度間隔，與 fireBullet 保持一致
             for (let i = 0; i < mCount; i++) {
                 const off = (i - (mCount - 1) / 2) * spread;
                 this.ctx.fillRect(this.player.x + off - gunW / 2, py - gunH, gunW, gunH);

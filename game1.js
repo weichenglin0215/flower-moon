@@ -29,8 +29,8 @@
         //minMaskCount: 最少遮罩數量
         //maxMaskCount: 最多遮罩數量
         difficultySettings: {
-            '小學': { timeLimit: 40, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
-            '中學': { timeLimit: 30, poemMinRating: 5, maxMistakeCount: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
+            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
+            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
             '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
             '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
             '研究所': { timeLimit: 10, poemMinRating: 2, maxMistakeCount: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
@@ -400,17 +400,17 @@
 
             const l1Div = document.createElement('div');
             l1Div.className = 'poem-lines';
-            // 動態縮小字體
-            this.adjustFontSize(l1Div, l1Text.length, 7, 2.5);
+            // 動態縮小字體 (需過濾掉 HTML 標籤)
+            const l1Len = l1Text.replace(/<[^>]*>/g, '').length;
+            this.adjustFontSize(l1Div, l1Len, 7, 2.5);
             l1Div.innerHTML = l1Text;
             qDiv.appendChild(l1Div);
 
             const l2Div = document.createElement('div');
             l2Div.className = 'poem-lines';
-            // 動態縮小字體
-            // 取得遮罩後的文字長度
-            const maskedLength = this.maskedLineHTML.replace(/<[^>]*>/g, '').length;
-            this.adjustFontSize(l2Div, maskedLength, 7, 2.5);
+            // 動態縮小字體 (需過濾掉 HTML 標籤)
+            const l2Len = l2Text.replace(/<[^>]*>/g, '').length;
+            this.adjustFontSize(l2Div, l2Len, 7, 2.5);
             l2Div.innerHTML = l2Text;
             qDiv.appendChild(l2Div);
 

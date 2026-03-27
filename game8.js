@@ -43,7 +43,7 @@
             '中學': { timeLimit: 75, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
             '高中': { timeLimit: 70, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
             '大學': { timeLimit: 65, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, maxChars: 56 },
-            '研究所': { timeLimit: 60, poemMinRating: 2, maxMistakeCount: 2, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, maxChars: 56 }
+            '研究所': { timeLimit: 60, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, maxChars: 56 }
         },
 
 
@@ -1058,9 +1058,19 @@
                     }
                 }
 
-                // 只有在剛好完成多個完整句數，且路徑長度與內容完全吻合時才判為有效
-                if (phasesCompleted > 0 && this.currentPath.length === (checkIdx - phase.startIndex)) {
+                // 只要有完整完成的句子，即判斷為有效，並將超出「最後一個完整句」的多餘路徑截斷捨棄
+                if (phasesCompleted > 0) {
                     isValid = true;
+                    const validLengthToKeep = checkIdx - phase.startIndex;
+                    if (this.currentPath.length > validLengthToKeep) {
+                        const extraPath = this.currentPath.splice(validLengthToKeep);
+                        let currentIdx = this.successfulStrokes.length;
+                        let colorClass = `cell-color-${(currentIdx % 8) + 1}`;
+                        extraPath.forEach(p => {
+                            this.gridElements[p.row][p.col].classList.remove('selected');
+                            this.gridElements[p.row][p.col].classList.remove(colorClass);
+                        });
+                    }
                 }
             } else {
                 // 嚴格模式：一次只能挑戰當前定義的一個階段（整首詩）

@@ -4,20 +4,20 @@
     'use strict';
 
     const Game9 = {
-        isActive: false,
-        difficulty: '小學',
-        currentLevelIndex: 1,
-        isLevelMode: false,
-        score: 0,
-        mistakeCount: 0,
-        timer: 0,
-        maxTimer: 0,
-        timerInterval: null,
+        isActive: false, //遊戲是否啟動
+        difficulty: '小學', //難度
+        currentLevelIndex: 1, //目前關卡數
+        isLevelMode: false, //是否為挑戰關卡模式
+        score: 0, //分數
+        mistakeCount: 0, //錯誤次數
+        timer: 0, //計時器
+        maxTimer: 0, //最大計時
+        timerInterval: null, //計時器間隔
 
-        movesLeft: 0,
-        maxMoves: 0,
-        lastActionTime: 0,
-        inactivityThreshold: 5000,
+        movesLeft: 0, //剩餘移動次數
+        maxMoves: 0, //最大移動次數
+        lastActionTime: 0, //上次操作時間
+        inactivityThreshold: 5000, //無操作時間閾值，超過秒數無移動步伐就罰一次移動步數。
 
         moveInfo: [], // for undo
 
@@ -168,7 +168,7 @@
                     this.currentLevelIndex = levelIndex || 1;
                     const settings = this.difficultySettings[selectedLevel];
                     if (!settings) return;
-                    
+
                     this.updateUIForMode();
 
                     const container = document.getElementById('game9-container');
@@ -251,7 +251,7 @@
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
-                    
+
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
@@ -373,8 +373,8 @@
             this.renderLevel();
             this.updateProgressText();
 
-            // Setup Move limits based on totalNumberOfExchange
-            this.maxMoves = (settings.totalNumberOfExchange || 16) * 1.5;
+            // 設定玩家的移動次數等於 totalNumberOfExchange 題目預先交換的次數，本來是1.5倍次數，太容易改成*1.0倍
+            this.maxMoves = (settings.totalNumberOfExchange || 16) * 1.0;
             this.movesLeft = this.maxMoves;
             this.updateProgressText(); //起動遊戲時更新剩餘步數
             this.lastActionTime = Date.now();

@@ -57,10 +57,10 @@
         // hintDuration: 下一個字提示閃爍持續時間, 
         // lostInt/lostDur: 小精靈故意失誤的相隔時間與失誤持續時間
         difficultySettings: {
-            '小學': { timeLimit: 120, poemMinRating: 6, maxMistakeCount: 6, monsters: 2, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
-            '中學': { timeLimit: 120, poemMinRating: 5, maxMistakeCount: 5, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
-            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 4, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: 0, lostDur: 0 },
-            '大學': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 },
+            '小學': { timeLimit: 120, poemMinRating: 6, maxMistakeCount: 7, monsters: 2, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
+            '中學': { timeLimit: 120, poemMinRating: 5, maxMistakeCount: 6, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
+            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 5, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
+            '大學': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 4, monsters: 4, answerLen: 12, hintDuration: -1, lostInt: 0, lostDur: 500 },
             '研究所': { timeLimit: 120, poemMinRating: 2, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
         },
 
@@ -267,7 +267,7 @@
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
-                    
+
                     this.updateUIForMode();
 
                     const container = document.getElementById('game5-container');
@@ -356,7 +356,7 @@
                     this.currentLevelIndex = 1; // Reset level index for non-level mode
                 }
             }
-            
+
             this.updateUIForMode();
             this.score = 0;
             this.mistakes = 0;
@@ -1002,7 +1002,8 @@
 
             // Draw Foods
             // PC gridSize ~21px, Mobile gridSize ~15px. Font size should follow gridSize.
-            this.ctx.font = `bold ${Math.floor(this.gridSize * 0.8)}px 'Noto Serif TC'`;
+            //this.ctx.font = `bold ${Math.floor(this.gridSize * 0.8)}px 'Noto Serif TC'`; //宋體字尺寸
+            this.ctx.font = `bold ${Math.floor(this.gridSize * 1.0)}px 'Microsoft JhengHei'`; //微軟正黑體字尺寸
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             const settings = this.difficultySettings[this.difficulty];
@@ -1016,9 +1017,11 @@
                         this.ctx.fillStyle = 'hsl(45, 100%, 65%)';
                         this.ctx.shadowBlur = 15;
                         this.ctx.shadowColor = 'gold';
+                        this.ctx.font = `bold ${Math.floor(this.gridSize * 1.2)}px 'Microsoft JhengHei'`; //微軟正黑體字尺寸
                     } else {
-                        this.ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                        this.ctx.fillStyle = 'rgba(255,255,255,0.5)';
                         this.ctx.shadowBlur = 0;
+                        this.ctx.font = `bold ${Math.floor(this.gridSize * 1.0)}px 'Microsoft JhengHei'`; //微軟正黑體字尺寸
                     }
                     this.ctx.fillText(f.char, f.col * this.gridSize + this.gridSize / 2, f.row * this.gridSize + this.gridSize / 2);
                 }

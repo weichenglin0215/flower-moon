@@ -65,8 +65,8 @@
         // maxChars:最多字數, 
         // stopOnLand:是否停留, 
         difficultySettings: {
-            '小學': { timeLimit: 90, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 300, heightVar: 200, move: false, speed: 100, minChars: 10, maxChars: 14, stopOnLand: true },
-            '中學': { timeLimit: 100, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 275, heightVar: 300, move: false, speed: 120, minChars: 14, maxChars: 20, stopOnLand: true },
+            '小學': { timeLimit: 100, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 300, heightVar: 200, move: false, speed: 100, minChars: 10, maxChars: 14, stopOnLand: true },
+            '中學': { timeLimit: 110, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 275, heightVar: 300, move: false, speed: 120, minChars: 14, maxChars: 20, stopOnLand: true },
             '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 250, heightVar: 400, move: false, speed: 140, minChars: 20, maxChars: 28, stopOnLand: false },
             '大學': { timeLimit: 135, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 225, heightVar: 500, move: true, speed: 160, minChars: 20, maxChars: 56, stopOnLand: false },
             '研究所': { timeLimit: 150, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 28, maxChars: 70, stopOnLand: false }
@@ -922,6 +922,14 @@
                     scoreElementId: 'game7-score',
                     timerContainerId: 'game7-timer-container',
                     heartsSelector: '#game7-hearts .heart:not(.empty)',
+                    getStarStartPoint: (ratio) => {
+                        if (!this.canvas) return null;
+                        const rect = this.canvas.getBoundingClientRect();
+                        return {
+                            x: rect.left + (this.bird.x - this.cameraX),
+                            y: rect.top + this.bird.y
+                        };
+                    },
                     onComplete: () => {
                         this.gameOver(true, `大鵬一日同風起，扶搖直上九萬里！<br>成功導讀《${this.currentPoem.title}》`);
                     }
