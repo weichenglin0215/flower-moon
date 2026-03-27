@@ -30,10 +30,10 @@
         //maxMaskCount: 最多遮罩數量
         difficultySettings: {
             '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1 },
-            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 3, answerAtLine: 2, minMaskCount: 2, maxMaskCount: 3 },
-            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 4 },
-            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 4, maxMaskCount: 5 },
-            '研究所': { timeLimit: 10, poemMinRating: 2, maxMistakeCount: 1, answerAtLine: 0, minMaskCount: 6, maxMaskCount: 7 }
+            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 3, answerAtLine: 0, minMaskCount: 2, maxMaskCount: 3 },
+            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 5 },
+            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 1, minMaskCount: 4, maxMaskCount: 6 },
+            '研究所': { timeLimit: 10, poemMinRating: 2, maxMistakeCount: 1, answerAtLine: 1, minMaskCount: 8, maxMaskCount: 10 }
         },
 
         loadCSS: function () {
@@ -362,7 +362,8 @@
                     if (!/[，。？！、：；]/.test(c)) validIndices.push(i);
                 });
 
-                const maxPossible = Math.max(1, validIndices.length - 1);
+                //const maxPossible = Math.max(1, validIndices.length - 1); //原先作法至少會留一個字不遮罩，現已取消
+                const maxPossible = validIndices.length;
                 const actualMin = Math.min(maxPossible, Math.max(1, min));
                 const actualMax = Math.min(maxPossible, Math.max(actualMin, max));
                 const maskCount = Math.floor(Math.random() * (actualMax - actualMin + 1)) + actualMin;
@@ -414,11 +415,16 @@
             l2Div.innerHTML = l2Text;
             qDiv.appendChild(l2Div);
 
-            const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            //詩詞名稱只能顯示前12個字
+            let title = this.currentPoem.title;
+            if (title.length > 12) {
+                title = title.substring(0, 10) + "...";
+            }
+            const infoText = `${title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             const infoEl = document.getElementById('game1-poem-info');
             infoEl.textContent = infoText;
             infoEl.dataset.poemId = this.currentPoem.id;
-            this.adjustFontSize(infoEl, infoText.length, 20, 1.0);
+            //this.adjustFontSize(infoEl, infoText.length, 20, 1.0); //取消，若詩詞資料過長，改以刪減詩詞名稱字數替代
 
             // 渲染選項
             this.renderOptions();

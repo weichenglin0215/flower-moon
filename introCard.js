@@ -8,6 +8,7 @@
     const AboutDialog = {
         overlay: null,
         hideTimeout: null,
+        autoCloseTimeout: null,
 
         init: function () {
             // 如果已经在 DOM 中则不处理
@@ -27,16 +28,20 @@
 
             // 如果是在玩遊戲或是某個特定頁面開啟(有 query strings)，就不顯示
             if (!window.location.search.includes('game=') && !window.location.search.includes('page=')) {
-                this.show();
+                this.show(true);
             }
         },
 
-        show: function () {
+        show: function (autoClose = false) {
             if (!this.overlay) this.init();
             // 如果正在隱藏中，取消隱藏計時器
             if (this.hideTimeout) {
                 clearTimeout(this.hideTimeout);
                 this.hideTimeout = null;
+            }
+            if (this.autoCloseTimeout) {
+                clearTimeout(this.autoCloseTimeout);
+                this.autoCloseTimeout = null;
             }
 
             this.overlay.classList.remove('hidden');
@@ -46,6 +51,15 @@
             if (window.updateResponsiveLayout) window.updateResponsiveLayout();
             if (window.SoundManager) setTimeout(() => window.SoundManager.playJoyfulTriple(), 1000);
 
+            if (autoClose) {
+                this.autoCloseTimeout = setTimeout(() => {
+                    //半透明慢慢消失
+                    this.overlay.classList.add('hide-fade');
+                }, 2500);
+                this.autoCloseTimeout = setTimeout(() => {
+                    this.hide(); //4秒後完全消失，請參考 introCard.css intro-overlay.hide-fade
+                }, 4000);
+            }
         },
 
         createDOM: function () {
@@ -64,7 +78,7 @@
                         <div class="intro-text-block">
                             <p>賞花吟月，品味詩詞之美</p>
                             <p>寓教於樂，挑戰傳統文學</p>
-                            <p>更新：2026-03-26 V0.14.0.0</p>
+                            <p>更新：2026-03-27 V0.14.3.0</p>
                         </div>
                     </div>
                     
@@ -124,14 +138,21 @@
             // 取消之前的隱藏計時器
             if (this.hideTimeout) {
                 clearTimeout(this.hideTimeout);
+                this.hideTimeout = null;
+            }
+            if (this.autoCloseTimeout) {
+                clearTimeout(this.autoCloseTimeout);
+                this.autoCloseTimeout = null;
             }
 
+            let timeoutDuration = 600;
             if (direction === 'left') {
                 this.overlay.classList.add('hide-slide-left');
             } else if (direction === 'right') {
                 this.overlay.classList.add('hide-slide-right');
             } else {
                 this.overlay.classList.add('hide-fade');
+                timeoutDuration = 1000;
             }
 
             // 動畫結束後正式隱藏並恢復 body 捲動
@@ -139,7 +160,7 @@
                 this.overlay.classList.add('hidden');
                 document.body.classList.remove('overlay-active');
                 this.hideTimeout = null;
-            }, 600);
+            }, timeoutDuration);
         }
     };
 

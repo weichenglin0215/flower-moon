@@ -194,7 +194,6 @@
         function toggleMenu() {
             const isActive = menuPanel.classList.toggle('active');
             if (isActive) {
-                closeAllActiveOverlays(); // 開啟選單時關閉其他覆蓋層
                 if (window.SoundManager) window.SoundManager.playOpenItem();
             } else if (!isActive && window.SoundManager) {
                 window.SoundManager.playCloseItem();
