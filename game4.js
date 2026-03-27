@@ -34,8 +34,8 @@
         //singleCharReaction: 單字反應對錯，true=單字反應對錯，false=整句反應對錯
         difficultySettings: {
             '小學': { timeLimit: 20, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0, singleCharReaction: true },
-            '中學': { timeLimit: 40, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 4, singleCharReaction: true },
-            '高中': { timeLimit: 60, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 8, singleCharReaction: true },
+            '中學': { timeLimit: 40, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 20, singleCharReaction: true },
+            '高中': { timeLimit: 60, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 30, singleCharReaction: false },
             //'大學': { timeLimit: 80, poemMinRating: 4, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 10, singleCharReaction: false },
             //'研究所': { timeLimit: 100, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 12, singleCharReaction: false }
             '大學': { timeLimit: 160, poemMinRating: 4, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 200, singleCharReaction: false },
@@ -456,7 +456,7 @@
             const gridConfigs = {
                 '小學': { total: 9, cols: 3 },
                 '中學': { total: 12, cols: 4 },
-                '高中': { total: 16, cols: 4 },
+                '高中': { total: 20, cols: 5 },
                 //'大學': { total: 20, cols: 5 },
                 //'研究所': { total: 25, cols: 5 }
                 '大學': { total: 42, cols: 6 },
