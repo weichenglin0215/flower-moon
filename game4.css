@@ -188,6 +188,23 @@
     text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
 }
 
+.poem-lines span.char-typing {
+    color: hsl(0, 0%, 75%);
+    font-weight: normal;
+}
+
+.poem-lines span.char-wrong-pos {
+    color: hsl(210, 80%, 60%);
+    font-weight: bold;
+    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+}
+
+.poem-lines span.char-wrong {
+    color: hsl(0, 80%, 60%);
+    font-weight: bold;
+    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+}
+
 /* 題目句子的延遲顯示樣式 */
 .poem-lines.game4-hidden-line {
     opacity: 0;

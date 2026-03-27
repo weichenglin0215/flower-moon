@@ -22,6 +22,8 @@
         cluesRevealed: false, // 題目提示句是否已過延遲時間而顯示
         container: null,
         game4Area: null,
+        userInputs: [],
+        evaluationResult: null,
         //timeLimit: 時間限制
         //poemMinRating: 最低詩詞評分
         //maxMistakeCount: 最大錯誤次數
@@ -29,12 +31,15 @@
         //maxMaskCount: 最多遮罩數量
         //maxAddDecoyChars: 最多干擾字數量
         //showDelay: 顯示延遲時間
+        //singleCharReaction: 單字反應對錯，true=單字反應對錯，false=整句反應對錯
         difficultySettings: {
-            '小學': { timeLimit: 60, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0 },
-            '中學': { timeLimit: 45, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 4 },
-            '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 8 },
-            '大學': { timeLimit: 20, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 10 },
-            '研究所': { timeLimit: 15, poemMinRating: 2, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 12, maxAddDecoyChars: 20, showDelay: 12 }
+            '小學': { timeLimit: 20, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0, singleCharReaction: true },
+            '中學': { timeLimit: 40, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 4, singleCharReaction: true },
+            '高中': { timeLimit: 60, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 8, singleCharReaction: true },
+            //'大學': { timeLimit: 80, poemMinRating: 4, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 10, singleCharReaction: false },
+            //'研究所': { timeLimit: 100, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 12, singleCharReaction: false }
+            '大學': { timeLimit: 160, poemMinRating: 4, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 200, singleCharReaction: false },
+            '研究所': { timeLimit: 200, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false }
         },
 
         // 常用字庫已移至 script.js 的 window.SharedDecoy 中
@@ -216,6 +221,8 @@
             this.currentInputIndex = 0;
             this.isRevealed = false;
             this.cluesRevealed = false;
+            this.userInputs = [];
+            this.evaluationResult = null;
             document.getElementById('game4-score').textContent = this.score;
             document.getElementById('game4-message').classList.add('hidden');
             this.renderHearts();
@@ -257,6 +264,8 @@
             this.currentInputIndex = 0;
             this.isRevealed = false;
             this.cluesRevealed = false;
+            this.userInputs = [];
+            this.evaluationResult = null;
             document.getElementById('game4-score').textContent = this.score;
             document.getElementById('game4-message').classList.add('hidden');
             this.renderHearts();
@@ -389,12 +398,34 @@
                         const hInfo = lineHiddens.find(h => h.originalIdx === i);
                         if (hInfo) {
                             const posIdx = this.hiddenPositions.indexOf(hInfo);
-                            if (posIdx < this.currentInputIndex) {
-                                html += `<span class="correct-char">${char}</span>`;
-                            } else if (this.isRevealed) {
-                                html += `<span class="hidden-char">${char}</span>`;
+                            if (!settings.singleCharReaction) {
+                                if (posIdx < this.userInputs.length) {
+                                    const inputChar = this.userInputs[posIdx].char;
+                                    if (this.evaluationResult) {
+                                        const res = this.evaluationResult[posIdx];
+                                        if (res === 'correct') {
+                                            html += `<span class="correct-char">${inputChar}</span>`;
+                                        } else if (res === 'wrong-pos') {
+                                            html += `<span class="char-wrong-pos">${inputChar}</span>`;
+                                        } else {
+                                            html += `<span class="char-wrong">${inputChar}</span>`;
+                                        }
+                                    } else {
+                                        html += `<span class="char-typing">${inputChar}</span>`;
+                                    }
+                                } else if (this.isRevealed) {
+                                    html += `<span class="hidden-char">${char}</span>`;
+                                } else {
+                                    html += `<span class="hidden-char">◎</span>`;
+                                }
                             } else {
-                                html += `<span class="hidden-char">◎</span>`;
+                                if (posIdx < this.currentInputIndex) {
+                                    html += `<span class="correct-char">${char}</span>`;
+                                } else if (this.isRevealed) {
+                                    html += `<span class="hidden-char">${char}</span>`;
+                                } else {
+                                    html += `<span class="hidden-char">◎</span>`;
+                                }
                             }
                         } else {
                             html += char;
@@ -426,8 +457,10 @@
                 '小學': { total: 9, cols: 3 },
                 '中學': { total: 12, cols: 4 },
                 '高中': { total: 16, cols: 4 },
-                '大學': { total: 20, cols: 5 },
-                '研究所': { total: 25, cols: 5 }
+                //'大學': { total: 20, cols: 5 },
+                //'研究所': { total: 25, cols: 5 }
+                '大學': { total: 42, cols: 6 },
+                '研究所': { total: 49, cols: 7 }
             };
             const config = gridConfigs[this.difficulty] || gridConfigs['小學'];
 
@@ -457,12 +490,23 @@
             allChars.forEach(char => {
                 const btn = document.createElement('button');
                 btn.className = 'ans-btn';
+                //難度是"大學"或"研究所"設定按鍵的間距
+                if (this.difficulty === '大學' || this.difficulty === '研究所') {
+                    btn.style.width = '3rem';
+                    btn.style.height = '3rem';
+                    btn.style.margin = '0.2rem';
+                }
                 btn.textContent = char;
                 btn.onclick = (e) => {
                     if (window.SoundManager) {
-                        const target = this.hiddenPositions[this.currentInputIndex];
-                        if (char === target.char) window.SoundManager.playSuccess();
-                        else window.SoundManager.playFailure();
+                        const settings = this.difficultySettings[this.difficulty];
+                        if (settings.singleCharReaction) {
+                            const target = this.hiddenPositions[this.currentInputIndex];
+                            if (char === target.char) window.SoundManager.playSuccess();
+                            else window.SoundManager.playFailure();
+                        } else {
+                            if (window.SoundManager.playClick) window.SoundManager.playClick();
+                        }
                     }
                     this.handleInput(char, e.target);
                 };
@@ -477,6 +521,65 @@
         handleInput: function (char, btn) {
             if (!this.isActive) return;
             if (btn.classList.contains('disabled')) return;
+
+            const settings = this.difficultySettings[this.difficulty];
+
+            if (!settings.singleCharReaction) {
+                this.userInputs.push({ char, btn });
+                btn.classList.add('disabled');
+                this.currentInputIndex++;
+                this.renderQuestion();
+
+                if (this.userInputs.length === this.hiddenPositions.length) {
+                    let isAllCorrect = true;
+                    this.evaluationResult = this.userInputs.map((input, idx) => {
+                        const target = this.hiddenPositions[idx].char;
+                        if (input.char === target) {
+                            return 'correct';
+                        } else {
+                            isAllCorrect = false;
+                            const allHiddenChars = this.hiddenPositions.map(h => h.char);
+                            if (allHiddenChars.includes(input.char)) {
+                                return 'wrong-pos';
+                            }
+                            return 'wrong';
+                        }
+                    });
+
+                    this.renderQuestion();
+
+                    if (isAllCorrect) {
+                        this.score += 10 * this.userInputs.length;
+                        document.getElementById('game4-score').textContent = this.score;
+                        if (window.SoundManager) window.SoundManager.playSuccess();
+                        this.gameWin();
+                    } else {
+                        if (window.SoundManager) window.SoundManager.playFailure();
+                        this.mistakeCount++;
+                        this.updateHearts();
+
+                        this.isActive = false;
+
+                        if (this.mistakeCount >= settings.maxMistakeCount) {
+                            setTimeout(() => {
+                                this.gameOver(false, `失誤次數過多`);
+                            }, 1000);
+                        } else {
+                            setTimeout(() => {
+                                this.userInputs.forEach(input => {
+                                    input.btn.classList.remove('disabled');
+                                });
+                                this.userInputs = [];
+                                this.evaluationResult = null;
+                                this.currentInputIndex = 0;
+                                this.isActive = true;
+                                this.renderQuestion();
+                            }, 1500);
+                        }
+                    }
+                }
+                return;
+            }
 
             const target = this.hiddenPositions[this.currentInputIndex];
             if (char === target.char) {
@@ -614,7 +717,9 @@
             }
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);
-            this.isRevealed = true;
+            if (win) {
+                this.isRevealed = true;
+            }
             this.renderQuestion();
 
             const msgDiv = document.getElementById('game4-message');

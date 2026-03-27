@@ -30,11 +30,11 @@
         //grid: [行, 列]
         //questionCount: 每行要問幾個字
         difficultySettings: {
-            '小學': { timeLimit: 60, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
-            '中學': { timeLimit: 45, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
+            '小學': { timeLimit: 20, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
+            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
             '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, grid: [4, 3], questionCount: 4 },
-            '大學': { timeLimit: 20, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
-            '研究所': { timeLimit: 15, poemMinRating: 2, maxMistakeCount: 8, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
+            '大學': { timeLimit: 35, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
+            '研究所': { timeLimit: 40, poemMinRating: 2, maxMistakeCount: 8, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
         },
 
         loadCSS: function () {
