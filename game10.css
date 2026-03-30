@@ -171,6 +171,32 @@
     /* 確保 JS 設定的 left/top 對準中心點 */
 }
 
+.game10-paddle.flash-pink-sides::before,
+.game10-paddle.flash-pink-sides::after {
+    content: '';
+    position: absolute;
+    top: -0.1rem;
+    bottom: -0.1rem;
+    width: var(--pink-side-width, 10%);
+    background: linear-gradient(to top, hsl(330, 40%, 40%), hsl(330, 50%, 60%));
+    border: 0.1rem solid hsl(330, 60%, 80%);
+    border-radius: 0.4rem;
+    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.5), inset 0 0.1rem 0.2rem hsla(0, 0%, 100%, 0.3);
+    z-index: 2;
+}
+
+.game10-paddle.flash-pink-sides::before {
+    left: -0.1rem;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.game10-paddle.flash-pink-sides::after {
+    right: -0.1rem;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
 /* 圓球 (Pearl Ball)：白色珍珠質感與外發光效果 */
 .game10-ball {
     position: absolute;

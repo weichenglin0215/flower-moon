@@ -669,5 +669,16 @@
         }
     };
 
+    // 測試專用：按 Alt+W 觸發「恭喜榮獲成就」彈窗，方便檢視動畫表演
+    document.addEventListener('keydown', (e) => {
+        if (e.altKey && (e.key === 'w' || e.key === 'W')) {
+            e.preventDefault();
+            const dummyId = 'test_ach_' + Date.now();
+            AchievementDialog.showInstantAchievementPop(dummyId, 'game1', 20, () => {
+                console.log('測試用成就表演完畢');
+            });
+        }
+    });
+
     window.AchievementDialog = AchievementDialog;
 })();

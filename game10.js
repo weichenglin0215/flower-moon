@@ -40,7 +40,8 @@
         // dropInterval: 磚塊下落間隔(秒)，
         // dropStep: 磚塊下落距離(rem)，
         // paddleBase: 撞擊條基礎寬度(rem)，
-        // balls: 球數，blackHP: 黑磚血量，
+        // balls: 球數，
+        // blackHP: 黑磚血量，
         // lineHeight: 詩句間距(rem)，
         // minLines: 最少詩句數，
         // minChars: 最少總字數，
@@ -49,11 +50,11 @@
         // ballSpeed: 球初始速度，
         // ballMaxSpeed: 球最大速度
         difficultySettings: {
-            '小學': { poemMinRating: 6, growRate: 0.2, dropInterval: 3, dropStep: 0.6, paddleBase: 10, balls: 5, blackHP: 1, lineHeight: 2.0, minLines: 2, minChars: 10, maxChars: 20, maxCharsInLine: 5, ballSpeed: 20, ballMaxSpeed: 30 },
-            '中學': { poemMinRating: 5, growRate: 0.15, dropInterval: 3, dropStep: 0.5, paddleBase: 9, balls: 5, blackHP: 2, lineHeight: 1.5, minLines: 4, minChars: 14, maxChars: 21, maxCharsInLine: 7, ballSpeed: 22, ballMaxSpeed: 33 },
-            '高中': { poemMinRating: 4, growRate: 0.1, dropInterval: 3, dropStep: 0.4, paddleBase: 8, balls: 5, blackHP: 3, lineHeight: 1.2, minLines: 4, minChars: 20, maxChars: 28, maxCharsInLine: 9, ballSpeed: 24, ballMaxSpeed: 36 },
-            '大學': { poemMinRating: 3, growRate: 0.1, dropInterval: 3, dropStep: 0.3, paddleBase: 7, balls: 4, blackHP: 3, lineHeight: 1.0, minLines: 6, minChars: 25, maxChars: 35, maxCharsInLine: 10, ballSpeed: 26, ballMaxSpeed: 39 },
-            '研究所': { poemMinRating: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.25, paddleBase: 6, balls: 3, blackHP: 3, lineHeight: 1, minLines: 6, minChars: 30, maxChars: 42, maxCharsInLine: 11, ballSpeed: 28, ballMaxSpeed: 42 }
+            '小學': { poemMinRating: 6, growRate: 0.2, dropInterval: 3, dropStep: 0.6, paddleBase: 8, balls: 5, blackHP: 1, lineHeight: 2.0, minLines: 2, minChars: 10, maxChars: 20, maxCharsInLine: 5, ballSpeed: 20, ballMaxSpeed: 30 },
+            '中學': { poemMinRating: 5, growRate: 0.15, dropInterval: 3, dropStep: 0.5, paddleBase: 7, balls: 5, blackHP: 2, lineHeight: 1.5, minLines: 4, minChars: 14, maxChars: 21, maxCharsInLine: 7, ballSpeed: 22, ballMaxSpeed: 33 },
+            '高中': { poemMinRating: 4, growRate: 0.1, dropInterval: 3, dropStep: 0.4, paddleBase: 6, balls: 5, blackHP: 3, lineHeight: 1.2, minLines: 4, minChars: 20, maxChars: 28, maxCharsInLine: 9, ballSpeed: 24, ballMaxSpeed: 36 },
+            '大學': { poemMinRating: 3, growRate: 0.1, dropInterval: 3, dropStep: 0.3, paddleBase: 5, balls: 5, blackHP: 3, lineHeight: 1.0, minLines: 6, minChars: 25, maxChars: 35, maxCharsInLine: 10, ballSpeed: 26, ballMaxSpeed: 39 },
+            '研究所': { poemMinRating: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.2, paddleBase: 4, balls: 5, blackHP: 3, lineHeight: 1, minLines: 6, minChars: 30, maxChars: 42, maxCharsInLine: 11, ballSpeed: 28, ballMaxSpeed: 42 }
         },
 
         loadCSS: function () {
@@ -525,10 +526,12 @@
             const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes);
 
             this.paddle.width = currentPaddleWidth;
+            this.paddle.flashTimer = 0;
+            this.paddle.isPink = false;
             this.paddle.x = wRem / 2;
             this.paddle.prevX = wRem / 2; // 初始化上一幀位置
             this.paddle.targetX = wRem / 2;
-            this.paddle.y = hRem - 2.4;
+            this.paddle.y = hRem - 4.8; //原先是-2.4，往上移避免手指頭遮住反彈棒
             this.paddle.velX = 0;
 
             // 初始化 Ball
@@ -580,6 +583,25 @@
             if (!this.isActive) return;
             const dt = (timestamp - this.lastTime) / 1000; // 計算幀與幀之間的時間差 (秒)
             this.lastTime = timestamp;
+
+            // 處理反彈棒閃爍動畫 (掉球後變寬)
+            if (this.paddle.flashTimer > 0) {
+                this.paddle.flashTimer -= dt;
+                if (this.paddle.flashTimer <= 0) {
+                    this.paddle.width = this.paddle.flashNewWidth;
+                    this.paddle.isPink = false;
+                } else {
+                    const elapsed = 2.0 - this.paddle.flashTimer;
+                    const stage = Math.floor(elapsed / 0.2); // 0, 1, 2...
+                    if (stage % 2 === 0) {
+                        this.paddle.width = this.paddle.flashOldWidth;
+                        this.paddle.isPink = false;
+                    } else {
+                        this.paddle.width = this.paddle.flashNewWidth;
+                        this.paddle.isPink = true;
+                    }
+                }
+            }
 
             const wRem = this.areaRect.width / this.remToPx;
             const hRem = this.areaRect.height / this.remToPx;
@@ -902,8 +924,14 @@
 
                 // 掉球後放大反彈棒以協助玩家
                 const settings = this.difficultySettings[this.difficulty];
+                const oldPaddleWidth = this.paddle.width || settings.paddleBase;
                 const currentPaddleWidth = settings.paddleBase * (1 + settings.growRate * this.mistakes);
-                this.paddle.width = currentPaddleWidth;
+
+                // 設定閃爍動畫參數
+                this.paddle.flashTimer = 2.0;
+                this.paddle.flashOldWidth = oldPaddleWidth;
+                this.paddle.flashNewWidth = currentPaddleWidth;
+                this.paddle.width = oldPaddleWidth;
 
                 if (this.mistakes >= this.maxMistakes) {
                     this.gameOver(false, "掉球次數過多！");
@@ -1011,6 +1039,13 @@
                 this.paddleEl.style.width = `${this.paddle.width}rem`;
                 this.paddleEl.style.left = `${this.paddle.x}rem`;
                 this.paddleEl.style.top = `${this.paddle.y}rem`;
+                if (this.paddle.isPink) {
+                    this.paddleEl.classList.add('flash-pink-sides');
+                    const pinkWidth = (this.paddle.flashNewWidth - this.paddle.flashOldWidth) / 2;
+                    this.paddleEl.style.setProperty('--pink-side-width', `${pinkWidth + 0.1}rem`);
+                } else {
+                    this.paddleEl.classList.remove('flash-pink-sides');
+                }
             }
             // Balls
             this.balls.forEach(ball => {

@@ -37,9 +37,11 @@
             poemOverlay.innerHTML = `
                 <div class="pd-container" role="dialog" aria-modal="true">
                     <div class="pd-header">
-                        <button class="nav-btn" id="poemPrevBtn">上一首</button>
+                        <button class="nav-btn" id="poemPrevBtn">上首</button>
                         <button class="nav-btn" id="poemRandomBtn">隨機</button>
-                        <button class="nav-btn" id="poemNextBtn">下一首</button>
+                        <button class="nav-btn" id="poemNextBtn">下首</button>
+                        <button class="nav-btn" id="copyPoemDataBtn">複製詩文</button>
+                        <button class="nav-btn" id="searchPoemBtn" style="font-size: 1.2rem; padding: 0.1rem 0.5rem;">🔍</button>
                         <button class="nav-btn close-btn" id="poemCloseBtn">關閉</button>
                     </div>
                     <div class="pd-body">
@@ -49,16 +51,41 @@
                         <div class="pd-line-content" id="dlgContent"></div>
                         <div class="pd-section-title">總評價</div>
                         <div id="dlgReview"></div>
-                        <div class="pd-section-title">佳句賞析</div>
+                        <div class="pd-section-title">佳句賞析 <button class="pd-copy-inline-btn" data-target="dlgFamous">複製</button></div>
                         <div class="pd-famous-lines" id="dlgFamous"></div>
-                        <div class="pd-section-title">注音說明</div>
+                        <div class="pd-section-title">注音說明 <button class="pd-copy-inline-btn" data-target="dlgZhuyin">複製</button></div>
                         <div id="dlgZhuyin"></div>
-                        <div class="pd-section-title">作者略傳</div>
-                        <p class="pd-placeholder">（暫不實作）</p>
+                        <div class="pd-section-title">詩詞注釋 <button class="pd-copy-inline-btn" data-target="dlgPoemNotes">複製</button></div>
+                        <div id="dlgPoemNotes"></div>
+                        <div class="pd-section-title">作者生平 <button class="pd-copy-inline-btn" data-target="dlgAuthorLife">複製</button></div>
+                        <div id="dlgAuthorLife"></div>
+                        <div class="pd-section-title">作者小傳 <button class="pd-copy-inline-btn" data-target="dlgAuthorBio">複製</button></div>
+                        <div id="dlgAuthorBio"></div>
                     </div>
                 </div>`;
             document.body.appendChild(poemOverlay);
             this.overlay = poemOverlay;
+
+            // Search Overlay
+            const searchOverlay = document.createElement('div');
+            searchOverlay.id = 'poemSearchOverlay';
+            searchOverlay.className = 'pd-overlay pd-search-overlay hidden aspect-5-8';
+            searchOverlay.innerHTML = `
+                <div class="pd-container" role="dialog" aria-modal="true">
+                    <div class="pd-header" style="justify-content: center; background: hsl(40, 40%, 75%); border-bottom: none;">
+                        <h2 style="margin: 0; font-size: 1.5rem; color: hsl(40, 40%, 20%); letter-spacing: 0.2rem;">詩詞搜尋</h2>
+                    </div>
+                    <div class="pd-body pd-search-body" id="poemSearchList" style="padding: 1rem; border-top: 0.05rem solid hsl(0, 0%, 93%);">
+                        <div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">請在此輸入文字，將會搜尋詩名、作者與詩句。</div>
+                    </div>
+                    <div class="pd-search-footer">
+                        <input type="text" id="poemSearchInput" placeholder="輸入搜尋字...">
+                        <button class="nav-btn" id="doSearchBtn">搜尋</button>
+                        <button class="nav-btn close-btn" id="closeSearchBtn">取消</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(searchOverlay);
+            this.searchOverlay = searchOverlay;
         },
 
         /**
@@ -85,6 +112,105 @@
                 let idx;
                 do { idx = Math.floor(Math.random() * POEMS.length); } while (idx === this.currentPoemIndex && POEMS.length > 1);
                 this.openByIndex(idx);
+            });
+
+            document.getElementById('copyPoemDataBtn').addEventListener('click', (e) => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                if (typeof POEMS === 'undefined' || !POEMS.length) return;
+                const poem = POEMS[this.currentPoemIndex];
+                let text = `${poem.type || '詩詞'}\n${poem.title || '無題'}\n${poem.dynasty || ''}/${poem.author || '佚名'}\n\n`;
+                if (poem.content && Array.isArray(poem.content)) {
+                    text += poem.content.join('\n');
+                }
+                this.copyToClipboard(text, e.target);
+            });
+
+            this.overlay.querySelectorAll('.pd-copy-inline-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    const targetId = e.target.getAttribute('data-target');
+                    if (!targetId) return;
+                    const targetEl = document.getElementById(targetId);
+                    if (targetEl) {
+                        const text = targetEl.innerText;
+                        this.copyToClipboard(text, e.target);
+                    }
+                });
+            });
+
+            // 搜尋系統事件
+            document.getElementById('searchPoemBtn').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.searchOverlay.classList.remove('hidden');
+                this.searchOverlay.classList.add('active');
+                setTimeout(() => document.getElementById('poemSearchInput').focus(), 100);
+            });
+
+            document.getElementById('closeSearchBtn').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playCloseItem();
+                this.searchOverlay.classList.add('hidden');
+                this.searchOverlay.classList.remove('active');
+            });
+
+            const executeSearch = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                const keyword = document.getElementById('poemSearchInput').value.trim();
+                const listContainer = document.getElementById('poemSearchList');
+                listContainer.innerHTML = '';
+
+                if (!keyword) {
+                    listContainer.innerHTML = '<div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">請輸入關鍵字</div>';
+                    return;
+                }
+
+                let matches = [];
+                for (let i = 0; i < POEMS.length; i++) {
+                    const p = POEMS[i];
+                    let matchedLine = null;
+                    if (p.title.includes(keyword)) {
+                        matchedLine = p.content && p.content.length > 0 ? p.content[0] : "（無內容）";
+                    } else if (p.author && p.author.includes(keyword)) {
+                        matchedLine = p.content && p.content.length > 0 ? p.content[0] : "（無內容）";
+                    } else if (p.content) {
+                        for (let line of p.content) {
+                            if (line.includes(keyword)) {
+                                matchedLine = line;
+                                break;
+                            }
+                        }
+                    }
+                    if (matchedLine) {
+                        matches.push({ index: i, poem: p, line: matchedLine });
+                    }
+                }
+
+                if (matches.length === 0) {
+                    listContainer.innerHTML = '<div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">找不到相關詩詞</div>';
+                    return;
+                }
+
+                matches.forEach(m => {
+                    const item = document.createElement('div');
+                    item.className = 'pd-search-item';
+                    item.innerHTML = `
+                        <div class="pd-search-item-title">${m.poem.title} <span style="font-size: 1rem; font-weight: normal; color: #555;"> - ${m.poem.author || '佚名'}</span></div>
+                        <div class="pd-search-item-line">${m.line}</div>
+                    `;
+                    item.addEventListener('click', () => {
+                        if (window.SoundManager) window.SoundManager.playConfirmItem();
+                        this.searchOverlay.classList.add('hidden');
+                        this.searchOverlay.classList.remove('active');
+                        this.openByIndex(m.index);
+                    });
+                    listContainer.appendChild(item);
+                });
+            };
+
+            document.getElementById('doSearchBtn').addEventListener('click', executeSearch);
+            document.getElementById('poemSearchInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    executeSearch();
+                }
             });
 
             this.overlay.addEventListener('click', (e) => {
@@ -135,6 +261,45 @@
                     }
                 }
             }, true); // 使用 Capture 模式確保優先處理
+        },
+
+        /**
+         * 複製文字到剪貼簿
+         */
+        copyToClipboard: function (text, btnElement) {
+            const originalText = btnElement.textContent;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    btnElement.textContent = '已複製';
+                    setTimeout(() => { btnElement.textContent = originalText; }, 2000);
+                }).catch(err => {
+                    console.error('Clipboard API fail:', err);
+                    this.fallbackCopyTextToClipboard(text, btnElement, originalText);
+                });
+            } else {
+                this.fallbackCopyTextToClipboard(text, btnElement, originalText);
+            }
+        },
+
+        fallbackCopyTextToClipboard: function (text, btnElement, originalText) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    btnElement.textContent = '已複製';
+                    setTimeout(() => { btnElement.textContent = originalText; }, 2000);
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            document.body.removeChild(textArea);
         },
 
         /**
@@ -217,6 +382,32 @@
                 zhuyinDiv.textContent = poem.zhuyin;
             } else {
                 zhuyinDiv.innerHTML = '<p class="pd-placeholder">（暫無注音）</p>';
+            }
+
+            // Poem Notes (詩詞注釋)
+            const poemNotesDiv = document.getElementById('dlgPoemNotes');
+            if (poem.poem_notes) {
+                poemNotesDiv.innerHTML = poem.poem_notes.replace(/\n/g, '<br>');
+            } else {
+                poemNotesDiv.innerHTML = '<p class="pd-placeholder">（暫無注釋）</p>';
+            }
+
+            // Author Life (作者生平)
+            const authorData = (typeof AUTHOR_BIOGRAPHY !== 'undefined' && AUTHOR_BIOGRAPHY[poem.author]) ? AUTHOR_BIOGRAPHY[poem.author] : {};
+
+            const authorLifeDiv = document.getElementById('dlgAuthorLife');
+            if (authorData && authorData.author_life) {
+                authorLifeDiv.innerHTML = authorData.author_life.replace(/\n/g, '<br>');
+            } else {
+                authorLifeDiv.innerHTML = '<p class="pd-placeholder">（暫無生平）</p>';
+            }
+
+            // Author Bio (作者小傳)
+            const authorBioDiv = document.getElementById('dlgAuthorBio');
+            if (authorData && authorData.author_bio) {
+                authorBioDiv.innerHTML = authorData.author_bio.replace(/\n/g, '<br>');
+            } else {
+                authorBioDiv.innerHTML = '<p class="pd-placeholder">（暫無小傳）</p>';
             }
 
             this.overlay.classList.add('active');
