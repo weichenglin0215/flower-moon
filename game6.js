@@ -131,11 +131,6 @@
                 <div class="game6-footer">
                     <div class="game6-drag-hint">左右拖曳以移動玩家 (按住或連按以發動連按)</div>
                 </div>
-                <div id="game6-message" class="game6-message hidden">
-                    <h2 id="game6-msg-title">遊戲結束</h2>
-                    <div id="game6-msg-poem-info" class="game6-msg-poem-info"></div>
-                    <p id="game6-msg-content"></p>
-                    <button id="game6-msg-btn" class="game6-msg-btn">繼續</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -153,26 +148,9 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
-            document.getElementById('game6-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game6-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
             document.getElementById('game6-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
-            };
-            const msgPoemInfo = document.getElementById('game6-msg-poem-info');
-            msgPoemInfo.onclick = () => {
-                if (this.currentPoem) {
-                    if (window.SoundManager) window.SoundManager.playOpenItem();
-                    if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
-                }
             };
 
             // 綁定容器事件以支援拖曳與連發
@@ -269,7 +247,8 @@
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            document.getElementById('game6-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('詩陣侵略', (selectedLevel, levelIndex) => {
@@ -428,7 +407,7 @@
             this.player.hitTimer = 0;
             this.lastFired = 0;
             this.isEnding = false; // 重置結束狀態
-            document.getElementById('game6-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
         },
 
         loadLevel: function (isRetry) {
@@ -690,7 +669,7 @@
 
                 // 敵人碰撞玩家：觸發失敗
                 if (this.rectIntersect(px, py, this.player.width, this.player.height, e.x - 15, e.y - 15, 30, 30)) {
-                    this.triggerFailAnimation("詩陣陷落，文心已失...");
+                    this.triggerFailAnimation("詩陣陷落...");
                 }
             }
 
@@ -976,7 +955,7 @@
             this.player.hitTimer = 0.5; // 受傷閃爍
             this.renderHearts();
             if (this.mistakeCount >= (this.difficultySettings[this.difficulty].maxMistakeCount || 3)) {
-                this.triggerFailAnimation("詩陣失守，玩家出局...");
+                this.triggerFailAnimation("詩陣失守...");
             }
         },
 
@@ -1140,7 +1119,7 @@
                 this.updateTimerRing(ratio);
 
                 if (this.timeLeft <= 0) {
-                    this.gameOver(false, "時間已到，未能清場...");
+                    this.gameOver(false, "時間到！");
                 }
             }, 100);
         },
@@ -1197,48 +1176,64 @@
                 scoreElementId: 'game6-score',
                 heartsSelector: '#game6-hearts .heart:not(.empty)',
                 onComplete: (finalScore) => {
-                    this.gameOver(true, finalScore);
+                    this.score = finalScore;
+                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                    this.gameOver(true, '');
                 }
             });
         },
 
-        gameOver: function (win, msg) {
+        gameOver: function (win, reason) {
             this.isActive = false;
-            // 結算畫面時禁止按鈕重複點擊
+            this.isWin = win;
             if (win) {
-                document.getElementById('game6-retryGame-btn').disabled = true;//避免結算時重複點擊
-                document.getElementById('game6-newGame-btn').disabled = true;//避免結算時重複點擊
+                document.getElementById('game6-retryGame-btn').disabled = true;
+                document.getElementById('game6-newGame-btn').disabled = true;
             } else {
                 document.getElementById('game6-retryGame-btn').disabled = false;
                 document.getElementById('game6-newGame-btn').disabled = false;
             }
             clearInterval(this.timerInterval);
-            const msgDiv = document.getElementById('game6-message');
-            document.getElementById('game6-msg-title').textContent = win ? "詩陣侵略已平息" : "墨香散盡，防線崩塌";
-            document.getElementById('game6-msg-content').textContent = win ? `恭喜凱旋！總得分：${msg}` : msg;
+            if (this.requestID) cancelAnimationFrame(this.requestID);
 
-            const msgPoemInfo = document.getElementById('game6-msg-poem-info');
-            if (this.currentPoem) {
-                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.currentPoem.title}》/ ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
-            } else {
-                msgPoemInfo.innerHTML = '';
-            }
-
-            this.isWin = win;
-            msgDiv.classList.remove('hidden');
-
-            const msgBtn = document.getElementById('game6-msg-btn');
-            if (win) {
-                if (this.isLevelMode) {
-                    msgBtn.textContent = "下一關";
-                    if (window.ScoreManager) {
-                        window.ScoreManager.completeLevel('game6', this.difficulty, this.currentLevelIndex);
-                    }
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
                 } else {
-                    msgBtn.textContent = "下一局";
+                    this.retryGame();
                 }
+            };
+
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
+            };
+
+            if (win && window.ScoreManager) {
+                window.ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game6',
+                    timerContainerId: 'game6-area',
+                    scoreElementId: 'game6-score',
+                    heartsSelector: '#game6-hearts .heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        if (this.isLevelMode) {
+                            window.ScoreManager.completeLevel('game6', this.difficulty, this.currentLevelIndex);
+                        }
+                        showMessage(finalScore);
+                    }
+                });
             } else {
-                msgBtn.textContent = "再試一次";
+                showMessage();
             }
         },
 

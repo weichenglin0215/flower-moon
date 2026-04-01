@@ -344,7 +344,7 @@
 /* 宣告成功失敗 */
 .game2-message {
     position: absolute;
-    top: 94%;
+    top: 90%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: hsl(40, 50%, 90%);

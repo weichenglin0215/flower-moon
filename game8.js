@@ -100,11 +100,6 @@
                         <div id="game8-grid" class="game8-grid"></div>
                     </div>
                 </div>
-                <div id="game8-message" class="game8-message hidden">
-                    <h2 id="game8-msg-title">遊戲結束</h2>
-                    <p id="game8-msg-content"></p>
-                    <button id="game8-msg-btn" class="nav-btn">繼續</button>
-                </div>
                 <div id="game8-char-preview" class="game8-char-preview hidden"></div>
             `;
             document.body.appendChild(div);
@@ -121,16 +116,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
             };
-            document.getElementById('game8-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game8-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
+            // Message button handled by GameMessage
 
             const gridWrapper = document.getElementById('game8-grid-wrapper');
             gridWrapper.addEventListener('mousedown', this.onDragStart.bind(this));
@@ -149,7 +135,7 @@
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            document.getElementById('game8-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
@@ -253,7 +239,7 @@
             this.successfulStrokes = [];
 
             document.getElementById('game8-score').textContent = this.score;
-            document.getElementById('game8-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             document.getElementById('game8-current-path').setAttribute('d', '');
             document.getElementById('game8-completed-path').setAttribute('d', '');
             document.getElementById('game8-current-path').style.opacity = 1;
@@ -1206,7 +1192,7 @@
 
             const maxM = this.difficultySettings[this.difficulty].maxMistakeCount;
             if (this.mistakeCount >= maxM) {
-                this.gameOver(false, '錯誤次數過多');
+                this.gameOver(false, '失誤過多');
             }
         },
 
@@ -1361,7 +1347,9 @@
                 scoreElementId: 'game8-score',
                 heartsSelector: '#game8-hearts .heart:not(.empty)',
                 onComplete: (finalScore) => {
-                    this.gameOver(true, finalScore);
+                    this.score = finalScore;
+                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                    this.gameOver(true, '');
                 }
             });
         },
@@ -1369,10 +1357,9 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game8-retryGame-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
-                document.getElementById('game8-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game8-retryGame-btn').disabled = true;
+                document.getElementById('game8-newGame-btn').disabled = true;
             } else {
                 document.getElementById('game8-retryGame-btn').disabled = false;
                 document.getElementById('game8-newGame-btn').disabled = false;
@@ -1382,43 +1369,37 @@
             const preview = document.getElementById('game8-char-preview');
             if (preview) preview.classList.add('hidden');
 
-            const msgDiv = document.getElementById('game8-message');
-            const title = document.getElementById('game8-msg-title');
-            const content = document.getElementById('game8-msg-content');
-            const msgBtn = document.getElementById('game8-msg-btn');
-
-            if (win) {
-                title.textContent = "裁詩圓滿！";
-                title.style.color = "hsl(145, 66%, 30%)";
-                content.textContent = `得分：${reason}`;
-                if (this.isLevelMode) {
-                    msgBtn.textContent = "下一關";
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
                 } else {
-                    msgBtn.textContent = "下一局";
+                    this.retryGame();
                 }
-            } else {
-                title.textContent = "功敗垂成";
-                title.style.color = "hsl(0, 60%, 50%)";
-                content.textContent = reason || "墨跡已散！";
-                msgBtn.textContent = "再試一次";
-            }
-
-            const showMessage = () => {
-                msgDiv.classList.remove('hidden');
             };
 
-            setTimeout(() => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game8', this.difficulty, this.currentLevelIndex);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game8', this.currentLevelIndex, showMessage);
-                    } else {
-                        showMessage();
-                    }
-                } else {
-                    showMessage();
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "墨跡已散！"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
                 }
-            }, 500);
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game8', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game8', this.currentLevelIndex, () => showMessage(reason));
+                } else {
+                    showMessage(reason);
+                }
+            } else {
+                showMessage(reason);
+            }
         }
     };
 

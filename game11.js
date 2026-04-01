@@ -66,16 +66,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
-            document.getElementById('game11-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game11-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
+            // Message button handled by GameMessage
             document.getElementById('game11-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
@@ -104,10 +95,6 @@
                     <div id="game11-grid" class="game11-grid-container"></div>
                 </div>
 
-                <div id="game11-message" class="game11-message hidden">
-                    <h2 id="game11-msg-title">遊戲結束</h2>
-                    <p id="game11-msg-content"></p>
-                    <button id="game11-msg-btn" class="nav-btn">再試一次</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -116,7 +103,7 @@
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            document.getElementById('game11-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('翻墨識蹤', (selectedLevel, levelIndex) => {
@@ -398,7 +385,7 @@
         resetGameRound: function (isRetry = false) {
             this.stopAllTimers();
             document.getElementById('game11-score').textContent = this.score;
-            document.getElementById('game11-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
             this.updateHearts();
 
@@ -577,7 +564,7 @@
             this.updateHearts();
 
             if (this.mistakes >= this.maxMistakes) {
-                this.gameOver(false, "失誤過多，請重新挑戰！");
+                this.gameOver(false, "失誤過多！");
             } else {
                 // Retry round
                 this.isPlayerPhase = false;
@@ -624,7 +611,9 @@
                 scoreElementId: 'game11-score',
                 heartsSelector: '#game11-hearts .heart:not(.empty)',
                 onComplete: (finalScore) => {
-                    this.gameOver(true, "最終得分：" + finalScore);
+                    this.score = finalScore;
+                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                    this.gameOver(true, '');
                 }
             });
         },
@@ -637,38 +626,43 @@
             if (win) {
                 document.getElementById('game11-retryGame-btn').disabled = true;
                 document.getElementById('game11-newGame-btn').disabled = true;
+                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
             } else {
                 document.getElementById('game11-retryGame-btn').disabled = false;
                 document.getElementById('game11-newGame-btn').disabled = false;
+                if (window.SoundManager) window.SoundManager.playSadTriple();
             }
 
-            const msgDiv = document.getElementById('game11-message');
-            const title = document.getElementById('game11-msg-title');
-            const content = document.getElementById('game11-msg-content');
-
-            msgDiv.classList.remove('hidden');
-            if (win) {
-                title.textContent = "挑戰成功！";
-                title.style.color = "#28a745";
-                content.textContent = reason;
-            } else {
-                title.textContent = "再接再厲！";
-                title.style.color = "#dc3545";
-                content.textContent = reason;
-            }
-
-            const msgBtn = document.getElementById('game11-msg-btn');
-            if (win) {
-                if (this.isLevelMode) {
-                    msgBtn.textContent = "下一關";
-                    if (window.ScoreManager) {
-                        window.ScoreManager.completeLevel('game11', this.difficulty, this.currentLevelIndex);
-                    }
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
                 } else {
-                    msgBtn.textContent = "下一局";
+                    this.retryGame();
+                }
+            };
+
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "再試一次"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game11', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game11', this.currentLevelIndex, () => showMessage(reason));
+                } else {
+                    showMessage(reason);
                 }
             } else {
-                msgBtn.textContent = "再試一次";
+                showMessage(reason);
             }
         }
     };

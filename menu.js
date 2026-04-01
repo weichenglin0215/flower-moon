@@ -168,6 +168,12 @@
         } catch (e) { console.warn('[Menu] 關閉關卡選擇器失敗', e); }
 
         try {
+            if (window.GameMessage && typeof window.GameMessage.hide === 'function') {
+                window.GameMessage.hide();
+            }
+        } catch (e) { console.warn('[Menu] 關閉遊戲訊息視窗失敗', e); }
+
+        try {
             const card1 = document.getElementById('cardContainer');
             const card2 = document.getElementById('calendarCardContainer');
             if (card1) card1.style.display = 'none';

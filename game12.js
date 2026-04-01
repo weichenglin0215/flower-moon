@@ -100,10 +100,6 @@
                         </div>
                     </div>
                 </div>
-                <div id="game12-message" class="game12-message hidden">
-                    <h2 id="game12-msg-title">遊戲結束</h2>
-                    <p id="game12-msg-content"></p>
-                    <button id="game12-msg-btn" class="nav-btn">勸君更進一杯酒</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -115,16 +111,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
-            document.getElementById('game12-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game12-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
+            // Message button handled by GameMessage
             document.getElementById('game12-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
@@ -141,7 +128,7 @@
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            document.getElementById('game12-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
@@ -247,7 +234,7 @@
             this.stopAllTimers();
 
             document.getElementById('game12-score').textContent = this.score;
-            document.getElementById('game12-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
 
             if (this.selectRandomPoem()) {
@@ -277,7 +264,7 @@
             this.stopAllTimers();
 
             document.getElementById('game12-score').textContent = this.score;
-            document.getElementById('game12-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
             this.initTurn(true);
         },
@@ -320,7 +307,7 @@
                 const modeStr = settings.hideMode;
                 if (modeStr === 'line2') hideIndices = [1];
                 else if (modeStr === 'random1or2') hideIndices = [Math.random() < 0.5 ? 0 : 1];
-                else if (modeStr === 'line1or12') { 
+                else if (modeStr === 'line1or12') {
                     const rand = Math.random();
                     hideIndices = rand < 0.5 ? [0] : [0, 1];
                 } else if (modeStr === 'both') hideIndices = [0, 1];
@@ -421,7 +408,7 @@
             // 動態縮小字體 (需過濾掉 HTML 標籤)
             const l1Len = l1.innerHTML.replace(/<[^>]*>/g, '').length;
             this.adjustFontSize(l1, l1Len, 7, 2.5);
-            
+
             const l2Len = l2.innerHTML.replace(/<[^>]*>/g, '').length;
             this.adjustFontSize(l2, l2Len, 7, 2.5);
 
@@ -757,7 +744,9 @@
                 scoreElementId: 'game12-score',
                 heartsSelector: '#game12-hearts .heart:not(.empty)',
                 onComplete: (finalScore) => {
-                    this.gameOver(true, finalScore);
+                    this.score = finalScore;
+                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                    this.gameOver(true, '');
                 }
             });
         },
@@ -772,40 +761,44 @@
             if (win) {
                 document.getElementById('game12-retryGame-btn').disabled = true;
                 document.getElementById('game12-newGame-btn').disabled = true;
+                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
             } else {
                 document.getElementById('game12-retryGame-btn').disabled = false;
                 document.getElementById('game12-newGame-btn').disabled = false;
+                if (window.SoundManager) window.SoundManager.playSadTriple();
             }
 
-            const msgDiv = document.getElementById('game12-message');
-            const title = document.getElementById('game12-msg-title');
-            const content = document.getElementById('game12-msg-content');
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
+            };
 
-            setTimeout(() => {
-                msgDiv.classList.remove('hidden');
-                if (win) {
-                    title.textContent = "疏影橫斜水清淺";
-                    title.style.color = "#2ecc71";
-                    content.textContent = `得分：${reason}`;
-                } else {
-                    title.textContent = "暗香浮動月黃昏";
-                    title.style.color = "#ff4757";
-                    content.textContent = reason || "再試一次吧！";
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "再試一次吧！"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "勸君更進一杯酒",
+                        onConfirm: onConfirm
+                    });
                 }
-                const msgBtn = document.getElementById('game12-msg-btn');
-                if (win) {
-                    if (this.isLevelMode) {
-                        msgBtn.textContent = "下一關";
-                        if (window.ScoreManager) {
-                            window.ScoreManager.completeLevel('game12', this.difficulty, this.currentLevelIndex);
-                        }
-                    } else {
-                        msgBtn.textContent = "下一局";
-                    }
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game12', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game12', this.currentLevelIndex, () => showMessage(reason));
                 } else {
-                    msgBtn.textContent = "再試一次";
+                    showMessage(reason);
                 }
-            }, 500);
+            } else {
+                showMessage(reason);
+            }
         },
 
         delay: function (ms) {

@@ -415,61 +415,7 @@
     font-weight: normal;
 }
 
-/* 結局/訊息視窗 */
-.game9-message {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: hsl(36, 30%, 80%);
-    padding: 1.5rem;
-    border-radius: 1rem;
-    text-align: center;
-    color: hsl(0, 60%, 24%);
-    box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.8);
-    z-index: 200;
-    width: 70%;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.game9-message h2 {
-    margin: 0 0 1rem;
-    font-size: 2rem;
-}
-
-.game9-message p {
-    margin: 0.5rem 0 1.5rem;
-    font-size: 1.2rem;
-    line-height: 1.5;
-}
-
-.game9-message .nav-btn {
-    background: hsl(122, 60%, 40%);
-    color: white;
-    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
-    border: none;
-    border-radius: 1.0rem;
-    padding: 0.2rem 2rem;
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
-}
-
-.game9-message .nav-btn:hover {
-    filter: brightness(1.5);
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -45%);
-    }
-
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%);
-    }
-}
+/* .game9-message Styles Removed - Using Unified GameMessage Component */
 
 /* 撤銷按鈕的附加控制 */
 .game9-undo-btn {

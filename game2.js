@@ -30,11 +30,11 @@
         //grid: [行, 列]
         //questionCount: 每行要問幾個字
         difficultySettings: {
-            '小學': { timeLimit: 20, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
-            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
-            '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, grid: [4, 3], questionCount: 4 },
-            '大學': { timeLimit: 35, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
-            '研究所': { timeLimit: 40, poemMinRating: 2, maxMistakeCount: 8, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
+            '小學': { timeLimit: 20, poemMinRating: 6, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
+            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
+            '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 3, answerAtLine: 0, grid: [4, 3], questionCount: 4 },
+            '大學': { timeLimit: 35, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
+            '研究所': { timeLimit: 40, poemMinRating: 3, maxMistakeCount: 1, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
         },
 
         loadCSS: function () {
@@ -100,13 +100,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div id="game2-message" class="game2-message hidden">
-                    <h2 id="game2-msg-title">遊戲結束</h2>
-                    <p id="game2-msg-content"></p>
-                    <button id="game2-msg-btn" class="nav-btn">再來一局</button>
-                </div>
+            </div>
             `;
             document.body.appendChild(div);
 
@@ -118,16 +112,6 @@
             document.getElementById('game2-newGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame(); // 開新局：換新題目
-            };
-            document.getElementById('game2-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game2-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
             };
 
             // 初始化主字按鈕
@@ -175,8 +159,7 @@
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            const msgDiv = document.getElementById('game2-message');
-            if (msgDiv) msgDiv.classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
 
             // 隐藏主页和其他游戏
             this.hideOtherContents();
@@ -269,7 +252,8 @@
             this.currentInputIndex = 0;
             this.isRevealed = false;
             document.getElementById('game2-score').textContent = this.score;
-            document.getElementById('game2-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
@@ -298,7 +282,8 @@
             this.currentInputIndex = 0;
             this.isRevealed = false;
             document.getElementById('game2-score').textContent = this.score;
-            document.getElementById('game2-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
@@ -552,7 +537,9 @@
                         scoreElementId: 'game2-score',
                         heartsSelector: '#game2-hearts .heart:not(.empty)',
                         onComplete: (finalScore) => {
-                            this.gameOver(true, finalScore);
+                            this.score = finalScore;
+                            // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                            this.gameOver(true, '');
                         }
                     });
                 }
@@ -565,7 +552,7 @@
 
                 const settings = this.difficultySettings[this.difficulty];
                 if (this.mistakeCount >= settings.maxMistakeCount) {
-                    this.gameOver(false, `按錯次數達 ${this.mistakeCount} 次`);
+                    this.gameOver(false, `失誤 ${this.mistakeCount} 次`);
                 }
             }
         },
@@ -648,31 +635,28 @@
             }
             clearInterval(this.timerInterval);
             this.isRevealed = true;
-            this.renderQuestion();
+            //取消顯示答案
+            //this.renderQuestion();
 
-            const msgDiv = document.getElementById('game2-message');
-            const title = document.getElementById('game2-msg-title');
-            const content = document.getElementById('game2-msg-content');
-            const msgBtn = document.getElementById('game2-msg-btn');
-
-            if (win) {
-                title.textContent = "恭喜過關！";
-                title.style.color = "#4CAF50";
-                content.textContent = `完成了飛花令！得分：${reason}`;
-                if (this.isLevelMode) {
-                    msgBtn.textContent = "下一關";
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
                 } else {
-                    msgBtn.textContent = "下一局";
+                    this.retryGame();
                 }
-            } else {
-                title.textContent = "遊戲結束";
-                title.style.color = "#f44336";
-                content.textContent = reason || "再接再厲！";
-                msgBtn.textContent = "再試一次";
-            }
+            };
 
             const showMessage = () => {
-                msgDiv.classList.remove('hidden');
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? this.score : 0,
+                        reason: win ? "" : reason,
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
             };
 
             if (win && this.isLevelMode && window.ScoreManager) {

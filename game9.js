@@ -106,10 +106,6 @@
                         <div id="game9-bolt-container" class="game9-bolt-container"></div>
                     </div>
                 </div>
-                <div id="game9-message" class="game9-message hidden">
-                    <h2 id="game9-msg-title">訊息</h2>
-                    <p id="game9-msg-content"></p>
-                    <button id="game9-msg-btn" class="nav-btn">繼續</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -159,7 +155,7 @@
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            document.getElementById('game9-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('詩韻鎖扣', (selectedLevel, levelIndex) => {
@@ -220,16 +216,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
-            document.getElementById('game9-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game9-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
+            // Message button handled by GameMessage
             document.getElementById('game9-poem-info').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 if (window.PoemDialog && this.currentPoem) window.PoemDialog.openById(this.currentPoem.id);
@@ -340,7 +327,7 @@
 
             this.updateUIForMode();
             document.getElementById('game9-score').textContent = this.score;
-            document.getElementById('game9-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
 
             const settings = this.difficultySettings[this.difficulty];
             const undoBtn = document.getElementById('game9-undo-btn');
@@ -651,7 +638,7 @@
                     if (this.movesLeft <= 0) {
                         setTimeout(() => {
                             if (!this.isActive) return; // In case game already won/stopped
-                            this.gameOver(false, "步數已用盡。");
+                            this.gameOver(false, "步數已用盡！");
                         }, 500);
                         return;
                     }
@@ -889,7 +876,9 @@
                     scoreElementId: 'game9-score',
                     heartsSelector: '#game9-hearts .game9-heart.score',
                     onComplete: (finalScore) => {
-                        this.gameOver(true, finalScore);
+                        this.score = finalScore;
+                        // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                        this.gameOver(true, '');
                     }
                 });
             } else {
@@ -900,12 +889,10 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
-            // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game9-retryGame-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
-                document.getElementById('game9-newGame-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game9-retryGame-btn').disabled = true;
+                document.getElementById('game9-newGame-btn').disabled = true;
                 if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
-
             } else {
                 document.getElementById('game9-retryGame-btn').disabled = false;
                 document.getElementById('game9-newGame-btn').disabled = false;
@@ -913,27 +900,38 @@
             }
             clearInterval(this.timerInterval);
 
-            const msg = document.getElementById('game9-message');
-            document.getElementById('game9-msg-title').textContent = win ? "鎖扣解開" : "錯綜難解";
-            document.getElementById('game9-msg-title').style.color = win ? "hsl(145, 66%, 30%)" : "hsl(0, 60%, 50%)";
-            document.getElementById('game9-msg-content').textContent = win ? `得分：${reason}` : (reason || "無法繼續");
-
-            setTimeout(() => {
-                msg.classList.remove('hidden');
-                const msgBtn = document.getElementById('game9-msg-btn');
+            const onConfirm = () => {
                 if (win) {
-                    if (this.isLevelMode) {
-                        msgBtn.textContent = "下一關";
-                        if (window.ScoreManager) {
-                            window.ScoreManager.completeLevel('game9', this.difficulty, this.currentLevelIndex);
-                        }
-                    } else {
-                        msgBtn.textContent = "下一局";
-                    }
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
                 } else {
-                    msgBtn.textContent = "再試一次";
+                    this.retryGame();
                 }
-            }, 500);
+            };
+
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "無法繼續"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game9', this.difficulty, this.currentLevelIndex);
+                // Although game9.js doesn't explicitly check for AchievementDialog, we'll keep the pattern if it exists in other games for consistency
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game9', this.currentLevelIndex, () => showMessage(reason));
+                } else {
+                    showMessage(reason);
+                }
+            } else {
+                showMessage(reason);
+            }
         }
     };
 

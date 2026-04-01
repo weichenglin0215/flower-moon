@@ -202,131 +202,59 @@
     transition: stroke-dashoffset 0.1s linear;
 }
 
-/* 訊息視窗 - 偏右顯示，寬度佔 3/4，高度加大 */
-.game7-message {
+/* 規則說明彈窗 (ruleNote) */
+.ruleNote {
     position: absolute;
     top: 50%;
-    left: 62.5%;
-    /* 中心點移至右側 3/4 區域的中心: (100% + 25%) / 2 */
+    height: 70%;
+    left: 66%;
     transform: translate(-50%, -50%);
-    background: hsla(210, 50%, 60%, 0.95);
-    padding: 1.0rem;
-    border: 1px solid hsla(220, 80%, 50%, 0.5);
+    background: hsla(210, 80%, 25%, 0.6);
+    border: 0.1rem solid hsla(200, 100%, 70%, 0.4);
     border-radius: 1rem;
+    padding: 1.0rem;
     text-align: center;
-    z-index: 200;
-    width: 70%;
-    /* 大約佔 3/4 */
-    height: 80%;
-    /* 高度加大 */
-    box-shadow: 0 0.2rem 0.5rem hsla(240, 60%, 20%, 0.66);
-    backdrop-filter: blur(10px);
-    display: flex;
+    color: hsl(45, 30%, 90%);
+    z-index: 1000;
+    width: 60%;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 0.3rem hsla(221, 76%, 46%, 0.5);
+    display: none;
     flex-direction: column;
-    animation: message-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    align-items: center;
 }
 
-@keyframes message-in {
-    from {
-        transform: translate(-50%, -40%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translate(-50%, -50%);
-        opacity: 1;
-    }
+.ruleNote h2 {
+    font-size: 1.6rem;
+    margin-bottom: 0.8rem;
+    color: hsl(45, 100%, 70%);
 }
 
-/*結算顯示詩句*/
-.game7-result-poem {
-    flex: 1;
-    overflow-y: auto;
-    margin: 0.5rem 0;
-    padding: 0.5rem;
-    background: rgba(0, 0, 0, 0.3);
-    color: hsl(200, 50%, 80%);
-    border-radius: 0.5rem;
-    font-size: 1.5rem;
+.ruleNote p {
+    margin: 0.4rem 0;
+    font-size: 1.1rem;
     line-height: 1.5;
-    text-align: center;
-    white-space: pre-wrap;
-    scrollbar-width: thin;
-    scrollbar-color: hsl(36, 0%, 80%) transparent;
 }
 
-/*結算顯示詩句捲軸寬度*/
-.game7-result-poem::-webkit-scrollbar {
-    width: 6px;
-}
-
-/*結算顯示詩句捲軸顏色*/
-.game7-result-poem::-webkit-scrollbar-thumb {
-    background: hsl(36, 0%, 80%);
-    border-radius: 3px;
-}
-
-/*結算顯示被打中的字*/
-.char-hit {
-    color: gold;
+.ruleNote button {
+    position: absolute;
+    bottom: 1rem;
+    background: hsl(210, 70%, 75%);
+    color: hsl(220, 60%, 33%);
+    border: 1px solid hsla(180, 80%, 60%, 0.3);
+    padding: 0.5rem 1.5rem;
+    border-radius: 1.5rem;
+    font-size: 1.5rem;
     font-weight: bold;
-}
-
-/*結算顯示未打中的字*/
-.char-skipped {
-    color: hsla(0, 80%, 40%, 1);
-    font-weight: bold;
-    /*text-decoration: line-through;*/
-}
-
-/*結算顯示尚未出現的字*/
-.char-pending {
-    color: hsla(0, 0%, 100%, 0.6);
-}
-
-/*結算顯示標點符號*/
-.char-punctuation {
-    color: hsla(0, 0%, 100%, 0.6);
-}
-
-/*結算顯示標題*/
-.game7-message h2 {
-    margin: 0 0 0.2rem;
-    color: hsl(220, 40%, 30%);
-    font-size: 2rem;
-}
-
-/*結算顯示詩句資訊*/
-.game7-msg-poem-info {
-    margin-top: 0.0rem;
-    margin-bottom: 0.2rem;
-    font-size: 1.0rem;
-    color: hsl(45, 50%, 100%);
-}
-
-/*結算顯示說明文字*/
-.game7-message p {
-    margin: 0.3rem 0 2rem;
-    font-size: 1.2rem;
-    line-height: 1.6;
-}
-
-/*訊息框按鍵*/
-.game7-msg-btn {
-    background: hsl(220, 40%, 30%);
-    color: white;
-    border: 1px solid hsla(180, 60%, 80%, 0.3);
-    padding: 0.3rem 2rem;
-    border-radius: 0.5rem;
-    font-size: 1.2rem;
     cursor: pointer;
-    font-family: inherit;
-    transition: all 0.3s ease;
+    transition: all 0.6s ease;
 }
 
-.game7-btn:hover {
-    filter: brightness(1.5);
+.ruleNote button:hover {
+    filter: brightness(1.25);
 }
+
+/* .game7-message Styles Removed - Using Unified GameMessage Component */
 
 /* 點擊回饋：印章效果 */
 @keyframes stamp-press {

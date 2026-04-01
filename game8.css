@@ -433,53 +433,7 @@
     transition: stroke-dashoffset 0.1s linear;
 }
 
-/*訊息框*/
-.game8-message {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: hsl(36, 30%, 80%);
-    padding: 1.5rem;
-    border-radius: 1rem;
-    text-align: center;
-    color: #333;
-    box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.8);
-    z-index: 100;
-    width: 70%;
-}
-
-/*訊息框標題*/
-.game8-message h2 {
-    font-size: 1.2rem;
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 0.5rem;
-    margin: 0.3rem 0;
-}
-
-/*訊息框內容*/
-.game8-message p {
-    font-size: 1rem;
-    display: inline-block;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-/*訊息框按鈕*/
-.game8-message .nav-btn {
-    background: hsl(122, 60%, 40%);
-    color: white;
-    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
-    border: none;
-    border-radius: 1.0rem;
-    padding: 0.2rem 2rem;
-    font-size: 1.2rem;
-}
-
-.game8-message .nav-btn:hover {
-    filter: brightness(1.5);
-}
+/* .game8-message Styles Removed - Using Unified GameMessage Component */
 
 /* 文字預覽圓圈 (解決手指遮擋問題) */
 .game8-char-preview {

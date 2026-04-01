@@ -106,11 +106,12 @@
                     </svg>
                     <canvas id="game7-canvas"></canvas>
                 </div>
-                <div id="game7-message" class="game7-message hidden">
-                    <h2 id="game7-msg-title">青鳥雲梯</h2>
-                    <div id="game7-msg-poem-info" class="game7-msg-poem-info"></div>
-                    <div id="game7-msg-content" class="game7-result-poem"></div>
-                    <button id="game7-msg-btn" class="game7-msg-btn">開始飛行</button>
+                <div id="game7-ruleNote" class="ruleNote">
+                    <h2>青鳥雲梯</h2>
+                    <p>點擊螢幕向上跳躍<br>依序降落在文字方塊上</p>
+                    <p>錯過方塊將會損血<br>降落在最後一塊黃金平台</p>
+                    <p>完成整首詩詞即獲勝</p>
+                    <button id="game7-start-btn">開始挑戰</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -152,27 +153,9 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
             };
-            document.getElementById('game7-msg-btn').onclick = (e) => {
+            document.getElementById('game7-start-btn').onclick = (e) => {
                 e.stopPropagation();
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                if (this.state === 'GAME_OVER') {
-                    if (this.isWin) {
-                        if (this.isLevelMode) this.startNextLevel();
-                        else this.newGame();
-                    } else {
-                        this.retryGame();
-                    }
-                } else {
-                    this.startGame();
-                }
-            };
-            const msgPoemInfo = document.getElementById('game7-msg-poem-info');
-            msgPoemInfo.onclick = (e) => {
-                e.stopPropagation();
-                if (this.currentPoem) {
-                    if (window.SoundManager) window.SoundManager.playOpenItem();
-                    if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
-                }
+                this.startGame();
             };
 
             const handleTap = (e) => {
@@ -199,7 +182,8 @@
 
         showDifficultySelector: function () {
             this.isActive = false;
-            document.getElementById('game7-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('青鳥雲梯', (selectedLevel, levelIndex) => {
@@ -254,6 +238,19 @@
             this.showDifficultySelector();
         },
 
+        stopGame: function () {
+            this.isActive = false;
+            if (this.requestID) cancelAnimationFrame(this.requestID);
+            if (this.container) {
+                this.container.classList.add('hidden');
+            }
+            const ruleNote = document.getElementById('game7-ruleNote');
+            if (ruleNote) ruleNote.style.display = 'none';
+
+            document.body.classList.remove('overlay-active');
+            document.body.style.overflow = '';
+        },
+
         setupCanvas: function () {
             const area = document.querySelector('.game7-area');
             this.canvas.width = area.offsetWidth;
@@ -267,17 +264,12 @@
         },
 
         showStartMessage: function () {
-            const msg = document.getElementById('game7-message');
-            const title = document.getElementById('game7-msg-title');
-            const content = document.getElementById('game7-msg-content');
-            const btn = document.getElementById('game7-msg-btn');
-
-            title.textContent = "青鳥雲梯";
-            content.innerHTML = `<p style="text-align:center">點擊螢幕向上跳躍<br>依序降落在文字方塊上<br>錯過方塊將會損血<br>降落在最後一塊黃金平台<br>完成整首詩詞即獲勝</p>`;
-            btn.textContent = "開始挑戰";
-            msg.classList.remove('hidden');
             this.state = 'START';
-            this.startTime = null; // 待開始飛行後才設置計時
+            const ruleNote = document.getElementById('game7-ruleNote');
+            if (ruleNote) {
+                ruleNote.style.display = 'flex';
+            }
+            this.startLoop(); // 啟動渲染循環，讓背景雲朵與初始場景顯示出來
         },
 
         //game7只有resetGame() 透過isRetry控制是否重來或是開新局
@@ -456,7 +448,9 @@
         },
 
         startGame: function () {
-            document.getElementById('game7-message').classList.add('hidden');
+            const ruleNote = document.getElementById('game7-ruleNote');
+            if (ruleNote) ruleNote.style.display = 'none';
+            if (window.GameMessage) window.GameMessage.hide();
             this.state = 'LANDED';
             this.startTime = Date.now(); // 記錄開始時間
             if (this.requestID) cancelAnimationFrame(this.requestID);
@@ -487,6 +481,8 @@
         },
 
         update: function (dt) {
+            // 在任何活躍狀態下都更新雲朵，讓背景有動態感
+            this.updateClouds(dt);
             if (this.state === 'GAME_OVER' || this.state === 'START' || this.state === 'GOAL_MISSED') return;
 
             // 1.5 秒延遲重啟/死亡特寫
@@ -514,7 +510,7 @@
                 if (this.timeLeft <= 0) {
                     this.timeLeft = 0;
                     this.timer = 0;
-                    this.gameOver(false, "時光荏苒，壯志未酬...");
+                    this.gameOver(false, "時間到！");
                 }
                 this.updateTimerUI();
             }
@@ -553,8 +549,6 @@
             if (lastB.x - this.cameraX < this.canvas.width + 300) {
                 this.spawnNextBlock();
             }
-
-            this.updateClouds(dt);
         },
 
         checkSkippedBlocks: function () {
@@ -581,7 +575,7 @@
                     this.renderHearts();
                     if (this.mistakeCount >= this.maxMistakeCount) {
                         if (window.SoundManager) window.SoundManager.playSadTriple();
-                        this.gameOver(false, "體力耗盡，折翼於詩雲深處...");
+                        this.gameOver(false, "體力耗盡！");
                     }
                 }
             });
@@ -658,7 +652,7 @@
                 this.renderHearts();
                 if (this.mistakeCount >= this.maxMistakeCount) {
                     if (window.SoundManager) window.SoundManager.playSadTriple();
-                    this.gameOver(false, "墜落九泉，詩意盡失...");
+                    this.gameOver(false, "墜落九泉！");
                 } else {
                     // 尋找最後一個成功著陸的平台 (Checkpoint)
                     const lastLanded = this.blocks.filter(b => b.isLanded).pop();
@@ -891,22 +885,24 @@
         },
         //在訊息框上顯示完整的詩句
         renderResultPoem: function () {
-            let html = "";
+            let html = '<div style="font-family: serif; line-height: 1.8; font-size: 1.1em;">';
             let charPos = 0;
             this.fullPoemRaw.forEach(line => {
                 for (let char of line) {
                     if (/[，。？！、：；]/.test(char)) {
-                        html += `<span class="char-punctuation">${char}</span>`;
+                        html += `<span style="opacity: 0.5;">${char}</span>`;
                     } else {
                         const status = this.hitStatus[charPos] || 0;
-                        const cls = status === 1 ? 'char-hit' : (status === 2 ? 'char-skipped' : 'char-pending');
-                        html += `<span class="${cls}">${char}</span>`;
+                        const color = status === 1 ? '#27ae60' : (status === 2 ? '#c0392b' : '#95a5a6');
+                        const weight = status === 1 ? 'bold' : 'normal';
+                        html += `<span style="color: ${color}; font-weight: ${weight}; margin: 0 1px;">${char}</span>`;
                         charPos++;
                     }
                 }
                 html += "<br>";
             });
-            document.getElementById('game7-msg-content').innerHTML = html;
+            html += "</div>";
+            return html;
         },
 
         gameWin: function () {
@@ -930,8 +926,10 @@
                             y: rect.top + this.bird.y
                         };
                     },
-                    onComplete: () => {
-                        this.gameOver(true, `大鵬一日同風起，扶搖直上九萬里！<br>成功導讀《${this.currentPoem.title}》`);
+                    onComplete: (finalScore) => {
+                        this.score = finalScore;
+                        // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                        this.gameOver(true, '');
                     }
                 });
             }
@@ -940,48 +938,38 @@
         gameOver: function (isWin, message) {
             this.isActive = false;
             this.isWin = isWin;
-            // 僅在挑戰成功 isWin 時停用重來按鍵。失敗則維持可點擊。
+            this.state = 'GAME_OVER';
+
             if (isWin) {
-                document.getElementById('game7-retryGame-btn').disabled = true; // 必須在得分表演之前就先禁用重來按鈕
-                document.getElementById('game7-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game7-retryGame-btn').disabled = true;
+                document.getElementById('game7-newGame-btn').disabled = true;
             } else {
                 document.getElementById('game7-retryGame-btn').disabled = false;
                 document.getElementById('game7-newGame-btn').disabled = false;
             }
-            const msg = document.getElementById('game7-message');
-            document.getElementById('game7-msg-title').textContent = isWin ? "謫仙凌雲" : "高處不勝寒";
 
-            const msgPoemInfo = document.getElementById('game7-msg-poem-info');
-            if (this.currentPoem) {
-                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.currentPoem.title}》 / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
-            } else {
-                msgPoemInfo.innerHTML = '';
-            }
-
-            this.renderResultPoem(); // 顯示有色彩狀態的整首詩
-
-            const msgBtn = document.getElementById('game7-msg-btn');
-            if (isWin) {
-                if (this.isLevelMode) {
-                    msgBtn.textContent = "下一關";
-                    if (window.ScoreManager) {
-                        window.ScoreManager.completeLevel('game7', this.difficulty, this.currentLevelIndex);
+            if (window.GameMessage) {
+                window.GameMessage.show({
+                    isWin: isWin,
+                    score: isWin ? this.score : 0,
+                    reason: isWin ? "" : (typeof message === 'string' ? message : "挑戰結束"),
+                    btnText: isWin ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                    onConfirm: () => {
+                        if (isWin) {
+                            if (this.isLevelMode) this.startNextLevel();
+                            else this.newGame();
+                        } else {
+                            this.retryGame();
+                        }
                     }
-                } else {
-                    msgBtn.textContent = "下一局";
-                }
-            } else {
-                msgBtn.textContent = "再試一次";
+                });
             }
-
-            msg.classList.remove('hidden');
-            this.state = 'GAME_OVER';
         },
 
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame(true); // 傳入 true 表示維持同一首詩
-            document.getElementById('game7-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             if (this.requestID) cancelAnimationFrame(this.requestID);
             // 延遲重啟循環
             setTimeout(() => {

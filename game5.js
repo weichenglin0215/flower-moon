@@ -127,11 +127,6 @@
                     <div class="game5-instruction">拖曳或滑動以移動角色</div>
                 </div>
                 
-                <div id="game5-message" class="game5-message hidden">
-                    <h2 id="game5-msg-title">遊戲結束</h2>
-                    <div id="game5-msg-poem-info" class="game5-msg-poem-info"></div>
-                    <p id="game5-msg-content"></p>
-                    <button id="game5-msg-btn" class="game5-msg-btn">繼續</button>
                 </div>
             `;
             document.body.appendChild(container);
@@ -141,34 +136,20 @@
         },
 
         bindEvents: function () {
+            //綁定game5-diff-tag按鍵
+            document.getElementById('game5-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.showDifficultySelector();
+            };
+            //綁定game5-retryGame-btn按鍵
             document.getElementById('game5-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();
             };
+            //綁定game5-newGame-btn按鍵
             document.getElementById('game5-newGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
-            };
-            document.getElementById('game5-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game5-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
-            document.getElementById('game5-diff-tag').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                this.showDifficultySelector();
-            };
-            const msgPoemInfo = document.getElementById('game5-msg-poem-info');
-            msgPoemInfo.onclick = () => {
-                if (this.targetPoem) {
-                    if (window.SoundManager) window.SoundManager.playOpenItem();
-                    if (window.openPoemDialogById) window.openPoemDialogById(this.targetPoem.id);
-                }
             };
 
             // Mouse Swipe
@@ -260,7 +241,8 @@
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            document.getElementById('game5-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('詩詞精靈', (selectedLevel, levelIndex) => {
@@ -368,7 +350,8 @@
             this.isActive = true;
             this.isWin = false;
             document.getElementById('game5-score').textContent = '0';
-            document.getElementById('game5-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
             this.renderHearts();
             this.renderTargetPoem();
 
@@ -392,7 +375,8 @@
             this.resetEntities();
             this.startTimer();
             this.isActive = true;
-            document.getElementById('game5-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
             this.renderHearts();
             // Reset food visibility
             this.foods.forEach(f => f.collected = false);
@@ -569,7 +553,7 @@
 
                 if (ratio <= 0) {
                     this.updateTimerRing(0);
-                    this.gameOver(false, '時間用盡');
+                    this.gameOver(false, '時間到！');
                 } else {
                     this.updateTimerRing(ratio);
                 }
@@ -930,7 +914,8 @@
                         this.hintStartTime = Date.now(); // 重置提示計時
 
                         if (this.collectedCount === this.targetChars.length) {
-                            this.gameOver(true, '順利收集所有詩句！');
+                            // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                            this.gameOver(true, '');
                         } else {
                             // Update UI hints
                             const prevHint = document.getElementById(`hint-${f.index}`);
@@ -961,7 +946,7 @@
             this.renderHearts();
 
             if (this.mistakes >= this.maxMistakes) {
-                setTimeout(() => this.gameOver(false, '墨香耗盡，下次再努力！'), 1000);
+                setTimeout(() => this.gameOver(false, '墨香耗盡！'), 1000);
             } else {
                 // 玩家重生的處理
                 setTimeout(() => {
@@ -1106,45 +1091,45 @@
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
 
-            const msgDiv = document.getElementById('game5-message');
-            document.getElementById('game5-msg-title').textContent = win ? '恭喜挑戰成功！' : '可惜挑戰失敗了';
-            document.getElementById('game5-msg-content').textContent = reason;
-
-            const msgPoemInfo = document.getElementById('game5-msg-poem-info');
-            if (this.targetPoem) {
-                msgPoemInfo.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">《${this.targetPoem.title}》/ ${this.targetPoem.dynasty} / ${this.targetPoem.author}</span>`;
-            } else {
-                msgPoemInfo.innerHTML = '';
-            }
-
-            msgDiv.classList.remove('hidden');
-
-            const msgBtn = document.getElementById('game5-msg-btn');
-            if (win) {
-                if (this.isLevelMode) {
-                    msgBtn.textContent = "下一關";
-                    if (window.ScoreManager) {
-                        window.ScoreManager.completeLevel('game5', this.difficulty, this.currentLevelIndex);
-                    }
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
                 } else {
-                    msgBtn.textContent = "下一局";
+                    this.retryGame();
                 }
-            } else {
-                msgBtn.textContent = "再試一次";
-            }
+            };
+
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
+            };
 
             if (win && window.ScoreManager) {
                 window.ScoreManager.playWinAnimation({
                     game: this,
                     difficulty: this.difficulty,
                     gameKey: 'game5',
-                    timerContainerId: 'game5-timer', // We don't have a ring but it needs a ref
+                    timerContainerId: 'game5-timer',
                     scoreElementId: 'game5-score',
                     heartsSelector: '#game5-hearts .heart:not(.empty)',
                     onComplete: (finalScore) => {
-                        document.getElementById('game5-msg-content').textContent = `最終得分：${finalScore}\n${reason}`;
+                        this.score = finalScore;
+                        if (this.isLevelMode) {
+                            window.ScoreManager.completeLevel('game5', this.difficulty, this.currentLevelIndex);
+                        }
+                        showMessage(finalScore);
                     }
                 });
+            } else {
+                showMessage();
             }
         },
 

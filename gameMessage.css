@@ -1,0 +1,147 @@
+/* =========================================
+   統一遊戲訊息視窗 (GameMessage)
+   - 用於 12 個遊戲的勝利或失敗結算
+   ========================================= */
+
+.common-game-message {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* 使用 CSS 變數來控制相對寬度 */
+    --msg-width-scale: 0.9;
+    width: calc(var(--responsive-width, 100vw) * var(--msg-width-scale)) !important;
+    background: hsl(45, 30%, 85%);
+    border-radius: 1rem;
+    text-align: center;
+    color: hsl(0, 0%, 30%);
+    box-shadow: 0 0.6rem 2.0rem rgba(0, 0, 0, 0.8);
+    z-index: 3000;
+    /* 低於 PoemDialog (3001) */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+/* --- 標準模式 (無額外資訊) --- */
+.common-game-message:not(.has-extra) {
+    top: 88%;
+    height: 15%;
+    padding: 0.2rem;
+    padding-bottom: 3rem;
+    /* 為按鈕留空間 */
+}
+
+/* --- 擴展模式 (帶有 .has-extra 額外資訊，如 Game 3) --- */
+.common-game-message.has-extra {
+    position: fixed;
+    /* 全文模式改用固定定位確保在視窗中央 */
+    top: 55%;
+    /* 修正為偏下方 */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 75%;
+    max-height: 85vh;
+    padding: 0.5rem;
+    padding-bottom: 4.0rem;
+    /* 為按鈕留空間 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 顯示與隱藏控制 */
+.common-game-message.hidden {
+    display: none !important;
+}
+
+/* 標題與得分資訊容器 */
+.common-game-message .msg-header-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: nowrap;
+    margin-bottom: 0.1rem;
+    width: 90%;
+}
+
+/* 標題 */
+.common-game-message h2 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: hsl(145, 68%, 30%);
+    margin: 0;
+    margin-right: 0.5rem;
+}
+
+/* 分數 */
+.common-game-message p {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* 按鈕樣式 */
+.common-game-message .nav-btn {
+    position: absolute;
+    bottom: 1.0rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: hsl(145, 68%, 36%);
+    color: white;
+    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.8);
+    border: none;
+    border-radius: 1.5rem;
+    padding: 0.2rem 2.5rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: filter 0.5s, transform 0.2s;
+    white-space: nowrap;
+}
+
+.common-game-message .nav-btn:hover {
+    filter: brightness(1.25);
+}
+
+.common-game-message .nav-btn:active {
+    transform: translateX(-50%) scale(0.95);
+}
+
+/* 額外內容區域 (.extra-content) - 設為可捲動主體 */
+.common-game-message .extra-content {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* iOS 滾動平滑化 */
+    margin: 0.2rem 0;
+    padding: 0.2rem 0.8rem;
+    background: rgba(0, 0, 0, 0.0);
+    border-radius: 0.5rem;
+    text-align: center;
+    font-size: 1.4rem;
+    letter-spacing: 0.2rem;
+    line-height: 1.4;
+    box-sizing: border-box;
+}
+
+/* 針對 Game 3 的內容微調 */
+.common-game-message .game3-result-poem-info h3 {
+    margin: 0.1rem 0 !important;
+}
+
+/* 適應性調整 */
+@media (max-height: 480px) {
+    .common-game-message:not(.has-extra) {
+        height: 15%;
+    }
+
+    .common-game-message.has-extra {
+        height: 80%;
+        max-height: 95vh;
+        overflow-y: auto;
+    }
+}

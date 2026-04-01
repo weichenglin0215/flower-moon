@@ -87,16 +87,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
-            document.getElementById('game10-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game10-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
+            // Message button handled by GameMessage
             document.getElementById('game10-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
@@ -132,10 +123,6 @@
                     <div id="game10-countdown" class="game10-countdown hidden">3</div>
                 </div>
 
-                <div id="game10-message" class="game10-message hidden">
-                    <h2 id="game10-msg-title">遊戲結束</h2>
-                    <p id="game10-msg-content"></p>
-                    <button id="game10-msg-btn" class="nav-btn">再試一次</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -176,7 +163,7 @@
         showDifficultySelector: function () {
             this.isActive = false;
             cancelAnimationFrame(this.animationFrameId);
-            document.getElementById('game10-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('擊石鳴詩', (selectedLevel, levelIndex) => {
@@ -506,7 +493,7 @@
         resetGameRound: function (keepBricks = false) {
             this.isActive = true;
             document.getElementById('game10-score').textContent = this.score;
-            document.getElementById('game10-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
             this.updateHearts();
 
@@ -643,7 +630,7 @@
             // 失敗判定：若任一存活磚塊碰到撞擊條 (Paddle) 的 Y 座標
             // 以磚塊中心加上一半高度作為邊界判定
             if (lowestActiveBrickY + 1.25 > this.paddle.y) {
-                this.gameOver(false, "詩句下沉到底了！");
+                this.gameOver(false, "詩句沉底！");
                 return;
             }
 
@@ -934,7 +921,7 @@
                 this.paddle.width = oldPaddleWidth;
 
                 if (this.mistakes >= this.maxMistakes) {
-                    this.gameOver(false, "掉球次數過多！");
+                    this.gameOver(false, "掉球過多！");
                 } else {
                     // 重新建立一顆準備發射的球
                     const wRem = this.areaRect.width / this.remToPx;
@@ -975,7 +962,9 @@
                 scoreElementId: 'game10-score',
                 heartsSelector: '#game10-hearts .heart:not(.empty)',
                 onComplete: (finalScore) => {
-                    this.gameOver(true, "最終得分：" + finalScore);
+                    this.score = finalScore;
+                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                    this.gameOver(true, '');
                 }
             });
 
@@ -998,38 +987,43 @@
             if (win) {
                 document.getElementById('game10-retryGame-btn').disabled = true;
                 document.getElementById('game10-newGame-btn').disabled = true;
+                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
             } else {
                 document.getElementById('game10-retryGame-btn').disabled = false;
                 document.getElementById('game10-newGame-btn').disabled = false;
+                if (window.SoundManager) window.SoundManager.playSadTriple();
             }
 
-            const msgDiv = document.getElementById('game10-message');
-            const title = document.getElementById('game10-msg-title');
-            const content = document.getElementById('game10-msg-content');
-
-            msgDiv.classList.remove('hidden');
-            if (win) {
-                title.textContent = "破陣成功！";
-                title.style.color = "#28a745";
-                content.textContent = reason;
-            } else {
-                title.textContent = "再接再厲！";
-                title.style.color = "#dc3545";
-                content.textContent = reason;
-            }
-
-            const msgBtn = document.getElementById('game10-msg-btn');
-            if (win) {
-                if (this.isLevelMode) {
-                    msgBtn.textContent = "下一關";
-                    if (window.ScoreManager) {
-                        window.ScoreManager.completeLevel('game10', this.difficulty, this.currentLevelIndex);
-                    }
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
                 } else {
-                    msgBtn.textContent = "下一局";
+                    this.retryGame();
+                }
+            };
+
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "再試一次"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game10', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game10', this.currentLevelIndex, () => showMessage(reason));
+                } else {
+                    showMessage(reason);
                 }
             } else {
-                msgBtn.textContent = "再試一次";
+                showMessage(reason);
             }
         },
 

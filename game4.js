@@ -38,7 +38,7 @@
             '高中': { timeLimit: 60, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 30, singleCharReaction: false },
             //'大學': { timeLimit: 80, poemMinRating: 4, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 10, singleCharReaction: false },
             //'研究所': { timeLimit: 100, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 12, singleCharReaction: false }
-            '大學': { timeLimit: 160, poemMinRating: 4, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 200, singleCharReaction: false },
+            '大學': { timeLimit: 160, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 80, singleCharReaction: false },
             '研究所': { timeLimit: 200, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false }
         },
 
@@ -101,10 +101,6 @@
                         </div>
                     </div>
                 </div>
-                <div id="game4-message" class="game4-message hidden">
-                    <h2 id="game4-msg-title">遊戲結束</h2>
-                    <p id="game4-msg-content"></p>
-                    <button id="game4-msg-btn" class="nav-btn">勸君更進一杯酒</button>
                 </div>
             `;
             document.body.appendChild(div);
@@ -115,16 +111,6 @@
             document.getElementById('game4-newGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
-            };
-            document.getElementById('game4-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game4-message').classList.add('hidden');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
             };
 
             this.renderHearts();
@@ -138,7 +124,8 @@
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            document.getElementById('game4-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
             this.maskOtherContents();
 
             if (window.DifficultySelector) {
@@ -224,7 +211,8 @@
             this.userInputs = [];
             this.evaluationResult = null;
             document.getElementById('game4-score').textContent = this.score;
-            document.getElementById('game4-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
@@ -267,7 +255,8 @@
             this.userInputs = [];
             this.evaluationResult = null;
             document.getElementById('game4-score').textContent = this.score;
-            document.getElementById('game4-message').classList.add('hidden');
+            if (window.GameMessage) window.GameMessage.hide();
+
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
@@ -295,6 +284,14 @@
             // 啟用按鈕
             document.getElementById('game4-retryGame-btn').disabled = false;
             document.getElementById('game4-newGame-btn').disabled = false;
+
+            //如果是研究所難度，開局時隱藏poem-info，避免玩家作弊
+            if (this.difficulty === '研究所' || this.difficulty === '大學') {
+                document.getElementById('game4-info').style.display = 'none';
+            }
+            else {
+                document.getElementById('game4-info').style.display = '';
+            }
         },
 
         startNextLevel: function () {
@@ -439,6 +436,10 @@
             l1.innerHTML = renderText(this.line1, 1);
             l2.innerHTML = renderText(this.line2, 2);
 
+            // 自動調整字體大小 (參考 Game 2)
+            this.adjustFontSize(l1, this.calculateRawLength(this.line1), 7, 2.5);
+            this.adjustFontSize(l2, this.calculateRawLength(this.line2), 7, 2.5);
+
             //info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
             info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">
                                 ${this.currentPoem.title.length > 12 ? this.currentPoem.title.slice(0, 10)
@@ -455,8 +456,8 @@
             const container = document.getElementById('game4-grid');
             const gridConfigs = {
                 '小學': { total: 9, cols: 3 },
-                '中學': { total: 12, cols: 4 },
-                '高中': { total: 20, cols: 5 },
+                '中學': { total: 16, cols: 4 },
+                '高中': { total: 25, cols: 5 },
                 //'大學': { total: 20, cols: 5 },
                 //'研究所': { total: 25, cols: 5 }
                 '大學': { total: 42, cols: 6 },
@@ -490,8 +491,13 @@
             allChars.forEach(char => {
                 const btn = document.createElement('button');
                 btn.className = 'ans-btn';
-                //難度是"大學"或"研究所"設定按鍵的間距
-                if (this.difficulty === '大學' || this.difficulty === '研究所') {
+                //難度是"大學"或"研究所"設定按鍵的尺寸與間距
+                if (this.difficulty === '研究所') {
+                    btn.style.width = '2.8rem';
+                    btn.style.height = '3rem';
+                    btn.style.margin = '0.2rem';
+                }
+                else if (this.difficulty === '大學') {
                     btn.style.width = '3rem';
                     btn.style.height = '3rem';
                     btn.style.margin = '0.2rem';
@@ -697,7 +703,9 @@
                 scoreElementId: 'game4-score',
                 heartsSelector: '#game4-hearts .heart:not(.empty)',
                 onComplete: (finalScore) => {
-                    this.gameOver(true, finalScore);
+                    this.score = finalScore;
+                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                    this.gameOver(true, '');
                 }
             });
         },
@@ -707,10 +715,9 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
-                document.getElementById('game4-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game4-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game4-retryGame-btn').disabled = true;
+                document.getElementById('game4-newGame-btn').disabled = true;
             } else {
                 document.getElementById('game4-retryGame-btn').disabled = false;
                 document.getElementById('game4-newGame-btn').disabled = false;
@@ -722,35 +729,52 @@
             }
             this.renderQuestion();
 
-            const msgDiv = document.getElementById('game4-message');
-            const title = document.getElementById('game4-msg-title');
-            const content = document.getElementById('game4-msg-content');
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
+            };
 
-            setTimeout(() => {
-                msgDiv.classList.remove('hidden');
-                if (win) {
-                    title.textContent = "尋覓成功！";
-                    title.style.color = "#2ecc71";
-                    content.textContent = `得分：${reason}`;
-                } else {
-                    title.textContent = "功敗垂成";
-                    title.style.color = "#ff4757";
-                    content.textContent = reason || "再試一次吧！";
+            const showMessage = () => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? this.score : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
                 }
-                const msgBtn = document.getElementById('game4-msg-btn');
-                if (win) {
-                    if (this.isLevelMode) {
-                        msgBtn.textContent = "下一關";
-                        if (window.ScoreManager) {
-                            window.ScoreManager.completeLevel('game4', this.difficulty, this.currentLevelIndex);
-                        }
-                    } else {
-                        msgBtn.textContent = "下一局";
-                    }
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game4', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game4', this.currentLevelIndex, showMessage);
                 } else {
-                    msgBtn.textContent = "再試一次";
+                    showMessage();
                 }
-            }, 500);
+            } else {
+                showMessage();
+            }
+        },
+
+        // 輔助函式：計算不含標點符號的字數
+        calculateRawLength: function (text) {
+            return text.replace(/[，。？！、：；「」『』]/g, '').length;
+        },
+
+        // 調整字體大小
+        adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
+            if (textLen > threshold) {
+                const newSize = baseFontSizeRem * (threshold / textLen);
+                element.style.fontSize = `${newSize}rem`;
+            } else {
+                element.style.fontSize = `${baseFontSizeRem}rem`;
+            }
         }
     };
 

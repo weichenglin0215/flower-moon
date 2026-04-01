@@ -103,58 +103,8 @@
                     <!-- 遊戲內容將在此生成 -->
                 </div>
                 <div id="game3-history" class="game3-history"></div>
-                <div id="game3-message" class="game3-message">
-                    <div id="game3-result-poem" class="game3-result-poem-display"></div>
-                    <div class="game3-result-info">
-                        <h2 id="game3-msg-title">遊戲結束</h2>
-                        <p id="game3-msg-content"></p>
-                    </div>
-                    <button id="game3-msg-btn" class="nav-btn">勸君更進一杯酒</button>
-                </div>
             `;
             document.body.appendChild(div);
-
-            document.getElementById('game3-msg-btn').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playConfirmItem();
-                document.getElementById('game3-message').classList.remove('visible');
-                if (this.isWin) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
-            };
-
-            // 增加 result-poem-display 的滑鼠拖曳捲動功能
-            const poemDisplay = document.getElementById('game3-result-poem');
-            let isDown = false;
-            let startY;
-            let scrollTop;
-
-            poemDisplay.addEventListener('mousedown', (e) => {
-                isDown = true;
-                poemDisplay.style.cursor = 'grabbing';
-                startY = e.pageY - poemDisplay.offsetTop;
-                scrollTop = poemDisplay.scrollTop;
-            });
-
-            poemDisplay.addEventListener('mouseleave', () => {
-                isDown = false;
-                poemDisplay.style.cursor = 'grab';
-            });
-
-            poemDisplay.addEventListener('mouseup', () => {
-                isDown = false;
-                poemDisplay.style.cursor = 'grab';
-            });
-
-            poemDisplay.addEventListener('mousemove', (e) => {
-                if (!isDown) return;
-                e.preventDefault();
-                const y = e.pageY - poemDisplay.offsetTop;
-                const walk = (y - startY) * 1.5; // 捲動速度倍率
-                poemDisplay.scrollTop = scrollTop - walk;
-            });
 
             this.renderHearts();
         },
@@ -170,7 +120,7 @@
             this.isActive = false;
             if (this.animationId) cancelAnimationFrame(this.animationId);
             this.gameArea.innerHTML = '';
-            document.getElementById('game3-message').classList.remove('visible');
+            if (window.GameMessage) window.GameMessage.hide();
 
             // 隐藏主页和其他游戏
             this.hideOtherContents();
@@ -224,7 +174,7 @@
         },
 
         hideOtherContents: function () {
-            // 隐藏主页容器
+            // 隐藏主頁容器
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) {
                 cardContainer.style.display = 'none';
@@ -238,7 +188,7 @@
         },
 
         showOtherContents: function () {
-            // 恢复主页容器
+            // 恢復主頁容器
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) {
                 cardContainer.style.display = '';
@@ -255,7 +205,7 @@
             }
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
-            // 恢复其他内容
+            // 恢復其他內容
             this.showOtherContents();
         },
 
@@ -269,7 +219,7 @@
             this.currentRowIndex = 0;
             this.mistakeCount = 0;
             document.getElementById('game3-score').textContent = this.score;
-            document.getElementById('game3-message').classList.remove('visible');
+            if (window.GameMessage) window.GameMessage.hide();
             if (this.historyContainer) this.historyContainer.style.display = '';
             this.renderHearts();
 
@@ -282,7 +232,7 @@
             // 重置每一行的狀態與位置
             this.rows.forEach(row => {
                 row.clicked = false;
-                row.y = row.originalY; // 在之前已經增加 originalY 了
+                row.y = row.originalY;
                 row.element.style.transform = `translateY(${row.y}rem)`;
                 row.element.classList.remove('completed');
                 Array.from(row.element.querySelectorAll('button')).forEach(btn => {
@@ -325,7 +275,7 @@
             this.historyData = [];
             this.mistakeCount = 0;
             document.getElementById('game3-score').textContent = this.score;
-            document.getElementById('game3-message').classList.remove('visible');
+            if (window.GameMessage) window.GameMessage.hide();
             if (this.historyContainer) this.historyContainer.style.display = '';
             this.renderHearts();
 
@@ -351,9 +301,6 @@
             }
 
             const setting = this.difficultySettings[this.difficulty];
-            const poemMinRating = setting.poemMinRating || 4;
-
-            // 使用共用邏輯取得隨機詩詞，傳入種子
             const result = getSharedRandomPoem(
                 setting.poemMinRating || 4,
                 4,
@@ -374,7 +321,6 @@
             const startIdx = result.startIndex;
             const lineCount = result.lines.length;
 
-            // 尋找三首相同類型的詩詞作為干擾項來源
             const similarPoems = POEMS.filter(p => p.type === poem.type && p.id !== poem.id);
             let extraDecoyChars = "";
             if (similarPoems.length > 0) {
@@ -386,11 +332,9 @@
                 });
             }
 
-            // 合併原本的常用字庫與額外的詩詞字庫
             const baseCommonChars = (window.SharedDecoy && window.SharedDecoy.decoyCharsSets) ? window.SharedDecoy.decoyCharsSets.common : "";
             const currentDecoyPool = (baseCommonChars + extraDecoyChars).split('');
 
-            // 將詩詞內容展平為字符陣列，只使用 getSharedRandomPoem 選出的範圍
             let chars = [];
             let charRatings = [];
             const firstIndices = new Set();
@@ -413,17 +357,9 @@
                 chars.push(...lineChars);
                 lineChars.forEach((c, charIdx) => {
                     charRatings.push(lineRating);
-                    this.historyData.push({
-                        char: c,
-                        status: 'hidden',
-                        isSep: false
-                    });
+                    this.historyData.push({ char: c, status: 'hidden', isSep: false });
                     if (charIdx === lineChars.length - 1 && i < lineCount - 1) {
-                        this.historyData.push({
-                            char: '，',
-                            status: 'correct',
-                            isSep: true
-                        });
+                        this.historyData.push({ char: '，', status: 'correct', isSep: true });
                     }
                 });
             }
@@ -432,49 +368,37 @@
             this.historyContainer = document.getElementById('game3-history');
             this.renderHistory();
 
-            // 動態計算 gameArea 的高度（rem），讓方塊從畫面底部下方開始升起
             const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
             const gameAreaHeightPx = this.gameArea.offsetHeight || (rootFontSize * 35);
             const gameAreaHeightRem = gameAreaHeightPx / rootFontSize;
 
-            // 從遊戲區域底部下方開始 (遊戲區域高度 + 額外空間)
-            this.gameAreaHeightRem = gameAreaHeightRem; // 儲存供 loop() 判斷使用
+            this.gameAreaHeightRem = gameAreaHeightRem;
             let currentY = gameAreaHeightRem;
 
             chars.forEach((char, index) => {
-                // 檢查是否為新句子的開始
                 const isNewSentence = firstIndices.has(index);
-
-                // 如果是新句子的開始（且不是第一句），額外增加垂直間距
                 if (isNewSentence && index > 0) {
-                    currentY += this.btnHeightRem / 2; // 留出半個按鍵高度的空間
+                    currentY += this.btnHeightRem / 2;
                 }
 
-                // 難度控制：根據設定決定按鈕數量
                 let numOptions = 1;
                 const sentenceRating = charRatings[index];
 
-                // 每一句的第一個字難度固定 1 個按鍵
-                // 或者該句的評分低於難度設定的 sentenceMinRating
                 if (isNewSentence || sentenceRating < setting.sentenceMinRating) {
                     numOptions = 1;
                 } else {
-                    // 根據難度設定隨機決定選項數量 (minOptions 到 maxOptions)
                     const minO = setting.minOptions || 1;
                     const maxO = setting.maxOptions || 1;
                     numOptions = Math.floor(Math.random() * (maxO - minO + 1)) + minO;
-                    if (numOptions < 1) numOptions = 1;
                 }
 
                 const row = this.createRow(char, index, numOptions, currentY, currentDecoyPool);
                 this.rows.push(row);
                 this.gameArea.appendChild(row.element);
 
-                // 行距：按鈕高度 + 垂直間距 (動態計算)
                 currentY += this.btnHeightRem * 1.25 + this.verticalGapRem;
             });
 
-            // 初始化：高亮第一行
             if (this.rows.length > 0) {
                 Array.from(this.rows[0].element.querySelectorAll('button')).forEach(btn => {
                     btn.style.color = this.currentRowFontColor;
@@ -487,10 +411,8 @@
             rowEl.className = 'ladder-row';
             rowEl.style.transform = `translateY(${startY}rem)`;
 
-            // 準備候選選項
             let options = [correctChar];
 
-            // 1. 嘗試從分類主題中選取 (40% 機率)
             if (numOptions > 1 && Math.random() < 0.4) {
                 const thematicSets = (window.SharedDecoy && window.SharedDecoy.decoyCharsSets)
                     ? Object.values(window.SharedDecoy.decoyCharsSets)
@@ -499,7 +421,6 @@
                 const matchedSet = thematicSets.find(set => set && set.includes(correctChar));
                 if (matchedSet) {
                     const themeCandidates = matchedSet.split('').filter(c => c !== correctChar);
-                    // 隨機取出主題字
                     themeCandidates.sort(() => Math.random() - 0.5);
                     for (const char of themeCandidates) {
                         if (options.length >= numOptions) break;
@@ -508,7 +429,6 @@
                 }
             }
 
-            // 2. 如果選項不足，使用原本的 decoyPool 或預設字庫補齊
             const baseCommonArr = (window.SharedDecoy && window.SharedDecoy.decoyCharsSets) ? window.SharedDecoy.decoyCharsSets.common.split('') : [];
             const pool = (decoyPool && decoyPool.length > 0) ? decoyPool : baseCommonArr;
             let safetyCounter = 0;
@@ -520,22 +440,15 @@
                 }
             }
 
-            // 洗牌
             options.sort(() => Math.random() - 0.5);
 
-            // 創建按鈕
             options.forEach(char => {
                 const btn = document.createElement('button');
                 btn.className = 'ladder-btn';
                 btn.textContent = char;
-                // 移除內聯 font-size，改由 CSS 控制
-                // 移除內聯 background，改由 CSS 控制
-
-                // 根據難度設定決定初始透明度 (Rule 1)
                 const setting = this.difficultySettings[this.difficulty] || {};
                 const initialColor = setting.isStrictOrder ? this.nextRowFontColor : this.currentRowFontColor;
                 btn.style.color = initialColor;
-
                 btn.addEventListener('click', (e) => this.handleBtnClick(e, char, index, rowEl));
                 rowEl.appendChild(btn);
             });
@@ -556,7 +469,6 @@
             const setting = this.difficultySettings[this.difficulty];
             const clickedRow = this.rows[rowIndex];
 
-            // 如果已經點擊過，或是處於嚴格模式且不是當前行，則不處理
             if (clickedRow.clicked) return;
             if (setting.isStrictOrder && rowIndex !== this.currentRowIndex) {
                 return;
@@ -564,81 +476,59 @@
 
             if (char === clickedRow.correctChar) {
                 if (window.SoundManager) window.SoundManager.playSuccessShort();
-                // 答對
                 e.target.classList.add('correct');
-                this.score += 5; // 答對加 5 分
+                this.score += 5;
                 document.getElementById('game3-score').textContent = this.score;
 
-                // 更新歷程狀態
                 this.updateHistoryStatus(rowIndex, 'correct');
-
-                // 標記該行已完成
                 clickedRow.clicked = true;
-                // 改變按鈕樣式 (CSS .correct)
-                // e.target.style.color = this.nextRowFontColor; // REMOVED: 由 CSS 控制正確答案樣式
-
                 rowEl.classList.add('completed');
                 Array.from(rowEl.querySelectorAll('button')).forEach(b => b.disabled = true);
 
-                // 增加速度
                 if (this.speed < this.maxSpeed) this.speed += this.incrementSpeed;
 
-                // 如果點中的是當前目標行，更新 currentRowIndex
                 if (rowIndex === this.currentRowIndex) {
                     this.updateCurrentRowHighlight();
                 }
             } else {
                 if (window.SoundManager) window.SoundManager.playFailure();
-                // 答錯
                 e.target.classList.add('wrong');
                 e.target.disabled = true;
                 this.mistakeCount += 1;
                 this.updateHearts();
 
                 if (this.mistakeCount >= setting.maxMistakeCount) {
-                    this.gameOver(false, `按錯次數達 ${this.mistakeCount} 次，正確應為「${clickedRow.correctChar}」`);
+                    this.gameOver(false, `失誤 ${this.mistakeCount} 次`);
                     return;
                 }
 
-                // 檢查是否只剩最後一個按鈕（即正確答案）
                 const remainingBtns = Array.from(rowEl.querySelectorAll('button')).filter(btn => !btn.disabled);
                 if (remainingBtns.length === 1) {
-                    // 只剩正解：直接標記為錯過
                     clickedRow.clicked = true;
                     rowEl.classList.add('completed');
                     const correctBtn = remainingBtns[0];
                     correctBtn.disabled = true;
-                    correctBtn.classList.add('missed'); // 使用 CSS class
-
-                    // 更新歷程為錯誤 (紅色原字)
+                    correctBtn.classList.add('missed');
                     this.updateHistoryStatus(rowIndex, 'wrong');
 
-                    // 如果點中的是當前目標行，更新 currentRowIndex
                     if (rowIndex === this.currentRowIndex) {
                         this.updateCurrentRowHighlight();
                     }
                 } else {
-                    // 還剩下其他干擾項：歷程顯示紅色 □
                     this.updateHistoryStatus(rowIndex, 'wrong_attempt');
                 }
             }
         },
 
-        /**
-         * 更新當前目標行的高亮狀態
-         * 自動跳過已點擊或失敗的行
-         */
         updateCurrentRowHighlight: function () {
-            // 跳過所有已經完成或處理過的行
             while (this.currentRowIndex < this.rows.length && this.rows[this.currentRowIndex].clicked) {
                 this.currentRowIndex++;
             }
 
-            // 檢查勝利
             if (this.currentRowIndex >= this.rows.length) {
                 this.isActive = false;
-                document.getElementById('game3-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                document.getElementById('game3-retryGame-btn').disabled = true;
+                document.getElementById('game3-newGame-btn').disabled = true;
                 ScoreManager.playWinAnimation({
                     game: this,
                     difficulty: this.difficulty,
@@ -647,11 +537,12 @@
                     scoreElementId: 'game3-score',
                     heartsSelector: '#game3-hearts .heart:not(.empty)',
                     onComplete: (finalScore) => {
-                        this.gameOver(true, finalScore);
+                        this.score = finalScore;
+                        // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                        this.gameOver(true, '');
                     }
                 });
             } else {
-                // 將新的當前行的所有按鈕字體顏色改為深色 (高亮)
                 const nextRowEl = this.rows[this.currentRowIndex].element;
                 Array.from(nextRowEl.querySelectorAll('button')).forEach(btn => {
                     btn.style.color = this.currentRowFontColor;
@@ -662,14 +553,12 @@
         loop: function () {
             if (!this.isActive) return;
 
-            // 自動跳過已點擊的行
             while (this.currentRowIndex < this.rows.length && this.rows[this.currentRowIndex].clicked) {
                 this.currentRowIndex++;
-                // 也要檢查新定位的行是否結束了
                 if (this.currentRowIndex >= this.rows.length) {
                     this.isActive = false;
-                    document.getElementById('game3-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                    document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
+                    document.getElementById('game3-retryGame-btn').disabled = true;
+                    document.getElementById('game3-newGame-btn').disabled = true;
                     ScoreManager.playWinAnimation({
                         game: this,
                         difficulty: this.difficulty,
@@ -678,12 +567,13 @@
                         scoreElementId: 'game3-score',
                         heartsSelector: '#game3-hearts .heart:not(.empty)',
                         onComplete: (finalScore) => {
-                            this.gameOver(true, finalScore);
+                            this.score = finalScore;
+                            // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
+                            this.gameOver(true, '');
                         }
                     });
                     return;
                 }
-                // 高亮新行
                 const nextRow = this.rows[this.currentRowIndex];
                 Array.from(nextRow.element.querySelectorAll('button')).forEach(btn => {
                     btn.style.color = this.currentRowFontColor;
@@ -696,17 +586,14 @@
                 row.y -= this.speed;
                 row.element.style.transform = `translateY(${row.y}rem)`;
 
-                // 檢查是否超出螢幕上方且尚未點擊 (超時結束)
                 if (!row.clicked && row.index === this.currentRowIndex && row.y < -this.btnHeightRem / 4) {
-                    row.clicked = true; // 即使沒點也標記為處理過，避免重複計算
+                    row.clicked = true;
                     row.element.classList.add('completed');
                     Array.from(row.element.querySelectorAll('button')).forEach(btn => {
                         btn.disabled = true;
                         if (btn.textContent === row.correctChar) {
-                            // 錯過的正確答案：顯示為藍色 (missed class)
                             btn.classList.add('missed');
                         } else {
-                            // 錯誤答案：顯示為紅色
                             btn.classList.add('wrong');
                         }
                     });
@@ -715,17 +602,13 @@
                     this.updateHearts();
 
                     if (this.mistakeCount >= currentSetting.maxMistakeCount) {
-                        this.gameOver(false, `錯過的次數達 ${this.mistakeCount} 次，正確應為「${row.correctChar}」`);
+                        this.gameOver(false, `失誤達 ${this.mistakeCount} 次`);
                     } else {
-                        // 移動到下一個有效的行
                         this.updateCurrentRowHighlight();
                     }
-                    // 更新歷程為錯誤 (錯過)
                     this.updateHistoryStatus(row.index, 'wrong');
                 }
 
-                // 更新尚未處理字的 visibility 狀態
-                // 只有當方塊進入可視區域底部（row.y < gameAreaHeightRem）時才顯示，與方塊同步由下往上出現
                 const visibleThreshold = this.gameAreaHeightRem || 30;
                 if (row.y < visibleThreshold && !row.clicked) {
                     this.updateHistoryStatus(row.index, 'waiting');
@@ -736,20 +619,14 @@
             this.animationId = requestAnimationFrame(() => this.loop());
         },
 
-        // 更新歷史紀錄中的字符狀態
         updateHistoryStatus: function (charIndex, status) {
-            // 因為 historyData 可能包含逗號，需要找對應的 non-分隔符索引
             let realIdx = 0;
             for (let i = 0; i < this.historyData.length; i++) {
                 if (!this.historyData[i].isSep) {
                     if (realIdx === charIndex) {
-                        // 狀態優先級：correct/wrong > wrong_attempt > waiting > hidden
                         const currentStatus = this.historyData[i].status;
                         if (currentStatus === 'correct' || currentStatus === 'wrong') return;
-
-                        // 如果已經是錯誤嘗試，只有變成正解或最終錯誤才能覆蓋，不能變回 waiting
                         if (currentStatus === 'wrong_attempt' && status === 'waiting') return;
-
                         this.historyData[i].status = status;
                         return;
                     }
@@ -763,7 +640,6 @@
 
             let html = '';
             this.historyData.forEach((item, index) => {
-                // 決定是否顯示：非 hidden，或者是 separator 且前一個字符已出現 (waiting 或以上)
                 let shouldShow = item.status !== 'hidden';
                 if (item.isSep && index > 0) {
                     const prev = this.historyData[index - 1];
@@ -785,7 +661,7 @@
                         displayChar = '□';
                     } else if (item.status === 'wrong_attempt') {
                         className += ' wrong-attempt';
-                        displayChar = '□'; // 選錯但還有機會，顯示紅色 □
+                        displayChar = '□';
                     } else if (item.status === 'correct') {
                         className += ' correct';
                     } else if (item.status === 'wrong') {
@@ -804,7 +680,8 @@
             const hearts = document.getElementById('game3-hearts');
             if (!hearts) return;
             hearts.innerHTML = '';
-            for (let i = 0; i < this.difficultySettings[this.difficulty].maxMistakeCount; i++) {
+            const settings = this.difficultySettings[this.difficulty];
+            for (let i = 0; i < settings.maxMistakeCount; i++) {
                 const span = document.createElement('span');
                 span.className = 'heart';
                 span.textContent = '♥';
@@ -828,22 +705,10 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
-            if (win) {
-                document.getElementById('game3-retryGame-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game3-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-            } else {
-                document.getElementById('game3-retryGame-btn').disabled = false;
-                document.getElementById('game3-newGame-btn').disabled = false;
-            }
-            cancelAnimationFrame(this.animationId);
+            if (this.animationId) cancelAnimationFrame(this.animationId);
 
-            // 1. 將所有畫面尚未完成的行，標示出藍色正確答案
             this.rows.forEach(row => {
                 if (!row.clicked) {
-                    // 標記為錯過
-                    this.updateHistoryStatus(row.index, 'waiting'); // 保持原本狀態或視為未答
-                    // 在畫面上顯示藍色
                     Array.from(row.element.querySelectorAll('button')).forEach(btn => {
                         btn.disabled = true;
                         if (btn.textContent === row.correctChar) {
@@ -853,99 +718,93 @@
                 }
             });
 
-            // 確保最後一刻的歷程狀態有被渲染
-            this.renderHistory();
-
-            const msgDiv = document.getElementById('game3-message');
-            const title = document.getElementById('game3-msg-title');
-            const content = document.getElementById('game3-msg-content');
-            const btn = document.getElementById('game3-msg-btn');
-            const poemDisplay = document.getElementById('game3-result-poem');
-
-            // 隱藏左側歷程區
-            if (this.historyContainer) this.historyContainer.style.display = 'none';
-
-            // 建構結算詩詞顯示
-            let poemHtml = `<div class="game3-result-poem-info" data-poem-id="${this.currentPoem.id}">
-                ${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}
-            </div>`;
-            let currentLineHtml = poemHtml + '<div class="game3-result-poem-line">';
-
-            // 需要重新遍歷 historyData 來構建完整詩詞
-            // 這裡我們直接使用 this.poemChars 和 historyData 對應
-            // 由於 historyData 包含逗號，我們需要小心處理
-
-            this.historyData.forEach((item, index) => {
-                if (item.isSep) {
-                    // 標點符號不顯示文字，僅作為換行依據
-                    currentLineHtml += '</div><div class="game3-result-poem-line">';
-                } else {
-                    let className = 'game3-result-char';
-                    // 判斷顏色狀態
-                    // 如果遊戲過關(win=true)，且狀態是 correct -> 綠色
-                    // 如果狀態是 wrong -> 紅色
-                    // 如果狀態是 hidden/waiting 且遊戲結束 -> miss (藍色)
-
-                    if (item.status === 'correct') {
-                        className += ' correct';
-                    } else if (item.status === 'wrong' || item.status === 'wrong_attempt') {
-                        className += ' wrong';
-                    } else {
-                        // 未完成的字，視為錯過
-                        className += ' missed';
-                    }
-                    currentLineHtml += `<span class="${className}">${item.char}</span>`;
-                }
-            });
-            currentLineHtml += '</div>';
-            poemDisplay.innerHTML = currentLineHtml;
-
-
-            // 設定訊息與按鈕文字
-            content.textContent = "";
             if (win) {
-                // 檢查是否完全答對 (無錯誤)
-                // 若 mistakeCount == 0 ? 或者全部都 correct
-                // 簡單判斷：this.mistakeCount 是否為 0
-                if (this.mistakeCount === 0) {
-                    title.textContent = `謫仙下凡！得分：${reason}分`;
-                    title.style.color = "#FFD700"; // 金色
-                } else {
-                    title.textContent = `過關！得分：${reason}分`;
-                    title.style.color = "#4CAF50";
-                }
-                if (this.isLevelMode) {
-                    btn.textContent = "下一關";
-                    if (window.ScoreManager) {
-                        window.ScoreManager.completeLevel('game3', this.difficulty, this.currentLevelIndex);
-                    }
-                } else {
-                    btn.textContent = "下一局";
-                }
+                document.getElementById('game3-retryGame-btn').disabled = true;
+                document.getElementById('game3-newGame-btn').disabled = true;
             } else {
-                title.textContent = `遊戲失敗 錯過次數達 ${this.mistakeCount} 次`;
-                title.style.color = "hsl(10, 80%, 60%)";
-                btn.textContent = "再試一次";
+                document.getElementById('game3-retryGame-btn').disabled = false;
+                document.getElementById('game3-newGame-btn').disabled = false;
             }
 
-            // 動態調整按鍵字體大小
-            const btnTextLen = btn.textContent.length;
-            // 基礎大小 1.6rem，若超過 10 字則依比例縮小
-            const newSize = btnTextLen > 10 ? (1.6 * 10 / btnTextLen) : 1.6;
-            btn.style.fontSize = newSize + 'rem';
+            let resultHtml = '';
+            if (this.currentPoem) {
+                resultHtml = `
+                    <div class="game3-result-poem-info" style="text-align: center; margin-bottom: 0.2rem;">
+                        <h3 style="margin: 0; color: #333; font-size: 1.2rem; cursor: pointer; text-decoration: underline;"
+                            onclick="if(window.openPoemDialogById) window.openPoemDialogById('${this.currentPoem.id}')">
+                            ${this.currentPoem.title}
+                        </h3>
+                        <p style="margin: 0.1rem 0; color: #666; font-size: 1rem;">${this.currentPoem.dynasty} · ${this.currentPoem.author}</p>
+                    </div>
+                    <div class="game3-result-content" style="background: rgba(255,255,255,0.5); padding: 0.5rem; border-radius: 0.5rem;">
+                `;
 
+                let currentLine = '';
+                this.historyData.forEach(item => {
+                    if (item.isSep) {
+                        resultHtml += `<div style="margin-bottom: 0.3rem;">${currentLine}${item.char}</div>`;
+                        currentLine = '';
+                    } else if (item.status !== 'hidden') {
+                        let color = '#333';
+                        if (item.status === 'correct') color = 'hsl(145, 68%, 30%)';
+                        else if (item.status === 'wrong' || item.status === 'wrong_attempt') color = 'hsl(0, 68%, 36%)';
+                        else if (item.status === 'waiting') color = 'hsl(210, 80%, 45%)';
 
-            // 稍微延遲顯示視窗 (1秒)
-            setTimeout(() => {
-                msgDiv.classList.add('visible');
-            }, 1000);
+                        currentLine += `<span style="color: ${color}; font-weight: bold;">${item.char}</span>`;
+                    }
+                });
+                if (currentLine) resultHtml += `<div>${currentLine}</div>`;
+                resultHtml += `</div>`;
+            }
+
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
+            };
+
+            const showMessage = () => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? this.score : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
+                        //無論勝負都要顯示對與錯的詩句
+                        //customContent: win ? resultHtml : "",
+                        customContent: resultHtml,
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
+            };
+
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game3', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game3', this.currentLevelIndex, showMessage);
+                } else {
+                    showMessage();
+                }
+            } else {
+                showMessage();
+            }
+        },
+
+        adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
+            if (textLen > threshold) {
+                const newSize = baseFontSizeRem * (threshold / textLen);
+                element.style.fontSize = `${newSize}rem`;
+            } else {
+                element.style.fontSize = `${baseFontSizeRem}rem`;
+            }
         }
     };
 
-    // 暴露給全域
     window.Game3 = Game3;
 
-    // 自動檢查是否需要啟動 (從 URL 參數)
     if (new URLSearchParams(window.location.search).get('game') === '3') {
         setTimeout(() => {
             if (window.Game3) window.Game3.show();
@@ -953,5 +812,4 @@
             window.history.replaceState({}, document.title, newUrl);
         }, 50);
     }
-
 })();

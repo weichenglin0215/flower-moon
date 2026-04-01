@@ -76,7 +76,7 @@
                         <h2 style="margin: 0; font-size: 1.5rem; color: hsl(40, 40%, 20%); letter-spacing: 0.2rem;">詩詞搜尋</h2>
                     </div>
                     <div class="pd-body pd-search-body" id="poemSearchList" style="padding: 1rem; border-top: 0.05rem solid hsl(0, 0%, 93%);">
-                        <div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">請在此輸入文字，將會搜尋詩名、作者與詩句。</div>
+                        <div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">請輸入文字<br>搜尋作者、詩名或詩句。</div>
                     </div>
                     <div class="pd-search-footer">
                         <input type="text" id="poemSearchInput" placeholder="輸入搜尋字...">
@@ -118,10 +118,11 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 if (typeof POEMS === 'undefined' || !POEMS.length) return;
                 const poem = POEMS[this.currentPoemIndex];
-                let text = `${poem.type || '詩詞'}\n${poem.title || '無題'}\n${poem.dynasty || ''}/${poem.author || '佚名'}\n\n`;
+                let text = `${poem.title || '無題'} / ${poem.type || '詩詞'}\n${poem.dynasty || ''} / ${poem.author || '佚名'}\n\n`;
                 if (poem.content && Array.isArray(poem.content)) {
                     text += poem.content.join('\n');
                 }
+                text += `\n\n喜歡嗎？歡迎分享給好友。\n也請推薦你鍾愛的詩詞給我。`;
                 this.copyToClipboard(text, e.target);
             });
 
@@ -349,7 +350,63 @@
             // Review (總評價)
             const reviewDiv = document.getElementById('dlgReview');
             if (poem.rating) {
-                reviewDiv.textContent = poem.rating;
+                reviewDiv.innerHTML = `<span>${poem.rating}</span>`;
+
+                let assignedDates = [];
+                if (typeof CALENDAR_ASSIGNMENTS !== 'undefined') {
+                    for (const [key, val] of Object.entries(CALENDAR_ASSIGNMENTS)) {
+                        if (val === poem.id) {
+                            assignedDates.push(key);
+                        }
+                    }
+                }
+
+                if (assignedDates.length > 0) {
+                    const prefixSpan = document.createElement('span');
+                    prefixSpan.style.fontSize = '1.0rem';
+                    prefixSpan.textContent = ` （出現在日曆：`;
+                    reviewDiv.appendChild(prefixSpan);
+
+                    assignedDates.forEach((dateKey, index) => {
+                        const dateText = `${dateKey.slice(0, 4)}/${dateKey.slice(4, 6)}/${dateKey.slice(6, 8)}`;
+                        const dateLink = document.createElement('span');
+                        dateLink.textContent = dateText;
+                        dateLink.style.cursor = 'pointer';
+                        dateLink.style.fontSize = '1.0rem';
+                        dateLink.style.color = 'hsla(6, 100%, 30%, 1.00)';
+                        dateLink.style.textDecoration = 'underline';
+                        dateLink.addEventListener('click', () => {
+                            if (window.SoundManager) window.SoundManager.playConfirmItem();
+                            if (window.MenuManager && window.MenuManager.closeAll) {
+                                window.MenuManager.closeAll();
+                            } else {
+                                PoemDialog.close();
+                            }
+                            const c1 = document.getElementById('calendarCardContainer');
+                            const c2 = document.getElementById('cardContainer');
+                            if (c1) c1.style.display = 'block';
+                            if (c2) c2.style.display = 'none';
+                            if (window.CalendarController && window.CalendarController.jumpToDate) {
+                                window.CalendarController.jumpToDate(dateKey);
+                            }
+                        });
+                        reviewDiv.appendChild(dateLink);
+
+                        if (index < assignedDates.length - 1) {
+                            const comma = document.createElement('span');
+                            comma.textContent = '、';
+                            reviewDiv.appendChild(comma);
+                        }
+                    });
+
+                    const suffixSpan = document.createElement('span');
+                    suffixSpan.textContent = `）`;
+                    reviewDiv.appendChild(suffixSpan);
+                } else {
+                    const noDateSpan = document.createElement('span');
+                    noDateSpan.textContent = '（未出現在日曆中）';
+                    reviewDiv.appendChild(noDateSpan);
+                }
                 reviewDiv.className = '';
                 reviewDiv.style.color = '#333';
             } else {
@@ -379,6 +436,9 @@
             // Zhuyin (注音說明)
             const zhuyinDiv = document.getElementById('dlgZhuyin');
             if (poem.zhuyin) {
+                //在注音說明資料的每一行之前添加"△"字元
+                poem.zhuyin = "△" + poem.zhuyin;
+                poem.zhuyin = poem.zhuyin.replace(/\n/g, '\n△');
                 zhuyinDiv.textContent = poem.zhuyin;
             } else {
                 zhuyinDiv.innerHTML = '<p class="pd-placeholder">（暫無注音）</p>';
