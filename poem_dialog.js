@@ -194,7 +194,8 @@
                     const item = document.createElement('div');
                     item.className = 'pd-search-item';
                     item.innerHTML = `
-                        <div class="pd-search-item-title">${m.poem.title} <span style="font-size: 1rem; font-weight: normal; color: #555;"> - ${m.poem.author || '佚名'}</span></div>
+                        <div class="pd-search-item-title">${m.poem.title} <span style="font-size: 1rem; font-weight: normal; color: #555;"> - ${m.poem.author || '佚名'} - 
+${m.poem.rating || ''}星</span></div>
                         <div class="pd-search-item-line">${m.line}</div>
                     `;
                     item.addEventListener('click', () => {
@@ -372,7 +373,7 @@
                         const dateLink = document.createElement('span');
                         dateLink.textContent = dateText;
                         dateLink.style.cursor = 'pointer';
-                        dateLink.style.fontSize = '1.0rem';
+                        dateLink.style.fontSize = '0.6rem';
                         dateLink.style.color = 'hsla(6, 100%, 30%, 1.00)';
                         dateLink.style.textDecoration = 'underline';
                         dateLink.addEventListener('click', () => {
@@ -395,16 +396,19 @@
                         if (index < assignedDates.length - 1) {
                             const comma = document.createElement('span');
                             comma.textContent = '、';
+                            comma.style.fontSize = '0.6rem';
                             reviewDiv.appendChild(comma);
                         }
                     });
 
                     const suffixSpan = document.createElement('span');
                     suffixSpan.textContent = `）`;
+                    suffixSpan.style.fontSize = '1.0rem';
                     reviewDiv.appendChild(suffixSpan);
                 } else {
                     const noDateSpan = document.createElement('span');
                     noDateSpan.textContent = '（未出現在日曆中）';
+                    noDateSpan.style.fontSize = '1.0rem';
                     reviewDiv.appendChild(noDateSpan);
                 }
                 reviewDiv.className = '';
