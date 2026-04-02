@@ -141,7 +141,7 @@ window.AuthorBio = (function () {
         setupMomentumScroll(document.getElementById('authorList'));
         setupMomentumScroll(document.getElementById('worksList'));
     }
-
+    // 增加捲動功能的通用處理函式 (支持滑鼠及觸控)
     function setupMomentumScroll(scrollContainer) {
         let isDown = false;
         let startY;
@@ -152,7 +152,7 @@ window.AuthorBio = (function () {
         let momentumID = null;
 
         const startInertia = () => {
-            const friction = 0.95;
+            const friction = 0.97;// 摩擦係數，數值越大滑得越遠
             const step = () => {
                 if (Math.abs(velocity) < 0.1) {
                     cancelAnimationFrame(momentumID);

@@ -219,36 +219,100 @@ ${m.poem.rating || ''}星</span></div>
                 if (e.target.id === 'poemOverlay') this.close();
             });
 
-            // 增加 pd-body 的滑鼠拖曳捲動功能
+            // 增加慣性捲動功能的通用處理函式 (支持滑鼠及觸控)
+            const setupMomentumScroll = (el) => {
+                if (!el) return;
+                let isDown = false;
+                let startY;
+                let startScrollTop;
+                let moved = false;
+                let velocity = 0;
+                let lastY = 0;
+                let lastTime = 0;
+                let momentumID = null;
+
+                const startInertia = () => {
+                    const friction = 0.97; // 摩擦係數，數值越大滑得越遠
+                    const step = () => {
+                        if (Math.abs(velocity) < 0.1) {
+                            cancelAnimationFrame(momentumID);
+                            return;
+                        }
+                        el.scrollTop -= velocity;
+                        velocity *= friction;
+                        momentumID = requestAnimationFrame(step);
+                    };
+                    momentumID = requestAnimationFrame(step);
+                };
+
+                const onStart = (e) => {
+                    // 若點擊的是按鈕則不觸發拖拽
+                    if (e.target.tagName.toLowerCase() === 'button' || e.target.closest('button')) return;
+
+                    isDown = true;
+                    moved = false;
+                    el.style.cursor = 'grabbing';
+                    const pageY = (e.type === 'touchstart') ? e.touches[0].pageY : e.pageY;
+                    startY = pageY;
+                    startScrollTop = el.scrollTop;
+                    velocity = 0;
+                    cancelAnimationFrame(momentumID);
+                    lastY = pageY;
+                    lastTime = Date.now();
+                };
+
+                const onMove = (e) => {
+                    if (!isDown) return;
+                    const pageY = (e.type === 'touchmove') ? e.touches[0].pageY : e.pageY;
+                    const deltaY = pageY - startY;
+
+                    // 位移超過一定門檻才判斷為拖曳
+                    if (Math.abs(deltaY) > 5) {
+                        moved = true;
+                        if (e.cancelable) e.preventDefault();
+                        const multiplier = (e.type === 'touchmove') ? 1.2 : 1.5;
+                        el.scrollTop = startScrollTop - deltaY * multiplier;
+                    }
+
+                    const now = Date.now();
+                    const dt = now - lastTime;
+                    if (dt > 0) {
+                        const dy = pageY - lastY;
+                        velocity = dy * 0.8;
+                        lastTime = now;
+                        lastY = pageY;
+                    }
+                };
+
+                const onEnd = () => {
+                    if (!isDown) return;
+                    isDown = false;
+                    el.style.cursor = 'grab';
+                    startInertia();
+
+                    if (moved) {
+                        // 如果有位移，攔截接下來的 click 事件以防誤觸列表項
+                        const preventClick = (e) => {
+                            e.stopImmediatePropagation();
+                            el.removeEventListener('click', preventClick, true);
+                        };
+                        el.addEventListener('click', preventClick, true);
+                    }
+                };
+
+                el.addEventListener('mousedown', onStart);
+                el.addEventListener('touchstart', onStart, { passive: true });
+                el.addEventListener('mousemove', onMove);
+                el.addEventListener('touchmove', onMove, { passive: false });
+                window.addEventListener('mouseup', onEnd);
+                window.addEventListener('touchend', onEnd);
+            };
+
+            // 套用到主彈窗與搜尋列表
             const dialogBody = this.overlay.querySelector('.pd-body');
-            let isDown = false;
-            let startY;
-            let scrollTop;
-
-            dialogBody.addEventListener('mousedown', (e) => {
-                isDown = true;
-                dialogBody.style.cursor = 'grabbing';
-                startY = e.pageY - dialogBody.offsetTop;
-                scrollTop = dialogBody.scrollTop;
-            });
-
-            dialogBody.addEventListener('mouseleave', () => {
-                isDown = false;
-                dialogBody.style.cursor = 'grab';
-            });
-
-            dialogBody.addEventListener('mouseup', () => {
-                isDown = false;
-                dialogBody.style.cursor = 'grab';
-            });
-
-            dialogBody.addEventListener('mousemove', (e) => {
-                if (!isDown) return;
-                e.preventDefault();
-                const y = e.pageY - dialogBody.offsetTop;
-                const walk = (y - startY) * 1.5; // 捲動速度倍率
-                dialogBody.scrollTop = scrollTop - walk;
-            });
+            const searchList = document.getElementById('poemSearchList');
+            setupMomentumScroll(dialogBody);
+            setupMomentumScroll(searchList);
 
             // 支持點擊頁面上的詩名或作者開啟 (全域委派)
             document.addEventListener('click', (e) => {

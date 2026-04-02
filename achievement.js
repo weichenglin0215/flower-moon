@@ -148,7 +148,7 @@
             let momentumID = null;
 
             const startInertia = () => {
-                const friction = 0.95; // 摩擦係數
+                const friction = 0.97; // 摩擦係數，數值越大滑得越遠
                 const step = () => {
                     if (Math.abs(velocity) < 0.1) {
                         cancelAnimationFrame(momentumID);
