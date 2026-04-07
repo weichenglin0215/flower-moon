@@ -555,7 +555,8 @@
                     this.renderQuestion();
 
                     if (isAllCorrect) {
-                        this.score += 10 * this.userInputs.length;
+                        // 擊中文字，根據window.ScoreManager.gameSettings['game4'].getPointA加分
+                        this.score += window.ScoreManager.gameSettings['game4'].getPointA * this.userInputs.length;
                         document.getElementById('game4-score').textContent = this.score;
                         if (window.SoundManager) window.SoundManager.playSuccess();
                         this.gameWin();
@@ -590,7 +591,8 @@
             const target = this.hiddenPositions[this.currentInputIndex];
             if (char === target.char) {
                 btn.classList.add('correct', 'disabled');
-                this.score += 10;
+                // 擊中文字，根據window.ScoreManager.gameSettings['game4'].getPointA加分
+                this.score += window.ScoreManager.gameSettings['game4'].getPointA;
                 document.getElementById('game4-score').textContent = this.score;
                 this.currentInputIndex++;
                 this.renderQuestion();

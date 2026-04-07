@@ -369,11 +369,65 @@ window.SharedDecoy = {
  */
 window.SoundManager = {
    audioCtx: null,
-   // 宮商角徵羽五聲調式 (C4, D4, E4, G4, A4)
-   guzhengNotes: [261.63, 293.66, 329.63, 392.00, 440.00],
 
-   // 宮商角徵羽五聲調式從低音開始 (C2, D2, E2, G2, A2)
-   guzhengNotesLow: [65.40, 73.41, 82.40, 98.00, 110.00],
+   // 宮商角徵羽五聲調式從低音開始 (C2, D2, E2, G2, A2)，正常的音階從261.63 C4開始
+   guzhengNotes: [65.40, 73.41, 82.40, 98.00, 110.00],
+   // 宮商角徵羽五聲調式 (C4, D4, E4, G4, A4)
+   //guzhengNotes: [261.63, 293.66, 329.63, 392.00, 440.00],
+
+   // ============= 新增樂曲系統 ==============
+   // 自然大調基頻 (C4 大調) - 1: Do, 2: Re, 3: Mi, 4: Fa, 5: Sol, 6: La, 7: Si
+   //diatonicNotes: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88],
+   // 自然大調基頻 (C3 大調) - 1: Do, 2: Re, 3: Mi, 4: Fa, 5: Sol, 6: La, 7: Si
+   diatonicNotes: [130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94],
+
+   // 樂譜資料庫
+   MelodyScores: {
+      '小星星': [8, 8, 12, 12, 13, 13, 12, 10, 10, 8, 8, 7, 7, 5, 12, 12, 10, 10, 8, 8, 7, 12, 12, 10, 10, 8, 8, 7, 8, 8, 12, 12, 13, 13, 12, 10, 10, 8, 8, 7, 7, 5],
+      '生日快樂歌': [12, 12, 13, 12, 15, 14, 12, 12, 13, 12, 16, 15, 12, 12, 19, 17, 15, 14, 13, 18, 18, 17, 15, 16, 15], // 8=上八度Do 依此類推
+      '青青校樹': [12, 10, 12, 15, 13, 15, 12, 12, 15, 16, 17, 16, 15, 16, 12, 10, 12, 15, 13, 15, 12, 12, 15, 16, 17, 15, 14, 15], // 簡版
+      '送別': [12, 10, 12, 15, 13, 15, 12, 12, 8, 9, 10, 9, 8, 9, 12, 10, 12, 15, 13, 15, 12, 12, 9, 10, 11, 14, 8, 8] // 簡版
+   },
+
+   melodyPlayer: {
+      currentMelody: '小星星',
+      currentIndex: 0,
+
+      setMelody: function (melodyName) {
+         if (window.SoundManager.MelodyScores[melodyName]) {
+            this.currentMelody = melodyName;
+         }
+         this.currentIndex = 0;
+      },
+
+      playNextNote: function () {
+         const score = window.SoundManager.MelodyScores[this.currentMelody];
+         if (!score) return;
+         if (this.currentIndex >= score.length) {
+            this.currentIndex = 0; // 循環回頭
+         }
+         const noteNumber = score[this.currentIndex];
+         window.SoundManager.playMelodyNote(noteNumber);
+         this.currentIndex++;
+      },
+
+      // 控制台測試用：連續播放樂曲
+      playFullMelody: function (melodyName) {
+         this.setMelody(melodyName);
+         const score = window.SoundManager.MelodyScores[this.currentMelody];
+         let i = 0;
+         const interval = setInterval(() => {
+            if (i >= score.length) {
+               clearInterval(interval);
+               return;
+            }
+            window.SoundManager.playMelodyNote(score[i]);
+            i++;
+         }, 500); // 預設 500ms 節拍
+      }
+   },
+   // =======================================
+
 
    /**
     * 初始化 AudioContext。由於瀏覽器對自動播放音效的高級限制，
@@ -396,39 +450,10 @@ window.SoundManager = {
     * 撥放古箏音階：根據索引選擇對應頻率，並利用 GainNode 模擬彈撥後的衰竭感
     * @param {number} index 音階索引
     */
-   playGuzhengOLD: function (index) {
-      this.init();
-      if (!this.audioCtx) return;
-
-      const osc = this.audioCtx.createOscillator();
-      const gain = this.audioCtx.createGain();
-
-      osc.connect(gain);
-      gain.connect(this.audioCtx.destination);
-
-      // 根據索引決定頻率。若越過 5 聲，則自動升八度處理。
-      const baseFreq = this.guzhengNotes[index % this.guzhengNotes.length];
-      const octave = Math.floor(index / this.guzhengNotes.length);
-      const finalFreq = baseFreq * Math.pow(2, octave);
-
-      osc.type = 'sine'; // 使用正弦波模擬柔和的古音
-      osc.frequency.setValueAtTime(finalFreq, this.audioCtx.currentTime);
-
-      gain.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
-      // 模擬聲音隨時間由強變弱消失（衰減）
-      gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 1.2);
-
-      osc.start();
-      osc.stop(this.audioCtx.currentTime + 1.2);
-   },
-
-   /**
-    * 撥放古箏音階：根據索引選擇對應頻率，並利用 GainNode 模擬彈撥後的衰竭感
-    * @param {number} index 音階索引
-    */
    playGuzheng: function (index) {
       this.init();
       if (!this.audioCtx) return;
+      if (typeof index !== 'number' || isNaN(index)) index = 0; // 防呆處理，避免傳入 undefined 導致 NaN 崩潰
 
       const now = this.audioCtx.currentTime;
       const osc = this.audioCtx.createOscillator();
@@ -436,19 +461,19 @@ window.SoundManager = {
       const filter = this.audioCtx.createBiquadFilter();
 
       // 1. 計算頻率
-      const baseFreq = this.guzhengNotes[index % this.guzhengNotes.length];
+      const baseFreq = this.guzhengNotes[index % this.guzhengNotes.length]; //基本頻率
       const octave = Math.floor(index / this.guzhengNotes.length);
-      const finalFreq = baseFreq * Math.pow(2, octave);
+      const finalFreq = baseFreq * Math.pow(2, octave); // 升八度
 
       // 2. 線性計算衰減時間 (300Hz ~ 1000Hz 之間平滑過渡)
-      const minFreq = 300;
-      const maxFreq = 1000;
+      const minFreq = 260;
+      const maxFreq = 988;
       const maxDecay = 2.5; // 低音餘響
-      const minDecay = 1.2; // 高音餘響
-      const maxStartGain = 0.5; // 低音起始音量
-      const minStartGain = 0.1; // 高音起始音量
+      const minDecay = 1.5; // 高音餘響
+      const maxStartGain = 0.8; // 低音起始音量
+      const minStartGain = 0.12; // 高音起始音量
 
-      let decayTime;
+      let decayTime; // 衰減時間
       if (finalFreq <= minFreq) {
          decayTime = maxDecay;
       } else if (finalFreq >= maxFreq) {
@@ -497,112 +522,86 @@ window.SoundManager = {
       osc.stop(now + decayTime);
    },
 
-   playGuzhengLowOLD: function (index) {
+   /**
+    * 撥放現代自然大調音階單音
+    * 支援跨八度 (例如 noteNumber=8 代表高音 Do, noteNumber=-1 代表低音 Si)
+    * 套用與 playGuzheng 完全相同的音色過濾與包絡曲線
+    */
+   playMelodyNote: function (noteNumber) {
       this.init();
       if (!this.audioCtx) return;
+      if (typeof noteNumber !== 'number' || isNaN(noteNumber)) return;
 
-      const osc = this.audioCtx.createOscillator();
-      const gain = this.audioCtx.createGain();
+      // noteNumber 從 1 開始代表 Do，將其轉換為陣列索引 (0-based)
+      // 若是高八度，例如 8 (高音Do)，(8-1) / 7 = 1 (octave), (8-1) % 7 = 0 (Do)
+      const zeroBasedIndex = noteNumber - 1;
+      let octave = Math.floor(zeroBasedIndex / 7);
+      let scaleIndex = zeroBasedIndex % 7;
+      if (scaleIndex < 0) {
+         scaleIndex += 7; // 處理負數情況
+      }
 
-      osc.connect(gain);
-      gain.connect(this.audioCtx.destination);
-
-      // 根據索引決定頻率。若越過 5 聲，則自動升八度處理。
-      const baseFreq = this.guzhengNotesLow[index % this.guzhengNotesLow.length];
-      const octave = Math.floor(index / this.guzhengNotesLow.length);
+      const baseFreq = this.diatonicNotes[scaleIndex];
       const finalFreq = baseFreq * Math.pow(2, octave);
-
-      osc.type = 'sine'; // 使用正弦波模擬柔和的古音
-      osc.frequency.setValueAtTime(finalFreq, this.audioCtx.currentTime);
-
-      gain.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
-      // 模擬聲音隨時間由強變弱消失（衰減）
-      gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 1.2);
-
-      osc.start();
-      osc.stop(this.audioCtx.currentTime + 1.2);
-   },
-
-   playGuzhengLow: function (index) {
-      this.init();
-      if (!this.audioCtx) return;
 
       const now = this.audioCtx.currentTime;
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
       const filter = this.audioCtx.createBiquadFilter();
 
-      // 1. 計算頻率
-      const baseFreq = this.guzhengNotesLow[index % this.guzhengNotesLow.length];
-      const octave = Math.floor(index / this.guzhengNotesLow.length);
-      const finalFreq = baseFreq * Math.pow(2, octave);
-
-      // 2. 線性計算衰減時間 (300Hz ~ 1000Hz 之間平滑過渡)
-      const minFreq = 300;
-      const maxFreq = 1000;
-      const maxDecay = 2.5; // 低音餘響
-      const minDecay = 1.2; // 高音餘響
-      const maxStartGain = 0.5; // 低音起始音量
-      const minStartGain = 0.1; // 高音起始音量
+      const minFreq = 260;
+      const maxFreq = 988;
+      const maxDecay = 2.0;
+      const minDecay = 1.0;
+      const maxStartGain = 0.8;
+      const minStartGain = 0.2;
 
       let decayTime;
-      if (finalFreq <= minFreq) {
-         decayTime = maxDecay;
-      } else if (finalFreq >= maxFreq) {
-         decayTime = minDecay;
-      } else {
-         // 線性插值公式
+      if (finalFreq <= minFreq) decayTime = maxDecay;
+      else if (finalFreq >= maxFreq) decayTime = minDecay;
+      else {
          const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
          decayTime = maxDecay - fraction * (maxDecay - minDecay);
       }
 
-      // 3. 音色設定：使用 Triangle 並搭配低通濾波器磨平電子感
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(finalFreq, now);
 
       filter.type = 'lowpass';
-      // 濾波頻率設為基頻的 1.5 倍，保留溫潤感，濾除高頻刺耳聲
       filter.frequency.setValueAtTime(finalFreq * 1.5, now);
-      filter.Q.value = 0.7; // 較低的 Q 值讓聲音更自然
+      filter.Q.value = 0.7;
 
-      // 4. 振幅包絡 (Envelope)
-      // 稍微降低高音起始音量，讓聽感平衡
       let startGain;
-      if (finalFreq <= minFreq) {
-         startGain = maxStartGain;
-      } else if (finalFreq >= maxFreq) {
-         startGain = minStartGain;
-      } else {
-         // 線性插值公式
+      if (finalFreq <= minFreq) startGain = maxStartGain;
+      else if (finalFreq >= maxFreq) startGain = minStartGain;
+      else {
          const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
          startGain = maxStartGain - fraction * (maxStartGain - minStartGain);
       }
 
       gain.gain.setValueAtTime(0, now);
-      // 0.02s 的極短淡入，消除電子音啟動的「滴答」聲
       gain.gain.linearRampToValueAtTime(startGain, now + 0.02);
-      // 實現您要求的線性長餘響
       gain.gain.exponentialRampToValueAtTime(0.001, now + decayTime);
 
-      // 5. 節點連接與播放
       osc.connect(filter);
       filter.connect(gain);
       gain.connect(this.audioCtx.destination);
 
       osc.start(now);
-      // 確保 Oscillator 在餘響結束後停止
       osc.stop(now + decayTime);
    },
+
    /**
     * 撞擊聲 
     */
    playHit: function (index, timeLength) {
       this.init();
       if (!this.audioCtx) return;
+      if (typeof index !== 'number' || isNaN(index)) index = 0; // 防呆處理
 
       // 根據索引決定頻率。若越過 5 聲，則自動升八度處理。
-      const baseFreq = this.guzhengNotesLow[index % this.guzhengNotesLow.length];
-      const octave = Math.floor(index / this.guzhengNotesLow.length);
+      const baseFreq = this.guzhengNotes[index % this.guzhengNotes.length];
+      const octave = Math.floor(index / this.guzhengNotes.length);
       const finalFreq = baseFreq * Math.pow(2, octave);
 
       const now = this.audioCtx.currentTime;

@@ -461,7 +461,8 @@
                     const c = i % cols;
                     const bottomUpRow = (rows - 1) - r;
                     const gridSequenceNum = (bottomUpRow * cols) + c + 1;
-                    const audioIdx = ((gridSequenceNum - 1) % 21) + 5;
+                    //音階索引採 21 音循環 (1-21)，並偏移10，提高音階從C4開始
+                    const audioIdx = ((gridSequenceNum - 1) % 21) + 10;
 
                     // 隨機 HSL 顏色 (Rule 5)
                     const hue = Math.floor(Math.random() * 360);
@@ -484,6 +485,7 @@
                 const tile = document.createElement('div');
                 tile.className = 'game12-tile';
                 tile.id = `tile-${item.gridIdx}`;
+                tile.audioIdx = item.audioIdx; // 綁定音階索引以供後續播放使用
                 // 空格也不要加 disabled，讓它可欺騙玩家 (Rule 2)
 
                 tile.innerHTML = `
@@ -496,7 +498,7 @@
                 container.appendChild(tile);
             });
         },
-
+        // 記憶階段
         startMemoryPhase: async function () {
             const currentTurn = this.turnId;
             if (this.memoryTimerRef) clearInterval(this.memoryTimerRef);
@@ -523,6 +525,8 @@
                     await this.delay(500);
                     if (this.turnId !== currentTurn) return; // 檢查是否有新的一局開始
                     t.classList.add('flipped');
+                    // 播放音階
+                    this.playPitchSound(t.audioIdx);
                 }
                 for (let t of otherTiles) {
                     await this.delay(200);
@@ -578,6 +582,8 @@
                     await this.delay(500);
                     if (this.turnId !== currentTurn) return; // 檢查是否有新的一局開始
                     t.classList.remove('flipped');
+                    // 播放音階
+                    this.playPitchSound(t.audioIdx);
                 }
                 for (let t of otherTiles) {
                     await this.delay(100);
@@ -613,11 +619,10 @@
             if (item.char === target.char) {
                 // 正確 (Rule 3)
                 tileEl.classList.add('flipped', 'correct', 'disabled');
-                if (window.SoundManager) {
-                    if (window.SoundManager.playGuzhengLow) window.SoundManager.playGuzhengLow(item.audioIdx);
-                    else window.SoundManager.playSuccess();
-                }
-                this.score += 20;
+                //撥放音階
+                this.playPitchSound(item.audioIdx);
+                // 擊中文字，根據window.ScoreManager.gameSettings['game12'].getPointA加分
+                this.score += window.ScoreManager.gameSettings['game12'].getPointA;
                 document.getElementById('game12-score').textContent = this.score;
                 this.currentInputIndex++;
                 this.renderQuestion();
@@ -750,7 +755,16 @@
                 }
             });
         },
-
+        // 播放音調
+        playPitchSound: function (audioIdx) {
+            if (!window.SoundManager) return;
+            // 使用固定的古箏音階索引播放，增強空間音律記憶
+            if (typeof window.SoundManager.playGuzheng === 'function') {
+                window.SoundManager.playGuzheng(audioIdx);
+            } else {
+                window.SoundManager.playOpenItem();
+            }
+        },
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

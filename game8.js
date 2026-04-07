@@ -206,6 +206,10 @@
 
         retryGame: function () {
             if (!this.currentPoem) return;
+            // 重置樂曲進度
+            if (window.SoundManager && window.SoundManager.melodyPlayer) {
+                window.SoundManager.melodyPlayer.currentIndex = 0;
+            }
             this.startGameProcess(true);
         },
 
@@ -215,6 +219,13 @@
                 this.currentLevelIndex = levelIndex;
                 this.isLevelMode = true;
             }
+            // 隨機抽選一首樂譜
+            if (window.SoundManager && window.SoundManager.melodyPlayer && window.SoundManager.MelodyScores) {
+                const melodies = Object.keys(window.SoundManager.MelodyScores);
+                const randomMelody = melodies[Math.floor(Math.random() * melodies.length)];
+                window.SoundManager.melodyPlayer.setMelody(randomMelody);
+            }
+
             if (this.selectRandomPoem()) {
                 this.startGameProcess(false);
             } else {
@@ -310,7 +321,7 @@
             document.getElementById('game8-poem-info').textContent =
                 `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             document.getElementById('game8-poem-info').onclick = () => {
-                if (window.SoundManager) window.SoundManager.playGuzheng(4);
+                if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
             };
             return true;
@@ -939,8 +950,7 @@
             // 根據當前已完成的筆畫數量決定本次路徑的顏色
             let currentIdx = this.successfulStrokes.length;
             cell.el.classList.add(`cell-color-${(currentIdx % 8) + 1}`);
-
-            if (window.SoundManager) window.SoundManager.playGuzheng(0); // 播放宮聲
+            if (window.SoundManager) window.SoundManager.playMelodyNote(0);// 播放宮聲C3
             this.updateCurrentPathDraw();
             this.updateProgressText();
 
@@ -980,8 +990,9 @@
                     cell.el.classList.add('selected');
                     let currentIdx = this.successfulStrokes.length;
                     cell.el.classList.add(`cell-color-${(currentIdx % 8) + 1}`);
-                    // 播放音階，最高21階，避免太刺耳。
-                    if (window.SoundManager) window.SoundManager.playGuzheng((this.currentPath.length - 1) % 21);
+                    // 播放音階從C3開始，最高21階，避免太刺耳。
+                    //if (window.SoundManager) window.SoundManager.playGuzheng((this.currentPath.length - 1) % 21 + 5);
+                    if (window.SoundManager) window.SoundManager.playMelodyNote((this.currentPath.length - 1) % 21);
                     this.updateCurrentPathDraw();
                     this.updateProgressText();
 
@@ -995,9 +1006,9 @@
                     this.gridElements[popped.row][popped.col].classList.remove('selected');
                     let currentIdx = this.successfulStrokes.length;
                     this.gridElements[popped.row][popped.col].classList.remove(`cell-color-${(currentIdx % 8) + 1}`);
-                    // 播放音階，最高21階，避免太刺耳。
-                    if (window.SoundManager) window.SoundManager.playGuzheng((this.currentPath.length - 1) % 21);
-
+                    // 播放音階從C3開始，最高21階，避免太刺耳。
+                    //if (window.SoundManager) window.SoundManager.playGuzheng((this.currentPath.length - 1) % 21 + 5);
+                    if (window.SoundManager) window.SoundManager.playMelodyNote((this.currentPath.length - 1) % 21);
                     this.updateCurrentPathDraw();
                     this.updateProgressText();
                     if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(5);
@@ -1120,7 +1131,7 @@
             // Save this stroke
             this.successfulStrokes.push([...this.currentPath]);
             /*分數計算*/
-            let points = 5 * this.currentPath.length;
+            let points = window.ScoreManager.gameSettings['game8'].getPointA * this.currentPath.length;
             if (phasesCompletedCount >= 2) {
                 points *= 2; // user request: 一筆完成兩句以上(splitPath = true)把這筆成績乘以2
             }

@@ -519,7 +519,8 @@
             if (char === targetChar) {
                 // 答對
                 btn.classList.add('correct', 'disabled');
-                this.score += 10;
+                // 擊中文字，根據window.ScoreManager.gameSettings['game2'].getPointA加分
+                this.score += window.ScoreManager.gameSettings['game2'].getPointA;
                 document.getElementById('game2-score').textContent = this.score;
                 this.currentInputIndex++;
                 this.renderQuestion();

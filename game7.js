@@ -106,13 +106,7 @@
                     </svg>
                     <canvas id="game7-canvas"></canvas>
                 </div>
-                <div id="game7-ruleNote" class="ruleNote">
-                    <h2>青鳥雲梯</h2>
-                    <p>點擊螢幕向上跳躍<br>依序降落在文字方塊上</p>
-                    <p>錯過方塊將會損血<br>降落在最後一塊黃金平台</p>
-                    <p>完成整首詩詞即獲勝</p>
-                    <button id="game7-start-btn">開始挑戰</button>
-                </div>
+
             `;
             document.body.appendChild(div);
             this.container = div;
@@ -153,10 +147,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
             };
-            document.getElementById('game7-start-btn').onclick = (e) => {
-                e.stopPropagation();
-                this.startGame();
-            };
+
 
             const handleTap = (e) => {
                 if (!this.isActive || this.state === 'GAME_OVER' || this.state === 'DYING') return;
@@ -244,8 +235,7 @@
             if (this.container) {
                 this.container.classList.add('hidden');
             }
-            const ruleNote = document.getElementById('game7-ruleNote');
-            if (ruleNote) ruleNote.style.display = 'none';
+            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
 
             document.body.classList.remove('overlay-active');
             document.body.style.overflow = '';
@@ -265,9 +255,30 @@
 
         showStartMessage: function () {
             this.state = 'START';
-            const ruleNote = document.getElementById('game7-ruleNote');
-            if (ruleNote) {
-                ruleNote.style.display = 'flex';
+            if (window.RuleNoteDialog) {
+                window.RuleNoteDialog.show({
+                    title: '青鳥雲梯',
+                    lines: [
+                        '點擊螢幕向上跳躍<br>依序降落在文字方塊上',
+                        '錯過方塊將會損血<br>降落在最後一塊黃金平台',
+                        '完成整首詩詞即獲勝'
+                    ],
+                    btnText: '開始挑戰',
+                    styles: {
+                        top: '50%',
+                        left: '66%',
+                        width: '60%',
+                        height: '70%',
+                        bg: 'hsla(210, 80%, 25%, 0.6)',
+                        titleColor: 'hsl(45, 100%, 70%)',
+                        textColor: 'hsl(45, 30%, 90%)',
+                        btnBg: 'hsl(210, 70%, 75%)',
+                        btnColor: 'hsl(220, 60%, 33%)'
+                    },
+                    onConfirm: () => {
+                        this.startGame();
+                    }
+                });
             }
             this.startLoop(); // 啟動渲染循環，讓背景雲朵與初始場景顯示出來
         },
@@ -309,6 +320,11 @@
             this.setupCanvas(); // 確保畫布尺寸正確
             this.initClouds();
             this.createInitialBlock();
+
+            // 重置樂曲進度
+            if (window.SoundManager && window.SoundManager.melodyPlayer) {
+                window.SoundManager.melodyPlayer.currentIndex = 0;
+            }
             // 遊戲盤面準備完成後才啟用重來按鈕
             document.getElementById('game7-retryGame-btn').disabled = false;
             document.getElementById('game7-newGame-btn').disabled = false;
@@ -448,9 +464,14 @@
         },
 
         startGame: function () {
-            const ruleNote = document.getElementById('game7-ruleNote');
-            if (ruleNote) ruleNote.style.display = 'none';
+            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
             if (window.GameMessage) window.GameMessage.hide();
+            // 隨機抽選一首樂譜
+            if (window.SoundManager && window.SoundManager.melodyPlayer && window.SoundManager.MelodyScores) {
+                const melodies = Object.keys(window.SoundManager.MelodyScores);
+                const randomMelody = melodies[Math.floor(Math.random() * melodies.length)];
+                window.SoundManager.melodyPlayer.setMelody(randomMelody);
+            }
             this.state = 'LANDED';
             this.startTime = Date.now(); // 記錄開始時間
             if (this.requestID) cancelAnimationFrame(this.requestID);
@@ -458,7 +479,11 @@
         },
 
         jump: function () {
-            if (window.SoundManager) window.SoundManager.playHit(7, 2);
+            if (window.SoundManager && window.SoundManager.melodyPlayer) {
+                window.SoundManager.melodyPlayer.playNextNote();
+            } else if (window.SoundManager) {
+                window.SoundManager.playSuccessShort();
+            }
             this.bird.vy = -this.jumpForce;
             this.bird.color = "hsl(210, 100%, 50%)"; // 飛行狀態
             if (this.state === 'LANDED') {
@@ -597,7 +622,12 @@
                     // 只有在平台頂部邊緣判定著陸
                     if (by >= b.y - threshold && by <= b.y + barHeight) {
                         this.landOn(b);
-                        if (window.SoundManager) window.SoundManager.playHit(22, 1.5);
+                        //if (window.SoundManager) window.SoundManager.playHit(22, 1.5);
+                        if (window.SoundManager && window.SoundManager.melodyPlayer) {
+                            window.SoundManager.melodyPlayer.playNextNote();
+                        } else if (window.SoundManager) {
+                            window.SoundManager.playSuccessShort();
+                        }
                         break;
                     }
                 }
@@ -631,11 +661,10 @@
             block.isLanded = true;
             if (block.index >= 0) {
                 this.charIndex++;
-                this.score += 5;
+                // 擊中文字，根據window.ScoreManager.gameSettings['game7'].getPointA加分
+                this.score += window.ScoreManager.gameSettings['game7'].getPointA;
                 this.hitStatus[block.index] = 1; // hit
                 this.updateScoreUI();
-                if (window.SoundManager) window.SoundManager.playSuccess();
-                this.playDonSound();
                 if (block.isGoal) this.gameWin();
             }
         },
@@ -704,25 +733,6 @@
             this.blocks = [];
             this.createInitialBlock();
             this.hitStatus = new Array(this.poemChars.length).fill(0);
-        },
-
-        playDonSound: function () {
-            if (window.AudioContext || window.webkitAudioContext) {
-                try {
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(150, ctx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.2);
-                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-                    osc.start();
-                    osc.stop(ctx.currentTime + 0.2);
-                } catch (e) { }
-            }
         },
 
         draw: function () {

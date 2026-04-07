@@ -627,9 +627,9 @@
                 }
             });
 
-            // 失敗判定：若任一存活磚塊碰到撞擊條 (Paddle) 的 Y 座標
-            // 以磚塊中心加上一半高度作為邊界判定
-            if (lowestActiveBrickY + 1.25 > this.paddle.y) {
+            // 失敗判定：若任一存活磚塊壓到撞擊條 (Paddle) 的下半部
+            // 讓玩家有更多反應時間，並修復判定視覺差異
+            if (lowestActiveBrickY + 1.25 > this.paddle.y + 1.0) {
                 this.gameOver(false, "詩句沉底！");
                 return;
             }
@@ -823,7 +823,8 @@
 
         handleBrickHit: function (brick, ball) {
             brick.hp--;
-            this.score += 2;
+            // 擊中文字，根據window.ScoreManager.gameSettings['game10'].getPointA加分
+            this.score += window.ScoreManager.gameSettings['game10'].getPointA;
             document.getElementById('game10-score').textContent = this.score;
 
             if (brick.innerElement) {
@@ -886,8 +887,8 @@
                         this.createBall(spawnX, spawnY, dx, dy, true);
                     }, i * 100); // 每一顆新增白球之間有0.1秒的時間差
                 }
-
-                this.score += 50;
+                // 清除一行詩句，根據window.ScoreManager.gameSettings['game10'].getPointB加分
+                this.score += window.ScoreManager.gameSettings['game10'].getPointB;
                 document.getElementById('game10-score').textContent = this.score;
             }
         },
@@ -1051,9 +1052,10 @@
             // Bricks down render
             this.bricks.forEach(b => {
                 if (b.element) {
-                    // 使用 transform: translate3d 提高渲染效能並消除抖動
-                    // 座標直接映射自物理引擎中的 b.x 與 b.y
-                    b.element.style.transform = `translate3d(-50%, -50%, 0) translate(${b.x}rem, ${b.y}rem)`;
+                    // 統一使用 left 和 top 配合 translate(-50%, -50%) 以避免 iOS 上的複合變換排版錯誤
+                    b.element.style.left = `${b.x}rem`;
+                    b.element.style.top = `${b.y}rem`;
+                    b.element.style.transform = `translate(-50%, -50%)`;
                 }
             });
         },

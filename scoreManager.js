@@ -17,19 +17,22 @@ const ScoreManager = {
 
     // 各個遊戲的分數基準設定
     // base: 過關基礎分, heart: 每顆剩餘紅心得分, time: 每秒剩餘時間得分
+    // getPointA：遊戲中得分A(例如：擊石鳴詩擊中文字一次)
+    // getPointB：遊戲中得分B(例如：擊石鳴詩消除一行詩句)
+
     gameSettings: {
         'game1': { base: 100, heart: 30, time: 2 },
-        'game2': { base: 100, heart: 10, time: 2 },
-        'game3': { base: 100, heart: 10, time: 2 },
-        'game4': { base: 100, heart: 10, time: 2 },
-        'game5': { base: 100, heart: 10, time: 1 },
-        'game6': { base: 100, heart: 10, time: 1 },
-        'game7': { base: 100, heart: 10, time: 2 },
-        'game8': { base: 100, heart: 10, time: 2 },
-        'game9': { base: 100, heart: 10, time: 5 },
-        'game10': { base: 100, heart: 10, time: 0 },
-        'game11': { base: 100, heart: 10, time: 0 },
-        'game12': { base: 100, heart: 10, time: 2 }
+        'game2': { base: 100, heart: 10, time: 2, getPointA: 10 },
+        'game3': { base: 100, heart: 10, time: 2, getPointA: 5 },
+        'game4': { base: 100, heart: 10, time: 2, getPointA: 10 },
+        'game5': { base: 100, heart: 10, time: 1, getPointA: 25 },
+        'game6': { base: 100, heart: 10, time: 1, getPointA: 5 },
+        'game7': { base: 100, heart: 10, time: 2, getPointA: 5 },
+        'game8': { base: 100, heart: 10, time: 1, getPointA: 2 },
+        'game9': { base: 100, heart: 10, time: 5, getPointA: 0.5 },
+        'game10': { base: 100, heart: 10, time: 0, getPointA: 1, getPointB: 20 },
+        'game11': { base: 100, heart: 10, time: 0, getPointA: 5, getPointB: 30 },
+        'game12': { base: 100, heart: 10, time: 2, getPointA: 20 }
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -282,7 +285,7 @@ const ScoreManager = {
         if (!data.levelProgress[gameKey]) {
             data.levelProgress[gameKey] = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
         }
-        
+
         let finalDifficulty = difficulty;
         let finalRelIdx = levelIndex;
 
@@ -297,11 +300,11 @@ const ScoreManager = {
         // 只有在通關更高關卡時才更新
         if (finalRelIdx > (data.levelProgress[gameKey][finalDifficulty] || 0)) {
             data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
-            
+
             // 計算總通關數
             const progress = data.levelProgress[gameKey];
             const totalPassed = (progress['小學'] || 0) + (progress['中學'] || 0) + (progress['高中'] || 0) + (progress['大學'] || 0) + (progress['研究所'] || 0);
-            
+
             // 檢查 20 關里程碑成就
             if (totalPassed > 0 && totalPassed % 20 === 0) {
                 const milestone = totalPassed;
@@ -310,7 +313,7 @@ const ScoreManager = {
                     achIdToReturn = achId;
                 }
             }
-            
+
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
         }
         return achIdToReturn;

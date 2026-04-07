@@ -333,10 +333,10 @@
                 const bottomUpRow = (rows - 1) - r;
                 // 計算格子在「左下起算」邏輯下的序號 (1-based)
                 const gridSequenceNum = (bottomUpRow * cols) + c + 1;
-                // 音符索引採 21 音循環 (1-21)
-                const pitchMode = ((gridSequenceNum - 1) % 21) + 1;
+                // 音符索引採 20 音循環 (1-20)
+                const pitchMode = ((gridSequenceNum - 1) % 20) + 1;
                 // 最終傳給 SoundManager 的索引偏移：
-                // 使用 playGuzhengLow() 並維持先前 5-25 的範圍感受，故 +4 (讓 1-21 變成 5-25)
+                // 使用 playGuzheng() 並維持先前 5-25 的範圍感受，故 +4 (讓 1-20 變成 5-24)
                 const audioIdx = pitchMode + 4;
 
                 // 檢查此格子是否對應到詩詞字元
@@ -437,6 +437,7 @@
                     const item = currentSequence[i];
                     const t = this.tiles[item.gridIdx];
                     t.el.classList.add('flipped');
+                    //撥放音階
                     this.playPitchSound(t.audioIdx);
 
                     // 判斷是否屬於最後幾張需要放慢進度的字數
@@ -520,7 +521,9 @@
             }
 
             this.playerProgress++;
-            this.score += 5; // 每一句增加得分
+            //每一句增加分數
+            // 擊中文字，根據window.ScoreManager.gameSettings['game11'].getPointA加分
+            this.score += window.ScoreManager.gameSettings['game11'].getPointA;
             document.getElementById('game11-status').textContent = `第 ${this.currentStep} 輪，玩家回合：依序點擊 ${this.playerProgress} / ${this.currentStep}`;
             document.getElementById('game11-score').textContent = this.score;
             // 檢查是否完成所有回合
@@ -530,7 +533,8 @@
                 document.getElementById('game11-status').textContent = `第 ${this.currentStep} 輪，正確！`;
 
                 // 已取消，每一輪完成之後增加得分
-                //this.score += 50;
+                // 每一輪完成，根據window.ScoreManager.gameSettings['game11'].getPointB加分
+                //this.score += window.ScoreManager.gameSettings['game11'].getPointB;
                 document.getElementById('game11-score').textContent = this.score;
 
                 setTimeout(() => {
@@ -580,8 +584,8 @@
         playPitchSound: function (audioIdx) {
             if (!window.SoundManager) return;
             // 使用固定的古箏音階索引播放，增強空間音律記憶
-            if (typeof window.SoundManager.playGuzhengLow === 'function') {
-                window.SoundManager.playGuzhengLow(audioIdx);
+            if (typeof window.SoundManager.playGuzheng === 'function') {
+                window.SoundManager.playGuzheng(audioIdx);
             } else {
                 window.SoundManager.playOpenItem();
             }

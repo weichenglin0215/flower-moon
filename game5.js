@@ -61,7 +61,7 @@
             '中學': { timeLimit: 120, poemMinRating: 5, maxMistakeCount: 6, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
             '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 5, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
             '大學': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 4, monsters: 4, answerLen: 12, hintDuration: -1, lostInt: 0, lostDur: 500 },
-            '研究所': { timeLimit: 120, poemMinRating: 2, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
+            '研究所': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
         },
 
         // Maze layout (1 = wall, 0 = path, 2 = ghost house)
@@ -388,7 +388,7 @@
             if (this.requestID) cancelAnimationFrame(this.requestID);
             this.gameLoop(this.lastTime);
         },
-
+        //放置精靈
         preparePoem: function () {
             if (typeof POEMS === 'undefined') return;
             const settings = this.difficultySettings[this.difficulty];
@@ -446,7 +446,10 @@
 
             for (let r = 0; r < this.rows; r++) {
                 for (let c = 0; c < this.cols; c++) {
-                    if (this.maze[r][c] === 0 && !this.isGhostHouse(r, c)) {
+                    // 根據要求，避免在精靈重生位置附近 (大約 row 7~12，col 7~11) 放置食物
+                    const inRestrictedArea = (r >= 7 && r <= 10) && (c >= 6 && c <= 12);
+
+                    if (this.maze[r][c] === 0 && !this.isGhostHouse(r, c) && !inRestrictedArea) {
                         let qIdx = 0;
                         if (r < midR) qIdx = (c < midC ? 0 : 1);
                         else qIdx = (c < midC ? 2 : 3);
@@ -456,27 +459,67 @@
             }
             this.enemySpacingX = 1.4;    // 橫向間距
             this.enemySpacingY = 1.4;    // 縱向間距
-            this.targetChars.forEach((char, index) => {
+            // 由於內部需要重複嘗試與改變流程，改用標準 for 迴圈
+            for (let index = 0; index < this.targetChars.length; index++) {
+                const char = this.targetChars[index];
                 const qIdx = index % 4; // 確保平均分配到四個象限
-                const pool = quadrants[qIdx];
-                if (pool.length > 0) {
+                let pool = quadrants[qIdx];
+                let pos = null;
+
+                // 建立一個檢查相鄰的函數
+                const hasAdjacentFood = (r, c) => {
+                    return this.foods.some(f =>
+                        (f.row === r && Math.abs(f.col - c) === 1) ||
+                        (f.col === c && Math.abs(f.row - r) === 1)
+                    );
+                };
+
+                // 在該象限中，先過濾出「沒有相鄰食物」的可用位置
+                let validPool = pool.filter(p => !hasAdjacentFood(p.r, p.c));
+
+                if (validPool.length > 0) {
+                    // 有完美位置，隨機抽一個
+                    const posIdx = Math.floor(Math.random() * validPool.length);
+                    pos = validPool[posIdx];
+                    // 從原本的 pool 移除該位置避免重複使用
+                    const realIdx = pool.findIndex(p => p.r === pos.r && p.c === pos.c);
+                    pool.splice(realIdx, 1);
+                } else if (pool.length > 0) {
+                    // 該象限找不到不相鄰的位置了，只好妥協，隨機抽一個
                     const posIdx = Math.floor(Math.random() * pool.length);
-                    const pos = pool.splice(posIdx, 1)[0];
-                    this.foods.push({
-                        char: char,
-                        row: pos.r,
-                        col: pos.c,
-                        index: index,
-                        collected: false
-                    });
+                    pos = pool.splice(posIdx, 1)[0];
                 } else {
-                    // 如果該象限沒有可用位置，則從所有剩餘位置中隨機選取
-                    const allRemaining = quadrants.flat();
-                    const posIdx = Math.floor(Math.random() * allRemaining.length);
-                    const pos = allRemaining.splice(posIdx, 1)[0];
-                    this.foods.push({ char, row: pos.r, col: pos.c, index, collected: false });
+                    // 如果整個象限都空了，從其他剩餘象限尋找
+                    let allRemaining = quadrants.flat();
+                    let allValid = allRemaining.filter(p => !hasAdjacentFood(p.r, p.c));
+
+                    if (allValid.length > 0) {
+                        const posIdx = Math.floor(Math.random() * allValid.length);
+                        pos = allValid[posIdx];
+                    } else if (allRemaining.length > 0) {
+                        const posIdx = Math.floor(Math.random() * allRemaining.length);
+                        pos = allRemaining[posIdx];
+                    } else {
+                        console.error("迷宮沒有足夠的空間放置文字！");
+                        continue;
+                    }
+
+                    // 從原陣列中剔除
+                    const targetQ = quadrants.find(q => q.some(p => p.r === pos.r && p.c === pos.c));
+                    if (targetQ) {
+                        const realIdx = targetQ.findIndex(p => p.r === pos.r && p.c === pos.c);
+                        targetQ.splice(realIdx, 1);
+                    }
                 }
-            });
+
+                this.foods.push({
+                    char: char,
+                    row: pos.r,
+                    col: pos.c,
+                    index: index,
+                    collected: false
+                });
+            }
         },
 
         isGhostHouse: function (r, c) {
@@ -909,7 +952,9 @@
                         // Correct order
                         f.collected = true;
                         this.collectedCount++;
-                        this.score += 20; // 收集正確文字得分
+                        //收集一字得分
+                        // 擊中文字，根據window.ScoreManager.gameSettings['game5'].getPointA加分
+                        this.score += window.ScoreManager.gameSettings['game5'].getPointA;
                         document.getElementById('game5-score').textContent = this.score;
                         this.hintStartTime = Date.now(); // 重置提示計時
 

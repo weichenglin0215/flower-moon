@@ -892,7 +892,8 @@
             // 敵人死亡得分按行數加成
             // rowIdx 0 為頂端
             const multiplier = (this.totalEnemyLines || 1) - e.rowIdx;
-            this.score += 5 * Math.max(1, multiplier);
+            // 擊中文字，根據window.ScoreManager.gameSettings['game6'].getPointA加分
+            this.score += window.ScoreManager.gameSettings['game6'].getPointA * Math.max(1, multiplier);
             this.updateScoreUI();
 
             // 更新 UI 進度顯示

@@ -205,6 +205,7 @@
             }
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
+            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
             // 恢復其他內容
             this.showOtherContents();
         },
@@ -228,6 +229,11 @@
                 item.status = 'hidden';
             });
             this.renderHistory();
+
+            // 重置樂曲進度
+            if (window.SoundManager && window.SoundManager.melodyPlayer) {
+                window.SoundManager.melodyPlayer.currentIndex = 0;
+            }
 
             // 重置每一行的狀態與位置
             this.rows.forEach(row => {
@@ -257,6 +263,42 @@
             document.getElementById('game3-newGame-btn').disabled = false;
         },
 
+        showStartMessage: function () {
+            this.isActive = false; // 先暫停循環
+            if (window.RuleNoteDialog) {
+                window.RuleNoteDialog.show({
+                    title: '字爬梯',
+                    lines: [
+                        '請依序點擊(用點的，不要拖曳)',
+                        '上升的文字方塊，',
+                        '組成優雅的詩句。',
+                        '　　',
+                        '綠色代表正確，紅色是錯誤。'
+                    ],
+                    btnText: '開始挑戰',
+                    styles: {
+                        top: '50%',
+                        left: '50%',
+                        width: '75%',
+                        height: '55%',
+                        bg: 'hsla(145, 60%, 25%, 0.8)',
+                        titleColor: 'hsl(145, 80%, 70%)',
+                        textColor: 'hsl(145, 30%, 90%)',
+                        btnBg: 'hsl(145, 70%, 75%)',
+                        btnColor: 'hsl(145, 60%, 33%)'
+                    },
+                    onConfirm: () => {
+                        this.isActive = true;
+                        if (this.animationId) cancelAnimationFrame(this.animationId);
+                        this.loop();
+                    }
+                });
+            } else {
+                this.isActive = true;
+                this.loop();
+            }
+        },
+
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -282,8 +324,15 @@
             this.gameArea.innerHTML = '';
             this.selectAndPreparePoem();
 
+            // 隨機抽選一首樂譜
+            if (window.SoundManager && window.SoundManager.melodyPlayer && window.SoundManager.MelodyScores) {
+                const melodies = Object.keys(window.SoundManager.MelodyScores);
+                const randomMelody = melodies[Math.floor(Math.random() * melodies.length)];
+                window.SoundManager.melodyPlayer.setMelody(randomMelody);
+            }
+
             if (this.animationId) cancelAnimationFrame(this.animationId);
-            this.loop();
+            this.showStartMessage();
             // 啟用按鈕
             document.getElementById('game3-retryGame-btn').disabled = false;
             document.getElementById('game3-newGame-btn').disabled = false;
@@ -475,9 +524,14 @@
             }
 
             if (char === clickedRow.correctChar) {
-                if (window.SoundManager) window.SoundManager.playSuccessShort();
+                if (window.SoundManager && window.SoundManager.melodyPlayer) {
+                    window.SoundManager.melodyPlayer.playNextNote();
+                } else if (window.SoundManager) {
+                    window.SoundManager.playSuccessShort();
+                }
                 e.target.classList.add('correct');
-                this.score += 5;
+                // 擊中文字，根據window.ScoreManager.gameSettings['game3'].getPointA加分
+                this.score += window.ScoreManager.gameSettings['game3'].getPointA;
                 document.getElementById('game3-score').textContent = this.score;
 
                 this.updateHistoryStatus(rowIndex, 'correct');

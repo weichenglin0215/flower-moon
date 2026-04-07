@@ -33,6 +33,12 @@
             let hasDragged = false;
             const threshold = 5;
 
+            // 慣性捲動變數
+            let velocity = 0;
+            let lastY = 0;
+            let lastTime = 0;
+            let momentumID = null;
+
             // 滑鼠事件
             grid.addEventListener('mousedown', (e) => {
                 isDragging = true;
@@ -40,6 +46,12 @@
                 startY = e.pageY - grid.offsetTop;
                 scrollTop = grid.scrollTop;
                 grid.style.cursor = 'grabbing';
+                
+                // 取消先前的慣性動畫
+                if (momentumID) cancelAnimationFrame(momentumID);
+                velocity = 0;
+                lastY = startY;
+                lastTime = performance.now();
             });
 
             window.addEventListener('mousemove', (e) => {
@@ -51,36 +63,50 @@
                     e.preventDefault();
                 }
                 grid.scrollTop = scrollTop - walk;
+
+                // 計算瞬時速度
+                const now = performance.now();
+                const dt = now - lastTime;
+                if (dt > 0) {
+                    velocity = (y - lastY) / dt; // 計算每個 ms 移動多少像素
+                    lastY = y;
+                    lastTime = now;
+                }
             });
 
             window.addEventListener('mouseup', () => {
+                if (!isDragging) return;
                 isDragging = false;
                 grid.style.cursor = 'grab';
+
+                // 如果速度夠大，開始慣性捲動 (Momentum/Inertia Scrolling)
+                const startMomentum = () => {
+                    if (Math.abs(velocity) > 0.05) {
+                        grid.scrollTop -= velocity * 16; // 假設 16ms 螢幕更新率
+                        velocity *= 0.95; // 摩擦係數 (阻尼)，越接近 1 滑行越遠
+                        momentumID = requestAnimationFrame(startMomentum);
+                    } else {
+                        velocity = 0;
+                    }
+                };
+                
+                startMomentum();
             });
 
-            // 觸控事件
+            // 觸控事件 (讓原生處理捲動，只記錄是否有滑動以避免誤觸)
             grid.addEventListener('touchstart', (e) => {
-                isDragging = true;
                 hasDragged = false;
-                startY = e.touches[0].pageY - grid.offsetTop;
-                scrollTop = grid.scrollTop;
+                startY = e.touches[0].pageY;
             }, { passive: true });
 
             grid.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
-                const y = e.touches[0].pageY - grid.offsetTop;
-                const walk = (y - startY);
-                if (Math.abs(walk) > threshold) {
+                const y = e.touches[0].pageY;
+                if (Math.abs(y - startY) > threshold) {
                     hasDragged = true;
-                    // 如果正在拖移，則阻擋原生捲動
-                    if (e.cancelable) e.preventDefault();
                 }
-                grid.scrollTop = scrollTop - walk;
-            }, { passive: false });
-
-            grid.addEventListener('touchend', () => {
-                isDragging = false;
-            });
+                // 【重要修復】：絕對不要阻擋 touchmove 的預設行為 (e.preventDefault) 或手動修改 grid.scrollTop，
+                // 否則在 iPad / iOS 上會喪失硬體加速，導致嚴重的捲動卡頓。
+            }, { passive: true });
 
             // 存儲 hasDragged 狀態供點擊事件判斷
             this.hasDragged = () => hasDragged;

@@ -654,7 +654,8 @@
                             this.renderLevel();
                         }
                         // Score formula calculation for completing a stack
-                        this.score += 0.5 * this.difficultySettings[this.difficulty].exchangeQuantity * this.difficultySettings[this.difficulty].totalNumberOfExchange;
+                        // 擊中文字，根據window.ScoreManager.gameSettings['game9'].getPointA加分
+                        this.score += window.ScoreManager.gameSettings['game9'].getPointA * this.difficultySettings[this.difficulty].exchangeQuantity * this.difficultySettings[this.difficulty].totalNumberOfExchange;
                         document.getElementById('game9-score').textContent = Math.round(this.score);
                     } else {
                         // If it WAS completed but now we pulled something out... 

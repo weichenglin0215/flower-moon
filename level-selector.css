@@ -71,6 +71,7 @@
     cursor: grab;
     touch-action: pan-y;
     /* 允許垂直原生捲動，但我們 JS 會攔截拖拽 */
+    -webkit-overflow-scrolling: touch; /* 啟動 iOS 原生慣性捲動 */
 }
 
 .level-grid:active {
@@ -134,7 +135,8 @@
 
 /* 鎖定狀態：暗亮度顏色顯示 */
 .level-item.locked {
-    filter: brightness(0.6);
+    opacity: 0.5; /* 替換 filter: brightness 解決 iPad 灰色渲染 Bug */
+    pointer-events: none; /* 讓鎖定的按鈕不觸發 hover 甚至 click */
     cursor: not-allowed;
     border-color: transparent;
 }
