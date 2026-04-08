@@ -749,7 +749,7 @@
             }
 
             if (allCompleted) {
-                this.gameWin();
+                this.gameOver(true, '');
                 return;
             }
 
@@ -851,46 +851,17 @@
             rectWhite.style.strokeDasharray = dashArrayWhite.join(' ');
         },
 
-        gameWin: function () {
-            this.isActive = false;
-            this.isWinning = true;
-            clearInterval(this.timerInterval);
-
-            // 立即重繪盤面以表演四柱齊跳動畫
-            this.renderLevel();
-
-            // 將剩餘步數設定給 timer，讓 ScoreManager 能正確計算加成獎勵
-            this.timer = this.movesLeft;
-            this.maxTimer = this.maxMoves;
-
-            // 禁用重來按鈕
-            document.getElementById('game9-retryGame-btn').disabled = true;
-            document.getElementById('game9-newGame-btn').disabled = true;   //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-
-            // Using standard win animation
-            if (window.ScoreManager && typeof window.ScoreManager.playWinAnimation === 'function') {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game9',
-                    timerContainerId: 'game9-timer-ring',
-                    scoreElementId: 'game9-score',
-                    heartsSelector: '#game9-hearts .game9-heart.score',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                        this.gameOver(true, '');
-                    }
-                });
-            } else {
-                this.gameOver(true, this.score + 100);
-            }
-        },
-
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            clearInterval(this.timerInterval);
+
             if (win) {
+                this.isWinning = true;
+                this.renderLevel();
+                this.timer = this.movesLeft;
+                this.maxTimer = this.maxMoves;
+
                 document.getElementById('game9-retryGame-btn').disabled = true;
                 document.getElementById('game9-newGame-btn').disabled = true;
                 if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
@@ -899,7 +870,6 @@
                 document.getElementById('game9-newGame-btn').disabled = false;
                 if (window.SoundManager) window.SoundManager.playSadTriple();
             }
-            clearInterval(this.timerInterval);
 
             const onConfirm = () => {
                 if (win) {
@@ -922,16 +892,39 @@
                 }
             };
 
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game9', this.difficulty, this.currentLevelIndex);
-                // Although game9.js doesn't explicitly check for AchievementDialog, we'll keep the pattern if it exists in other games for consistency
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game9', this.currentLevelIndex, () => showMessage(reason));
+            const checkAchievementsAndShow = (finalScore) => {
+                if (win && this.isLevelMode && window.ScoreManager) {
+                    const achId = window.ScoreManager.completeLevel('game9', this.difficulty, this.currentLevelIndex);
+                    if (achId && window.AchievementDialog) {
+                        window.AchievementDialog.showInstantAchievementPop(achId, 'game9', this.currentLevelIndex, () => showMessage(finalScore));
+                    } else {
+                        showMessage(finalScore);
+                    }
                 } else {
-                    showMessage(reason);
+                    showMessage(finalScore);
+                }
+            };
+
+            if (win) {
+                if (window.ScoreManager && typeof window.ScoreManager.playWinAnimation === 'function') {
+                    window.ScoreManager.playWinAnimation({
+                        game: this,
+                        difficulty: this.difficulty,
+                        gameKey: 'game9',
+                        timerContainerId: 'game9-timer-ring',
+                        scoreElementId: 'game9-score',
+                        heartsSelector: '#game9-hearts .game9-heart.score',
+                        onComplete: (finalScore) => {
+                            this.score = finalScore;
+                            checkAchievementsAndShow(finalScore);
+                        }
+                    });
+                } else {
+                    this.score += 100;
+                    checkAchievementsAndShow(this.score);
                 }
             } else {
-                showMessage(reason);
+                checkAchievementsAndShow();
             }
         }
     };

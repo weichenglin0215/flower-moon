@@ -7,7 +7,7 @@
         currentLevelIndex: 1,
         isLevelMode: false,
         score: 0,
-        speed: 0.1, // 初始速度 (rem/幀)
+        speed: 0.1, // 執行中的速度 (rem/幀)
         baseSpeed: 0.06,//初始速度
         incrementSpeed: 0.005,//速度增長量
         maxSpeed: 0.2,//最大速度
@@ -37,11 +37,11 @@
         //incrementSpeed: 速度增長量
         //maxSpeed: 最大速度
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 10, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.003, maxSpeed: 0.07 },
-            '中學': { poemMinRating: 5, maxMistakeCount: 9, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.004, maxSpeed: 0.09 },
-            '高中': { poemMinRating: 4, maxMistakeCount: 8, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.005, maxSpeed: 0.11 },
-            '大學': { poemMinRating: 3, maxMistakeCount: 7, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.006, maxSpeed: 0.13 },
-            '研究所': { poemMinRating: 3, maxMistakeCount: 6, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.008, maxSpeed: 0.15 }
+            '小學': { poemMinRating: 6, maxMistakeCount: 10, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.006, maxSpeed: 0.12 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 9, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.007, maxSpeed: 0.14 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 8, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.008, maxSpeed: 0.16 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 7, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.009, maxSpeed: 0.16 },
+            '研究所': { poemMinRating: 3, maxMistakeCount: 6, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.010, maxSpeed: 0.16 }
         },
 
         loadCSS: function () {

@@ -383,10 +383,63 @@ window.SoundManager = {
 
    // 樂譜資料庫
    MelodyScores: {
-      '小星星': [8, 8, 12, 12, 13, 13, 12, 10, 10, 8, 8, 7, 7, 5, 12, 12, 10, 10, 8, 8, 7, 12, 12, 10, 10, 8, 8, 7, 8, 8, 12, 12, 13, 13, 12, 10, 10, 8, 8, 7, 7, 5],
-      '生日快樂歌': [12, 12, 13, 12, 15, 14, 12, 12, 13, 12, 16, 15, 12, 12, 19, 17, 15, 14, 13, 18, 18, 17, 15, 16, 15], // 8=上八度Do 依此類推
-      '青青校樹': [12, 10, 12, 15, 13, 15, 12, 12, 15, 16, 17, 16, 15, 16, 12, 10, 12, 15, 13, 15, 12, 12, 15, 16, 17, 15, 14, 15], // 簡版
-      '送別': [12, 10, 12, 15, 13, 15, 12, 12, 8, 9, 10, 9, 8, 9, 12, 10, 12, 15, 13, 15, 12, 12, 9, 10, 11, 14, 8, 8] // 簡版
+      '小星星': [
+         8, 8, 12, 12, 13, 13, 12,    // 一閃一閃亮晶晶
+         11, 11, 10, 10, 9, 9, 8,     // 滿天都是小星星
+         12, 12, 11, 11, 10, 10, 9,   // 掛在天空放光明
+         12, 12, 11, 11, 10, 10, 9,   // 好像許多小眼睛
+         8, 8, 12, 12, 13, 13, 12,    // 一閃一閃亮晶晶
+         11, 11, 10, 10, 9, 9, 8      // 滿天都是小星星
+      ],
+      '生日快樂歌': [
+         12, 12, 13, 12, 15, 14,      // Happy Birthday to You
+         12, 12, 13, 12, 16, 15,      // Happy Birthday to You
+         12, 12, 19, 17, 15, 14, 13,  // Happy Birthday to Dear Friend
+         18, 18, 17, 15, 16, 15       // Happy Birthday to You
+      ],
+      '青青校樹': [
+         5, 8, 8, 8, 10, 9, 8, 9, // 青青校樹 萋萋庭草
+         10, 8, 8, 10, 12, 13, // 欣霑化雨如膏
+         15, 12, 10, 10, 8, 9, 8, // 筆硯相親 晨昏歡笑
+         9, 10, 8, 6, 6, 5, 8  // 奈何離別今朝
+      ],
+      '送別': [
+         12, 10, 12, 15, 13, 15, 12,         // 長亭外 古道邊
+         12, 8, 9, 10, 9, 8,                 // 芳草碧連天
+         12, 10, 12, 15, 13, 11, 12, 10,     // 晚風拂柳笛聲殘
+         9, 10, 11, 14, 8,                   // 夕陽山外山
+         15, 13, 15, 17, 15,                 // 天之涯 地之角
+         15, 13, 12, 10, 12, 13,             // 知交半零落
+         12, 10, 12, 15, 13, 11, 12, 10,     // 一壺濁酒盡餘歡
+         9, 10, 11, 14, 8                    // 今宵別夢寒
+      ],
+      '茉莉花': [
+         10, 10, 12, 13, 15, 15, 13, 12, // 好一朵茉莉花
+         12, 13, 12, 10, 10, 12,         // 好一朵茉莉花
+         12, 12, 12, 10, 12, 13, 13, 12, // 滿園花草香也香不過它
+         10, 12, 10, 13, 12, 10, 9, 8,   // 我有心採一朵送給別人家
+         10, 12, 9, 8, 8                 // 茉莉花呀茉莉花
+      ],
+      '踏雪尋梅': [
+         5, 8, 10, 12, 13, 15, 12, 10, 8, 12, // 雪霽天晴朗 臘梅處處香
+         5, 8, 10, 12, 13, 15, 12, 10, 8,     // 騎驢灞橋過 鈴兒響叮當
+         15, 15, 13, 12, 15, 15, 13, 12,      // 響叮當 響叮當 響叮當 響叮當
+         12, 13, 15, 12, 10, 9, 8             // 好花採得瓶供養 伴我書聲琴韻
+      ],
+      '春神來了': [
+         12, 10, 8, 12, 15, 15, 15,    // 春神來了怎知道
+         13, 12, 11, 10, 8, 9, 9, 9,   // 梅花黃鶯報告
+         8, 9, 10, 11, 12, 12, 12,     // 桃花開了杏花敗
+         13, 12, 11, 10, 8, 9, 9, 8,   // 滿園春光真好
+         12, 10, 8, 12, 15, 15, 15,    // 春神來了怎知道
+         13, 12, 11, 10, 8, 9, 9, 8     // 梅花黃鶯報告
+      ],
+      '望春風': [
+         5, 5, 6, 8, 8, 8, 10, 8, 6, 5, // 獨夜無伴守燈下
+         5, 5, 6, 8, 8, 8, 10, 8, 6, 5, // 孤單點滴落心肝
+         5, 5, 6, 8, 8, 8, 10, 8, 6, 5, // 滿腹心事向誰訴
+         5, 5, 6, 8, 8, 8, 10, 8, 6, 5, // 望春風
+      ]
    },
 
    melodyPlayer: {
@@ -450,7 +503,7 @@ window.SoundManager = {
     * 撥放古箏音階：根據索引選擇對應頻率，並利用 GainNode 模擬彈撥後的衰竭感
     * @param {number} index 音階索引
     */
-   playGuzheng: function (index) {
+   playGuzheng: function (index, gainMultiply = 1) {
       this.init();
       if (!this.audioCtx) return;
       if (typeof index !== 'number' || isNaN(index)) index = 0; // 防呆處理，避免傳入 undefined 導致 NaN 崩潰
@@ -505,7 +558,7 @@ window.SoundManager = {
          const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
          startGain = maxStartGain - fraction * (maxStartGain - minStartGain);
       }
-
+      startGain *= gainMultiply; //使用帶入參數來調整音量
       gain.gain.setValueAtTime(0, now);
       // 0.02s 的極短淡入，消除電子音啟動的「滴答」聲
       gain.gain.linearRampToValueAtTime(startGain, now + 0.02);
@@ -527,7 +580,7 @@ window.SoundManager = {
     * 支援跨八度 (例如 noteNumber=8 代表高音 Do, noteNumber=-1 代表低音 Si)
     * 套用與 playGuzheng 完全相同的音色過濾與包絡曲線
     */
-   playMelodyNote: function (noteNumber) {
+   playMelodyNote: function (noteNumber, gainMultiply = 1) {
       this.init();
       if (!this.audioCtx) return;
       if (typeof noteNumber !== 'number' || isNaN(noteNumber)) return;
@@ -578,6 +631,7 @@ window.SoundManager = {
          const fraction = (finalFreq - minFreq) / (maxFreq - minFreq);
          startGain = maxStartGain - fraction * (maxStartGain - minStartGain);
       }
+      startGain *= gainMultiply; //使用帶入參數來調整音量
 
       gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(startGain, now + 0.02);
@@ -606,6 +660,18 @@ window.SoundManager = {
 
       const now = this.audioCtx.currentTime;
       this.playTone(finalFreq, timeLength, now);
+   },
+
+   /**
+    * 敵人被破壞音效：兩聲向上跳動的清脆頻率
+    */
+   playBreakEnemy: function () {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      this.playTone(880.00, 0.3, now);     // A5
+      this.playTone(1760.00, 0.6, now + 0.1); // A6
    },
 
    /**
@@ -639,18 +705,6 @@ window.SoundManager = {
 
       const now = this.audioCtx.currentTime;
       this.playTone(440.00, 1, now);     // A4
-   },
-
-   /**
- * 正確回饋音效：兩聲向上跳動的清脆頻率
- */
-   playBreakEnemy: function () {
-      this.init();
-      if (!this.audioCtx) return;
-
-      const now = this.audioCtx.currentTime;
-      this.playTone(880.00, 0.3, now);     // A5
-      this.playTone(1760.00, 0.6, now + 0.1); // A6
    },
 
    /**
@@ -730,6 +784,19 @@ window.SoundManager = {
       const now = this.audioCtx.currentTime;
       this.playTone(220.00, 0.3, now, 'triangle');   // A3
       this.playTone(110.00, 0.6, now + 0.2, 'triangle'); // A2
+   },
+
+   /**
+    * 倒數321的音效
+    */
+   playCountdown: function () {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      this.playTone(196.00, 0.3, now + 1.0);     // G3
+      this.playTone(220.00, 0.3, now + 2.0); // A3
+      this.playTone(440.00, 0.6, now + 3.0); // A4
    },
 
    /**

@@ -500,7 +500,7 @@
                 btn.onclick = (e) => {
                     if (window.SoundManager) {
                         const targetChar = this.targetChars[this.currentInputIndex];
-                        if (char === targetChar) window.SoundManager.playSuccess();
+                        if (char === targetChar) window.SoundManager.playConfirmItem();
                         else window.SoundManager.playFailure();
                     }
                     this.handleInput(char, e.target);

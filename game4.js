@@ -511,7 +511,7 @@
                             if (char === target.char) window.SoundManager.playSuccess();
                             else window.SoundManager.playFailure();
                         } else {
-                            if (window.SoundManager.playClick) window.SoundManager.playClick();
+                            if (window.SoundManager.playOpenItem) window.SoundManager.playOpenItem();
                         }
                     }
                     this.handleInput(char, e.target);
@@ -559,7 +559,7 @@
                         this.score += window.ScoreManager.gameSettings['game4'].getPointA * this.userInputs.length;
                         document.getElementById('game4-score').textContent = this.score;
                         if (window.SoundManager) window.SoundManager.playSuccess();
-                        this.gameWin();
+                        this.gameOver(true, '');
                     } else {
                         if (window.SoundManager) window.SoundManager.playFailure();
                         this.mistakeCount++;
@@ -598,7 +598,7 @@
                 this.renderQuestion();
 
                 if (this.currentInputIndex === this.hiddenPositions.length) {
-                    this.gameWin();
+                    this.gameOver(true, '');
                 }
             } else {
                 this.mistakeCount++;
@@ -686,48 +686,20 @@
             });
         },
 
-        gameWin: function () {
-            this.isActive = false;
-            clearInterval(this.timerInterval);
-            if (this.showTimeout) clearTimeout(this.showTimeout);
-            document.getElementById('game4-retryGame-btn').disabled = true;// 必須在得分表演之前就先禁用重來按鈕
-            document.getElementById('game4-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕
-            // 立即顯示隱藏的題目內容
-            this.isRevealed = true;
-            this.cluesRevealed = true;
-            this.renderQuestion();
-
-            ScoreManager.playWinAnimation({
-                game: this,
-                difficulty: this.difficulty,
-                gameKey: 'game4',
-                timerContainerId: 'game4-grid-container',
-                scoreElementId: 'game4-score',
-                heartsSelector: '#game4-hearts .heart:not(.empty)',
-                onComplete: (finalScore) => {
-                    this.score = finalScore;
-                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                    this.gameOver(true, '');
-                }
-            });
-        },
-
-
-
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            clearInterval(this.timerInterval);
+            if (this.showTimeout) clearTimeout(this.showTimeout);
+
             if (win) {
                 document.getElementById('game4-retryGame-btn').disabled = true;
                 document.getElementById('game4-newGame-btn').disabled = true;
+                this.isRevealed = true;
+                this.cluesRevealed = true;
             } else {
                 document.getElementById('game4-retryGame-btn').disabled = false;
                 document.getElementById('game4-newGame-btn').disabled = false;
-            }
-            clearInterval(this.timerInterval);
-            if (this.showTimeout) clearTimeout(this.showTimeout);
-            if (win) {
-                this.isRevealed = true;
             }
             this.renderQuestion();
 
@@ -740,11 +712,11 @@
                 }
             };
 
-            const showMessage = () => {
+            const showMessage = (finalScore) => {
                 if (window.GameMessage) {
                     window.GameMessage.show({
                         isWin: win,
-                        score: win ? this.score : 0,
+                        score: win ? (finalScore || this.score) : 0,
                         reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
                         btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
                         onConfirm: onConfirm
@@ -752,15 +724,34 @@
                 }
             };
 
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game4', this.difficulty, this.currentLevelIndex);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game4', this.currentLevelIndex, showMessage);
+            const checkAchievementsAndShow = (finalScore) => {
+                if (win && this.isLevelMode && window.ScoreManager) {
+                    const achId = window.ScoreManager.completeLevel('game4', this.difficulty, this.currentLevelIndex);
+                    if (achId && window.AchievementDialog) {
+                        window.AchievementDialog.showInstantAchievementPop(achId, 'game4', this.currentLevelIndex, () => showMessage(finalScore));
+                    } else {
+                        showMessage(finalScore);
+                    }
                 } else {
-                    showMessage();
+                    showMessage(finalScore);
                 }
+            };
+
+            if (win && window.ScoreManager) {
+                window.ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game4',
+                    timerContainerId: 'game4-grid-container',
+                    scoreElementId: 'game4-score',
+                    heartsSelector: '#game4-hearts .heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        this.score = finalScore;
+                        checkAchievementsAndShow(finalScore);
+                    }
+                });
             } else {
-                showMessage();
+                checkAchievementsAndShow();
             }
         },
 

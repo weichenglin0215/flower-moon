@@ -628,7 +628,7 @@
                 this.renderQuestion();
 
                 if (this.currentInputIndex === this.hiddenPositions.length) {
-                    this.gameWin();
+                    this.gameOver(true, '');
                 }
             } else {
                 // 錯誤 (Rule 1 & 4)
@@ -733,28 +733,6 @@
             });
         },
 
-        gameWin: function () {
-            this.isActive = false;
-            clearInterval(this.timerInterval);
-            document.getElementById('game12-retryGame-btn').disabled = true;
-            document.getElementById('game12-newGame-btn').disabled = true;
-            this.isRevealed = true;
-            this.renderQuestion();
-
-            ScoreManager.playWinAnimation({
-                game: this,
-                difficulty: this.difficulty,
-                gameKey: 'game12',
-                timerContainerId: 'game12-grid-container',
-                scoreElementId: 'game12-score',
-                heartsSelector: '#game12-hearts .heart:not(.empty)',
-                onComplete: (finalScore) => {
-                    this.score = finalScore;
-                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                    this.gameOver(true, '');
-                }
-            });
-        },
         // 播放音調
         playPitchSound: function (audioIdx) {
             if (!window.SoundManager) return;
@@ -775,7 +753,6 @@
             if (win) {
                 document.getElementById('game12-retryGame-btn').disabled = true;
                 document.getElementById('game12-newGame-btn').disabled = true;
-                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
             } else {
                 document.getElementById('game12-retryGame-btn').disabled = false;
                 document.getElementById('game12-newGame-btn').disabled = false;
@@ -803,15 +780,34 @@
                 }
             };
 
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game12', this.difficulty, this.currentLevelIndex);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game12', this.currentLevelIndex, () => showMessage(reason));
+            const checkAchievementsAndShow = (finalScore) => {
+                if (win && this.isLevelMode && window.ScoreManager) {
+                    const achId = window.ScoreManager.completeLevel('game12', this.difficulty, this.currentLevelIndex);
+                    if (achId && window.AchievementDialog) {
+                        window.AchievementDialog.showInstantAchievementPop(achId, 'game12', this.currentLevelIndex, () => showMessage(finalScore));
+                    } else {
+                        showMessage(finalScore);
+                    }
                 } else {
-                    showMessage(reason);
+                    showMessage(finalScore);
                 }
+            };
+
+            if (win && window.ScoreManager) {
+                window.ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game12',
+                    timerContainerId: 'game12-grid-container',
+                    scoreElementId: 'game12-score',
+                    heartsSelector: '#game12-hearts .heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        this.score = finalScore;
+                        checkAchievementsAndShow(finalScore);
+                    }
+                });
             } else {
-                showMessage(reason);
+                checkAchievementsAndShow();
             }
         },
 

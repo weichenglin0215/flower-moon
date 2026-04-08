@@ -320,7 +320,12 @@
             this.setupCanvas(); // 確保畫布尺寸正確
             this.initClouds();
             this.createInitialBlock();
-
+            // 隨機抽選一首樂譜
+            if (window.SoundManager && window.SoundManager.melodyPlayer && window.SoundManager.MelodyScores) {
+                const melodies = Object.keys(window.SoundManager.MelodyScores);
+                const randomMelody = melodies[Math.floor(Math.random() * melodies.length)];
+                window.SoundManager.melodyPlayer.setMelody(randomMelody);
+            }
             // 重置樂曲進度
             if (window.SoundManager && window.SoundManager.melodyPlayer) {
                 window.SoundManager.melodyPlayer.currentIndex = 0;
@@ -466,12 +471,7 @@
         startGame: function () {
             if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
             if (window.GameMessage) window.GameMessage.hide();
-            // 隨機抽選一首樂譜
-            if (window.SoundManager && window.SoundManager.melodyPlayer && window.SoundManager.MelodyScores) {
-                const melodies = Object.keys(window.SoundManager.MelodyScores);
-                const randomMelody = melodies[Math.floor(Math.random() * melodies.length)];
-                window.SoundManager.melodyPlayer.setMelody(randomMelody);
-            }
+
             this.state = 'LANDED';
             this.startTime = Date.now(); // 記錄開始時間
             if (this.requestID) cancelAnimationFrame(this.requestID);
@@ -665,7 +665,7 @@
                 this.score += window.ScoreManager.gameSettings['game7'].getPointA;
                 this.hitStatus[block.index] = 1; // hit
                 this.updateScoreUI();
-                if (block.isGoal) this.gameWin();
+                if (block.isGoal) this.gameOver(true, '');
             }
         },
 
@@ -915,12 +915,39 @@
             return html;
         },
 
-        gameWin: function () {
+        gameOver: function (isWin, message) {
             this.isActive = false;
-            // 禁用重來按鈕
-            document.getElementById('game7-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-            document.getElementById('game7-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-            if (window.ScoreManager) {
+            this.isWin = isWin;
+            this.state = 'GAME_OVER';
+
+            if (isWin) {
+                document.getElementById('game7-retryGame-btn').disabled = true;
+                document.getElementById('game7-newGame-btn').disabled = true;
+            } else {
+                document.getElementById('game7-retryGame-btn').disabled = false;
+                document.getElementById('game7-newGame-btn').disabled = false;
+            }
+
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: isWin,
+                        score: isWin ? (finalScore || this.score) : 0,
+                        reason: isWin ? "" : (typeof message === 'string' ? message : "挑戰結束"),
+                        btnText: isWin ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: () => {
+                            if (isWin) {
+                                if (this.isLevelMode) this.startNextLevel();
+                                else this.newGame();
+                            } else {
+                                this.retryGame();
+                            }
+                        }
+                    });
+                }
+            };
+
+            if (isWin && window.ScoreManager) {
                 window.ScoreManager.playWinAnimation({
                     game: this,
                     gameKey: 'game7',
@@ -938,41 +965,11 @@
                     },
                     onComplete: (finalScore) => {
                         this.score = finalScore;
-                        // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                        this.gameOver(true, '');
+                        showMessage(finalScore);
                     }
                 });
-            }
-        },
-
-        gameOver: function (isWin, message) {
-            this.isActive = false;
-            this.isWin = isWin;
-            this.state = 'GAME_OVER';
-
-            if (isWin) {
-                document.getElementById('game7-retryGame-btn').disabled = true;
-                document.getElementById('game7-newGame-btn').disabled = true;
             } else {
-                document.getElementById('game7-retryGame-btn').disabled = false;
-                document.getElementById('game7-newGame-btn').disabled = false;
-            }
-
-            if (window.GameMessage) {
-                window.GameMessage.show({
-                    isWin: isWin,
-                    score: isWin ? this.score : 0,
-                    reason: isWin ? "" : (typeof message === 'string' ? message : "挑戰結束"),
-                    btnText: isWin ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                    onConfirm: () => {
-                        if (isWin) {
-                            if (this.isLevelMode) this.startNextLevel();
-                            else this.newGame();
-                        } else {
-                            this.retryGame();
-                        }
-                    }
-                });
+                showMessage();
             }
         },
 

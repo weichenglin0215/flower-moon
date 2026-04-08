@@ -1147,7 +1147,7 @@
             this.updateProgressText();
 
             if (this.currentPhase >= this.phases.length) {
-                this.gameWin();
+                this.gameOver(true, '');
             } else {
                 this.applyHints();
             }
@@ -1342,32 +1342,11 @@
             });
         },
 
-        gameWin: function () {
-            this.isActive = false;
-            clearInterval(this.timerInterval);
-            // 禁用重來按鈕
-            document.getElementById('game8-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-            document.getElementById('game8-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-
-            // Using standard win animation
-            ScoreManager.playWinAnimation({
-                game: this,
-                difficulty: this.difficulty,
-                gameKey: 'game8',
-                timerContainerId: 'game8-grid-wrapper',
-                scoreElementId: 'game8-score',
-                heartsSelector: '#game8-hearts .heart:not(.empty)',
-                onComplete: (finalScore) => {
-                    this.score = finalScore;
-                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                    this.gameOver(true, '');
-                }
-            });
-        },
-
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            clearInterval(this.timerInterval);
+
             if (win) {
                 document.getElementById('game8-retryGame-btn').disabled = true;
                 document.getElementById('game8-newGame-btn').disabled = true;
@@ -1375,7 +1354,6 @@
                 document.getElementById('game8-retryGame-btn').disabled = false;
                 document.getElementById('game8-newGame-btn').disabled = false;
             }
-            clearInterval(this.timerInterval);
 
             const preview = document.getElementById('game8-char-preview');
             if (preview) preview.classList.add('hidden');
@@ -1401,15 +1379,34 @@
                 }
             };
 
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game8', this.difficulty, this.currentLevelIndex);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game8', this.currentLevelIndex, () => showMessage(reason));
+            const checkAchievementsAndShow = (finalScore) => {
+                if (win && this.isLevelMode && window.ScoreManager) {
+                    const achId = window.ScoreManager.completeLevel('game8', this.difficulty, this.currentLevelIndex);
+                    if (achId && window.AchievementDialog) {
+                        window.AchievementDialog.showInstantAchievementPop(achId, 'game8', this.currentLevelIndex, () => showMessage(finalScore));
+                    } else {
+                        showMessage(finalScore);
+                    }
                 } else {
-                    showMessage(reason);
+                    showMessage(finalScore);
                 }
+            };
+
+            if (win && window.ScoreManager) {
+                window.ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game8',
+                    timerContainerId: 'game8-grid-wrapper',
+                    scoreElementId: 'game8-score',
+                    heartsSelector: '#game8-hearts .heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        this.score = finalScore;
+                        checkAchievementsAndShow(finalScore);
+                    }
+                });
             } else {
-                showMessage(reason);
+                checkAchievementsAndShow();
             }
         }
     };

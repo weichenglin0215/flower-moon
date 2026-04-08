@@ -26,7 +26,7 @@ const ScoreManager = {
         'game3': { base: 100, heart: 10, time: 2, getPointA: 5 },
         'game4': { base: 100, heart: 10, time: 2, getPointA: 10 },
         'game5': { base: 100, heart: 10, time: 1, getPointA: 25 },
-        'game6': { base: 100, heart: 10, time: 1, getPointA: 5 },
+        'game6': { base: 100, heart: 10, time: 1, getPointA: 3 },
         'game7': { base: 100, heart: 10, time: 2, getPointA: 5 },
         'game8': { base: 100, heart: 10, time: 1, getPointA: 2 },
         'game9': { base: 100, heart: 10, time: 5, getPointA: 0.5 },

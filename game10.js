@@ -536,7 +536,9 @@
             this.dropTimer = 0; // 重置下移計時
 
             // 開始倒數計時提醒玩家
-            this.countdown = 3.9; // 略大於 3，讓玩家看到 3 兩秒
+            this.countdown = 3.9; // 略大於 3，讓玩家看到 3 一秒
+            //取消倒數計時音效，因無法中斷
+            //if (window.SoundManager) window.SoundManager.playCountdown();
             const cdEl = document.getElementById('game10-countdown');
             if (cdEl) {
                 cdEl.textContent = '3';
@@ -1101,11 +1103,12 @@
             if (!window.SoundManager) return;
             // Map our sounds to existing SoundManager if custom ones don't exist
             switch (type) {
-                case 'porcelain': window.SoundManager.playGuzhengLow(4); break; //撞牆
+                //case 'porcelain': window.SoundManager.playGuzheng(0); break; //撞牆
+                case 'porcelain': window.SoundManager.playMelodyNote(0, 0.3); break; //撞牆
                 case 'drum': window.SoundManager.playConfirmItem(); break; //撞到反彈棒
                 case 'chimes': window.SoundManager.playOpenItem(); break; //打中磚塊
                 case 'shatter': window.SoundManager.playBreakEnemy(); break; // 高頻擊破聲
-                case 'failure': window.SoundManager.playFailure(); break;
+                case 'failure': window.SoundManager.playFailure(); break; // 失敗音效
             }
         },
 

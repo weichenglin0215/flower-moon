@@ -920,7 +920,7 @@
                     }, k * 300);
                 }
                 setTimeout(() => {
-                    this.gameWin();
+                    this.gameOver(true, '');
                 }, 1500); // 延遲顯示勝利畫面
             }
         },
@@ -1161,27 +1161,6 @@
         updateScoreUI: function () {
             const el = document.getElementById('game6-score');
             if (el) el.textContent = this.score;
-        },
-
-        gameWin: function () {
-            this.isActive = false;
-            this.isWin = true;
-            clearInterval(this.timerInterval);
-            document.getElementById('game6-retryGame-btn').disabled = true; // 避免結算時重複點擊
-            document.getElementById('game6-newGame-btn').disabled = true;//避免結算時重複點擊
-            ScoreManager.playWinAnimation({
-                game: this,
-                difficulty: this.difficulty,
-                gameKey: 'game6',
-                timerContainerId: 'game6-area',
-                scoreElementId: 'game6-score',
-                heartsSelector: '#game6-hearts .heart:not(.empty)',
-                onComplete: (finalScore) => {
-                    this.score = finalScore;
-                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                    this.gameOver(true, '');
-                }
-            });
         },
 
         gameOver: function (win, reason) {
