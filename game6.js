@@ -1221,7 +1221,9 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            if (this.container) this.container.classList.add('hidden');
+            if (this.container) {
+                this.container.classList.add('hidden');
+            }
             document.body.classList.remove('overlay-active');
         }
     };

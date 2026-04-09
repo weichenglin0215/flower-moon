@@ -94,51 +94,71 @@ const ScoreManager = {
      * 儲存分數並更新 LocalStorage 中的玩家資料
      */
     saveScore: function (gameKey, difficulty, finalScore) {
-        finalScore = Math.floor(finalScore); // 確保分數為整數
+        finalScore = Math.floor(finalScore);
         let data = this.loadPlayerData();
 
         data.totalScore += finalScore;
 
-        // 更新各別遊戲的紀錄
-        if (!data.games[gameKey]) {
-            data.games[gameKey] = { playCount: 0, highScore: 0, highestDifficulty: '未挑戰', totalStars: 0 };
-        }
+        // 更新各別這戲的紀錄
+        if (gameKey) {
+            if (!data.games[gameKey]) {
+                data.games[gameKey] = { playCount: 0, highScore: 0, highestDifficulty: '未挑戰', totalStars: 0, byDifficulty: {} };
+            }
+            if (!data.games[gameKey].byDifficulty) data.games[gameKey].byDifficulty = {};
 
-        data.games[gameKey].playCount++;
+            data.games[gameKey].playCount++;
+            if (finalScore > data.games[gameKey].highScore) {
+                data.games[gameKey].highScore = finalScore;
+            }
 
-        if (finalScore > data.games[gameKey].highScore) {
-            data.games[gameKey].highScore = finalScore;
-        }
+            const diffIndex = ['小學', '中學', '高中', '大學', '研究所'];
+            const currentDiffIdx = diffIndex.indexOf(difficulty);
+            const highestDiffIdx = diffIndex.indexOf(data.games[gameKey].highestDifficulty);
+            if (currentDiffIdx > highestDiffIdx) {
+                data.games[gameKey].highestDifficulty = difficulty;
+            }
 
-        // 追蹤最高挑戰難度
-        const diffIndex = ['小學', '中學', '高中', '大學', '研究所'];
-        const currentDiffIdx = diffIndex.indexOf(difficulty);
-        const highestDiffIdx = diffIndex.indexOf(data.games[gameKey].highestDifficulty);
+            // 紀錄每個難度的個別統計 (play次數 + 最高分)
+            if (difficulty && diffIndex.includes(difficulty)) {
+                if (!data.games[gameKey].byDifficulty[difficulty]) {
+                    data.games[gameKey].byDifficulty[difficulty] = { playCount: 0, highScore: 0 };
+                }
+                data.games[gameKey].byDifficulty[difficulty].playCount++;
+                if (finalScore > data.games[gameKey].byDifficulty[difficulty].highScore) {
+                    data.games[gameKey].byDifficulty[difficulty].highScore = finalScore;
+                }
+            }
 
-        if (currentDiffIdx > highestDiffIdx) {
-            data.games[gameKey].highestDifficulty = difficulty;
-        }
-
-        // 紀錄各難度的累計通關次數
-        if (!data.difficultyCounts) {
-            data.difficultyCounts = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
-        }
-        if (difficulty in data.difficultyCounts) {
-            data.difficultyCounts[difficulty]++;
+            // 紀錄各難度的累計通關次數
+            if (!data.difficultyCounts) {
+                data.difficultyCounts = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
+            }
+            if (difficulty && difficulty in data.difficultyCounts) {
+                data.difficultyCounts[difficulty]++;
+            }
         }
 
         // 更新全局階級
         data.globalRank = this.getCurrentRank(data.totalScore);
 
-        // 基本成就判定：研究所通關
-        if (difficulty === '研究所' && !data.achievements.unlocked.includes('研究所通關')) {
-            data.achievements.unlocked.push('研究所通關');
-        }
-
-        // 寫入硬碟並更新可能的 UI 顯示
+        // 寫入 localStorage 並更新 UI
         localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
         this.updateProfileUI(data);
+
+        // 同步存檔至雲端並寫入 LOG
+        if (window.SupabaseClient && gameKey) {
+            window.SupabaseClient.saveGameToCloud(data);
+            window.SupabaseClient.logGame({
+                gameNo: parseInt(gameKey.replace('game', '')) || 0,
+                difficulty: difficulty || '',
+                score: finalScore,
+                isWin: true
+            });
+        } else if (window.SupabaseClient) {
+            window.SupabaseClient.saveGameToCloud(data);
+        }
     },
+
 
     /**
      * 更新全局顯示的玩家資料 (例如選單中的總分)
@@ -371,6 +391,19 @@ const ScoreManager = {
                 setTimeout(() => mulTip.remove(), 1500);
             }
 
+            const checkCloudSaveAndComplete = (fScore) => {
+                if (!localStorage.getItem('flower_moon_id') && window.CloudSaveDialog) {
+                    window.CloudSaveDialog.show({
+                        mode: 'initial',
+                        onSuccess: () => {
+                            if (options.onComplete) options.onComplete(fScore);
+                        }
+                    });
+                } else {
+                    if (options.onComplete) options.onComplete(fScore);
+                }
+            };
+
             if (diff > 0) {
                 const rollInterval = setInterval(() => {
                     currentStep++;
@@ -382,14 +415,14 @@ const ScoreManager = {
                         clearInterval(rollInterval);
                         document.getElementById(options.scoreElementId).textContent = finalScore;
                         this.saveScore(gameKey, options.difficulty, finalScore);
-                        if (options.onComplete) options.onComplete(finalScore);
+                        checkCloudSaveAndComplete(finalScore);
                     }
                 }, 40);
                 this.activeIntervals.push(rollInterval);
             } else {
                 document.getElementById(options.scoreElementId).textContent = finalScore;
                 this.saveScore(gameKey, options.difficulty, finalScore);
-                if (options.onComplete) options.onComplete(finalScore);
+                checkCloudSaveAndComplete(finalScore);
             }
         };
 

@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花月 遊戲資料庫管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabaseClient.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #fdfaf6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 最上方《花月》玩家資料庫管理 樣式 */
+        .topbar {
+            display: flex;
+            align-items: center;
+            background: #8b0000;
+            color: #fff;
+            padding: 10px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .hamburger-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-right: 15px;
+            padding: 2px 6px;
+        }
+
+        .topbar-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        /* 漢堡選單側邊 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -260px;
+            width: 240px;
+            height: 100%;
+            background: #5c1a1a;
+            color: #fff;
+            transition: left 0.3s ease;
+            z-index: 200;
+            padding-top: 60px;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 150;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        .sidebar-nav a {
+            display: block;
+            padding: 15px 24px;
+            color: #f4e8d3;
+            text-decoration: none;
+            font-size: 1.05rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s;
+        }
+
+        .sidebar-nav a:hover,
+        .sidebar-nav a.active {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* 資料頁面區塊 */
+        .page {
+            display: none;
+            padding: 20px;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        h1 {
+            color: #8b0000;
+            text-align: center;
+        }
+
+        /*資料頁面上方按鈕*/
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        /*資料表格*/
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4e8d3;
+            color: #5c4033;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background-color: #faf5eb;
+        }
+
+        td.editable {
+            background-color: #fffaf0;
+            cursor: pointer;
+        }
+
+        td.editable:focus {
+            outline: 2px solid #d4af37;
+            background-color: #fff;
+        }
+
+        /*儲存按鈕*/
+        .btn-save {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            /*font-weight: bold;*/
+            font-size: 1.2rem;
+        }
+
+        .btn-save:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /*重新整理資料按鈕*/
+        .btn-refresh {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            /*font-weight: bold;*/
+            font-size: 1.2rem;
+        }
+
+        #status-msg {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .msg-success {
+            color: #28a745;
+        }
+
+        .msg-error {
+            color: #d93838;
+        }
+
+        .json-cell {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            white-space: normal;
+            /* 允許換行以適應寬度 */
+            word-break: break-all;
+            max-height: 45px;
+            overflow-y: auto;
+            display: block;
+            /* 讓 max-height 生效 */
+            padding: 5px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            min-width: 15rem;
+            /* 確保 JSON 有足夠展示空間 */
+        }
+
+        th:nth-child(1) {
+            width: 8rem;
+        }
+
+        /* ID */
+        th:nth-child(2) {
+            width: 6rem;
+        }
+
+        /* 暱稱 */
+        th:nth-child(3) {
+            width: 6rem;
+        }
+
+        /* 建立日期 */
+        th:nth-child(4) {
+            width: 5rem;
+        }
+
+        /* 總分 */
+        th:nth-child(5) {
+            width: 8rem;
+        }
+
+        /* 文位 */
+        th:nth-child(6) {
+            width: 5rem;
+        }
+
+        /* 登入 */
+        th:nth-child(7) {
+            width: 7rem;
+        }
+
+        /* 最後日 */
+        /* JSON 欄位自動分配剩餘空間 */
+        th:last-child {
+            width: 5rem;
+        }
+
+        /* 操作 */
+
+        table {
+            table-layout: auto;
+            /* 讓表格根據內容調整，但 JSON 細胞會被限制 */
+        }
+
+        /* JSON 編輯彈窗樣式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #fff;
+            width: 80%;
+            max-width: 800px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #8b0000;
+            border-bottom: 2px solid #f4e8d3;
+            padding-bottom: 10px;
+        }
+
+        /*JSON編輯文字區域*/
+        .modal-textarea {
+            width: 100%;
+            height: 40rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 1.2rem;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: none;
+            box-sizing: border-box;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 20px;
+        }
+
+        .btn-modal {
+            padding: 5px 20px;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            /*font-weight: bold;*/
+        }
+
+        /*儲存按鈕*/
+        .btn-modal-save {
+            background-color: #28a745;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        /*取消按鈕*/
+        .btn-modal-cancel {
+            background-color: #6c757d;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        #modalErrorMsg {
+            color: #d93838;
+            font-weight: bold;
+            font-size: 1rem;
+            margin-top: -5px;
+            display: none;
+            padding: 5px;
+            background: #fff0f0;
+            border-radius: 4px;
+        }
+
+        /* 統計頁面日期輸入框放大 - 使用 zoom 可以聯動放大瀏覽器內建彈窗 */
+        #statsFrom,
+        #statsTo {
+            zoom: 1.3;
+            /*控制日期彈出視窗大小*/
+            padding: 2px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            color: #333;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        /* 調整標籤文字大小以匹配 zoom 後的輸入框 */
+        label {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 前導字幕列 -->
+    <div class="topbar">
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()">&#9776;</button>
+        <span class="topbar-title" id="topbarTitle">《花月》玩家資料庫管理</span>
+    </div>
+
+    <!-- 側邊山覆蓋層 -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- 側邊山導航 -->
+    <div class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <a href="#" class="active" id="navPlayers" onclick="showPage('players')">&#128100; 玩家資料查詢</a>
+            <a href="#" id="navStats" onclick="showPage('stats')">&#128202; 遲戲統計分析</a>
+        </nav>
+    </div>
+
+    <!-- 玩家資料查詢頁面 -->
+    <div class="page active" id="page-players">
+        <h1>《花月》玩家資料庫管理</h1>
+
+        <div id="status-msg"></div>
+
+        <div class="header-controls">
+            <button class="btn-refresh" onclick="loadData()">重新整理資料</button>
+            <span>點擊淺黃色儲存格可修改基本資料；點擊 JSON 區塊可開啟大視窗編輯。</span>
+        </div>
+
+        <!-- JSON 編輯彈窗 -->
+        <div id="jsonModal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header" id="modalTitle">編輯 JSON</div>
+                <div id="modalErrorMsg"></div>
+                <textarea id="modalTextarea" class="modal-textarea" spellcheck="false"></textarea>
+                <div class="modal-footer">
+                    <button class="btn-modal btn-modal-cancel" onclick="closeJsonEditor()">取消</button>
+                    <button class="btn-modal btn-modal-save" onclick="applyJsonEdit()">套用並關閉</button>
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>引繼碼 (ID)</th>
+                    <th>暱稱</th>
+                    <th>建立日期</th>
+                    <th>總分</th>
+                    <th>當前文位<br>(總分自動計算)</th>
+                    <th>累計<br>登入天數</th>
+                    <th>最後遊戲日</th>
+                    <th>遊戲紀錄 (JSON)</th>
+                    <th>挑戰關卡進度 (JSON)</th>
+                    <th>成就與領獎 (JSON)</th>
+                    <th>設定 (JSON)</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="db-tbody">
+                <tr>
+                    <td colspan="8" style="text-align:center;">載入中...</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <script>
+            // 設定 Supabase client (與主遊戲共用)
+            let supabaseClient;
+
+            async function init() {
+                // 由於瀏覽器 file:/// 安全性限制，有時 ../supabaseClient.js 會被擋下而無法讀取
+                if (window.SupabaseClient) {
+                    if (!window.SupabaseClient.init()) {
+                        showMessage('無法初始化 Supabase，請確定 supabaseClient.js 中的網址與金鑰已設定正確。', true);
+                        return;
+                    }
+                    // 使用封裝好的 getClient() 取回實例
+                    supabaseClient = window.SupabaseClient.getClient();
+                } else {
+                    // 如果因 CORS 失敗，在此手動備援初始化 (因為我們看到您稍早輸入的值，這裡幫您自動填入代入)
+                    const SUPABASE_URL = 'https://zxptpfwneoddlxbomotx.supabase.co';
+                    const SUPABASE_KEY = 'sb_publishable_wYriQ2rSgv177jEsiYYbQA_SaQjUU-Q';
+                    if (!SUPABASE_URL || !SUPABASE_KEY) {
+                        showMessage('無法讀取上一層的 supabase 檔案。請透過伺服器開啟，或於本代碼中手動填寫金鑰再試。', true);
+                        return;
+                    }
+                }
+
+                // 設定 Chart.js 全域預設字體大小 (用於所有圖表)
+                if (window.Chart) {
+                    Chart.defaults.font.size = 14;
+                    Chart.defaults.color = '#444';
+
+                    // 自定義標籤外掛：在橫條/直條內顯示數值
+                    const barValuePlugin = {
+                        id: 'barValuePlugin',
+                        afterDatasetsDraw(chart) {
+                            const { ctx } = chart;
+                            ctx.save();
+                            chart.data.datasets.forEach((dataset, i) => {
+                                const meta = chart.getDatasetMeta(i);
+                                meta.data.forEach((bar, index) => {
+                                    const value = dataset.data[index];
+                                    if (value === 0 || value === null || value === undefined) return;
+
+                                    // 動態計算字體尺寸：取直橫條寬或高的最小值（即條狀圖的厚度）之 80%
+                                    const fontSize = Math.min(Math.abs(bar.width), Math.abs(bar.height)) * 1.0;
+                                    ctx.font = `bold ${fontSize}px sans-serif`;
+                                    ctx.fillStyle = '#fff';
+                                    // 加入陰影確保易讀性
+                                    ctx.shadowBlur = 3;
+                                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+
+                                    if (chart.options.indexAxis === 'y') {
+                                        // 橫條圖：橫條內右邊
+                                        ctx.textAlign = 'right';
+                                        ctx.textBaseline = 'middle';
+                                        const xPos = bar.x - 5;
+                                        const yPos = bar.y + bar.height * 0.08; //預設值偏高，略為降低10%
+                                        // 檢查內部空間是否足夠放文字
+                                        const textWidth = ctx.measureText(value).width;
+                                        if (bar.x - bar.base < textWidth + 10) {
+                                            ctx.textAlign = 'left';
+                                            ctx.fillStyle = '#444';
+                                            ctx.shadowBlur = 0;
+                                            ctx.fillText(value, bar.x + 5, yPos);
+                                        } else {
+                                            ctx.fillText(value, xPos, yPos);
+                                        }
+                                    } else {
+                                        // 直條圖：直條內上邊
+                                        ctx.textAlign = 'center';
+                                        ctx.textBaseline = 'top';
+                                        const xPos = bar.x;
+                                        const yPos = bar.y + 5;
+                                        // 檢查內部空間是否足夠
+                                        if (bar.base - bar.y < 25) {
+                                            ctx.textBaseline = 'bottom';
+                                            ctx.fillStyle = '#444';
+                                            ctx.shadowBlur = 0;
+                                            ctx.fillText(value, xPos, bar.y - 5);
+                                        } else {
+                                            ctx.fillText(value, xPos, yPos);
+                                        }
+                                    }
+                                });
+                            });
+                            ctx.restore();
+                        }
+                    };
+                    Chart.register(barValuePlugin);
+                }
+
+                loadData();
+            }
+
+            // 從 ScoreManager 複製階級計算邏輯
+            const ranks = [
+                { name: '書僮', minScore: 0 },
+                { name: '蒙童', minScore: 10000 },
+                { name: '塾生', minScore: 20000 },
+                { name: '童生', minScore: 40000 },
+                { name: '縣案首', minScore: 80000 },
+                { name: '府案首', minScore: 160000 },
+                { name: '文童', minScore: 320000 },
+                { name: '秀才', minScore: 640000 },
+                { name: '舉人', minScore: 1280000 },
+                { name: '貢士', minScore: 2560000 },
+                { name: '進士', minScore: 5120000 },
+                { name: '探花', minScore: 10240000 },
+                { name: '榜眼', minScore: 20480000 },
+                { name: '狀元', minScore: 40960000 },
+                { name: '大儒', minScore: 81920000 }
+            ];
+
+            function calculateRank(score) {
+                let currentRank = ranks[0].name;
+                for (let i = 0; i < ranks.length; i++) {
+                    if (score >= ranks[i].minScore) {
+                        currentRank = ranks[i].name;
+                    } else {
+                        break;
+                    }
+                }
+                return currentRank;
+            }
+
+            function showMessage(msg, isError = false) {
+                const el = document.getElementById('status-msg');
+                el.textContent = msg;
+                el.className = isError ? 'msg-error' : 'msg-success';
+                setTimeout(() => { el.textContent = ''; }, 3000);
+            }
+
+            async function loadData() {
+                if (!supabaseClient) return;
+                const tbody = document.getElementById('db-tbody');
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">讀取中...</td></tr>';
+
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('player_saves')
+                        .select('id, nickname, created_at, total_score, global_rank, play_days, last_played_date, games, level_progress, achievements, settings')
+                        .order('last_played_date', { ascending: false });
+
+                    if (error) throw error;
+
+                    renderTable(data);
+                } catch (err) {
+                    console.error(err);
+                    showMessage('讀取資料失敗: ' + err.message, true);
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">發生錯誤</td></tr>';
+                }
+            }
+
+            function renderTable(data) {
+                const tbody = document.getElementById('db-tbody');
+                tbody.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">目前沒有資料</td></tr>';
+                    return;
+                }
+
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.id = row.id;
+
+                    const levelsJson = JSON.stringify(row.level_progress || {});
+                    const gamesJson = JSON.stringify(row.games || {});
+                    const achJson = JSON.stringify(row.achievements || {});
+                    const settingsJson = JSON.stringify(row.settings || {});
+
+                    // 統一日期格式為 YYYY-MM-DD (ISO 格式)
+                    const createdAt = row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : '未知';
+
+                    tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td class="editable" contenteditable="true" data-field="nickname">${row.nickname || ''}</td>
+                    <td>${createdAt}</td>
+                    <td class="editable" contenteditable="true" data-field="total_score">${row.total_score || 0}</td>
+                    <td class="rank-display" data-field="global_rank">${row.global_rank || '書僮'}</td>
+                    <td class="editable" contenteditable="true" data-field="play_days">${row.play_days || 1}</td>
+                    <td class="editable" contenteditable="true" data-field="last_played_date">${row.last_played_date || ''}</td>
+                    <td class="editable" data-field="games" onclick="openJsonEditor(this)"><div class="json-cell">${gamesJson}</div></td>
+                    <td class="editable" data-field="level_progress" onclick="openJsonEditor(this)"><div class="json-cell">${levelsJson}</div></td>
+                    <td class="editable" data-field="achievements" onclick="openJsonEditor(this)"><div class="json-cell">${achJson}</div></td>
+                    <td class="editable" data-field="settings" onclick="openJsonEditor(this)"><div class="json-cell">${settingsJson}</div></td>
+                    <td>
+                        <button class="btn-save" disabled onclick="saveRow('${row.id}', this)">儲存</button>
+                    </td>
+                `;
+
+                    // Add event listeners to contenteditable cells to enable save button
+                    const editables = tr.querySelectorAll('.editable');
+                    const btn = tr.querySelector('.btn-save');
+                    const scoreCell = tr.querySelector('[data-field="total_score"]');
+                    const rankCell = tr.querySelector('[data-field="global_rank"]');
+
+                    editables.forEach(cell => {
+                        cell.addEventListener('input', () => {
+                            btn.disabled = false;
+                            tr.dataset.modified = "true";
+
+                            // 如果是分數更動，同步更新文位顯示
+                            if (cell.dataset.field === 'total_score') {
+                                const val = parseInt(cell.innerText) || 0;
+                                rankCell.innerText = calculateRank(val);
+                            }
+                        });
+                    });
+
+                    tbody.appendChild(tr);
+                });
+            }
+
+            async function saveRow(id, btnElement) {
+                const tr = btnElement.closest('tr');
+                if (tr.dataset.modified !== "true") return;
+
+                btnElement.textContent = '儲存中...';
+                btnElement.disabled = true;
+
+                const getVal = (field) => {
+                    const cell = tr.querySelector(`[data-field="${field}"]`);
+                    // 如果內部有 json-cell div，使用 div 的文本，否則使用 cell 的文本
+                    const jsonDiv = cell.querySelector('.json-cell');
+                    return (jsonDiv ? jsonDiv.innerText : cell.innerText).trim();
+                };
+
+                try {
+                    // Parse JSON back
+                    let settingsData, gamesData, achData, levelsData;
+                    try {
+                        settingsData = JSON.parse(getVal('settings'));
+                        levelsData = JSON.parse(getVal('level_progress'));
+                        gamesData = JSON.parse(getVal('games'));
+                        achData = JSON.parse(getVal('achievements'));
+                    } catch (e) {
+                        throw new Error("JSON 格式不正確: " + e.message);
+                    }
+
+                    const payload = {
+                        nickname: getVal('nickname'),
+                        total_score: parseInt(getVal('total_score')) || 0,
+                        global_rank: getVal('global_rank'),
+                        play_days: parseInt(getVal('play_days')) || 1,
+                        last_played_date: getVal('last_played_date'),
+                        level_progress: levelsData,
+                        games: gamesData,
+                        achievements: achData,
+                        settings: settingsData,
+                        updated_at: new Date().toISOString()
+                    };
+
+                    const { error } = await supabaseClient
+                        .from('player_saves')
+                        .update(payload)
+                        .eq('id', id);
+
+                    if (error) throw error;
+
+                    // 同步至本機紀錄 (如果目前 db_viewer 工具跟遊戲在同一個 Domain)
+                    if (localStorage.getItem('flower_moon_id') === id) {
+                        const localData = {
+                            version: "1.2",
+                            nickname: payload.nickname,
+                            totalScore: payload.total_score,
+                            globalRank: payload.global_rank,
+                            playDays: payload.play_days,
+                            lastPlayedDate: payload.last_played_date,
+                            games: gamesData,
+                            levelProgress: levelsData,
+                            difficultyCounts: payload.difficulty_counts || {},
+                            achievements: achData,
+                            settings: settingsData
+                        };
+                        localStorage.setItem('flowerMoon_playerData', JSON.stringify(localData));
+                        showMessage('更新成功，且已同步至本機紀錄！');
+                    } else {
+                        showMessage('更新成功！');
+                    }
+                    btnElement.textContent = '儲存';
+                    tr.dataset.modified = "false";
+
+                } catch (err) {
+                    console.error(err);
+                    showMessage('更新失敗: ' + err.message, true);
+                    btnElement.textContent = '儲存';
+                    btnElement.disabled = false;
+                }
+            }
+
+
+            /* ========== 頁面切換導航 ========== */
+            function toggleSidebar() {
+                document.getElementById('sidebar').classList.toggle('open');
+                document.getElementById('sidebarOverlay').classList.toggle('show');
+            }
+
+            function showPage(page) {
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+                document.getElementById('page-' + page).classList.add('active');
+                document.getElementById('nav' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
+                toggleSidebar();
+                if (page === 'stats') { initStatsDates(); loadStats(); }
+            }
+
+            function initStatsDates() {
+                if (document.getElementById('statsFrom').value) return;
+                const today = new Date();
+                const d30 = new Date(today.getTime() - 29 * 86400000);
+                const fmt = d => d.toISOString().split('T')[0];
+                document.getElementById('statsTo').value = fmt(today);
+                document.getElementById('statsFrom').value = fmt(d30);
+            }
+
+            /* ========== 遊戲統計分析 ========== */
+            let charts = {};
+
+            async function loadStats() {
+                const supabase = window.SupabaseClient.getClient();
+                if (!supabase) { alert('Supabase 未連線'); return; }
+
+                const dateFrom = document.getElementById('statsFrom').value;
+                const dateTo = document.getElementById('statsTo').value + 'T23:59:59Z';
+                document.getElementById('statsStatus').textContent = '載入中...';
+
+                try {
+                    const { data: logs, error } = await supabase
+                        .from('game_logs')
+                        .select('player_id, played_at, game_no, difficulty, score, is_win')
+                        .gte('played_at', dateFrom + 'T00:00:00Z')
+                        .lte('played_at', dateTo)
+                        .order('played_at', { ascending: true });
+                    if (error) throw error;
+                    document.getElementById('statsStatus').textContent = '共載入 ' + logs.length + ' 筆 LOG';
+                    renderStats(logs);
+                } catch (e) {
+                    document.getElementById('statsStatus').textContent = '載入失敗: ' + e.message;
+                }
+            }
+
+            const GAME_NAMES = {
+                1: '慢思快選', 2: '飛花令', 3: '字爬梯', 4: '眾裡尋他千百度',
+                5: '詩詞小精靈', 6: '詩陣侵略', 7: '青鳥雲梯', 8: '一筆裁詩',
+                9: '詩韻鎖扣', 10: '擊石鳴詩', 11: '翻墨識蹤', 12: '疏影橫斜'
+            };
+
+            function renderStats(logs) {
+                const today = new Date().toISOString().split('T')[0];
+                const d7ago = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
+
+                const todayLogs = logs.filter(l => l.played_at.startsWith(today));
+                const week7Logs = logs.filter(l => l.played_at.split('T')[0] >= d7ago);
+                const todayPlayers = new Set(todayLogs.map(l => l.player_id)).size;
+                const week7Players = new Set(week7Logs.map(l => l.player_id)).size;
+
+                document.getElementById('statTodayPlayers').textContent = todayPlayers;
+                document.getElementById('statWeekPlayers').textContent = week7Players;
+                document.getElementById('statTodayGames').textContent = todayLogs.length;
+                document.getElementById('statWeekGames').textContent = week7Logs.length;
+
+                const byDay = {}, byDayPlayers = {};
+                logs.forEach(l => {
+                    const d = l.played_at.split('T')[0];
+                    byDay[d] = (byDay[d] || 0) + 1;
+                    if (!byDayPlayers[d]) byDayPlayers[d] = new Set();
+                    byDayPlayers[d].add(l.player_id);
+                });
+                const days = Object.keys(byDay).sort();
+                const gameCnts = days.map(d => byDay[d]);
+                const plyCnts = days.map(d => byDayPlayers[d].size);
+
+                const byGame = {};
+                logs.forEach(l => { byGame[l.game_no] = (byGame[l.game_no] || 0) + 1; });
+                const gameNos = Object.keys(byGame).sort((a, b) => a - b);
+                const gameLabels = gameNos.map(g => GAME_NAMES[g] || 'Game' + g);
+                const gameCounts = gameNos.map(g => byGame[g]);
+
+                const byDiff = {};
+                logs.forEach(l => { if (l.difficulty) byDiff[l.difficulty] = (byDiff[l.difficulty] || 0) + 1; });
+
+                const byGameDiff = {};
+                logs.forEach(l => {
+                    const name = GAME_NAMES[l.game_no] || 'Game' + l.game_no;
+                    if (!byGameDiff[name]) byGameDiff[name] = {};
+                    byGameDiff[name][l.difficulty] = (byGameDiff[name][l.difficulty] || 0) + 1;
+                });
+
+                const diffs = ['小學', '中學', '高中', '大學', '研究所'];
+                const diffColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f'];
+
+                renderChart('chartDailyPlayers', 'bar', days, plyCnts, '上線人數', '#4e79a7');
+                renderChart('chartDailyGames', 'bar', days, gameCnts, '遊戲局數', '#e15759');
+                renderHBar('chartGameTotal', gameLabels, gameCounts, '總局數', '#f28e2b');
+                renderHBar('chartDiffTotal', Object.keys(byDiff), Object.values(byDiff), '難度總局數', '#76b7b2');
+
+                const gdLabels = Object.keys(byGameDiff).sort();
+                const gdDatasets = diffs.map((d, i) => ({
+                    label: d,
+                    data: gdLabels.map(g => (byGameDiff[g] && byGameDiff[g][d]) || 0),
+                    backgroundColor: diffColors[i]
+                }));
+                if (charts['chartGameDiff']) charts['chartGameDiff'].destroy();
+                charts['chartGameDiff'] = new Chart(document.getElementById('chartGameDiff'), {
+                    type: 'bar',
+                    data: { labels: gdLabels, datasets: gdDatasets },
+                    options: {
+                        responsive: true, indexAxis: 'y',
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { font: { size: 14, weight: 'bold' } }
+                            }
+                        },
+                        scales: {
+                            x: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                            y: { ticks: { font: { size: 14 } } }
+                        }
+                    }
+                });
+            }
+
+            function renderChart(id, type, labels, data, label, color) {
+                if (charts[id]) charts[id].destroy();
+                charts[id] = new Chart(document.getElementById(id), {
+                    type, data: { labels, datasets: [{ label, data, backgroundColor: color, borderRadius: 4 }] },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                            x: { ticks: { font: { size: 14 } } }
+                        }
+                    }
+                });
+            }
+
+            function renderHBar(id, labels, data, label, color) {
+                if (charts[id]) charts[id].destroy();
+                charts[id] = new Chart(document.getElementById(id), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label, data, backgroundColor: color, borderRadius: 4 }] },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                            y: { ticks: { font: { size: 14 } } }
+                        }
+                    }
+                });
+            }
+
+            window.onload = init;
+
+
+            // JSON 編輯器相關功能
+            let currentEditingTarget = null;
+
+            function openJsonEditor(tdElement) {
+                currentEditingTarget = tdElement;
+                const fieldName = tdElement.dataset.field;
+                const jsonDiv = tdElement.querySelector('.json-cell');
+                const rawContent = jsonDiv.innerText;
+
+                document.getElementById('modalTitle').innerText = `編輯 ${fieldName.toUpperCase()} 資料`;
+                document.getElementById('modalErrorMsg').style.display = 'none';
+                const textarea = document.getElementById('modalTextarea');
+
+                try {
+                    // 格式化 JSON 讓它更好讀
+                    let jsonObj = JSON.parse(rawContent);
+
+                    // 調用全域深度難度排序器
+                    jsonObj = sortByDifficulty(jsonObj);
+
+                    textarea.value = JSON.stringify(jsonObj, null, 4);
+                } catch (e) {
+                    textarea.value = rawContent;
+                }
+
+                document.getElementById('jsonModal').style.display = 'flex';
+            }
+
+            /**
+             * 強化的深度難度排序函數 (遞迴處理陣列與物件)
+             */
+            function sortByDifficulty(input) {
+                if (!input || typeof input !== 'object') return input;
+
+                const order = ['小學', '中學', '高中', '大學', '研究所'];
+
+                // 處理陣列 (例如 claimed_id 列表)
+                if (Array.isArray(input)) {
+                    const array = input.map(item => sortByDifficulty(item));
+
+                    // 對包含難度的字串進行特殊排序
+                    return array.sort((a, b) => {
+                        if (typeof a === 'string' && typeof b === 'string') {
+                            const aIdx = order.findIndex(d => a.includes(d));
+                            const bIdx = order.findIndex(d => b.includes(d));
+                            if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+                            if (aIdx !== -1) return -1;
+                            if (bIdx !== -1) return 1;
+                        }
+                        return String(a).localeCompare(String(b));
+                    });
+                }
+
+                // 處理物件
+                const sortedObj = {};
+                const keys = Object.keys(input);
+
+                // 1. 先放指定的難度順序 (如果是 Top-level key)
+                order.forEach(diff => {
+                    if (keys.includes(diff)) {
+                        sortedObj[diff] = sortByDifficulty(input[diff]);
+                    }
+                });
+
+                // 2. 處理遊戲編號類型的 Key (例如 game1, game2...)，應按數字排
+                const gameKeys = keys.filter(k => k.startsWith('game')).sort((a, b) => {
+                    const numA = parseInt(a.replace('game', '')) || 0;
+                    const numB = parseInt(b.replace('game', '')) || 0;
+                    return numA - numB;
+                });
+                gameKeys.forEach(k => {
+                    if (!(k in sortedObj)) {
+                        sortedObj[k] = sortByDifficulty(input[k]);
+                    }
+                });
+
+                // 3. 放入剩餘的其他 Key
+                keys.forEach(key => {
+                    if (!(key in sortedObj)) {
+                        sortedObj[key] = sortByDifficulty(input[key]);
+                    }
+                });
+
+                return sortedObj;
+            }
+
+            // 移除舊有的 sortAchievements，因為新的 sortByDifficulty 已包含其功能
+
+            function closeJsonEditor() {
+                document.getElementById('jsonModal').style.display = 'none';
+                currentEditingTarget = null;
+            }
+
+            function applyJsonEdit() {
+                if (!currentEditingTarget) return;
+
+                const textarea = document.getElementById('modalTextarea');
+                const errorMsg = document.getElementById('modalErrorMsg');
+                const newValue = textarea.value.trim();
+
+                try {
+                    // 驗證一下 JSON 格式
+                    JSON.parse(newValue);
+                } catch (e) {
+                    // 顯示詳細錯誤原因
+                    errorMsg.innerText = "❌ " + e.message;
+                    errorMsg.style.display = 'block';
+
+                    // 嘗試解析錯誤位置並選取文字
+                    // JSON.parse 的錯誤訊息通常包含 "at position 123"
+                    const posMatch = e.message.match(/at position (\d+)/);
+                    if (posMatch) {
+                        const pos = parseInt(posMatch[1]);
+                        textarea.focus();
+                        textarea.setSelectionRange(pos, pos + 1);
+
+                        // 更精確的捲動計算：計算錯誤文字前的換行符號數量來決定行數
+                        const textBeforeError = textarea.value.substring(0, pos);
+                        const linesBefore = textBeforeError.split('\n').length;
+
+                        // 取得 textarea 的行高 (Line Height)
+                        const style = window.getComputedStyle(textarea);
+                        const lineHeight = parseInt(style.lineHeight) || 24;
+
+                        // 計算目標捲動位置 (讓錯誤行盡量出現在中間)
+                        const scrollTarget = (linesBefore - 1) * lineHeight - (textarea.clientHeight / 3);
+                        textarea.scrollTop = Math.max(0, scrollTarget);
+                    }
+                    return;
+                }
+
+                // 成功則隱藏錯誤提示
+                errorMsg.style.display = 'none';
+
+                // 更新回表格顯示 (壓縮後放回去)
+                const jsonDiv = currentEditingTarget.querySelector('.json-cell');
+                try {
+                    jsonDiv.innerText = JSON.stringify(JSON.parse(newValue));
+                } catch (e) {
+                    jsonDiv.innerText = newValue;
+                }
+
+                // 觸發儲存按鈕
+                const tr = currentEditingTarget.closest('tr');
+                tr.dataset.modified = "true";
+                tr.querySelector('.btn-save').disabled = false;
+
+                closeJsonEditor();
+            }
+        </script>
+
+    </div><!-- end page-players -->
+
+    <!-- 遊戲統計分析頁面 -->
+    <div class="page" id="page-stats" style="max-width:1100px;margin:0 auto;font-size:1.2rem;">
+        <h1>遊戲統計分析</h1>
+
+        <div style="display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
+            <label>起始日期：<input type="date" id="statsFrom"></label>
+            <label>結束日期：<input type="date" id="statsTo"></label>
+            <button onclick="loadStats()"
+                style="padding:3px 18px;background:#8b0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem;">查詢</button>
+            <span id="statsStatus" style="color:#666;"></span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:30px;">
+            <div
+                style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;text-align:center;">
+                <div style="font-size:2.5rem;font-weight:bold;color:#8b0000;" id="statTodayPlayers">-</div>
+                <div style="color:#666;margin-top:5px;">今天上線人數</div>
+            </div>
+            <div
+                style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;text-align:center;">
+                <div style="font-size:2.5rem;font-weight:bold;color:#c0392b;" id="statWeekPlayers">-</div>
+                <div style="color:#666;margin-top:5px;">7 天總上線人數</div>
+            </div>
+            <div
+                style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;text-align:center;">
+                <div style="font-size:2.5rem;font-weight:bold;color:#e67e22;" id="statTodayGames">-</div>
+                <div style="color:#666;margin-top:5px;">今天遊戲局數</div>
+            </div>
+            <div
+                style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;text-align:center;">
+                <div style="font-size:2.5rem;font-weight:bold;color:#27ae60;" id="statWeekGames">-</div>
+                <div style="color:#666;margin-top:5px;">7 天總遊戲局數</div>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:30px;">
+            <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
+                <h3 style="margin-top:0;color:#5c4033;">每天上線人數</h3>
+                <canvas id="chartDailyPlayers" height="80"></canvas>
+            </div>
+            <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
+                <h3 style="margin-top:0;color:#5c4033;">每天遊戲局數</h3>
+                <canvas id="chartDailyGames" height="80"></canvas>
+            </div>
+            <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
+                <h3 style="margin-top:0;color:#5c4033;">每個遊戲總局數</h3>
+                <canvas id="chartGameTotal" height="150"></canvas>
+            </div>
+            <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
+                <h3 style="margin-top:0;color:#5c4033;">每種難度總局數</h3>
+                <canvas id="chartDiffTotal" height="80"></canvas>
+            </div>
+            <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
+                <h3 style="margin-top:0;color:#5c4033;">每個遊戲 × 每種難度總局數</h3>
+                <canvas id="chartGameDiff" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

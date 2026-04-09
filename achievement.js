@@ -100,6 +100,14 @@
                                         <div class="ach-stat-lbl">登入天數</div>
                                     </div>
                                 </div>
+                                <div class="ach-cloud-id-section">
+                                    <div class="ach-cloud-id-value" id="achCloudIdDisplay">載入中...</div>
+                                    <div class="ach-cloud-id-actions">
+                                    <button id="achBtnSyncId" class="ach-btn-small" style="background: linear-gradient(135deg, hsla(145, 63%, 42%, 1.00), hsla(145, 63%, 35%, 1.00));">同步(測試用)</button>
+                                    <button id="achBtnCopyId" class="ach-btn-small">顯示引繼碼</button>
+                                        <button id="achBtnChangeId" class="ach-btn-small">變更暱稱</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -136,6 +144,73 @@
                     document.getElementById(targetId).classList.add('active');
                 });
             });
+
+            // 總覽/引繼碼按鈕綁定
+            const btnCopy = document.getElementById('achBtnCopyId');
+            if (btnCopy) {
+                btnCopy.addEventListener('click', () => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    const data = window.ScoreManager.loadPlayerData();
+                    const cloudId = localStorage.getItem('flower_moon_id') || '未綁定';
+                    const display = document.getElementById('achCloudIdDisplay');
+
+                    if (btnCopy.textContent === '顯示引繼碼') {
+                        // 切換到顯示引繼碼並複製
+                        display.textContent = cloudId;
+                        btnCopy.textContent = '顯示暱稱';
+
+                        if (cloudId !== '未綁定') {
+                            navigator.clipboard.writeText(cloudId).then(() => {
+                                //this.showNotification('引繼碼已複製到剪貼簿');
+                            }).catch(err => console.error('複製失敗:', err));
+                        }
+                    } else {
+                        // 切換回顯示暱稱
+                        display.textContent = data.nickname || '訪客';
+                        btnCopy.textContent = '顯示引繼碼';
+                    }
+                });
+            }
+
+            const btnChange = document.getElementById('achBtnChangeId');
+            if (btnChange) {
+                btnChange.addEventListener('click', () => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    if (window.CloudSaveDialog) {
+                        window.CloudSaveDialog.show({
+                            mode: 'change',
+                            onSuccess: () => {
+                                this.renderData(); // 重新整理成就面板
+                            }
+                        });
+                    }
+                });
+            }
+
+            const btnSync = document.getElementById('achBtnSyncId');
+            if (btnSync) {
+                btnSync.addEventListener('click', () => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    const data = window.ScoreManager.loadPlayerData();
+                    btnSync.textContent = '同步中...';
+                    btnSync.disabled = true;
+
+                    if (window.SupabaseClient) {
+                        window.SupabaseClient.saveGameToCloud(data).then(success => {
+                            if (success) {
+                                btnSync.textContent = '同步成功';
+                                setTimeout(() => {
+                                    btnSync.textContent = '同步(測試用)';
+                                    btnSync.disabled = false;
+                                }, 2000);
+                            } else {
+                                btnSync.textContent = '同步失敗';
+                                btnSync.disabled = false;
+                            }
+                        });
+                    }
+                });
+            }
 
             // 滑鼠拖曳捲動功能 (包含慣性捲動)
             const scrollContainer = this.overlay.querySelector('.ach-body');
@@ -244,7 +319,7 @@
         },
 
         renderData: function () {
-            if (!window.ScoreManager) return;
+            if (!window.ScoreManager || !this.overlay) return;
             const data = window.ScoreManager.loadPlayerData();
 
             // 填寫總覽
@@ -296,6 +371,16 @@
                 document.getElementById('achNextRank').textContent = `進階 ${nextRank.name} 合格成績`;
             } else {
                 nextInfoEl.style.display = 'none';
+            }
+
+            // 渲染引繼碼區塊 (預設顯示暱稱)
+            const idDisplay = document.getElementById('achCloudIdDisplay');
+            const btnCopy = document.getElementById('achBtnCopyId');
+            if (idDisplay) {
+                idDisplay.textContent = data.nickname || '訪客';
+            }
+            if (btnCopy) {
+                btnCopy.textContent = '顯示引繼碼';
             }
 
             // 渲染遊戲紀錄
@@ -431,6 +516,7 @@
                     const btn = document.createElement('button');
                     btn.className = 'ach-btn-claim';
                     btn.textContent = '領取獎狀';
+                    btn.dataset.achId = achId;
                     btn.onclick = () => {
                         this.claimAchievementReward(achId, this.certImages[Math.floor(milestone / 30) % 10], this.getLevelCertText(gameName, milestone));
                     };
@@ -502,6 +588,7 @@
                             const btn = document.createElement('button');
                             btn.className = 'ach-btn-claim';
                             btn.textContent = '領取獎狀';
+                            btn.dataset.achId = achId;
                             btn.onclick = () => {
                                 this.claimAchievementReward(achId, certImg, `恭賀\n「${dispName}」過關達${t}次。\n才思敏捷，氣貫長虹。望君續筆山川，再續錦繡華章。`);
                             };
@@ -521,7 +608,22 @@
                     lastUnlockedItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
             }
+
+            // --- 核心修正：將所有成就狀態「數據化」，確保本地與雲端完全一致 ---
+            this.syncAchievementStates(data);
         },
+
+        /**
+         * 成就設計理念：
+         * - claimed[]  = 唯一需要持久化的成就數據（避免重複領獎）
+         * - unlocked/progress 均從 games/levelProgress/totalScore 動態計算，不儲存
+         * - 每次領獎後，直接呼叫 saveGameToCloud 同步 claimed 即可
+         */
+        syncAchievementStates: function (currentData) {
+            // 此函式保留為空，設計上不再推算 unlocked/progress
+            // 雲端只需同步 totalScore, games, levelProgress, claimed
+        },
+
         //顯示獎狀
         showCert: function (imgUrl, text, isNewClaim = false) {
             let overlay = document.getElementById('certOverlay');
@@ -616,8 +718,16 @@
 
             data.achievements.claimed.push(achId);
             data.totalScore += 10000;
-            data.globalRank = window.ScoreManager.getCurrentRank(data.totalScore);
+            // 修正：使用 ScoreManager 統一的階級計算方法
+            if (window.ScoreManager) {
+                data.globalRank = window.ScoreManager.getCurrentRank(data.totalScore);
+            }
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+
+            // 同步至雲端環境 (如果 Supabase 已初始化)
+            if (window.SupabaseClient) {
+                window.SupabaseClient.saveGameToCloud(data);
+            }
 
             this.renderData();
             this.showCert(imgUrl, text, true);
@@ -633,7 +743,7 @@
             popOverlay.innerHTML = `
                 <div class="ach-instant-pop">
                     <h2>恭喜榮獲成就</h2>
-                    <p>翰墨清芬，詞海揚名。閣下「${currentRank}」銳意進取，終破此關，獲積分萬點以表精誠。願君筆耕不輟，再續錦繡華章。</p>
+                    <p>翰墨清芬，詞海揚名。閣下<b>【${currentRank}】</b>銳意進取，終破此關，獲<b>積分萬點</b>以表精誠。願君筆耕不輟，再續錦繡華章。</p>
                     <div class="ach-instant-footer">
                         <button id="instantClaimBtn" class="ach-instant-btn">領取成就</button>
                     </div>

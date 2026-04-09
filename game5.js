@@ -1182,11 +1182,14 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            document.getElementById('game5-container').classList.add('hidden');
+            const container = document.getElementById('game5-container');
+            if (container) {
+                container.classList.add('hidden');
+            }
             document.body.classList.remove('overlay-active');
             // Restore main page
-            const container = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
-            if (container) container.style.display = '';
+            const mainContainer = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
+            if (mainContainer) mainContainer.style.display = '';
         }
     };
 

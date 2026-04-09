@@ -34,11 +34,12 @@
     <link rel="stylesheet" href="level-selector.css">
     <link rel="stylesheet" href="menu.css">
     <link rel="stylesheet" href="ruleNoteDialog.css">
-
+    <link rel="stylesheet" href="cloudSaveDialog.css">
 
     <!-- 字體與外部庫 -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -147,6 +148,8 @@
     <script src="autoScreenshot.js"></script>
     <script src="calendar.js"></script>
     <script src="cards.js"></script>
+    <script src="supabaseClient.js"></script>
+    <script src="cloudSaveDialog.js"></script>
     <script src="gameMessage.js"></script>
     <script src="introCard.js"></script>
     <script src="ruleNoteDialog.js"></script>
@@ -166,6 +169,23 @@
     <script src="game11.js"></script>
     <script src="game12.js"></script>
 
+
+    <!-- 啟動時自動從雲端同步（以雲端資料為主） -->
+    <script>
+        window.addEventListener('load', function () {
+            if (window.SupabaseClient) {
+                window.SupabaseClient.syncOnStartup().then(synced => {
+                    if (synced) {
+                        console.log('已從雲端載入最新進度');
+                        if (window.AchievementDialog && window.AchievementDialog.overlay &&
+                            !window.AchievementDialog.overlay.classList.contains('hidden')) {
+                            window.AchievementDialog.renderData();
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 
 </html>
