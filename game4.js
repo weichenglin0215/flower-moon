@@ -458,8 +458,6 @@
                 '小學': { total: 9, cols: 3 },
                 '中學': { total: 16, cols: 4 },
                 '高中': { total: 25, cols: 5 },
-                //'大學': { total: 20, cols: 5 },
-                //'研究所': { total: 25, cols: 5 }
                 '大學': { total: 42, cols: 6 },
                 '研究所': { total: 49, cols: 7 }
             };
@@ -530,7 +528,7 @@
 
             const settings = this.difficultySettings[this.difficulty];
 
-            if (!settings.singleCharReaction) {
+            if (!settings.singleCharReaction) { //須整句答對，非單字答對
                 this.userInputs.push({ char, btn });
                 btn.classList.add('disabled');
                 this.currentInputIndex++;
@@ -556,7 +554,12 @@
 
                     if (isAllCorrect) {
                         // 擊中文字，根據window.ScoreManager.gameSettings['game4'].getPointA加分
-                        this.score += window.ScoreManager.gameSettings['game4'].getPointA * this.userInputs.length;
+                        // 高中難度分數再乘以2倍，大學難度分數再乘以3倍，研究所難度分數再乘以4倍
+                        let multiplier = 1;
+                        if (this.difficulty === '高中') multiplier = 2;
+                        else if (this.difficulty === '大學') multiplier = 3;
+                        else if (this.difficulty === '研究所') multiplier = 4;
+                        this.score += window.ScoreManager.gameSettings['game4'].getPointA * this.userInputs.length * multiplier;
                         document.getElementById('game4-score').textContent = this.score;
                         if (window.SoundManager) window.SoundManager.playSuccess();
                         this.gameOver(true, '');
@@ -581,7 +584,7 @@
                                 this.currentInputIndex = 0;
                                 this.isActive = true;
                                 this.renderQuestion();
-                            }, 1500);
+                            }, 2500);
                         }
                     }
                 }
@@ -607,7 +610,7 @@
                 const isEasyMode = (this.difficulty === '小學' || this.difficulty === '中學');
                 // Check if the character is in the list of hidden characters (part of the answer)
                 const isSolutionChar = this.hiddenPositions.some(h => h.char === char);
-
+                //中小學難度，按錯不移除，大學難度，按錯移除
                 if (isEasyMode && !isSolutionChar) {
                     // For easy modes, if it's a decoy (not in answer), keep it red and disabled
                     btn.classList.add('wrong', 'disabled');

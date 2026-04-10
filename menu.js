@@ -26,6 +26,8 @@
         { page: 'game10', label: '擊石鳴詩', image: 'images/Menu/擊石鳴詩_Menu256.jpg' },
         { page: 'game11', label: '翻墨識蹤', image: 'images/Menu/翻墨識蹤_Menu256.jpg' },
         { page: 'game12', label: '疏影橫斜', image: 'images/Menu/疏影橫斜_Menu256.jpg' },
+        { page: 'game13', label: '人事時地', image: 'images/Menu/人事時地_Menu256.jpg' },
+        { page: 'game14', label: '步步驚心', image: 'images/Menu/字爬梯_Menu256.jpg' }, // Reuse game3 image for now or placeholder
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
@@ -120,7 +122,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -298,6 +300,14 @@
                     case 'game12':
                         if (window.Game12) window.Game12.show();
                         else window.location.href = 'index.html?game=12';
+                        break;
+                    case 'game13':
+                        if (window.Game13) window.Game13.show();
+                        else window.location.href = 'index.html?game=13';
+                        break;
+                    case 'game14':
+                        if (window.Game14) window.Game14.show();
+                        else window.location.href = 'index.html?game=14';
                         break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();
