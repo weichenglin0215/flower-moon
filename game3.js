@@ -388,7 +388,7 @@
             let charRatings = [];
             const firstIndices = new Set();
             this.historyData = [];
-
+            // 處理詩詞，將詩詞拆解成字元，並記錄每個字元的位置
             for (let i = 0; i < lineCount; i++) {
                 const lineIdx = startIdx + i;
                 const line = poem.content[lineIdx];
@@ -426,6 +426,7 @@
 
             chars.forEach((char, index) => {
                 const isNewSentence = firstIndices.has(index);
+                //每句第一個字增加間距
                 if (isNewSentence && index > 0) {
                     currentY += this.btnHeightRem / 2;
                 }
@@ -438,7 +439,12 @@
                 } else {
                     const minO = setting.minOptions || 1;
                     const maxO = setting.maxOptions || 1;
+                    //每一行的字數
                     numOptions = Math.floor(Math.random() * (maxO - minO + 1)) + minO;
+                    //提高每行字數，尤其是該行只有一個字就會有40%機會變成兩個字
+                    if (numOptions == 1) {
+                        numOptions = Math.random() < 0.4 ? 2 : 1;
+                    }
                 }
 
                 const row = this.createRow(char, index, numOptions, currentY, currentDecoyPool);
@@ -498,7 +504,13 @@
                 const setting = this.difficultySettings[this.difficulty] || {};
                 const initialColor = setting.isStrictOrder ? this.nextRowFontColor : this.currentRowFontColor;
                 btn.style.color = initialColor;
-                btn.addEventListener('click', (e) => this.handleBtnClick(e, char, index, rowEl));
+                //btn.addEventListener('click', (e) => this.handleBtnClick(e, char, index, rowEl));
+                // 修改處：將 'click' 改為 'pointerdown' 碰觸即觸發，不必等到手指離開畫面。
+                btn.addEventListener('pointerdown', (e) => {
+                    // 防止觸控裝置同時觸發虛擬 click 事件或頁面縮放
+                    if (e.pointerType === 'touch') e.preventDefault();
+                    this.handleBtnClick(e, char, index, rowEl);
+                });
                 rowEl.appendChild(btn);
             });
 

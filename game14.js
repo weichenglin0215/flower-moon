@@ -3,6 +3,8 @@
     const Game14 = {
         isActive: false,
         difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         mistakeCount: 0,
         maxMistakeCount: 5,
@@ -17,13 +19,17 @@
         maxTimer: 120,
         timerInterval: null,
         startTime: null,
-
+        //timeMutiply:時間倍率
+        //poemMinRating:詩詞最低評分
+        //maxMistakeCount:最大錯誤次數
+        //minChars:最少字數
+        //maxChars:最多字數
         difficultySettings: {
-            '小學': { timeMutiply: 2, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 20 },
-            '中學': { timeMutiply: 1.5, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28 },
+            '小學': { timeMutiply: 1.2, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 20 },
+            '中學': { timeMutiply: 1.1, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28 },
             '高中': { timeMutiply: 1.0, poemMinRating: 4, maxMistakeCount: 4, minChars: 28, maxChars: 40 },
-            '大學': { timeMutiply: 0.75, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56 },
-            '研究所': { timeMutiply: 0.5, poemMinRating: 3, maxMistakeCount: 2, minChars: 40, maxChars: 120 }
+            '大學': { timeMutiply: 0.85, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56 },
+            '研究所': { timeMutiply: 0.6, poemMinRating: 3, maxMistakeCount: 2, minChars: 28, maxChars: 120 }
         },
 
         init: function () {
@@ -57,9 +63,10 @@
                 </div>
                 <div id="game14-area" class="game14-area">
                     <div id="game14-timer-display" class="timer-text-14">0</div>
-                    <svg id="game14-timer-ring-svg">
-                        <rect id="game14-timer-path" x="3" y="3"></rect>
+                    <svg id="game14-timer-ring">
+                        <rect id="game14-timer-path" x="4" y="4"></rect>
                     </svg>
+                    <div id="game14-poem-info" class="game14-poem-info"></div>
                 </div>
                 <div id="game14-history" class="game14-history"></div>
             `;
@@ -74,10 +81,14 @@
 
         showDifficultySelector: function () {
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('步步驚心', (selectedLevel) => {
+                window.DifficultySelector.show('步步驚心', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+
                     const diffTag = document.getElementById('game14-diff-tag');
-                    if (diffTag) diffTag.textContent = selectedLevel;
+                    if (diffTag) diffTag.textContent = this.isLevelMode ? `挑戰 ${this.currentLevelIndex}` : selectedLevel;
+
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active');
                     this.startNewGame();
@@ -93,14 +104,14 @@
             if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
         },
 
-        startNewGame: function (isRetry = false) {
-            this.isActive = false;
+        startNewGame: function () {
             if (this.timerInterval) clearInterval(this.timerInterval);
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (window.GameMessage) window.GameMessage.hide();
 
-            const settings = this.difficultySettings[this.difficulty] || this.difficultySettings['小學'];
+            this.isActive = false;
             this.score = 0;
             this.mistakeCount = 0;
-            this.maxMistakeCount = settings.maxMistakeCount;
             this.currentIndex = 0;
             this.rows = [];
             this.historyData = [];
@@ -108,25 +119,54 @@
             this.maxTimer = 0;
             this.startTime = null;
 
-            document.getElementById('game14-score').textContent = Math.floor(this.score);
-            document.getElementById('game14-timer-display').textContent = this.timer;
+            document.getElementById('game14-score').textContent = "0";
 
-            // 清理舊的階梯行，但保留計時器
-            const area = document.getElementById('game14-area');
-            const elementsToRemove = area.querySelectorAll('.ladder-row-14');
-            elementsToRemove.forEach(el => area.removeChild(el));
+            // 啟用按鈕
+            document.getElementById('game14-retryGame-btn').disabled = false;
+            document.getElementById('game14-newGame-btn').disabled = false;
 
-            this.updateTimerRing(1);
+            const settings = this.difficultySettings[this.difficulty] || this.difficultySettings['小學'];
+            this.maxMistakeCount = settings.maxMistakeCount;
             this.renderHearts();
 
-            this.selectAndPreparePoem(settings);
-            this.updateLayout();
-
-            if (isRetry) {
-                this.gameStart();
-            } else {
+            if (this.selectPoem(settings)) {
+                this.prepareLadder(settings);
                 this.showStartMessage();
             }
+
+            if (window.SoundManager && window.SoundManager.melodyPlayer) {
+                window.SoundManager.melodyPlayer.currentIndex = 0;
+            }
+        },
+
+        retryGame: function () {
+            if (!this.currentPoem) return;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (window.GameMessage) window.GameMessage.hide();
+
+            this.isActive = false;
+            this.score = 0;
+            this.mistakeCount = 0;
+            this.currentIndex = 0;
+            this.rows = [];
+            this.historyData = [];
+            this.timer = this.maxTimer;
+            this.startTime = null;
+
+            document.getElementById('game14-score').textContent = "0";
+            document.getElementById('game14-timer-display').textContent = this.timer;
+            this.updateTimerRing(1);
+
+            // 啟用按鈕
+            document.getElementById('game14-retryGame-btn').disabled = false;
+            document.getElementById('game14-newGame-btn').disabled = false;
+
+            this.renderHearts();
+
+            const settings = this.difficultySettings[this.difficulty] || this.difficultySettings['小學'];
+            this.prepareLadder(settings);
+            this.gameStart(); // 重來通常直接開始
 
             if (window.SoundManager && window.SoundManager.melodyPlayer) {
                 window.SoundManager.melodyPlayer.currentIndex = 0;
@@ -151,19 +191,24 @@
 
         updateTimerRing: function (ratio) {
             const path = document.getElementById('game14-timer-path');
-            const svg = document.getElementById('game14-timer-ring-svg');
-            if (!path || !svg) return;
+            const svg = document.getElementById('game14-timer-ring');
+            const area = document.getElementById('game14-area');
+            if (!path || !svg || !area) return;
 
-            const rect = svg.getBoundingClientRect();
-            if (rect.width === 0) return; // Hidden or not rendered yet
+            const w = area.offsetWidth;
+            const h = area.offsetHeight;
 
-            const w = rect.width - 6;
-            const h = rect.height - 6;
+            svg.setAttribute('width', w);
+            svg.setAttribute('height', h);
 
-            path.setAttribute('width', w);
-            path.setAttribute('height', h);
+            // 扣除 stroke-width (預設 0.5rem 換算大約 8px) 避免邊框被截斷
+            const rw = Math.max(0, w - 8);
+            const rh = Math.max(0, h - 8);
 
-            const perimeter = 2 * (w + h);
+            path.setAttribute('width', rw);
+            path.setAttribute('height', rh);
+
+            const perimeter = 2 * (rw + rh);
             path.style.strokeDasharray = perimeter;
             path.style.strokeDashoffset = perimeter * (1 - ratio);
 
@@ -171,12 +216,7 @@
             else path.style.stroke = 'hsl(0, 80%, 36%)';
         },
 
-        retryGame: function () {
-            this.startNewGame(true);
-        },
-
-        selectAndPreparePoem: function (settings) {
-            // 修正參數順序：minRating, minLines, maxLines, minChars, maxChars, keyword, seed, gameKey
+        selectPoem: function (settings) {
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
                 4,
@@ -184,23 +224,53 @@
                 settings.minChars,
                 settings.maxChars,
                 "",
-                null,
+                this.isLevelMode ? this.currentLevelIndex : null,
                 'game14'
             );
-            if (!result) return;
+            if (!result) return false;
 
             this.currentPoem = result.poem;
-            const chars = result.lines.join('').split('');
+            this.poemLines = result.lines;
 
             // 根據字數與難度係數計算總時限
+            const chars = result.lines.join('').split('');
             this.maxTimer = Math.ceil(chars.length * settings.timeMutiply);
             this.timer = this.maxTimer;
+            return true;
+        },
+
+        prepareLadder: function (settings) {
+            // 清理舊的階梯行
+            const area = document.getElementById('game14-area');
+            if (!area) return;
+            const elementsToRemove = area.querySelectorAll('.ladder-row-14');
+            elementsToRemove.forEach(el => area.removeChild(el));
 
             // 更新計時器顯示
             document.getElementById('game14-timer-display').textContent = this.timer;
             this.updateTimerRing(1);
 
+            // 更新詩詞資訊
+            let title = this.currentPoem.title;
+            if (title.length > 12) {
+                title = title.substring(0, 10) + "...";
+            }
+            const infoEl = document.getElementById('game14-poem-info');
+            if (infoEl) {
+                infoEl.textContent = `${title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+                infoEl.onclick = () => {
+                    if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
+                };
+            }
+
+            const chars = this.poemLines.join('').split('');
             const baseCommon = window.SharedDecoy ? window.SharedDecoy.decoyCharsSets.common.split('') : "的一是在不了有和人這中".split('');
+            const fallbackPool = baseCommon.filter(c => !chars.includes(c));
+
+            this.rows = [];
+            this.historyData = [];
+            let lastSide = -1; // 0: 左, 1: 右
+            let sideCount = 0;
 
             chars.forEach((char, idx) => {
                 let options;
@@ -209,8 +279,29 @@
                 if (isStartRow) {
                     options = [char];
                 } else {
-                    const decoys = window.SharedDecoy ? window.SharedDecoy.getDecoyChars([char], 1) : [baseCommon[Math.floor(Math.random() * baseCommon.length)]];
-                    options = [char, decoys[0]].sort(() => Math.random() - 0.5);
+                    // 混淆字排除題目詩句中的所有字，避免干擾
+                    const decoys = window.SharedDecoy ?
+                        window.SharedDecoy.getDecoyChars(chars, 1) :
+                        [fallbackPool[Math.floor(Math.random() * fallbackPool.length)]];
+
+                    // 隨機決定正確答案在哪一邊 (0: 左, 1: 右)
+                    let correctSide = Math.random() < 0.5 ? 0 : 1;
+
+                    // 防呆：若連續同一邊達 3 次以上，50% 機率強行換邊
+                    if (correctSide === lastSide) {
+                        sideCount++;
+                        if (sideCount >= 3) {
+                            if (Math.random() < 0.6) {
+                                correctSide = 1 - correctSide;
+                                sideCount = 1; // 換邊後重設計數
+                            }
+                        }
+                    } else {
+                        sideCount = 1; // 不同邊則重設計數
+                    }
+                    lastSide = correctSide;
+
+                    options = correctSide === 0 ? [char, decoys[0]] : [decoys[0], char];
                 }
 
                 const rowEl = document.createElement('div');
@@ -220,7 +311,6 @@
                     const btn = document.createElement('button');
                     btn.className = 'ladder-btn-14' + (isStartRow ? ' double-wide' : '');
 
-                    // 小學難度：錯誤選項直接顯示黑色
                     if (this.difficulty === '小學' && opt !== char && !isStartRow) {
                         btn.classList.add('wrong-hint');
                     }
@@ -232,9 +322,10 @@
 
                 this.rows.push({ element: rowEl, char: char, index: idx });
                 this.historyData.push({ char: char, status: 'waiting' });
-                this.gameArea.appendChild(rowEl);
+                area.appendChild(rowEl);
             });
 
+            this.updateLayout();
             this.renderHistory();
         },
 
@@ -320,14 +411,15 @@
                 window.RuleNoteDialog.show({
                     title: '步步驚心',
                     lines: [
-                        '點擊正確文字，攀爬詩詞之梯。',
-                        '外圍紅框代表時間，務必把握。',
-                        '首字直接點擊，後續二選一。',
-                        '在小學難度中，黑色代表陷阱。',
+                        '依序點擊最下方文字。',
+                        '點擊越快，分數越高。',
+                        '錯誤扣紅心。',
                         '　',
-                        '正確得10分，錯誤扣紅心。'
+                        '首字直接點擊，',
+                        '後續二選一。'
                     ],
                     btnText: '開始攀登',
+                    styles: { height: '60%', top: '60%' },
                     onConfirm: () => {
                         this.gameStart();
                     }
@@ -366,15 +458,43 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            this.isWin = win;
             if (this.timerInterval) clearInterval(this.timerInterval);
 
-            const showFinalMessage = (fScore) => {
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game14-retryGame-btn').disabled = true;
+                document.getElementById('game14-newGame-btn').disabled = true;
+            } else {
+                document.getElementById('game14-retryGame-btn').disabled = false;
+                document.getElementById('game14-newGame-btn').disabled = false;
+            }
+
+            const onConfirm = () => {
+                // 恢復按鈕狀態
+                document.getElementById('game14-retryGame-btn').disabled = false;
+                document.getElementById('game14-newGame-btn').disabled = false;
+
+                if (win) {
+                    if (this.isLevelMode) {
+                        this.currentLevelIndex++;
+                        this.startNewGame();
+                    } else {
+                        this.startNewGame();
+                    }
+                } else {
+                    this.retryGame();
+                }
+            };
+
+            const showMessage = () => {
                 if (window.GameMessage) {
                     window.GameMessage.show({
                         isWin: win,
-                        score: Math.floor(fScore),
+                        score: win ? Math.floor(this.score) : 0,
                         reason: reason,
-                        onConfirm: () => this.startNewGame()
+                        btnText: win ? (this.isLevelMode ? "下一關" : "開新局") : "再試一次",
+                        onConfirm: onConfirm
                     });
                 } else {
                     alert((win ? "答對了！" : "輸了！") + reason);
@@ -387,14 +507,24 @@
                     difficulty: this.difficulty,
                     gameKey: 'game14',
                     scoreElementId: 'game14-score',
-                    timerContainerId: 'game14-timer-ring-svg',
+                    timerContainerId: 'game14-timer-ring',
                     heartsSelector: '#game14-hearts .heart:not(.empty)',
                     onComplete: (finalScore) => {
-                        showFinalMessage(finalScore);
+                        this.score = finalScore;
+                        if (this.isLevelMode) {
+                            const achId = window.ScoreManager.completeLevel('game14', this.difficulty, this.currentLevelIndex);
+                            if (achId && window.AchievementDialog) {
+                                window.AchievementDialog.showInstantAchievementPop(achId, 'game14', this.currentLevelIndex, showMessage);
+                            } else {
+                                showMessage();
+                            }
+                        } else {
+                            showMessage();
+                        }
                     }
                 });
             } else {
-                showFinalMessage(this.score);
+                showMessage();
             }
         }
     };

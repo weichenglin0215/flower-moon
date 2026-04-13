@@ -336,7 +336,15 @@
         },
 
         newGame: function (levelIndex) {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame(false, levelIndex);
+            if (window.GameMessage) window.GameMessage.hide();
+            if (this.requestID) cancelAnimationFrame(this.requestID);
+            
+            // 開新局顯示規則摘要
+            setTimeout(() => {
+                this.showStartMessage();
+            }, 50);
         },
 
         startNextLevel: function () {

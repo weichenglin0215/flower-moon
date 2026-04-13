@@ -378,7 +378,7 @@
     <div class="sidebar" id="sidebar">
         <nav class="sidebar-nav">
             <a href="#" class="active" id="navPlayers" onclick="showPage('players')">&#128100; 玩家資料查詢</a>
-            <a href="#" id="navStats" onclick="showPage('stats')">&#128202; 遲戲統計分析</a>
+            <a href="#" id="navStats" onclick="showPage('stats')">&#128202; 遊戲統計分析</a>
         </nav>
     </div>
 
@@ -431,8 +431,10 @@
         </table>
 
         <script>
-            // 設定 Supabase client (與主遊戲共用)
+            // 全域變數用於跨頁面資料共享
             let supabaseClient;
+            let playerMap = {}; // id -> { nickname, global_rank, total_score }
+            let allPlayers = []; // 原始陣列用於排序
 
             async function init() {
                 // 由於瀏覽器 file:/// 安全性限制，有時 ../supabaseClient.js 會被擋下而無法讀取
@@ -470,8 +472,9 @@
                                     const value = dataset.data[index];
                                     if (value === 0 || value === null || value === undefined) return;
 
-                                    // 動態計算字體尺寸：取直橫條寬或高的最小值（即條狀圖的厚度）之 80%
-                                    const fontSize = Math.min(Math.abs(bar.width), Math.abs(bar.height)) * 1.0;
+                                    // 動態計算字體尺寸：取直橫條寬或高的最小值（即條狀圖的厚度）之 80%，並限制範圍在 10~60
+                                    let fontSize = Math.min(Math.abs(bar.width), Math.abs(bar.height)) * 1.0;
+                                    fontSize = Math.max(14, Math.min(60, fontSize));
                                     ctx.font = `bold ${fontSize}px sans-serif`;
                                     ctx.fillStyle = '#fff';
                                     // 加入陰影確保易讀性
@@ -571,6 +574,17 @@
                         .order('last_played_date', { ascending: false });
 
                     if (error) throw error;
+
+                    // 更新全域快取
+                    allPlayers = data;
+                    playerMap = {};
+                    data.forEach(p => {
+                        playerMap[p.id] = {
+                            nickname: p.nickname || '未具名',
+                            global_rank: p.global_rank || '書僮',
+                            total_score: p.total_score || 0
+                        };
+                    });
 
                     renderTable(data);
                 } catch (err) {
@@ -770,9 +784,9 @@
             }
 
             const GAME_NAMES = {
-                1: '慢思快選', 2: '飛花令', 3: '字爬梯', 4: '眾裡尋他千百度',
-                5: '詩詞小精靈', 6: '詩陣侵略', 7: '青鳥雲梯', 8: '一筆裁詩',
-                9: '詩韻鎖扣', 10: '擊石鳴詩', 11: '翻墨識蹤', 12: '疏影橫斜'
+                1: '01慢思快選', 2: '02飛花令', 3: '03字爬梯', 4: '04眾裡尋他千百度',
+                5: '05詩詞小精靈', 6: '06詩陣侵略', 7: '07青鳥雲梯', 8: '08一筆裁詩',
+                9: '09詩韻鎖扣', 10: '10擊石鳴詩', 11: '11翻墨識蹤', 12: '12疏影橫斜', 13: '13人事時地', 14: '14步步驚心'
             };
 
             function renderStats(logs) {
@@ -848,6 +862,31 @@
                         }
                     }
                 });
+
+                // --- 玩家總局數排名 (前 30 名，基於篩選範圍) ---
+                const byPlayerGames = {};
+                logs.forEach(l => { byPlayerGames[l.player_id] = (byPlayerGames[l.player_id] || 0) + 1; });
+                const topPlayerGames = Object.entries(byPlayerGames)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 30);
+
+                const pgLabels = topPlayerGames.map(([id, count]) => {
+                    const p = playerMap[id];
+                    return (p ? p.nickname : id.substring(0, 8)) + ` (${count}局)`;
+                });
+                const pgData = topPlayerGames.map(x => x[1]);
+                renderHBar('chartPlayerGamesRank', pgLabels, pgData, '總局數', '#2980b9');
+
+                // --- 玩家總積分排名 (前 30 名，總體排名) ---
+                const topPlayerScore = [...allPlayers]
+                    .sort((a, b) => (b.total_score || 0) - (a.total_score || 0))
+                    .slice(0, 30);
+
+                const psLabels = topPlayerScore.map(p => {
+                    return `${p.nickname || '未具名'} 【${p.global_rank || '書僮'}】`;
+                });
+                const psData = topPlayerScore.map(p => p.total_score || 0);
+                renderHBar('chartPlayerScoreRank', psLabels, psData, '總積分', '#8e44ad');
             }
 
             function renderChart(id, type, labels, data, label, color) {
@@ -1084,15 +1123,23 @@
             </div>
             <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
                 <h3 style="margin-top:0;color:#5c4033;">每個遊戲總局數</h3>
-                <canvas id="chartGameTotal" height="150"></canvas>
+                <canvas id="chartGameTotal" height="120"></canvas>
             </div>
             <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
                 <h3 style="margin-top:0;color:#5c4033;">每種難度總局數</h3>
-                <canvas id="chartDiffTotal" height="80"></canvas>
+                <canvas id="chartDiffTotal" height="60"></canvas>
             </div>
             <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
                 <h3 style="margin-top:0;color:#5c4033;">每個遊戲 × 每種難度總局數</h3>
-                <canvas id="chartGameDiff" height="200"></canvas>
+                <canvas id="chartGameDiff" height="360"></canvas>
+            </div>
+            <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
+                <h3 style="margin-top:0;color:#5c4033;">玩家總局數排名 (前 30 名)</h3>
+                <canvas id="chartPlayerGamesRank" height="300"></canvas>
+            </div>
+            <div style="background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);padding:20px;">
+                <h3 style="margin-top:0;color:#5c4033;">玩家總積分排名 (前 30 名)</h3>
+                <canvas id="chartPlayerScoreRank" height="300"></canvas>
             </div>
         </div>
     </div>

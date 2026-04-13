@@ -4,7 +4,7 @@
    ========================================= */
 
 .game14-overlay {
-    background: radial-gradient(circle at center, hsl(0, 10%, 20%) 0%, hsl(0, 0%, 5%) 100%);
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
     z-index: 2000;
     display: flex;
     flex-direction: column;
@@ -45,7 +45,8 @@
 }
 
 .game14-controls .nav-btn:hover {
-    filter: brightness(1.2);
+    filter: brightness(1.5);
+    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
 }
 
 .game14-controls .nav-btn:disabled {
@@ -61,6 +62,12 @@
     border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
     background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
     cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game14-difficulty-tag:hover {
+    filter: brightness(1.5);
+    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
 }
 
 .game14-sub-header {
@@ -90,12 +97,32 @@
     perspective-origin: center 80%;
 }
 
+.game14-poem-info {
+    position: absolute;
+    top: 0.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1rem;
+    color: hsla(0, 0%, 100%, 0.8);
+    cursor: pointer;
+    white-space: nowrap;
+    z-index: 1002;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.2rem 0.6rem;
+    border-radius: 1rem;
+}
+
+.game14-poem-info:hover {
+    color: hsl(45, 80%, 70%);
+    text-decoration: underline;
+}
+
 /* 遊戲歷程顯示 (最左側直排) */
 .game14-history {
     position: absolute;
     left: 0.5rem;
     top: 15%;
-    height: 70%;
+    height: 80%;
     width: 2.2rem;
     background: rgba(0, 0, 0, 0.5);
     padding: 0.4rem;
@@ -204,7 +231,7 @@
 }
 
 /* 計時器外周 (參考 Game 8) */
-#game14-timer-ring-svg {
+#game14-timer-ring {
     position: absolute;
     top: 0;
     left: 0;
@@ -217,7 +244,7 @@
 #game14-timer-path {
     fill: none;
     stroke: hsl(0, 80%, 36%);
-    stroke-width: 0.6rem;
+    stroke-width: 0.5rem;
     stroke-linecap: round;
     stroke-linejoin: round;
     transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
@@ -239,11 +266,12 @@
 
 /* 雙倍寬度起始按鈕 */
 .ladder-row-14.start-row .ladder-btn-14 {
-    width: 20rem; /* 約雙倍寬度 */
+    width: 20rem;
+    /* 約雙倍寬度 */
     height: 7rem;
     background: linear-gradient(135deg, hsl(50, 40%, 80%) 0%, hsl(50, 30%, 60%) 100%);
-    box-shadow: 0 0.8rem 1.5rem rgba(0, 0, 0, 0.5), 
-                inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0.8rem 1.5rem rgba(0, 0, 0, 0.5),
+        inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.8);
     border: 0.2rem solid hsl(50, 100%, 30%);
 }
 

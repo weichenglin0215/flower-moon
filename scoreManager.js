@@ -21,7 +21,7 @@ const ScoreManager = {
     // getPointB：遊戲中得分B(例如：擊石鳴詩消除一行詩句)
 
     gameSettings: {
-        'game1': { base: 100, heart: 30, time: 2 },
+        'game1': { base: 50, heart: 10, time: 1 },
         'game2': { base: 100, heart: 10, time: 2, getPointA: 10 },
         'game3': { base: 100, heart: 10, time: 2, getPointA: 5 },
         'game4': { base: 100, heart: 10, time: 2, getPointA: 10 },

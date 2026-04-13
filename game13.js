@@ -71,8 +71,8 @@
                     <div class="game13-score-board">分數: <span id="game13-score">0</span></div>
                     <div class="game13-controls">
                         <button class="game13-difficulty-tag" id="game13-diff-tag">小學</button>
-                        <button id="game13-retry-btn" class="nav-btn">重來</button>
-                        <button id="game13-new-btn" class="nav-btn">新局</button>
+                        <button id="game13-retryGame-btn" class="nav-btn">重來</button>
+                        <button id="game13-newGame-btn" class="nav-btn">新局</button>
                     </div>
                 </div>
                 <div class="game13-sub-header">
@@ -98,11 +98,11 @@
             `;
             document.body.appendChild(div);
 
-            document.getElementById('game13-retry-btn').onclick = () => {
+            document.getElementById('game13-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 this.retryGame();
             };
-            document.getElementById('game13-new-btn').onclick = () => {
+            document.getElementById('game13-newGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
@@ -154,15 +154,18 @@
         },
 
         startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
             document.getElementById('game13-score').textContent = this.score;
             this.renderHearts();
-
+            if (window.GameMessage) window.GameMessage.hide();
             if (this.selectRandomPoem()) {
                 this.generateProblem();
                 this.renderUI();
+                this.adjustFontSize(document.getElementById('game13-line1'), this.lines[0].length);
+                this.adjustFontSize(document.getElementById('game13-line2'), this.lines[1].length);
                 this.startTimer();
             } else {
                 alert('載入詩詞失敗');
@@ -171,13 +174,14 @@
         },
 
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
             document.getElementById('game13-score').textContent = this.score;
             this.renderHearts();
-
+            if (window.GameMessage) window.GameMessage.hide();
             // 重設狀態但不變更題目與選項內容
             this.hiddenMeta.forEach(m => m.isSolved = false);
             this.hiddenChars.forEach(c => c.isSolved = false);
@@ -411,6 +415,14 @@
             this.checkAnswerPoolRows();
         },
 
+        adjustFontSize: function (element, length) {
+            if (!element) return;
+            let baseSize = 2.0; // rem
+            if (length > 10) baseSize = 1.4;
+            else if (length > 7) baseSize = 1.7;
+            element.style.fontSize = baseSize + 'rem';
+        },
+
         checkAnswerPoolRows: function () {
             const pool = document.getElementById('game13-answer-pool');
             if (!pool) return;
@@ -544,7 +556,46 @@
 
         gameOver: function (win, reason) {
             this.isActive = false;
+            this.isWin = win;
             clearInterval(this.timerInterval);
+
+            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
+            if (win) {
+                document.getElementById('game13-retryGame-btn').disabled = true;
+                document.getElementById('game13-newGame-btn').disabled = true;
+            } else {
+                document.getElementById('game13-retryGame-btn').disabled = false;
+                document.getElementById('game13-newGame-btn').disabled = false;
+            }
+
+            const onConfirm = () => {
+                // 恢復按鈕狀態
+                document.getElementById('game13-retryGame-btn').disabled = false;
+                document.getElementById('game13-newGame-btn').disabled = false;
+
+                if (win) {
+                    if (this.isLevelMode) {
+                        this.currentLevelIndex++;
+                        this.startNewGame();
+                    } else {
+                        this.startNewGame();
+                    }
+                } else {
+                    this.retryGame();
+                }
+            };
+
+            const showMessage = () => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? this.score : 0,
+                        reason: reason || (win ? "" : "挑戰結束"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "開新局") : "再試一次",
+                        onConfirm: onConfirm
+                    });
+                }
+            };
 
             if (win && window.ScoreManager) {
                 window.ScoreManager.playWinAnimation({
@@ -556,34 +607,20 @@
                     heartsSelector: '#game13-hearts .heart:not(.empty)',
                     onComplete: (finalScore) => {
                         this.score = finalScore;
-                        this.showMessage(win, reason);
-                    }
-                });
-            } else {
-                this.showMessage(win, reason);
-            }
-        },
-
-        showMessage: function (win, reason) {
-            if (window.GameMessage) {
-                window.GameMessage.show({
-                    isWin: win,
-                    score: win ? this.score : 0,
-                    reason: reason || (win ? "" : "挑戰結束"),
-                    btnText: win ? (this.isLevelMode ? "下一關" : "開新局") : "再試一次",
-                    onConfirm: () => {
-                        if (win) {
-                            if (this.isLevelMode) {
-                                this.currentLevelIndex++;
-                                this.startNewGame();
+                        if (this.isLevelMode) {
+                            const achId = window.ScoreManager.completeLevel('game13', this.difficulty, this.currentLevelIndex);
+                            if (achId && window.AchievementDialog) {
+                                window.AchievementDialog.showInstantAchievementPop(achId, 'game13', this.currentLevelIndex, showMessage);
                             } else {
-                                this.startNewGame();
+                                showMessage();
                             }
                         } else {
-                            this.retryGame();
+                            showMessage();
                         }
                     }
                 });
+            } else {
+                showMessage();
             }
         }
     };

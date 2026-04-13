@@ -551,8 +551,8 @@
                     clearInterval(this.timerInterval);
                     this.mistakeCount++;
                     this.updateHearts();
-                    // 揭曉答案
-                    this.revealAnswer(false);
+                    // 取消揭曉答案
+                    //this.revealAnswer(false);
                     // 延遲顯示結束
                     setTimeout(() => {
                         this.gameOver(false, "時間到！");
@@ -645,7 +645,7 @@
                     clearInterval(this.timerInterval);
 
                     // 取消揭曉答案：將正確答案以 .hint 顯示
-                    this.revealAnswer(false);
+                    //this.revealAnswer(false);
 
                     setTimeout(() => {
                         this.gameOver(false, "失誤過多！");
