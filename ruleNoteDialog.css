@@ -8,8 +8,6 @@
     pointer-events: auto; /* 阻擋下方點擊 */
     z-index: 3000; /* 給予極高層級，使其蓋過所有遊戲容器 (Game3 是 2000) */
     --msg-width-scale: 1;
-    width: calc(var(--responsive-width, 100vw) * var(--msg-width-scale)) !important;
-    height: calc(var(--responsive-height, 100vh) * var(--msg-width-scale)) !important;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -24,12 +22,12 @@
     position: absolute;
     /* 位置將由 JS 根據參數覆蓋，例如 top/left 等 */
     transform: translate(-50%, -50%);
-    border: 0.1rem solid hsla(200, 100%, 70%, 0.4);
-    border-radius: 1rem;
-    padding: 1.0rem;
+    border: 2px solid hsla(200, 100%, 70%, 0.4);
+    border-radius: 20px;
+    padding: 20px;
     text-align: center;
     backdrop-filter: blur(8px);
-    box-shadow: 0 0 0.3rem hsla(221, 76%, 46%, 0.5);
+    box-shadow: 0 0 6px hsla(221, 76%, 46%, 0.5);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -37,23 +35,23 @@
 }
 
 .ruleNoteDialog-box h2 {
-    font-size: 1.6rem;
-    margin-bottom: 0.8rem;
+    font-size: 32px;
+    margin-bottom: 16px;
 }
 
 .ruleNoteDialog-box p {
-    margin: 0.4rem 0;
-    font-size: 1.1rem;
+    margin: 8px 0;
+    font-size: 22px;
     line-height: 1.5;
 }
 
 .ruleNoteDialog-box button {
     position: absolute;
-    bottom: 1rem;
+    bottom: 20px;
     border: 1px solid hsla(180, 80%, 60%, 0.3);
-    padding: 0.5rem 1.5rem;
-    border-radius: 1.5rem;
-    font-size: 1.5rem;
+    padding: 10px 30px;
+    border-radius: 30px;
+    font-size: 30px;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.6s ease;

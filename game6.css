@@ -1,6 +1,10 @@
 /* game6.css - 詩陣侵略 (Poetry Invaders) */
 
 .game6-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
     color: hsl(40, 50%, 80%);
     font-family: 'Noto Serif TC', serif;
@@ -11,37 +15,37 @@
 }
 
 .game6-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 10;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
 }
 
 .game6-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 /*控制按鈕*/
 .game6-controls {
     display: flex;
-    gap: 0.5rem;
+    gap: 10px;
 }
 
 /*控制按鈕*/
 .game6-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
 }
 
@@ -63,21 +67,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .game6-hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .game6-hearts .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .game6-hearts .empty {
@@ -95,11 +99,11 @@
 
 /* 難度標籤 */
 .game6-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
@@ -126,50 +130,50 @@
 }
 
 .game6-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
 /*收集詩句的欄位*/
 .game6-progress-strip {
-    min-height: 3rem;
-    height: auto;
+    min-height: 60px;
+    height: 60px;
     background: rgba(0, 0, 0, 0.4);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0.1rem 1rem;
-    font-size: 1.0rem;
+    padding: 2px 20px;
+    font-size: auto;
     line-height: 1.0;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
-    gap: 0.3rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 6px;
 }
 
 /*收集詩句的欄位*/
 .game6-poem-row {
     display: flex;
     justify-content: center;
-    gap: 0.2rem;
+    gap: 4px;
 }
 
 /*未收集的字*/
 .game6-poem-char {
-    margin-right: 0.2rem;
-    opacity: 0.3;
+    margin-right: 4px;
+    opacity: 0.6;
 }
 
 /*已收集的字*/
 .game6-poem-char.collected {
     opacity: 1;
     color: gold;
-    text-shadow: 0 0 0.1rem gold;
+    text-shadow: 0 0 2px gold;
 }
 
 /*戰鬥區*/
 #game6-canvas {
     width: 100%;
-    height: 100%;
+    height: 680px;
     background: transparent;
     cursor: crosshair;
     touch-action: none;
@@ -177,16 +181,16 @@
 
 /*底部說明區*/
 .game6-footer {
-    height: 5%;
+    height: 30px;
     background: rgba(255, 255, 255, 0.05);
     display: flex;
     justify-content: center;
     align-items: center;
-    border-top: 0.0rem solid hsla(0, 0%, 100%, 0.1);
+    border-top: 0px solid hsla(0, 0%, 100%, 0.1);
 }
 
 .game6-drag-hint {
-    font-size: 0.8rem;
+    font-size: 16px;
     opacity: 0.6;
 }
 

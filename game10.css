@@ -5,6 +5,10 @@
 
 /* 遊戲全屏遮罩：背景使用放射狀漸變，營造深邃感 */
 .game10-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: radial-gradient(circle at center, hsl(210, 30%, 20%) 0%, hsl(0, 0%, 0%) 100%);
     z-index: 2000;
     display: flex;
@@ -24,31 +28,31 @@
 
 /* 遊戲頂部資訊列（分數與控制） */
 .game10-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.1);
     z-index: 10;
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .game10-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 /* 控制按鈕（重來／開新局） */
 .game10-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
     transition: background 0.2s;
 }
@@ -65,11 +69,11 @@
 
 /* 難度標籤 */
 .game10-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
@@ -96,7 +100,7 @@
 }
 
 .game10-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
@@ -108,21 +112,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .heart.empty {
@@ -144,16 +148,16 @@
 /* 詩詞資訊 */
 .game10-poem-info {
     position: absolute;
-    top: 0.3rem;
-    right: 0.3rem;
-    font-size: 1rem;
+    top: 6px;
+    right: 6px;
+    font-size: 20px;
     color: hsl(40, 50%, 80%);
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
     text-decoration: underline;
-    text-underline-offset: 0.2rem;
+    text-underline-offset: 4px;
     z-index: 100;
 }
 
@@ -161,11 +165,11 @@
 /* 撞擊條 (Jade Paddle)：使用玉石般的漸變與邊框 */
 .game10-paddle {
     position: absolute;
-    height: 0.8rem;
+    height: 16px;
     background: linear-gradient(to top, hsl(150, 20%, 30%), hsl(150, 30%, 50%));
-    border: 0.1rem solid hsl(150, 40%, 70%);
-    border-radius: 0.4rem;
-    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.5), inset 0 0.1rem 0.2rem hsla(0, 0%, 100%, 0.3);
+    border: 2px solid hsl(150, 40%, 70%);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 2px 4px hsla(0, 0%, 100%, 0.3);
     z-index: 50;
     transform: translate(-50%, -50%);
     /* 確保 JS 設定的 left/top 對準中心點 */
@@ -175,24 +179,24 @@
 .game10-paddle.flash-pink-sides::after {
     content: '';
     position: absolute;
-    top: -0.1rem;
-    bottom: -0.1rem;
+    top: -2px;
+    bottom: -2px;
     width: var(--pink-side-width, 10%);
     background: linear-gradient(to top, hsl(330, 40%, 40%), hsl(330, 50%, 60%));
-    border: 0.1rem solid hsl(330, 60%, 80%);
-    border-radius: 0.4rem;
-    box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.5), inset 0 0.1rem 0.2rem hsla(0, 0%, 100%, 0.3);
+    border: 2px solid hsl(330, 60%, 80%);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 2px 4px hsla(0, 0%, 100%, 0.3);
     z-index: 2;
 }
 
 .game10-paddle.flash-pink-sides::before {
-    left: -0.1rem;
+    left: -2px;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
 
 .game10-paddle.flash-pink-sides::after {
-    right: -0.1rem;
+    right: -2px;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
@@ -200,11 +204,11 @@
 /* 圓球 (Pearl Ball)：白色珍珠質感與外發光效果 */
 .game10-ball {
     position: absolute;
-    width: 0.8rem;
-    height: 0.8rem;
+    width: 16px;
+    height: 16px;
     background: radial-gradient(circle at 30% 30%, #fff, #ddd);
     border-radius: 50%;
-    box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.5), 0 0 0.5rem hsla(0, 0%, 100%, 0.8);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 10px hsla(0, 0%, 100%, 0.8);
     z-index: 49;
     transform: translate(-50%, -50%);
     /* 確保 JS 設定的 left/top 對準中心點 */
@@ -213,8 +217,8 @@
 /* 球軌跡的粒子 */
 .game10-trail-particle {
     position: absolute;
-    width: 0.4rem;
-    height: 0.4rem;
+    width: 8px;
+    height: 8px;
     background: hsla(0, 0%, 100%, 0.5);
     border-radius: 50%;
     pointer-events: none;
@@ -241,9 +245,9 @@
 
 .game10-brick {
     position: absolute;
-    width: 2.5rem;
+    width: 50px;
     /* 由 JS 動態設定，這裡設定預設值 */
-    height: 2.5rem;
+    height: 50px;
     pointer-events: none;
     /* 由 JS 判定碰撞，DOM 僅作渲染 */
     z-index: 45;
@@ -255,14 +259,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 40px;
     /*方塊與字體控制部分是寫在game10.js*/
     font-weight: bold;
     color: hsl(0, 0%, 100%);
     background: hsl(32, 100%, 100%);
-    border: 0.1rem solid hsla(0, 0%, 100%, 0.3);
-    border-radius: 0.3rem;
-    box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.1);
+    border: 2px solid hsla(0, 0%, 100%, 0.3);
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: background-color 0.1s;
     /* 只允許背景顏色過渡 */
 }
@@ -278,9 +282,9 @@
     border: none !important;
     box-shadow: none;
     color: hsl(0, 0%, 100%);
-    border: 0.1rem solid hsla(0, 0%, 0%, 0.0);
+    border: 2px solid hsla(0, 0%, 0%, 0.0);
     /*border也無法消除被擊破的文字的邊框*/
-    text-shadow: 0 0 0.2rem rgba(255, 200, 0, 1);
+    text-shadow: 0 0 4px rgba(255, 200, 0, 1);
     pointer-events: none;
     opacity: 0.3;
     /* 半透明顯示，避免干擾玩家 */
@@ -325,8 +329,8 @@
 /* 文字框碎片 */
 .game10-shatter-particle {
     position: absolute;
-    width: 0.5rem;
-    height: 0.5rem;
+    width: 10px;
+    height: 10px;
     background: #fff;
     border-radius: 50%;
     pointer-events: none;
@@ -337,15 +341,15 @@
 /* 煙火粒子 */
 .game10-firework-particle {
     position: absolute;
-    width: 0.5rem;
-    height: 0.5rem;
+    width: 10px;
+    height: 10px;
     background: #ff0;
     border-radius: 50%;
     pointer-events: none;
     z-index: 55;
     transition: transform 1s ease-out, opacity 1s ease-out;
-    filter: blur(0.05rem);
-    box-shadow: 0 0 0.2rem #fff;
+    filter: blur(1px);
+    box-shadow: 0 0 4px #fff;
 }
 
 /* 倒數計時 */
@@ -354,11 +358,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 5rem;
+    font-size: 100px;
     font-weight: bold;
     color: hsl(50, 100%, 70%);
     /* 淡黃色 */
-    text-shadow: 0 0 1rem rgba(0, 0, 0, 0.5), 0 0 2rem hsl(50, 100%, 50%);
+    text-shadow: 0 0 20px rgba(0, 0, 0, 0.5), 0 0 40px hsl(50, 100%, 50%);
     z-index: 150;
     pointer-events: none;
     animation: game10-cd-pulse 1s linear infinite;

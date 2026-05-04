@@ -200,7 +200,7 @@ window.AuthorBio = (function () {
 
                         <span>作者列表</span>
 
-                        <span id="authorCount" style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;"></span>
+                        <span id="authorCount" style="font-size: 16px; font-weight: normal; opacity: 0.8;"></span>
 
                     </div>
 
@@ -212,15 +212,15 @@ window.AuthorBio = (function () {
 
                     <div class="list-title">作品列表
 
-                        <button class="sort-btn active" data-sort="rating" style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">評價 ↓</button>
+                        <button class="sort-btn active" data-sort="rating" style="font-size: 16px; font-weight: normal; opacity: 0.8;">評價 ↓</button>
 
-                        <button class="sort-btn" data-sort="text" style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">名稱 ↓</button>
+                        <button class="sort-btn" data-sort="text" style="font-size: 16px; font-weight: normal; opacity: 0.8;">名稱 ↓</button>
 
                     </div>
 
                     <div class="works-scroll" id="worksList">
 
-                        <div style="padding: 0.6rem; text-align: center; opacity: 0.5;">請選擇一位作者</div>
+                        <div style="padding: 12px; text-align: center; opacity: 0.5;">請選擇一位作者</div>
 
                     </div>
 
@@ -231,7 +231,17 @@ window.AuthorBio = (function () {
         `;
 
         document.body.appendChild(page);
-
+        
+        if (window.registerOverlayResize) {
+            window.registerOverlayResize((r) => {
+                page.style.left = r.left + 'px';
+                page.style.top = r.top + 'px';
+                page.style.width = '500px';
+                page.style.height = '850px';
+                page.style.transform = 'scale(' + r.scale + ')';
+                page.style.transformOrigin = 'top left';
+            });
+        }
 
 
         // Events
@@ -538,7 +548,7 @@ window.AuthorBio = (function () {
 
                     ${author.name} 
 
-                    <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.8;">(${author.dynasty})</span>
+                    <span style="font-size: 16px; font-weight: normal; opacity: 0.8;">(${author.dynasty})</span>
 
                 </div>
 

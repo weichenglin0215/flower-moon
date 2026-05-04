@@ -20,8 +20,6 @@
         timerBar: null,
         timerText: null,
 
-
-        // 难度设置
         //timeLimit: 時間限制
         //poemMinRating: 最低詩詞評分
         //maxMistakeCount: 最大錯誤次數
@@ -76,7 +74,7 @@
             const div = document.createElement('div');
             div.id = 'game1-container';
             //檢查responsive.css是否有包括game1 - overlay.aspect - 5 - 8
-            div.className = 'game1-overlay aspect-5-8 hidden';
+            div.className = 'game1-overlay  hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
                 <!-- <div class="debug-frame"></div> -->
@@ -119,6 +117,16 @@
             </div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
             this.renderHearts();
         },
 
@@ -156,7 +164,7 @@
                     document.body.classList.add('overlay-active');
                     // 觸發響應式佈局更新
                     if (window.updateResponsiveLayout) {
-                        window.updateResponsiveLayout();
+                        /* updateResponsiveLayout replaced */
                     }
                     this.startNewGame();
                 });
@@ -167,7 +175,7 @@
                 document.body.style.overflow = 'hidden';
                 document.body.classList.add('overlay-active');
                 if (window.updateResponsiveLayout) {
-                    window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                 }
                 this.startNewGame();
             }
@@ -196,7 +204,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         hideOtherContents: function () {
@@ -576,7 +584,7 @@
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
 
-            // 邊框預留 (stroke-width: 8) -> 0.1rem margin inside
+            // 邊框預留 (stroke-width: 8) -> 2px margin inside
             // Rect 實際大小
             const rw = w - 8;
             const rh = h - 8;
@@ -729,9 +737,9 @@
         adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
             if (textLen > threshold) {
                 const newSize = baseFontSizeRem * (threshold / textLen);
-                element.style.fontSize = `${newSize}rem`;
+                element.style.fontSize = `${(newSize) * 20}px`;
             } else {
-                element.style.fontSize = `${baseFontSizeRem}rem`;
+                element.style.fontSize = `${(baseFontSizeRem) * 20}px`;
             }
         }
     };

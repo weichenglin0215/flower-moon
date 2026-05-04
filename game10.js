@@ -19,8 +19,8 @@
         ballEl: null,          // 球 (Ball) DOM
         bricksContainer: null, // 磚塊容器 DOM
 
-        areaRect: { width: 0, height: 0, left: 0, top: 0 }, // 遊玩區域的矩形資訊
-        remToPx: 10, // 單位換算：1rem 等於多少像素
+        areaRect: { width: 500, height: 850, left: 0, top: 0, scale: 1 }, // 遊玩區域的矩形資訊
+        remToPx: 20, // 單位換算：20px 等於多少像素
         countdown: 0, // 倒數計時秒數
         dropTimer: 0, // 磚塊下移計時器
         pendingSpawnCount: 0, // 正在等待產生的球數 (延遲生成用)
@@ -100,7 +100,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game10-container';
-            div.className = 'game10-overlay aspect-5-8 hidden';
+            div.className = 'game10-overlay  hidden';
             div.innerHTML = `
                 <div class="game10-header">
                     <div class="game10-score-board">分數: <span id="game10-score">0</span></div>
@@ -126,6 +126,21 @@
                 </div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+
+                    // 更新邏輯碰撞區域，供 setupInput 使用
+                    this.areaRect.left = r.left;
+                    this.areaRect.top = r.top;
+                    this.areaRect.scale = r.scale;
+                });
+            }
         },
 
         setupInput: function () {
@@ -134,11 +149,11 @@
                 e.preventDefault();
                 let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
 
-                // 將滑鼠座標轉為相對寬度中的座標
-                let x = clientX - this.areaRect.left;
+                // 將滑鼠座標轉為相對縮放後的座標
+                let x = (clientX - this.areaRect.left) / (this.areaRect.scale || 1);
 
-                // 轉成 rem
-                let remX = x / this.remToPx;
+                // 轉成 rem (1rem = 20px)
+                let remX = x / 20;
 
                 // 暫存 targetX，在 gameLoop 中平滑移動
                 this.paddle.targetX = remX;
@@ -181,7 +196,7 @@
                         document.body.classList.add('overlay-active');
                     }
 
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
             }
@@ -210,7 +225,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         launchBall: function () {
@@ -282,7 +297,7 @@
             document.body.classList.add('overlay-active');
 
             if (window.updateResponsiveLayout) {
-                window.updateResponsiveLayout();
+                /* updateResponsiveLayout replaced */
             }
             // 等待 layout 計算完成再開始
             setTimeout(() => {
@@ -384,9 +399,9 @@
             let contentLines = this.currentPoem.content.slice(result.startIndex, result.startIndex + settings.minLines);
 
             // 計算螢幕尺寸
-            const rect = this.gameArea.getBoundingClientRect();
-            this.remToPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 10;
-            const wRem = rect.width / this.remToPx;
+            this.remToPx = 20;
+            const wRem = 500 / this.remToPx;
+            const hRem = 850 / this.remToPx;
 
             let startY = 2.0; // 從頂部向下偏移一點，避開分數列
             const charWidth = 2.5;  // 磚塊寬度
@@ -446,8 +461,8 @@
             this.bricks.forEach((b, i) => {
                 const el = document.createElement('div');
                 el.className = 'game10-brick';
-                el.style.width = `${b.width}rem`;
-                el.style.height = `${b.height}rem`;
+                el.style.width = `${(b.width) * 20}px`;
+                el.style.height = `${(b.height) * 20}px`;
                 // 初始化位置設為 0，後續由 updateRender 透過 transform 控制
                 el.style.left = '0';
                 el.style.top = '0';
@@ -501,11 +516,11 @@
             document.getElementById('game10-retryGame-btn').disabled = false;
             document.getElementById('game10-newGame-btn').disabled = false;
 
-            // 計算視窗
-            this.areaRect = this.gameArea.getBoundingClientRect();
-            this.remToPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 10;
-            const wRem = this.areaRect.width / this.remToPx;
-            const hRem = this.areaRect.height / this.remToPx;
+            // 計算視窗 (邏輯解析度始終為 500x850)
+            this.areaRect = this.areaRect || { width: 500, height: 850, left: 0, top: 0, scale: 1 };
+            this.remToPx = 20;
+            const wRem = 500 / this.remToPx;
+            const hRem = 850 / this.remToPx;
 
             // 初始化 Paddle
             const settings = this.difficultySettings[this.difficulty];
@@ -518,7 +533,7 @@
             this.paddle.x = wRem / 2;
             this.paddle.prevX = wRem / 2; // 初始化上一幀位置
             this.paddle.targetX = wRem / 2;
-            this.paddle.y = hRem - 4.8; //原先是-2.4，往上移避免手指頭遮住反彈棒
+            this.paddle.y = hRem - (10); //往上移避免手指頭遮住反彈棒，我也搞不清楚10代表多高。
             this.paddle.velX = 0;
 
             // 初始化 Ball
@@ -1033,13 +1048,13 @@
         updateRender: function () {
             // Paddle
             if (this.paddleEl) {
-                this.paddleEl.style.width = `${this.paddle.width}rem`;
-                this.paddleEl.style.left = `${this.paddle.x}rem`;
-                this.paddleEl.style.top = `${this.paddle.y}rem`;
+                this.paddleEl.style.width = `${(this.paddle.width) * 20}px`;
+                this.paddleEl.style.left = `${(this.paddle.x) * 20}px`;
+                this.paddleEl.style.top = `${(this.paddle.y) * 20}px`;
                 if (this.paddle.isPink) {
                     this.paddleEl.classList.add('flash-pink-sides');
                     const pinkWidth = (this.paddle.flashNewWidth - this.paddle.flashOldWidth) / 2;
-                    this.paddleEl.style.setProperty('--pink-side-width', `${pinkWidth + 0.1}rem`);
+                    this.paddleEl.style.setProperty('--pink-side-width', `${(pinkWidth + 0.1) * 20}px`);
                 } else {
                     this.paddleEl.classList.remove('flash-pink-sides');
                 }
@@ -1047,16 +1062,16 @@
             // Balls
             this.balls.forEach(ball => {
                 if (ball.element) {
-                    ball.element.style.left = `${ball.x}rem`;
-                    ball.element.style.top = `${ball.y}rem`;
+                    ball.element.style.left = `${(ball.x) * 20}px`;
+                    ball.element.style.top = `${(ball.y) * 20}px`;
                 }
             });
             // Bricks down render
             this.bricks.forEach(b => {
                 if (b.element) {
                     // 統一使用 left 和 top 配合 translate(-50%, -50%) 以避免 iOS 上的複合變換排版錯誤
-                    b.element.style.left = `${b.x}rem`;
-                    b.element.style.top = `${b.y}rem`;
+                    b.element.style.left = `${(b.x) * 20}px`;
+                    b.element.style.top = `${(b.y) * 20}px`;
                     b.element.style.transform = `translate(-50%, -50%)`;
                 }
             });
@@ -1065,8 +1080,8 @@
         createTrailParticle: function (x, y) {
             const p = document.createElement('div');
             p.className = 'game10-trail-particle';
-            p.style.left = `${x}rem`;
-            p.style.top = `${y}rem`;
+            p.style.left = `${(x) * 20}px`;
+            p.style.top = `${(y) * 20}px`;
             this.gameArea.appendChild(p);
             setTimeout(() => {
                 if (p.parentNode) p.parentNode.removeChild(p);
@@ -1077,8 +1092,8 @@
             for (let i = 0; i < 6; i++) {
                 const p = document.createElement('div');
                 p.className = 'game10-shatter-particle'; //文字框碎片
-                p.style.left = `${x}rem`;
-                p.style.top = `${y}rem`;
+                p.style.left = `${(x) * 20}px`;
+                p.style.top = `${(y) * 20}px`;
 
                 const angle = Math.random() * Math.PI * 2;
                 const dist = Math.random() * 2 + 1;
@@ -1089,7 +1104,7 @@
 
                 // 動畫
                 setTimeout(() => {
-                    p.style.transform = `translate(${dx}rem, ${dy}rem)`;
+                    p.style.transform = `translate(${(dx) * 20}px, ${(dy) * 20}px)`;
                     p.style.opacity = '0';
                 }, 10);
 
@@ -1118,8 +1133,8 @@
                 p.className = 'game10-firework-particle';
                 const hue = Math.floor(Math.random() * 60) + 10; // 金黃色系
                 p.style.backgroundColor = `hsl(${hue}, 100%, 60%)`;
-                p.style.left = `${x}rem`;
-                p.style.top = `${y}rem`;
+                p.style.left = `${(x) * 20}px`;
+                p.style.top = `${(y) * 20}px`;
 
                 const angle = Math.random() * Math.PI * 2;
                 const dist = Math.random() * 4 + 2;
@@ -1129,7 +1144,7 @@
                 this.gameArea.appendChild(p);
 
                 setTimeout(() => {
-                    p.style.transform = `translate(${dx}rem, ${dy}rem) scale(0)`;
+                    p.style.transform = `translate(${(dx) * 20}px, ${(dy) * 20}px) scale(0)`;
                     p.style.opacity = '0';
                 }, 10);
 

@@ -15,13 +15,14 @@
         timeLeft: 60, // 剩餘時間
         timerInterval: null, // 計時器間隔
         nextEnemyId: 0, // 下一個敵人ID
+        areaRect: { left: 0, top: 0, scale: 1 }, // 視窗縮放偏移資訊
 
         // 佈局單位定義 (以 rem 為基礎)
         ui: {
             // 敵人相關
-            enemySize: 1.5,        // 敵人大小
+            enemySize: 2.0,        // 敵人大小
             enemySpacingX: 1.2,    // 橫向間距
-            enemySpacingY: 1.2,    // 縱向間距
+            enemySpacingY: 1.4,    // 縱向間距
 
             // 敵人子彈
             enemyBulletSize: 0.2,  // 子彈大小
@@ -32,10 +33,10 @@
             monumentRows: 4,       // 掩體縱列數
 
             // 玩家外觀控制
-            playerWidth: 2.0,      // 玩家寬度
-            playerHeight: 0.8,     // 玩家高度
-            gunWidth: 0.3,         // 槍管寬度
-            gunHeight: 0.3,        // 槍管高度
+            playerWidth: 2.5,      // 玩家寬度
+            playerHeight: 1.0,     // 玩家高度
+            gunWidth: 0.5,         // 槍管寬度
+            gunHeight: 0.5,        // 槍管高度
 
             // 玩家攻擊設定
             bulletSize: 0.3,       // 子彈大小
@@ -43,7 +44,7 @@
 
             // 寶箱界面參數
             powerUpBoxSizeWidth: 5,    // 寶箱寬度
-            powerUpBoxSizeHeight: 6    // 寶箱高度
+            powerUpBoxSizeHeight: 7    // 寶箱高度
         },
 
         // 玩家與怪物
@@ -107,7 +108,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game6-container';
-            div.className = 'game6-overlay aspect-5-8 hidden';
+            div.className = 'game6-overlay  hidden';
             div.innerHTML = `
                 <div class="game6-header">
                     <div class="game6-score-board">得分: <span id="game6-score">0</span></div>
@@ -134,6 +135,21 @@
                 </div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+
+                    // 更新輸入對齊資訊
+                    this.areaRect.left = r.left;
+                    this.areaRect.top = r.top;
+                    this.areaRect.scale = r.scale;
+                });
+            }
             this.container = div;
             this.canvas = document.getElementById('game6-canvas');
             this.ctx = this.canvas.getContext('2d');
@@ -158,44 +174,41 @@
 
             // 觸控事件
             dragArea.addEventListener('touchstart', (e) => {
-                this.touchStartX = e.touches[0].clientX;
-                this.dragStartX = this.player.x;
-                this.player.isFiring = true; // 開始連發射擊
-            }, { passive: true });
+                if (!this.isActive || this.isPausedForPowerUp) return;
+                this.player.isFiring = true;
+                const clientX = e.touches[0].clientX;
+                const logicalX = (clientX - this.areaRect.left) / (this.areaRect.scale || 1);
+                this.movePlayer(logicalX);
+            }, { passive: false });
 
             dragArea.addEventListener('touchmove', (e) => {
                 if (!this.isActive || this.isPausedForPowerUp) return;
-                const dx = e.touches[0].clientX - this.touchStartX;
-                this.movePlayer(this.dragStartX + dx);
-            }, { passive: true });
+                e.preventDefault();
+                const clientX = e.touches[0].clientX;
+                const logicalX = (clientX - this.areaRect.left) / (this.areaRect.scale || 1);
+                this.movePlayer(logicalX);
+            }, { passive: false });
 
             dragArea.addEventListener('touchend', () => {
-                this.player.isFiring = false; // 停止連發射擊
-            });
-            dragArea.addEventListener('touchcancel', () => {
                 this.player.isFiring = false;
             });
 
             // 滑鼠事件
-            let isDragging = false;
             dragArea.addEventListener('mousedown', (e) => {
-                // 如果是在點擊獎勵選擇時，不執行連發行為
-                if (this.isPausedForPowerUp) return;
-                isDragging = true;
-                this.touchStartX = e.clientX;
-                this.dragStartX = this.player.x;
-                this.player.isFiring = true; // 滑鼠按下開始射擊
+                if (!this.isActive || this.isPausedForPowerUp) return;
+                this.player.isFiring = true;
+                const logicalX = (e.clientX - this.areaRect.left) / (this.areaRect.scale || 1);
+                this.movePlayer(logicalX);
             });
 
             window.addEventListener('mousemove', (e) => {
-                if (!isDragging || !this.isActive || this.isPausedForPowerUp) return;
-                const dx = e.clientX - this.touchStartX;
-                this.movePlayer(this.dragStartX + dx);
+                if (!this.isActive || this.isPausedForPowerUp || !this.player.isFiring) return;
+                const logicalX = (e.clientX - this.areaRect.left) / (this.areaRect.scale || 1);
+                this.movePlayer(logicalX);
             });
 
             window.addEventListener('mouseup', () => {
-                isDragging = false;
-                this.player.isFiring = false; // 放開按鍵停止射擊
+                this.player.isFiring = false;
             });
 
             // 獎勵點擊事件
@@ -266,7 +279,7 @@
                     }
 
                     this.setupCanvas();
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
             }
@@ -295,7 +308,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         show: function () {
@@ -322,20 +335,18 @@
                     document.body.style.overflow = 'hidden'; // Add this line
                     document.body.classList.add('overlay-active');
                     this.setupCanvas();
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
             }
         },
 
         setupCanvas: function () {
-            const area = document.querySelector('.game6-area');
-            this.canvas.width = area.offsetWidth;
-            this.canvas.height = area.offsetHeight;
+            this.canvas.width = 500;
+            this.canvas.height = 680; //850-上下介面的高度
 
-            // 使用 rem 作為基本單位，確保在不同解析度下有一致的顯示效果
-            const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-            this.u = rootFontSize;
+            // 使用固定 rem 單位 (1rem = 20px)
+            this.u = 20;
 
             // 初始化玩家尺寸
             this.player.width = this.ui.playerWidth * this.u;
@@ -552,7 +563,7 @@
                         html += `<span class="game6-poem-char" data-row="${i}" data-char="${char}">${char}</span>`;
                     }
                     // 間隔
-                    if (row2) html += `<span style="margin: 0 0.5rem; opacity: 0.5;"></span>`;
+                    if (row2) html += `<span style="margin: 0 10px; opacity: 0.5;"></span>`;
                     // 第二句
                     for (let char of row2) {
                         html += `<span class="game6-poem-char" data-row="${i + 1}" data-char="${char}">${char}</span>`;
@@ -649,7 +660,7 @@
             // 3. 執行下移與檢測
             let lowestY = 0;
             const px = this.player.x - this.player.width / 2;
-            const py = this.canvas.height - this.player.height - 20;
+            const py = 680 - this.player.height - 25; // 1.25 * 20 = 25
 
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const e = this.enemies[i];
@@ -718,7 +729,7 @@
         fireBullet: function () {
             const bSpeed = 400 * (this.u / 16); // 隨 rem 縮放子彈速度
             const count = this.player.multiShotLevel;
-            const spread = 0.5 * this.u; // 玩家發射多發子彈的寬度間隔，與 draw 保持一致
+            const spread = 1.0 * this.u; // 玩家發射多發子彈的寬度間隔，與 draw 保持一致
             const gunH = this.ui.gunHeight * this.u;
             const py = this.canvas.height - this.player.height - 1.25 * this.u;
 
@@ -1044,13 +1055,13 @@
             // 繪製玩家
             this.ctx.fillStyle = this.player.hitTimer > 0 ? 'red' : 'hsl(36, 80%, 50%)';
             const px = this.player.x - this.player.width / 2;
-            const py = this.canvas.height - this.player.height - 1.25 * this.u;
+            const py = this.canvas.height - this.player.height - 2.5 * this.u;
             this.ctx.fillRect(px, py, this.player.width, this.player.height);
             // 槍管
             const mCount = this.player.multiShotLevel;
             const gunW = this.ui.gunWidth * this.u;
             const gunH = this.ui.gunHeight * this.u;
-            const spread = 0.5 * this.u; // 玩家發射多發子彈的寬度間隔，與 fireBullet 保持一致
+            const spread = 1.0 * this.u; // 玩家發射多發子彈的寬度間隔，與 fireBullet 保持一致
             for (let i = 0; i < mCount; i++) {
                 const off = (i - (mCount - 1) / 2) * spread;
                 this.ctx.fillRect(this.player.x + off - gunW / 2, py - gunH, gunW, gunH);
@@ -1061,7 +1072,7 @@
                 this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.fillStyle = 'white';
-                this.ctx.font = `bold 2rem 'Noto Serif TC'`;
+                this.ctx.font = `bold 40px 'Noto Serif TC'`;
                 this.ctx.textAlign = 'center';
                 this.ctx.fillText("請選擇強化項目", this.canvas.width / 2, this.canvas.height / 2 - 6.25 * this.u);
 
@@ -1100,7 +1111,7 @@
 
             // 顯示當前狀態值
             this.ctx.fillStyle = 'gold';
-            this.ctx.font = "0.75rem sans-serif";
+            this.ctx.font = "15px sans-serif";
             this.ctx.textAlign = 'left';
             this.ctx.fillText(`速 ${(1.0 + this.player.swiftLevel * 0.5).toFixed(1)}x | 彈 ${this.player.multiShotLevel} | 穿 ${this.player.pierceLevel}`, 10, this.canvas.height - 10);
         },
@@ -1127,11 +1138,10 @@
 
         updateTimerRing: function (ratio) {
             const rect = document.getElementById('game6-timer-path');
-            const area = document.querySelector('.game6-area');
-            if (!rect || !area) return;
+            if (!rect) return;
 
-            const w = area.offsetWidth;
-            const h = area.offsetHeight;
+            const w = 500;
+            const h = 680;//850-上下介面的高度
             const svg = document.getElementById('game6-timer-ring');
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);

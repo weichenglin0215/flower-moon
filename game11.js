@@ -76,7 +76,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game11-container';
-            div.className = 'game11-overlay aspect-5-8 hidden';
+            div.className = 'game11-overlay  hidden';
             div.innerHTML = `
                 <div class="game11-header">
                     <div class="game11-score-board">分數: <span id="game11-score">0</span></div>
@@ -98,6 +98,16 @@
                 </div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left   = r.left   + 'px';
+                    div.style.top    = r.top    + 'px';
+                    div.style.width  = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
         },
 
         showDifficultySelector: function () {
@@ -122,7 +132,7 @@
                         document.body.classList.add('overlay-active');
                     }
 
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
             }
@@ -151,7 +161,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         show: function () {
@@ -181,7 +191,7 @@
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active'); // Ensure overlay-active is added
                     if (window.updateResponsiveLayout) {
-                        window.updateResponsiveLayout();
+                        /* updateResponsiveLayout replaced */
                     }
                     this.startNewGame();
                 });
@@ -194,7 +204,7 @@
         startGameFlow: function () {
             this.container.classList.remove('hidden');
             if (window.updateResponsiveLayout) {
-                window.updateResponsiveLayout();
+                /* updateResponsiveLayout replaced */
             }
             setTimeout(() => {
                 this.startNewGame();

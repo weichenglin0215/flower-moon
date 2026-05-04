@@ -65,7 +65,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game13-container';
-            div.className = 'game13-overlay aspect-5-8 hidden';
+            div.className = 'game13-overlay  hidden';
             div.innerHTML = `
                 <div class="game13-header">
                     <div class="game13-score-board">分數: <span id="game13-score">0</span></div>
@@ -97,6 +97,16 @@
                 </div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left   = r.left   + 'px';
+                    div.style.top    = r.top    + 'px';
+                    div.style.width  = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
 
             document.getElementById('game13-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -129,7 +139,7 @@
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
             }
@@ -430,7 +440,7 @@
             // 先移除之前的緊湊模式類名
             pool.classList.remove('compact-layout');
 
-            // 如果捲動高度大於實際高度，代表超出 8 行 (因為 CSS 中設定了固定高度 27rem)
+            // 如果捲動高度大於實際高度，代表超出 8 行 (因為 CSS 中設定了固定高度 540px)
             if (pool.scrollHeight > pool.offsetHeight + 5) {
                 pool.classList.add('compact-layout');
             }

@@ -89,15 +89,15 @@ const GameMessage = {
         };
 
         // 5. 顯示視窗
-        this.container.classList.remove('hidden');
+        this.wrapper.classList.remove('hidden');
     },
 
     /**
      * 隱藏訊息視窗
      */
     hide: function () {
-        if (this.container) {
-            this.container.classList.add('hidden');
+        if (this.wrapper) {
+            this.wrapper.classList.add('hidden');
         }
     },
 
@@ -105,10 +105,19 @@ const GameMessage = {
      * 初始化 DOM 結構 (若不存在則建立)
      */
     initDOM: function () {
-        if (!this.container) {
+        if (!this.wrapper) {
+            this.wrapper = document.createElement('div');
+            this.wrapper.id = 'common-game-message-wrapper';
+            this.wrapper.className = 'hidden';
+            this.wrapper.style.position = 'fixed';
+            this.wrapper.style.zIndex = '3000';
+            this.wrapper.style.display = 'flex';
+            this.wrapper.style.justifyContent = 'center';
+            this.wrapper.style.alignItems = 'center';
+
             this.container = document.createElement('div');
             this.container.id = 'common-game-message';
-            this.container.className = 'common-game-message aspect-5-8 hidden';
+            this.container.className = 'common-game-message';
             this.container.innerHTML = `
                 <div class="msg-header-line">
                     <h2></h2>
@@ -117,7 +126,20 @@ const GameMessage = {
                 <div class="extra-content hidden"></div>
                 <button class="nav-btn"></button>
             `;
-            document.body.appendChild(this.container);
+            
+            this.wrapper.appendChild(this.container);
+            document.body.appendChild(this.wrapper);
+            
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    this.wrapper.style.left = r.left + 'px';
+                    this.wrapper.style.top = r.top + 'px';
+                    this.wrapper.style.width = '500px';
+                    this.wrapper.style.height = '850px';
+                    this.wrapper.style.transform = 'scale(' + r.scale + ')';
+                    this.wrapper.style.transformOrigin = 'top left';
+                });
+            }
         }
     }
 };

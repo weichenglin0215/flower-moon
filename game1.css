@@ -4,6 +4,10 @@
    ========================================= */
 
 .game1-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
     z-index: 2000;
     display: flex;
@@ -28,32 +32,32 @@
 
 /* 遊戲頂部資訊列（分數與控制） */
 .game1-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.1);
     z-index: 10;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
 }
 
 
 .game1-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 /* 控制按鈕（重來／開新局） */
 .game1-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
     transition: background 0.2s;
 }
@@ -69,11 +73,11 @@
 
 /* 難度標籤 */
 .game1-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
@@ -100,7 +104,7 @@
 }
 
 .game1-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
@@ -112,21 +116,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .heart.empty {
@@ -145,7 +149,7 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    padding: 0.5rem;
+    padding: 10px;
     width: 100%;
 }
 
@@ -155,8 +159,8 @@
 .game1-question-area {
     text-align: center;
     width: 100%;
-    margin: 0.05rem 0;
-    padding: 0.05rem 1rem;
+    margin: 1px 0;
+    padding: 1px 20px;
     color: hsl(40, 50%, 80%);
 
     display: flex;
@@ -166,48 +170,48 @@
 }
 
 .game1-question-lines {
-    font-size: 2.5rem;
+    font-size: 50px;
     /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
     font-weight: bold;
     line-height: 1.2;
-    margin-bottom: 0.3rem;
-    letter-spacing: 0.3rem;
+    margin-bottom: 6px;
+    letter-spacing: 6px;
     color: hsl(40, 50%, 80%);
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
-    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.66);
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.66);
 }
 
 .game1-question-lines span.hidden-char {
     color: hsl(36, 80%, 50%);
-    border-radius: 0.1rem;
-    padding: 0 0.1rem;
+    border-radius: 2px;
+    padding: 0 2px;
 }
 
 .game1-question-lines span.correct-char {
     color: hsl(145, 68%, 36%);
     font-weight: bold;
-    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .game1-poem-info {
-    font-size: 1rem;
+    font-size: 20px;
     /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
-    margin-top: 0.5rem;
-    margin-right: 1rem;
+    margin-top: 10px;
+    margin-right: 20px;
     color: hsl(40, 50%, 80%);
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
     text-decoration: underline;
-    text-underline-offset: 0.2rem;
+    text-underline-offset: 4px;
 }
 
 /* 答案區域 */
 .game1-answer-area {
-    padding-top: 1rem;
+    padding-top: 20px;
     /*答案區上緣與問題區的距離*/
     display: flex;
     justify-content: center;
@@ -217,10 +221,10 @@
 
 .game1-answer-grid-container {
     position: relative;
-    padding: 0.05rem;
+    padding: 1px;
     background: rgba(255, 255, 255, 0.0);
     /*減少這一層的邊框，把空間留給答案按鍵*/
-    border-radius: 1rem;
+    border-radius: 20px;
     /* 讓 SVG 定位 */
 }
 
@@ -238,19 +242,19 @@
 #game1-timer-path {
     fill: none;
     stroke: hsl(0, 80%, 36%);
-    stroke-width: 0.5rem;
+    stroke-width: 10px;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
 }
 
 .game1-answer-grid {
     display: grid;
-    margin: 0.1rem;
+    margin: 2px;
     /* 整個answer-grid與周遭的間距 */
 
-    padding: 1.0rem;
+    padding: 20px;
     /*這個GRID與內容物(按鍵)的間距*/
-    gap: 0.1rem;
+    gap: 2px;
     /* 答案按鍵之間的間距，請設定0，讓按鍵ans-btn的 margin 自行設定即可 */
     justify-content: center;
     justify-items: center;
@@ -258,25 +262,25 @@
 }
 
 .game1-option-btn {
-    margin: 0.5rem 0.5rem;
+    margin: 10px 10px;
     /*答案按鍵與邊框(另一個答案按鍵)之間的距離*/
-    padding: 0rem 1rem;
+    padding: 0px 20px;
     /*按鍵內文字左右空白寬度*/
     background: hsl(48, 100%, 90%);
     color: hsl(30, 75%, 20%);
-    border: 0.2rem solid #ddd;
-    border-radius: 0.6rem;
-    font-size: 2.0rem;
+    border: 4px solid #ddd;
+    border-radius: 12px;
+    font-size: 40px;
     /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
-    letter-spacing: 0.3rem;
+    letter-spacing: 6px;
     line-height: 1;
-    min-height: 3.3rem;
-    max-height: 3.3rem;
-    min-width: 15rem;
+    min-height: 66px;
+    max-height: 66px;
+    min-width: 300px;
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
-    box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.5);
+    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
     overflow: hidden;
 }
@@ -314,29 +318,29 @@
     }
 
     20% {
-        transform: translateX(-0.2rem);
+        transform: translateX(-4px);
     }
 
     40% {
-        transform: translateX(0.2rem);
+        transform: translateX(4px);
     }
 
     60% {
-        transform: translateX(-0.2rem);
+        transform: translateX(-4px);
     }
 
     80% {
-        transform: translateX(0.2rem);
+        transform: translateX(4px);
     }
 }
 
-@media (max-width: 12.0rem) {
+@media (max-width: 240px) {
     .poem-lines {
         font-size: inherit;
     }
 
     .option-btn {
-        font-size: 1.5rem;
-        padding: 0.5rem 0.5rem;
+        font-size: 30px;
+        padding: 10px 10px;
     }
 }

@@ -61,7 +61,7 @@
         createDOM: function () {
             const overlay = document.createElement('div');
             overlay.id = 'difficulty-selector-overlay';
-            overlay.className = 'difficulty-selector-overlay aspect-5-8 hidden';
+            overlay.className = 'difficulty-selector-overlay  hidden';
 
             const buttonsHTML = this.levels.map(level =>
                 `<button class="difficulty-btn" data-level="${level}">${level}</button>`
@@ -82,6 +82,16 @@
             `;
 
             document.body.appendChild(overlay);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    overlay.style.left   = r.left   + 'px';
+                    overlay.style.top    = r.top    + 'px';
+                    overlay.style.width  = 500 + 'px';
+                    overlay.style.height = 850 + 'px';
+                    overlay.style.transform = 'scale(' + r.scale + ')';
+                    overlay.style.transformOrigin = 'top left';
+                });
+            }
             this.overlay = overlay;
         },
 

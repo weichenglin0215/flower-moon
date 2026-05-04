@@ -1,6 +1,6 @@
 /* author_bio.css
    架構：#authorBioPage 以 position:absolute 填滿 #stage 內
-   1rem = 20px
+   20px = 20px
 */
 
 #authorBioPage {
@@ -12,13 +12,14 @@
     /* 預設隱藏 */
     flex-direction: column;
     padding: 10px;
+    box-sizing: border-box;
     font-family: var(--font-main);
     color: whitesmoke;
     overflow: hidden;
     border-radius: 15px;
-    /* 0.75rem → 15px */
+    /* 15px → 15px */
     box-shadow: 0 12px 38px rgba(0, 0, 0, 0.5);
-    /* 0.625/1.875rem → 12/38px */
+    /* 0.625/37.5px → 12/38px */
     width: 100%;
     height: 100%;
 }
@@ -32,30 +33,30 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px 20px;
-    /* 0.3/1rem → 6/20px */
+    /* 0.3/20px → 6/20px */
     margin-bottom: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     background: rgba(255, 255, 255, 0.1);
     padding: 12px;
-    /* 0.6rem → 12px */
+    /* 12px → 12px */
     border-radius: 10px;
-    /* 0.5rem → 10px */
+    /* 10px → 10px */
     backdrop-filter: blur(6px);
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     border: 1px solid rgba(255, 255, 255, 0.2);
-    /* 0.05rem → 1px */
+    /* 1px → 1px */
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
 }
 
 .filter-group label {
     font-size: 16px;
-    /* 0.8rem → 16px */
+    /* 16px → 16px */
     opacity: 0.8;
 }
 
@@ -64,19 +65,19 @@
     background: rgba(255, 255, 255, 0.9);
     border: none;
     padding: 2px 12px;
-    /* 0.1/0.6rem → 2/12px */
+    /* 0.1/12px → 2/12px */
     border-radius: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     font-family: inherit;
     font-size: 20px;
-    /* 1rem → 20px */
+    /* 20px → 20px */
     color: #333;
     outline: none;
 }
 
 .filter-group input {
     min-width: 200px;
-    /* 10rem → 200px */
+    /* 200px → 200px */
     width: 100%;
 }
 
@@ -85,7 +86,7 @@
     display: flex;
     flex: 1;
     gap: 10px;
-    /* 0.5rem → 10px */
+    /* 10px → 10px */
     overflow: hidden;
     flex-direction: row;
 }
@@ -95,7 +96,7 @@
     flex: 1;
     background: rgba(0, 0, 0, 0.2);
     border-radius: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -103,12 +104,12 @@
 
 .list-title {
     padding: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     font-size: 24px;
-    /* 1.2rem → 24px */
+    /* 24px → 24px */
     font-weight: bold;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    /* 0.05rem → 1px */
+    /* 1px → 1px */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -118,7 +119,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     cursor: grab;
     user-select: none;
     -webkit-overflow-scrolling: touch;
@@ -131,41 +132,41 @@
 /*作者列表item*/
 .author-item {
     padding: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     margin-bottom: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     background: rgba(255, 255, 255, 0.05);
     border-radius: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    /* 0.2rem → 4px */
+    /* 4px → 4px */
 }
 
 .author-item:hover {
     background: rgba(255, 255, 255, 0.25);
     transform: translateX(6px);
-    /* 0.3125rem → 6px */
+    /* 6.25px → 6px */
 }
 
 .author-item.selected {
     background: #c0392b;
     box-shadow: 0 5px 19px rgba(0, 0, 0, 0.3);
-    /* 0.25/0.9375rem → 5/19px */
+    /* 0.25/18.75px → 5/19px */
 }
 
 .author-name {
     font-size: 20px;
-    /* 1.0rem → 20px */
+    /* 20px → 20px */
     font-weight: bold;
 }
 
 .author-stats {
     font-size: 14px;
-    /* 0.7rem → 14px */
+    /* 14px → 14px */
     opacity: 0.7;
     width: 100%;
     display: flex;
@@ -177,7 +178,7 @@
     flex: 1.5;
     background: rgba(0, 0, 0, 0.2);
     border-radius: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -185,27 +186,27 @@
 
 .works-controls {
     padding: 8px 12px;
-    /* 0.4/0.6rem → 8/12px */
+    /* 0.4/12px → 8/12px */
     display: flex;
     gap: 8px;
-    /* 0.4rem → 8px */
+    /* 8px → 8px */
     flex-wrap: wrap;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    /* 0.05rem → 1px */
+    /* 1px → 1px */
 }
 
 .sort-btn {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    /* 0.05rem → 1px */
+    /* 1px → 1px */
     color: whitesmoke;
     padding: 6px 10px;
-    /* 0.3/0.5rem → 6/10px */
+    /* 0.3/10px → 6/10px */
     border-radius: 10px;
-    /* 0.5rem → 10px */
+    /* 10px → 10px */
     cursor: pointer;
     font-size: 18px;
-    /* 0.9rem → 18px */
+    /* 18px → 18px */
     transition: all 0.2s;
 }
 
@@ -219,7 +220,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 12px;
-    /* 0.625rem → 12px */
+    /* 12.5px → 12px */
     cursor: grab;
     user-select: none;
     -webkit-overflow-scrolling: touch;
@@ -232,12 +233,12 @@
 /*作品列表item*/
 .work-item {
     padding: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     margin-bottom: 6px;
-    /* 0.3rem → 6px */
+    /* 6px → 6px */
     background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
-    /* 0.5rem → 10px */
+    /* 10px → 10px */
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -250,7 +251,7 @@
     display: flex;
     justify-content: space-between;
     margin-bottom: 6px;
-    /* 0.3125rem → 6px */
+    /* 6.25px → 6px */
 }
 
 .work-title {
@@ -260,13 +261,13 @@
 
 .work-rating {
     font-size: 18px;
-    /* 0.9rem → 18px */
+    /* 18px → 18px */
     color: #ecf0f1;
 }
 
 .work-snippet {
     font-size: 18px;
-    /* 0.9rem → 18px */
+    /* 18px → 18px */
     opacity: 0.6;
     white-space: nowrap;
     overflow: hidden;
@@ -277,11 +278,11 @@
 .page-close-btn {
     position: absolute;
     top: 1px;
-    /* 0.05rem → 1px */
+    /* 1px → 1px */
     right: 20px;
-    /* 1rem → 20px */
+    /* 20px → 20px */
     font-size: 40px;
-    /* 2rem → 40px */
+    /* 40px → 40px */
     cursor: pointer;
     z-index: 101;
     opacity: 0.6;

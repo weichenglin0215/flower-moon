@@ -2,7 +2,7 @@
    詩詞詳情彈窗樣式 (Poem Dialog Component)
    命名空間: pd- (防止與其他元件如 game, cards 衝突)
    架構：.pd-overlay 以 position:absolute 填滿 #stage 內部
-   1rem = 20px
+   20px = 20px
    ======================================== */
 
 .pd-overlay {
@@ -20,7 +20,7 @@
     justify-content: center;
     padding: 0;
     box-sizing: border-box;
-    border-radius: 12px;                    /* 0.6rem → 12px */
+    border-radius: 12px;                    /* 12px → 12px */
     overflow: hidden;
 }
 
@@ -41,25 +41,25 @@
 /*上方按鈕列*/
 .pd-header {
     display: flex;
-    gap: 10px;                              /* 0.5rem → 10px */
-    padding: 10px;                          /* 0.5rem → 10px */
+    gap: 10px;                              /* 10px → 10px */
+    padding: 10px;                          /* 10px → 10px */
     justify-content: flex-end;
-    border-bottom: 1px solid hsl(0, 0%, 93%); /* 0.05rem → 1px */
+    border-bottom: 1px solid hsl(0, 0%, 93%); /* 1px → 1px */
     background: hsl(40, 40%, 80%);
     flex-shrink: 0;
 }
 
 /*上方按鈕*/
 .pd-header .nav-btn {
-    padding: 8px;                           /* 0.4rem → 8px */
+    padding: 8px;                           /* 8px → 8px */
     background-color: hsl(40, 40%, 50%);
     color: hsl(40, 40%, 90%);
     border: none;
-    border-radius: 10px;                    /* 0.5rem → 10px */
+    border-radius: 10px;                    /* 10px → 10px */
     cursor: pointer;
-    font-size: 20px;                        /* 1.0rem → 20px */
+    font-size: 20px;                        /* 20px → 20px */
     line-height: 1;
-    letter-spacing: 2px;                    /* 0.1rem → 2px */
+    letter-spacing: 2px;                    /* 2px → 2px */
 }
 
 .pd-header .nav-btn:hover {
@@ -75,21 +75,21 @@
 }
 
 .pd-body {
-    padding: 20px;                          /* 1rem → 20px */
-    padding-bottom: 100px;                  /* 5rem → 100px */
+    padding: 20px;                          /* 20px → 20px */
+    padding-bottom: 100px;                  /* 100px → 100px */
     overflow-y: auto;
     cursor: grab;
     flex: 1;
-    font-size: 30px;                        /* 1.5rem → 30px */
+    font-size: 30px;                        /* 30px → 30px */
 }
 
 /* Type (類型) */
 .pd-type {
     display: inline-block;
     background-color: hsla(40, 40%, 33%, 0.2);
-    padding: 6px 12px;                      /* 0.3/0.6rem → 6/12px */
-    border-radius: 12px;                    /* 0.6rem → 12px */
-    font-size: 24px;                        /* 1.2rem → 24px */
+    padding: 6px 12px;                      /* 0.3/12px → 6/12px */
+    border-radius: 12px;                    /* 12px → 12px */
+    font-size: 24px;                        /* 24px → 24px */
     line-height: 1;
     color: hsl(40, 40%, 20%);
 }
@@ -97,8 +97,8 @@
 /* Title (標題) */
 .pd-title {
     writing-mode: horizontal-tb;
-    font-size: 30px;                        /* 1.5rem → 30px */
-    margin: 12px 0;                         /* 0.6rem → 12px */
+    font-size: 30px;                        /* 30px → 30px */
+    margin: 12px 0;                         /* 12px → 12px */
     color: hsl(40, 40%, 20%);
     font-weight: bold;
 }
@@ -106,26 +106,26 @@
 /* Meta (作者資料) */
 .pd-meta {
     color: hsl(40, 40%, 20%);
-    font-size: 30px;                        /* 1.5rem → 30px */
+    font-size: 30px;                        /* 30px → 30px */
 }
 
 /* Line Content (詩行內容) */
 .pd-line-content {
     color: hsl(40, 40%, 20%);
-    font-size: 40px;                        /* 2rem → 40px */
+    font-size: 40px;                        /* 40px → 40px */
     line-height: 1.2;
-    letter-spacing: 4px;                    /* 0.2rem → 4px */
+    letter-spacing: 4px;                    /* 4px → 4px */
     text-align: center;
-    margin: 10px 0;                         /* 0.5rem → 10px */
+    margin: 10px 0;                         /* 10px → 10px */
 }
 
 /* Section Title (節標題) */
 .pd-section-title {
-    font-size: 24px;                        /* 1.2rem → 24px */
+    font-size: 24px;                        /* 24px → 24px */
     color: hsl(40, 40%, 20%);
-    margin-top: 24px;                       /* 1.2rem → 24px */
-    border-left: 10px solid hsl(210, 60%, 40%); /* 0.5rem → 10px */
-    padding-left: 20px;                     /* 1rem → 20px */
+    margin-top: 24px;                       /* 24px → 24px */
+    border-left: 10px solid hsl(210, 60%, 40%); /* 10px → 10px */
+    padding-left: 20px;                     /* 20px → 20px */
     font-weight: bold;
     display: flex;
     align-items: center;
@@ -133,14 +133,14 @@
 
 /* Inline Copy Button */
 .pd-copy-inline-btn {
-    margin-left: 16px;                      /* 0.8rem → 16px */
-    padding: 4px 10px;                      /* 0.2/0.5rem → 4/10px */
+    margin-left: 16px;                      /* 16px → 16px */
+    padding: 4px 10px;                      /* 0.2/10px → 4/10px */
     background-color: hsl(40, 40%, 65%);
     color: hsl(40, 40%, 15%);
     border: none;
-    border-radius: 6px;                     /* 0.3rem → 6px */
+    border-radius: 6px;                     /* 6px → 6px */
     cursor: pointer;
-    font-size: 16px;                        /* 0.8rem → 16px */
+    font-size: 16px;                        /* 16px → 16px */
 }
 
 .pd-copy-inline-btn:hover {
@@ -156,19 +156,19 @@
 
 .pd-search-footer {
     display: flex;
-    padding: 10px;                          /* 0.5rem → 10px */
+    padding: 10px;                          /* 10px → 10px */
     background: hsl(40, 40%, 75%);
-    border-top: 1px solid hsl(0, 0%, 70%); /* 0.05rem → 1px */
-    gap: 10px;                              /* 0.5rem → 10px */
+    border-top: 1px solid hsl(0, 0%, 70%); /* 1px → 1px */
+    gap: 10px;                              /* 10px → 10px */
     align-items: center;
     flex-shrink: 0;
 }
 
 .pd-search-footer input {
     flex: 1;
-    padding: 10px;                          /* 0.5rem → 10px */
-    font-size: 20px;                        /* 1.0rem → 20px */
-    border-radius: 8px;                     /* 0.4rem → 8px */
+    padding: 10px;                          /* 10px → 10px */
+    font-size: 20px;                        /* 20px → 20px */
+    border-radius: 8px;                     /* 8px → 8px */
     border: 1px solid hsl(40, 40%, 50%);
     outline: none;
     background: hsla(0, 0%, 100%, 0.8);
@@ -176,13 +176,13 @@
 }
 
 .pd-search-footer .nav-btn {
-    padding: 10px;                          /* 0.5rem → 10px */
+    padding: 10px;                          /* 10px → 10px */
     background-color: hsl(40, 40%, 50%);
     color: hsl(40, 40%, 90%);
     border: none;
-    border-radius: 10px;                    /* 0.5rem → 10px */
+    border-radius: 10px;                    /* 10px → 10px */
     cursor: pointer;
-    font-size: 20px;                        /* 1.0rem → 20px */
+    font-size: 20px;                        /* 20px → 20px */
 }
 
 .pd-search-footer .nav-btn:hover {
@@ -200,13 +200,13 @@
 /* Search Items */
 .pd-search-item {
     background: hsla(40, 40%, 90%, 0.8);
-    border-radius: 12px;                    /* 0.6rem → 12px */
-    padding: 16px 20px;                     /* 0.8/1rem → 16/20px */
-    margin-bottom: 16px;                    /* 0.8rem → 16px */
+    border-radius: 12px;                    /* 12px → 12px */
+    padding: 16px 20px;                     /* 0.8/20px → 16/20px */
+    margin-bottom: 16px;                    /* 16px → 16px */
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: background 0.2s, transform 0.1s;
-    border-left: 8px solid hsl(40, 40%, 60%); /* 0.4rem → 8px */
+    border-left: 8px solid hsl(40, 40%, 60%); /* 8px → 8px */
 }
 
 .pd-search-item:hover {
@@ -219,40 +219,40 @@
 }
 
 .pd-search-item-title {
-    font-size: 28px;                        /* 1.4rem → 28px */
+    font-size: 28px;                        /* 28px → 28px */
     font-weight: bold;
     color: hsl(40, 40%, 20%);
-    margin-bottom: 8px;                     /* 0.4rem → 8px */
+    margin-bottom: 8px;                     /* 8px → 8px */
 }
 
 .pd-search-item-line {
-    font-size: 24px;                        /* 1.2rem → 24px */
+    font-size: 24px;                        /* 24px → 24px */
     color: hsl(40, 40%, 30%);
 }
 
 /* Famous Lines (佳句賞析) */
 .pd-famous-lines {
     background-color: hsla(40, 40%, 33%, 0.05);
-    padding: 12px;                          /* 0.6rem → 12px */
-    border-radius: 12px;                    /* 0.6rem → 12px */
-    border-left: 10px solid hsla(6, 60%, 80%, 0.5); /* 0.5rem → 10px */
-    margin-top: 20px;                       /* 1rem → 20px */
+    padding: 12px;                          /* 12px → 12px */
+    border-radius: 12px;                    /* 12px → 12px */
+    border-left: 10px solid hsla(6, 60%, 80%, 0.5); /* 10px → 10px */
+    margin-top: 20px;                       /* 20px → 20px */
 }
 
 /* Famous Item (佳句的每一句) */
 .pd-famous-item {
-    font-size: 32px;                        /* 1.6rem → 32px */
+    font-size: 32px;                        /* 32px → 32px */
     line-height: 1.2;
-    letter-spacing: 4px;                    /* 0.2rem → 4px */
+    letter-spacing: 4px;                    /* 4px → 4px */
     color: hsl(6, 63%, 60%);
-    margin: 10px 0;                         /* 0.5rem → 10px */
+    margin: 10px 0;                         /* 10px → 10px */
 }
 
 /* Placeholder (占位符) */
 .pd-placeholder {
     color: hsl(6, 63%, 66%);
     font-style: italic;
-    font-size: 30px;                        /* 1.5rem → 30px */
+    font-size: 30px;                        /* 30px → 30px */
 }
 
 /* Zhuyin (注音說明) */
@@ -260,6 +260,6 @@
     white-space: pre-wrap;
     color: hsl(40, 40%, 20%);
     line-height: 1.6;
-    font-size: 30px;                        /* 1.5rem → 30px */
-    margin-top: 10px;                       /* 0.5rem → 10px */
+    font-size: 30px;                        /* 30px → 30px */
+    margin-top: 10px;                       /* 10px → 10px */
 }

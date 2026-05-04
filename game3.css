@@ -4,6 +4,10 @@
    ========================================= */
 
 .game3-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     /* position, top, left 由 responsive.css 的 .aspect-5-8 处理 */
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
     z-index: 2000;
@@ -32,34 +36,34 @@
 
 /* 遊戲頂部資訊列（分數與控制） */
 .game3-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 10;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
 }
 
 
 
 .game3-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 
 /* 控制按鈕（重來／開新局） */
 .game3-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
 }
 
@@ -80,21 +84,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .heart {
     color: #f44336;
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .heart.empty {
@@ -112,11 +116,11 @@
 
 /* 難度標籤 */
 .game3-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
@@ -143,20 +147,20 @@
 }
 
 .game3-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
 /* 遊戲歷程顯示 (最左側直排) */
 .game3-history {
     position: absolute;
-    left: 0.5rem;
+    left: 10px;
     top: 18%;
     height: 80%;
-    width: 2rem;
+    width: 40px;
     background: rgba(0, 0, 0, 0.33);
-    padding: 0.3rem;
-    border-radius: 0.6rem;
+    padding: 6px;
+    border-radius: 12px;
     display: flex;
     /*排列方式*/
     flex-direction: row;
@@ -171,12 +175,12 @@
     /*垂直排列*/
     overflow: hidden;
     /*字數過多就不顯示*/
-    font-size: 1.1rem;
+    font-size: 22px;
     line-height: 1.2;
     font-family: 'Noto Serif TC', 'SimSun', serif;
     pointer-events: none;
     z-index: 100;
-    gap: 0.1rem;
+    gap: 2px;
 }
 
 .history-char {
@@ -186,7 +190,7 @@
 .history-char.correct {
     color: hsl(120, 40%, 68%);
     /* 答對：綠色 */
-    text-shadow: 0 0 0.1rem rgba(0, 0, 0, 0.5);
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 
 .history-char.wrong,
@@ -194,7 +198,7 @@
     color: hsl(0, 80%, 75%);
     /* 答錯、錯過、或是選錯：紅色 */
     font-weight: bold;
-    text-shadow: 0 0 0.1rem rgba(0, 0, 0, 0.5);
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 
 .history-char.waiting {
@@ -204,7 +208,7 @@
 
 .history-separator {
     color: rgba(255, 255, 255, 0.5);
-    margin: 0.1rem 0;
+    margin: 2px 0;
 }
 
 /* 每一行按鍵的容器 */
@@ -215,23 +219,23 @@
     width: 100%;
     display: flex;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 10px;
     will-change: transform;
 }
 
 /* 按鍵樣式（字按鈕） */
 .ladder-btn {
-    width: 4.5rem;
-    height: 4.5rem;
+    width: 90px;
+    height: 90px;
     border-radius: 15%;
     background: hsl(40, 50%, 80%);
     border: none;
-    font-size: 3rem;
+    font-size: 60px;
     line-height: 1;
     font-family: 'Noto Serif TC', serif;
     color: #333;
     cursor: pointer;
-    box-shadow: 0 0.3rem 0.4rem rgba(0, 0, 0, 0.5);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.5);
     transition: transform 0.2s, background 0.2s;
     display: flex;
     align-items: center;
@@ -295,15 +299,15 @@
     }
 
     25% {
-        transform: translateX(-0.3rem);
+        transform: translateX(-6px);
     }
 
     50% {
-        transform: translateX(0.3rem);
+        transform: translateX(6px);
     }
 
     75% {
-        transform: translateX(-0.3rem);
+        transform: translateX(-6px);
     }
 
     100% {

@@ -4,6 +4,10 @@
    ========================================= */
 
 .game4-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     /* position, top, left 由 responsive.css 的 .aspect-5-8 处理 */
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
     z-index: 2000;
@@ -28,31 +32,31 @@
 
 /* 遊戲頂部資訊列 (分數與控制) */
 .game4-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 10;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
 }
 
 .game4-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 /* 控制按鈕（重新開始／開新局） */
 .game4-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
 }
 
@@ -74,21 +78,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .heart.empty {
@@ -107,17 +111,17 @@
     flex: 1;
     flex-direction: column;
     position: relative;
-    padding: 0.5rem;
+    padding: 10px;
     width: 100%;
 }
 
 /* 難度標籤 */
 .game4-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
@@ -144,7 +148,7 @@
 }
 
 .game4-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
@@ -153,7 +157,7 @@
     text-align: center;
     width: 100%;
     margin: 0 0;
-    padding: 0.0rem 1rem;
+    padding: 0px 20px;
     color: hsl(40, 50%, 80%);
 
     display: flex;
@@ -163,29 +167,29 @@
 }
 
 .poem-lines {
-    font-size: 2.5rem;
+    font-size: 50px;
     /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
     font-weight: bold;
     line-height: 1.2;
-    margin-bottom: 0.3rem;
-    letter-spacing: 0.3rem;
+    margin-bottom: 6px;
+    letter-spacing: 6px;
     color: hsl(40, 50%, 80%);
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
-    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.66);
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.66);
 }
 
 .poem-lines span.hidden-char {
     color: hsl(36, 80%, 50%);
-    border-radius: 0.1rem;
-    padding: 0 0.1rem;
+    border-radius: 2px;
+    padding: 0 2px;
 }
 
 .poem-lines span.correct-char {
     color: hsl(145, 68%, 36%);
     font-weight: bold;
-    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .poem-lines span.char-typing {
@@ -196,13 +200,13 @@
 .poem-lines span.char-wrong-pos {
     color: hsl(210, 80%, 60%);
     font-weight: bold;
-    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .poem-lines span.char-wrong {
     color: hsl(0, 80%, 60%);
     font-weight: bold;
-    text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.4);
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 /* 題目句子的延遲顯示樣式 */
@@ -216,17 +220,17 @@
 }
 
 .poem-info {
-    font-size: 1rem;
+    font-size: 20px;
     /*根據字數自動調整，請參考game1.js 動態縮小字體程式碼*/
-    margin-top: 0.5rem;
-    margin-right: 1rem;
+    margin-top: 10px;
+    margin-right: 20px;
     color: hsl(40, 50%, 80%);
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
     text-decoration: underline;
-    text-underline-offset: 0.2rem;
+    text-underline-offset: 4px;
 }
 
 /* 答案矩陣與計時器 */
@@ -241,7 +245,7 @@
 .grid-container {
     position: relative;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 1rem;
+    border-radius: 20px;
 }
 
 #game4-timer-ring {
@@ -256,19 +260,19 @@
 #game4-timer-path {
     fill: none;
     stroke: hsl(0, 80%, 36%);
-    stroke-width: 0.5rem;
+    stroke-width: 10px;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
 }
 
 .answer-grid {
     display: grid;
-    margin: 0rem;
+    margin: 0px;
     /* 整個answer-grid與周遭的間距 */
 
-    padding: 1.0rem;
+    padding: 20px;
     /*這個GRID與內容物(按鍵)的間距*/
-    gap: 0.05rem;
+    gap: 1px;
     /* 答案按鍵之間的間距，請設定0，讓按鍵ans-btn的 margin 自行設定即可 */
     justify-content: center;
     justify-items: center;
@@ -277,18 +281,18 @@
 }
 
 .ans-btn {
-    width: 3.3rem;
-    height: 3.3rem;
+    width: 66px;
+    height: 66px;
     background: hsl(40, 50%, 88%);
     border: none;
-    border-radius: 0.6rem;
-    font-size: 2.2rem;
+    border-radius: 12px;
+    font-size: 44px;
     line-height: 1;
-    margin: 0.3rem;
+    margin: 6px;
     /* 答案按鍵之間的間距 */
     color: hsl(210, 30%, 24%);
     cursor: pointer;
-    box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     transition: transform 0.1s, background 0.2s;
     display: flex;
     align-items: center;
@@ -330,23 +334,23 @@
     }
 
     25% {
-        transform: translateX(-0.2rem);
+        transform: translateX(-4px);
     }
 
     75% {
-        transform: translateX(0.2rem);
+        transform: translateX(4px);
     }
 }
 
-@media (max-width: 12.0rem) {
+@media (max-width: 240px) {
     .poem-lines {
-        font-size: 2.5rem;
+        font-size: 50px;
     }
 
     .ans-btn {
-        width: 3.3rem;
-        height: 3.3rem;
-        font-size: 2.2rem;
+        width: 66px;
+        height: 66px;
+        font-size: 44px;
     }
 }
 
@@ -354,9 +358,9 @@
 .flying-star {
     position: fixed;
     z-index: 3000;
-    font-size: 2rem;
+    font-size: 40px;
     color: hsl(60, 100%, 50%);
-    /*text-shadow: 0 0 0.3rem rgba(241, 196, 15, 0.8), 0 0 0.6rem rgba(241, 196, 15, 0.4);*/
+    /*text-shadow: 0 0 6px rgba(241, 196, 15, 0.8), 0 0 12px rgba(241, 196, 15, 0.4);*/
     pointer-events: none;
     will-change: transform, opacity;
 }

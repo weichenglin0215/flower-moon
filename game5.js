@@ -98,7 +98,7 @@
         createDOM: function () {
             const container = document.createElement('div');
             container.id = 'game5-container';
-            container.className = 'game5-overlay aspect-5-8 hidden';
+            container.className = 'game5-overlay  hidden';
             container.innerHTML = `
                 <div class="game5-header">
                     <div class="game5-score-board">得分: <span id="game5-score">0</span></div>
@@ -130,6 +130,16 @@
                 </div>
             `;
             document.body.appendChild(container);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    container.style.left   = r.left   + 'px';
+                    container.style.top    = r.top    + 'px';
+                    container.style.width  = 500 + 'px';
+                    container.style.height = 850 + 'px';
+                    container.style.transform = 'scale(' + r.scale + ')';
+                    container.style.transformOrigin = 'top left';
+                });
+            }
 
             this.canvas = document.getElementById('game5-canvas');
             this.ctx = this.canvas.getContext('2d');
@@ -256,7 +266,7 @@
                     container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
             }
@@ -285,7 +295,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         show: function () {
@@ -319,7 +329,7 @@
                     }
 
                     this.setupMaze();
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     this.startNewGame(this.isLevelMode ? this.currentLevelIndex : undefined); // Pass levelIndex if in level mode
                 });
             }

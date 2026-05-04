@@ -144,9 +144,17 @@
             var achCont = overlay.querySelector('#achContainer');
             if (window.registerOverlayResize) {
                 window.registerOverlayResize(function (r) {
+                    // 將 Container 寬高設為符合邏輯比例
                     achCont.style.width = (500 * 0.96) + 'px';
                     achCont.style.height = (850 * 0.96) + 'px';
+                    
+                    // 完全追蹤 stage 的座標與縮放
+                    // 因為外圍是 500x850，0.96 代表兩側各留白 0.02
+                    achCont.style.left = (r.left + 500 * 0.02 * r.scale) + 'px';
+                    achCont.style.top = (r.top + 850 * 0.02 * r.scale) + 'px';
+                    
                     achCont.style.transform = 'scale(' + r.scale + ')';
+                    achCont.style.transformOrigin = 'top left';
                 });
             }
         },
@@ -709,7 +717,7 @@
 
             if (!hasGames) {
 
-                gamesContainer.innerHTML = '<div style="text-align:center; color:#999; padding:0.9rem;">尚無遊戲紀錄</div>';
+                gamesContainer.innerHTML = '<div style="text-align:center; color:#999; padding:18px;">尚無遊戲紀錄</div>';
 
             }
 

@@ -184,7 +184,7 @@
                 listContainer.innerHTML = '';
 
                 if (!keyword) {
-                    listContainer.innerHTML = '<div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">請輸入關鍵字</div>';
+                    listContainer.innerHTML = '<div class="pd-placeholder" style="text-align: center; margin-top: 40px;">請輸入關鍵字</div>';
                     return;
                 }
 
@@ -210,7 +210,7 @@
                 }
 
                 if (matches.length === 0) {
-                    listContainer.innerHTML = '<div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">找不到相關詩詞</div>';
+                    listContainer.innerHTML = '<div class="pd-placeholder" style="text-align: center; margin-top: 40px;">找不到相關詩詞</div>';
                     return;
                 }
 
@@ -218,7 +218,7 @@
                     const item = document.createElement('div');
                     item.className = 'pd-search-item';
                     item.innerHTML = `
-                        <div class="pd-search-item-title">${m.poem.title} <span style="font-size: 1rem; font-weight: normal; color: #555;"> - ${m.poem.author || '佚名'} - 
+                        <div class="pd-search-item-title">${m.poem.title} <span style="font-size: 20px; font-weight: normal; color: #555;"> - ${m.poem.author || '佚名'} - 
 ${m.poem.rating || ''}星</span></div>
                         <div class="pd-search-item-line">${m.line}</div>
                     `;
@@ -452,7 +452,7 @@ ${m.poem.rating || ''}星</span></div>
 
                 if (assignedDates.length > 0) {
                     const prefixSpan = document.createElement('span');
-                    prefixSpan.style.fontSize = '1.0rem';
+                    prefixSpan.style.fontSize = '20px';
                     prefixSpan.textContent = ` （出現在日曆：`;
                     reviewDiv.appendChild(prefixSpan);
 
@@ -461,7 +461,7 @@ ${m.poem.rating || ''}星</span></div>
                         const dateLink = document.createElement('span');
                         dateLink.textContent = dateText;
                         dateLink.style.cursor = 'pointer';
-                        dateLink.style.fontSize = '0.6rem';
+                        dateLink.style.fontSize = '12px';
                         dateLink.style.color = 'hsla(6, 100%, 30%, 1.00)';
                         dateLink.style.textDecoration = 'underline';
                         dateLink.addEventListener('click', () => {
@@ -484,19 +484,19 @@ ${m.poem.rating || ''}星</span></div>
                         if (index < assignedDates.length - 1) {
                             const comma = document.createElement('span');
                             comma.textContent = '、';
-                            comma.style.fontSize = '0.6rem';
+                            comma.style.fontSize = '12px';
                             reviewDiv.appendChild(comma);
                         }
                     });
 
                     const suffixSpan = document.createElement('span');
                     suffixSpan.textContent = `）`;
-                    suffixSpan.style.fontSize = '1.0rem';
+                    suffixSpan.style.fontSize = '20px';
                     reviewDiv.appendChild(suffixSpan);
                 } else {
                     const noDateSpan = document.createElement('span');
                     noDateSpan.textContent = '（未出現在日曆中）';
-                    noDateSpan.style.fontSize = '1.0rem';
+                    noDateSpan.style.fontSize = '20px';
                     reviewDiv.appendChild(noDateSpan);
                 }
                 reviewDiv.className = '';

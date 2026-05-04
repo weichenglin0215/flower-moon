@@ -69,7 +69,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game8-container';
-            div.className = 'game8-overlay aspect-5-8 hidden';
+            div.className = 'game8-overlay  hidden';
             div.innerHTML = `
                 <div class="game8-header">
                     <div class="game8-score-board">分數: <span id="game8-score">0</span></div>
@@ -103,6 +103,16 @@
                 <div id="game8-char-preview" class="game8-char-preview hidden"></div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left   = r.left   + 'px';
+                    div.style.top    = r.top    + 'px';
+                    div.style.width  = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
 
             document.getElementById('game8-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -178,7 +188,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         hideOtherContents: function () {

@@ -81,7 +81,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game7-container';
-            div.className = 'game7-overlay aspect-5-8 hidden';
+            div.className = 'game7-overlay  hidden';
             div.innerHTML = `
                 <div class="game7-bg-layer bg-morning" id="game7-bg"></div>
                 <div class="game7-header">
@@ -109,6 +109,16 @@
 
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left   = r.left   + 'px';
+                    div.style.top    = r.top    + 'px';
+                    div.style.width  = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
             this.container = div;
             this.canvas = document.getElementById('game7-canvas');
             this.ctx = this.canvas.getContext('2d');
@@ -221,7 +231,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         show: function () {
@@ -808,7 +818,7 @@
                 this.ctx.fillStyle = "hsla(210, 50%, 40%, 0.70)";
                 this.ctx.fillRect(0, this.canvas.height / 2 - 80, this.canvas.width, 160);
                 this.ctx.fillStyle = "white";
-                this.ctx.font = "bold 1rem 'Noto Serif TC'";
+                this.ctx.font = "bold 20px 'Noto Serif TC'";
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
 

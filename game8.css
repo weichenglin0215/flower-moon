@@ -3,6 +3,10 @@
    ========================================= */
 
 .game8-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
     z-index: 2000;
     display: flex;
@@ -22,32 +26,32 @@
 }
 
 .game8-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.1);
     z-index: 10;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
 }
 
 /*分數*/
 .game8-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 /*控制按鈕*/
 .game8-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
     transition: background 0.2s;
 }
@@ -64,11 +68,11 @@
 
 /* 難度標籤 */
 .game8-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
@@ -95,7 +99,7 @@
 }
 
 .game8-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
@@ -106,21 +110,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .heart.empty {
@@ -137,7 +141,7 @@
     flex: 1;
     flex-direction: column;
     position: relative;
-    padding: 0.3rem;
+    padding: 6px;
     width: 100%;
     align-items: center;
 }
@@ -146,39 +150,39 @@
 .game8-info {
     text-align: center;
     width: 100%;
-    padding: 0.1rem;
-    font-size: 1.2rem;
+    padding: 2px;
+    font-size: 24px;
     color: hsl(40, 50%, 80%);
-    min-height: 2.0rem;
+    min-height: 40px;
 }
 
 /*詩名*/
 .poem-info {
-    font-size: 0.9rem;
-    margin-right: 1rem;
+    font-size: 18px;
+    margin-right: 20px;
     color: hsl(40, 50%, 80%);
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
     text-decoration: underline;
-    text-underline-offset: 0.2rem;
+    text-underline-offset: 4px;
 }
 
 /*進度*/
 .game8-progress-text {
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    letter-spacing: 0.2rem;
+    letter-spacing: 4px;
     color: hsl(36, 80%, 50%);
-    margin-bottom: 0.2rem;
+    margin-bottom: 4px;
 }
 
 /*棋盤*/
 .game8-grid-wrapper {
     position: relative;
     width: 96%;
-    max-width: 28rem;
+    max-width: 560px;
     aspect-ratio: 7 / 9;
     background: hsl(40, 30%, 0%);
     /* 宣紙紋理質感設定 (可選) */
@@ -202,10 +206,10 @@
 /*繪製筆觸路徑*/
 .game8-path {
     fill: none;
-    stroke-width: 0.5rem;
+    stroke-width: 10px;
     stroke-linecap: round;
     stroke-linejoin: round;
-    filter: drop-shadow(0 0.1rem 0.2rem rgba(0, 0, 0, 0.6));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
     transition: opacity 0.3s ease;
 }
 
@@ -274,7 +278,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 2rem;
+    font-size: 40px;
     color: hsl(0, 0%, 80%);
     position: relative;
     user-select: none;
@@ -288,8 +292,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(0);
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     background: hsla(0, 0%, 100%, 0.3);
     z-index: -1;
@@ -304,15 +308,15 @@
 /*棋盤格目標提示字粗體*/
 .game8-cell.target-hint {
     color: hsl(0, 0%, 100%);
-    font-size: 2.5rem;
+    font-size: 50px;
     font-weight: bold;
 }
 
 /*棋盤格-起始提示字粗體黃色*/
 .game8-cell.start-hint {
-    font-size: 2.5rem;
+    font-size: 50px;
     font-weight: bold;
-    text-shadow: 0 0 0.5rem hsl(36, 80%, 50%);
+    text-shadow: 0 0 10px hsl(36, 80%, 50%);
     color: hsl(0, 0%, 100%);
 }
 
@@ -390,7 +394,7 @@
             hsla(0, 0%, 0%, 0.2) 10px,
             hsla(0, 0%, 0%, 0.2) 20px);
     color: transparent;
-    border-radius: 0.2rem;
+    border-radius: 4px;
 }
 
 @keyframes pulse {
@@ -427,7 +431,7 @@
 #game8-timer-path {
     fill: none;
     stroke: hsl(0, 80%, 36%);
-    stroke-width: 0.5rem;
+    stroke-width: 10px;
     stroke-linecap: round;
     stroke-linejoin: round;
     transition: stroke-dashoffset 0.1s linear;
@@ -439,8 +443,8 @@
 .game8-char-preview {
     position: absolute;
     /* 使用 absolute 代替 fixed，配合 container 的變形效果 */
-    width: 3.6rem;
-    height: 3.6rem;
+    width: 72px;
+    height: 72px;
     background: white;
     color: black;
     border: 3px solid #333;
@@ -448,8 +452,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 2.5rem;
-    padding-bottom: 0.3rem;
+    font-size: 50px;
+    padding-bottom: 6px;
     font-weight: bold;
     pointer-events: none;
     /* 穿透點擊 */

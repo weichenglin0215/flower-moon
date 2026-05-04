@@ -4,6 +4,10 @@
    ========================================= */
 
 .game13-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
     z-index: 2000;
     display: flex;
@@ -22,36 +26,36 @@
 
 /* 頂部資訊列 (分數與控制) */
 .game13-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 10;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
 }
 
 .game13-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.0rem;
+    padding-left: 40px;
 }
 
 .game13-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(120, 60%, 20%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
 }
 
 .game13-controls .nav-btn:hover {
     filter: brightness(1.5);
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
 }
 
 .game13-controls .nav-btn:disabled {
@@ -65,9 +69,9 @@
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .game13-area {
@@ -75,24 +79,24 @@
     flex: 1;
     flex-direction: column;
     position: relative;
-    padding: 0.0rem;
+    padding: 0px;
     width: 100%;
 }
 
 /* 難度標籤 */
 .game13-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .game13-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
@@ -100,33 +104,33 @@
 .game13-question-area {
     text-align: center;
     width: 100%;
-    padding: 0.2rem 1rem;
+    padding: 4px 20px;
     color: hsl(40, 50%, 80%);
     display: flex;
     flex-direction: column;
     justify-content: center;
     position: relative;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 1rem;
-    margin-bottom: 0.1rem;
+    border-radius: 20px;
+    margin-bottom: 2px;
 }
 
 /*朝代、作者、詩名*/
 .game13-meta-info {
-    font-size: 1.2rem;
-    margin-bottom: 0.1rem;
+    font-size: 24px;
+    margin-bottom: 2px;
     line-height: 1.2;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 1rem;
+    gap: 20px;
 }
 
 .meta-box {
-    padding: 0.1rem 0.5rem;
+    padding: 2px 10px;
     background: rgba(0, 0, 0, 0.3);
-    border-radius: 0.4rem;
-    min-width: 4rem;
+    border-radius: 8px;
+    min-width: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -149,21 +153,21 @@
 
 /*詩句*/
 .poem-lines {
-    font-size: 2.0rem;
+    font-size: 40px;
     font-weight: bold;
     line-height: 1.3;
-    margin-bottom: 0.1rem;
-    letter-spacing: 0.2rem;
+    margin-bottom: 2px;
+    letter-spacing: 4px;
     color: hsl(40, 50%, 80%);
     text-align: center;
-    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.66);
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.66);
 }
 
 .poem-lines span.hidden-char {
     color: hsl(36, 80%, 50%);
     border-bottom: 2px solid hsl(36, 80%, 50%);
-    padding: 0 0.1rem;
-    margin: 0 0.1rem;
+    padding: 0 2px;
+    margin: 0 2px;
 }
 
 .poem-lines span.correct-char {
@@ -184,85 +188,85 @@
     flex-wrap: wrap;
     justify-content: center;
     align-content: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    padding: 0.5rem;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 10px;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 1rem;
+    border-radius: 20px;
     max-width: 100%;
     /* 限制最大高度為約 8 行按鈕的高度，超過則捲動 */
-    height: 27rem;
+    height: 540px;
     /*overflow-y: auto;*/
 }
 
 /* 緊湊模式：當按鈕過多時自動觸發 */
 .game13-answer-pool.compact-layout {
-    gap: 0.3rem;
-    padding: 0.3rem;
+    gap: 6px;
+    padding: 6px;
 }
 
 .game13-answer-pool.compact-layout .ans-btn-13 {
-    height: 2.8rem;
-    font-size: 2.0rem;
-    padding-bottom: 0.2rem;
+    height: 56px;
+    font-size: 40px;
+    padding-bottom: 4px;
 }
 
 .game13-answer-pool.compact-layout .ans-btn-13.char-btn {
-    width: 2.6rem;
-    height: 2.8rem;
+    width: 52px;
+    height: 56px;
 }
 
 .game13-answer-pool.compact-layout .ans-btn-13.meta-btn {
-    height: 2.8rem;
-    font-size: 2.0rem;
+    height: 56px;
+    font-size: 40px;
 }
 
 /* 針對非單字按鈕（元數據按鈕）的樣式 */
 .ans-btn-13.meta-btn {
-    height: 2.8rem;
-    font-size: 2.0rem;
-    padding: 0 0.6rem;
-    min-width: 4rem;
+    height: 56px;
+    font-size: 40px;
+    padding: 0 12px;
+    min-width: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-bottom: 0.3rem;
+    padding-bottom: 6px;
     /* 修正文字下偏問題，將其向上推 */
 }
 
 .ans-btn-13 {
     background: hsl(40, 50%, 88%);
     border: none;
-    border-radius: 0.6rem;
-    font-size: 1.5rem;
-    padding: 0.5rem 0.5rem;
+    border-radius: 12px;
+    font-size: 30px;
+    padding: 10px 10px;
     color: hsl(210, 30%, 24%);
     cursor: pointer;
-    box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     transition: transform 0.1s, background 0.2s;
     white-space: nowrap;
-    min-width: 3rem;
+    min-width: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-bottom: 0.3rem;
+    padding-bottom: 6px;
     transition: all 0.2s;
 }
 
 .ans-btn-13:hover {
     filter: brightness(1.2);
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.5);
 }
 
 .ans-btn-13.char-btn {
-    font-size: 2rem;
-    width: 3.0rem;
-    height: 2.8rem;
+    font-size: 40px;
+    width: 60px;
+    height: 56px;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-bottom: 0.3rem;
+    padding-bottom: 6px;
     /* 修正文字下偏 */
 }
 
@@ -294,11 +298,11 @@
     }
 
     25% {
-        transform: translateX(-0.2rem);
+        transform: translateX(-4px);
     }
 
     75% {
-        transform: translateX(0.2rem);
+        transform: translateX(4px);
     }
 }
 
@@ -315,7 +319,7 @@
     fill: none;
     stroke: hsl(0, 80%, 36%);
     /* 改為暗紅色，參考 Game 4 */
-    stroke-width: 0.5rem;
+    stroke-width: 10px;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.1s linear;
 }

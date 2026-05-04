@@ -115,7 +115,7 @@
         createDOM: function () {
             const overlay = document.createElement('div');
             overlay.id = 'level-selector-overlay';
-            overlay.className = 'level-selector-overlay aspect-5-8 hidden';
+            overlay.className = 'level-selector-overlay  hidden';
 
             overlay.innerHTML = `
                 <!-- 调试边框 -->
@@ -128,6 +128,16 @@
                 </div>
             `;
             document.body.appendChild(overlay);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    overlay.style.left   = r.left   + 'px';
+                    overlay.style.top    = r.top    + 'px';
+                    overlay.style.width  = 500 + 'px';
+                    overlay.style.height = 850 + 'px';
+                    overlay.style.transform = 'scale(' + r.scale + ')';
+                    overlay.style.transformOrigin = 'top left';
+                });
+            }
             this.overlay = overlay;
         },
 
@@ -138,7 +148,7 @@
             this.renderLevels();
             this.overlay.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         hide: function () {

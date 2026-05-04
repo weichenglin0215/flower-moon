@@ -110,10 +110,35 @@
         menuOverlay.id = 'menuOverlay';
         menuOverlay.className = 'menu-overlay';
 
-        // 插入到 body 前方
-        document.body.insertBefore(hamburgerBtn, document.body.firstChild);
-        document.body.insertBefore(menuPanel, document.body.firstChild);
-        document.body.insertBefore(menuOverlay, document.body.firstChild);
+        // 遮罩層直接插入 body (滿版不需縮放)
+        document.body.appendChild(menuOverlay);
+
+        // 建立 menuWrapper 讓選單與按鈕與 stage 等比縮放且永遠在最上層
+        const menuWrapper = document.createElement('div');
+        menuWrapper.id = 'menuWrapper';
+        menuWrapper.style.position = 'fixed';
+        menuWrapper.style.zIndex = '30000';
+        menuWrapper.style.pointerEvents = 'none'; // 讓點擊穿透到下方的遊戲
+
+        // 恢復選單元件本身的點擊能力
+        hamburgerBtn.style.pointerEvents = 'auto';
+        menuPanel.style.pointerEvents = 'auto';
+
+        menuWrapper.appendChild(menuPanel);
+        menuWrapper.appendChild(hamburgerBtn);
+        document.body.appendChild(menuWrapper);
+
+        // 跟隨 stage 的縮放座標
+        if (window.registerOverlayResize) {
+            window.registerOverlayResize((r) => {
+                menuWrapper.style.left = r.left + 'px';
+                menuWrapper.style.top = r.top + 'px';
+                menuWrapper.style.width = '500px';
+                menuWrapper.style.height = '850px';
+                menuWrapper.style.transform = 'scale(' + r.scale + ')';
+                menuWrapper.style.transformOrigin = 'top left';
+            });
+        }
     }
 
     // ----------------------------------------

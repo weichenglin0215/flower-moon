@@ -5,6 +5,10 @@
 
 /* 遊戲全屏遮罩：使用深藍到黑的放射狀漸變，突顯網格字塊 */
 .game11-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
     z-index: 2000;
     display: flex;
@@ -22,30 +26,30 @@
 
 /* 遊戲頂部資訊列（分數與控制） */
 .game11-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.1);
     z-index: 10;
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .game11-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 .game11-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
     transition: background 0.2s;
 }
@@ -62,11 +66,11 @@
 
 /* 難度標籤 */
 .game11-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
@@ -93,7 +97,7 @@
 }
 
 .game11-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
@@ -105,21 +109,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .heart.empty {
@@ -143,43 +147,43 @@
 /* 詩詞資訊 */
 .game11-poem-info {
     position: absolute;
-    top: 0.3rem;
-    right: 0.6rem;
-    font-size: 1rem;
+    top: 6px;
+    right: 12px;
+    font-size: 20px;
     color: hsl(40, 50%, 80%);
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
     text-decoration: underline;
-    text-underline-offset: 0.2rem;
+    text-underline-offset: 4px;
     z-index: 100;
 }
 
 /*黃色狀態訊息*/
 .game11-status-msg {
     color: hsl(45, 80%, 70%);
-    font-size: 1.4rem;
+    font-size: 28px;
     font-weight: bold;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-top: 10px;
+    margin-bottom: 10px;
     text-align: center;
-    min-height: 1.5rem;
+    min-height: 30px;
 }
 
 /* Grid Area */
 .game11-grid-container {
     display: grid;
-    gap: 0.3rem;
+    gap: 6px;
     justify-content: center;
     align-content: center;
-    margin: 0.3rem;
+    margin: 6px;
 }
 
 /* 單個字塊容器：設定 3D 視角深度 (perspective) */
 .game11-tile {
-    width: 4.0rem;
-    height: 4.0rem;
+    width: 80px;
+    height: 80px;
     perspective: 1000px;
     cursor: pointer;
     position: relative;
@@ -210,22 +214,22 @@
     height: 100%;
     backface-visibility: hidden;
     /* 關鍵：隱藏背面 */
-    border-radius: 0.5rem;
+    border-radius: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 2.8rem;
+    font-size: 56px;
     font-weight: bold;
-    box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 /* 背面 (預設，彩色且不顯示文字) */
 .game11-tile-front {
-    border: 0.2rem solid hsl(0, 0%, 10%);
+    border: 4px solid hsl(0, 0%, 10%);
 }
 
 .game11-grid-container.is-player-phase .game11-tile-front {
-    border: 0.1rem solid hsl(51, 100%, 90%);
+    border: 2px solid hsl(51, 100%, 90%);
 }
 
 /* 正面 (宣紙底，黑字) */
@@ -233,7 +237,7 @@
     background: #fdfaf0;
     color: #111;
     transform: rotateY(180deg);
-    border: 0.1rem solid #bd9b70;
+    border: 2px solid #bd9b70;
 }
 
 @keyframes game11-shake {

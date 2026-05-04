@@ -4,6 +4,10 @@
    ========================================= */
 
 .game14-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
     z-index: 2000;
     display: flex;
@@ -17,36 +21,36 @@
 }
 
 .game14-header {
-    padding: 0.1rem 0.4rem;
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 10;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
 }
 
 .game14-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 .game14-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(0, 60%, 25%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
 }
 
 .game14-controls .nav-btn:hover {
     filter: brightness(1.5);
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
 }
 
 .game14-controls .nav-btn:disabled {
@@ -55,11 +59,11 @@
 }
 
 .game14-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.1);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
     background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
     cursor: pointer;
     transition: all 0.2s;
@@ -67,7 +71,7 @@
 
 .game14-difficulty-tag:hover {
     filter: brightness(1.5);
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
 }
 
 .game14-sub-header {
@@ -76,9 +80,9 @@
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .game14-area {
@@ -92,24 +96,24 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    padding-bottom: 5rem;
+    padding-bottom: 100px;
     perspective: 800px;
     perspective-origin: center 80%;
 }
 
 .game14-poem-info {
     position: absolute;
-    top: 0.2rem;
+    top: 4px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 1rem;
+    font-size: 20px;
     color: hsla(0, 0%, 100%, 0.8);
     cursor: pointer;
     white-space: nowrap;
     z-index: 1002;
     background: rgba(0, 0, 0, 0.3);
-    padding: 0.2rem 0.6rem;
-    border-radius: 1rem;
+    padding: 4px 12px;
+    border-radius: 20px;
 }
 
 .game14-poem-info:hover {
@@ -120,21 +124,21 @@
 /* 遊戲歷程顯示 (最左側直排) */
 .game14-history {
     position: absolute;
-    left: 0.5rem;
+    left: 10px;
     top: 15%;
     height: 80%;
-    width: 2.2rem;
+    width: 44px;
     background: rgba(0, 0, 0, 0.5);
-    padding: 0.4rem;
-    border-radius: 0.6rem;
+    padding: 8px;
+    border-radius: 12px;
     display: flex;
     writing-mode: vertical-lr;
     overflow: hidden;
-    font-size: 1.2rem;
+    font-size: 24px;
     line-height: 1.2;
     pointer-events: none;
     z-index: 100;
-    gap: 0.1rem;
+    gap: 2px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -158,10 +162,10 @@
 /* 每一行按鍵的容器 */
 .ladder-row-14 {
     position: absolute;
-    bottom: 3rem;
+    bottom: 60px;
     display: flex;
     justify-content: center;
-    gap: 1rem;
+    gap: 20px;
     width: 100%;
     transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: center bottom;
@@ -170,18 +174,18 @@
 
 /* 按鍵樣式 */
 .ladder-btn-14 {
-    width: 9rem;
-    height: 7rem;
-    border-radius: 0.8rem;
+    width: 180px;
+    height: 140px;
+    border-radius: 16px;
     background: linear-gradient(to bottom, hsl(40, 30%, 90%), hsl(40, 20%, 70%));
-    border: 0.1rem solid hsla(0, 0%, 0%, 0.3);
-    font-size: 5rem;
+    border: 2px solid hsla(0, 0%, 0%, 0.3);
+    font-size: 100px;
     font-weight: bold;
     /*font-family: 'Noto Serif TC', serif;*/
     color: #1a1a1a;
     cursor: pointer;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4),
-        inset 0 0.2rem 0.2rem rgba(255, 255, 255, 0.5);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4),
+        inset 0 4px 4px rgba(255, 255, 255, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -202,7 +206,7 @@
 .ladder-btn-14.correct {
     background: hsl(145, 60%, 35%);
     color: white;
-    box-shadow: 0 0 0.5rem hsl(145, 60%, 50%);
+    box-shadow: 0 0 10px hsl(145, 60%, 50%);
 }
 
 /* 答錯的視覺效果：黑底白字 (小學難度降低感，或是 user 要求的特別樣式) */
@@ -222,11 +226,11 @@
     }
 
     25% {
-        transform: translateX(-0.3rem);
+        transform: translateX(-6px);
     }
 
     75% {
-        transform: translateX(0.3rem);
+        transform: translateX(6px);
     }
 }
 
@@ -244,7 +248,7 @@
 #game14-timer-path {
     fill: none;
     stroke: hsl(0, 80%, 36%);
-    stroke-width: 0.5rem;
+    stroke-width: 10px;
     stroke-linecap: round;
     stroke-linejoin: round;
     transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
@@ -252,31 +256,31 @@
 
 .timer-text-14 {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    font-size: 1.2rem;
+    top: 10px;
+    right: 10px;
+    font-size: 24px;
     font-weight: bold;
     color: hsl(0, 60%, 80%);
     text-shadow: 0 0 4px black;
     z-index: 1001;
     background: rgba(0, 0, 0, 0.4);
-    padding: 0 0.4rem;
-    border-radius: 0.3rem;
+    padding: 0 8px;
+    border-radius: 6px;
 }
 
 /* 雙倍寬度起始按鈕 */
 .ladder-row-14.start-row .ladder-btn-14 {
-    width: 20rem;
+    width: 400px;
     /* 約雙倍寬度 */
-    height: 7rem;
+    height: 140px;
     background: linear-gradient(135deg, hsl(50, 40%, 80%) 0%, hsl(50, 30%, 60%) 100%);
-    box-shadow: 0 0.8rem 1.5rem rgba(0, 0, 0, 0.5),
-        inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.8);
-    border: 0.2rem solid hsl(50, 100%, 30%);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5),
+        inset 0 4px 10px rgba(255, 255, 255, 0.8);
+    border: 4px solid hsl(50, 100%, 30%);
 }
 
 .ladder-btn-14.double-wide {
-    width: 20rem;
+    width: 400px;
 }
 
 /* 難度降低：提示錯誤選項 (黑底白字) */
@@ -292,5 +296,5 @@
     color: white !important;
     animation: shake-14 0.2s;
     border: 2px solid hsl(0, 100%, 60%) !important;
-    box-shadow: 0 0 1rem hsl(0, 100%, 50%);
+    box-shadow: 0 0 20px hsl(0, 100%, 50%);
 }

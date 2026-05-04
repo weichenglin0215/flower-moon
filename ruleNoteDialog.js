@@ -10,7 +10,7 @@
             const div = document.createElement('div');
             div.id = this.containerId;
             // 讓外層遵循 5:8 縮放比例
-            div.className = 'ruleNoteDialog-container aspect-5-8 hidden';
+            div.className = 'ruleNoteDialog-container  hidden';
             div.innerHTML = `
                 <div id="${this.containerId}-box" class="ruleNoteDialog-box">
                     <h2 id="${this.containerId}-title"></h2>
@@ -20,6 +20,17 @@
             `;
             document.body.appendChild(div);
             this.element = div;
+            
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = '500px';
+                    div.style.height = '850px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
         },
 
         /**

@@ -1,6 +1,10 @@
 /* game7.css - 青鳥雲梯 (Flappy Poetry) */
 
 .game7-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
     background: linear-gradient(to bottom, hsl(210, 72%, 80%) 25%, hsl(30, 36%, 50%) 100%);
     color: hsl(40, 50%, 80%);
     font-family: 'Noto Serif TC', serif;
@@ -12,38 +16,38 @@
 }
 
 .game7-header {
-    padding: 0.2rem 0.5rem;
+    padding: 4px 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: hsla(210, 100%, 50%, 0.5);
     z-index: 100;
     width: 100%;
-    height: 2.5rem;
+    height: 50px;
     /*backdrop-filter: blur(5px);*/
 }
 
 /* 分數看板 */
 .game7-score-board {
     color: hsl(50, 70%, 60%);
-    font-size: 1.2rem;
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 2.5rem;
+    padding-left: 50px;
 }
 
 /* 控制按鈕組 */
 .game7-controls {
     display: flex;
-    gap: 0.5rem;
+    gap: 10px;
 }
 
 .game7-controls .nav-btn {
-    padding: 0.0rem 0.5rem;
+    padding: 0px 10px;
     background: hsl(210, 60%, 33%);
-    border: 0.03rem solid hsla(40, 100%, 80%, 0.3);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
     color: hsl(45, 80%, 70%);
-    border-radius: 0.6rem;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 20px;
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -60,9 +64,9 @@
 
 /* 難度標籤 */
 .game7-difficulty-tag {
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.3rem;
-    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
     color: hsl(45, 30%, 85%);
     border: 1px solid hsla(180, 80%, 60%, 0.3);
     z-index: 80;
@@ -91,7 +95,7 @@
 }
 
 .game7-difficulty-tag:hover {
-    box-shadow: 0 0.0rem 0.4rem rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
     filter: brightness(1.5);
 }
 
@@ -103,21 +107,21 @@
     /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
-    height: 2.0rem;
+    height: 40px;
 }
 
 .game7-hearts {
     display: flex;
-    gap: 0.1rem;
+    gap: 2px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .game7-hearts .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 1.6rem;
+    font-size: 32px;
 }
 
 .game7-heart.empty {
@@ -169,15 +173,15 @@
 /* 詩詞資訊 (顯示目前詩名) */
 .game7-poem-info {
     position: absolute;
-    bottom: 1rem;
-    right: 1rem;
+    bottom: 20px;
+    right: 20px;
     z-index: 80;
     text-align: right;
     pointer-events: none;
 }
 
 .game7-poem-name {
-    font-size: 1rem;
+    font-size: 20px;
     color: hsl(45, 50%, 80%);
     opacity: 1;
 }

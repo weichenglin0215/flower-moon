@@ -77,7 +77,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game9-container';
-            div.className = 'game9-overlay aspect-5-8 hidden';
+            div.className = 'game9-overlay  hidden';
             div.innerHTML = `
                 <div class="game9-header">
                     <div class="game9-score-board">分數: <span id="game9-score">0</span></div>
@@ -109,6 +109,16 @@
                 </div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left   = r.left   + 'px';
+                    div.style.top    = r.top    + 'px';
+                    div.style.width  = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
             this.container = div;
         },
 
@@ -173,7 +183,7 @@
                         document.body.classList.add('overlay-active');
                     }
 
-                    if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+                    /* updateResponsiveLayout replaced */
                     setTimeout(() => {
                         this.startNewGame();
                     }, 50);
@@ -204,7 +214,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         bindEvents: function () {
@@ -478,7 +488,7 @@
                 boltEl.className = 'game9-bolt';
                 boltEl.dataset.idx = boltIdx;
                 // Adjust bolt height based on maxLineLength
-                boltEl.style.height = `${(this.maxLineLength * 3.2) + 2}rem`;
+                boltEl.style.height = `${((this.maxLineLength * 3.2) + 2) * 20}px`;
 
                 // create nuts from bottom up
                 // boltStack: [bottom, ..., top]
@@ -508,13 +518,13 @@
                         nutEl.appendChild(hintEl);
                     }
 
-                    // Fixed spacing of 3.2rem per nut, no squashing
-                    nutEl.style.bottom = `${i * 3.2 + 1}rem`;
+                    // Fixed spacing of 64px per nut, no squashing
+                    nutEl.style.bottom = `${(i * 3.2 + 1) * 20}px`;
 
                     // If it's part of the selected nuts, float it
                     if (this.selectedBoltIndex === boltIdx && i >= (this.bolts[boltIdx].length - this.selectedNutCount)) {
                         nutEl.classList.add('selected');
-                        nutEl.style.transform = 'translateY(-1.5rem)';
+                        nutEl.style.transform = 'translateY(-30px)';
                     }
 
                     boltEl.appendChild(nutEl);

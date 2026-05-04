@@ -10,7 +10,7 @@
         speed: 0.1, // 執行中的速度 (rem/幀)
         baseSpeed: 0.06,//初始速度
         incrementSpeed: 0.005,//速度增長量
-        maxSpeed: 0.2,//最大速度
+        maxSpeed: 0.3,//最大速度
         rows: [], // 存放行元素的陣列
         currentRowIndex: 0, // 當前需要點擊的行索引
         animationId: null,
@@ -21,7 +21,7 @@
         historyData: [], // 紀錄每個字的狀態 { char, status, isSep }
         mistakeCount: 0,//錯誤次數
         updateLayoutMetrics: function () { }, // deprecated
-        // 按鈕高度 CSS 定義為 3.5rem，垂直間距固定為 0.8rem
+        // 按鈕高度 CSS 定義為 70px，垂直間距固定為 16px
         btnHeightRem: 3.5,
         verticalGapRem: 0.8,
         currentRowFontColor: 'rgba(24, 23, 0, 1)',
@@ -37,11 +37,11 @@
         //incrementSpeed: 速度增長量
         //maxSpeed: 最大速度
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 10, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.006, maxSpeed: 0.12 },
-            '中學': { poemMinRating: 5, maxMistakeCount: 9, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.007, maxSpeed: 0.14 },
-            '高中': { poemMinRating: 4, maxMistakeCount: 8, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.008, maxSpeed: 0.16 },
-            '大學': { poemMinRating: 3, maxMistakeCount: 7, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.009, maxSpeed: 0.16 },
-            '研究所': { poemMinRating: 3, maxMistakeCount: 6, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.010, maxSpeed: 0.16 }
+            '小學': { poemMinRating: 6, maxMistakeCount: 10, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.006, maxSpeed: 0.10 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 9, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.008, maxSpeed: 0.12 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 8, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.010, maxSpeed: 0.16 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 7, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.012, maxSpeed: 0.2 },
+            '研究所': { poemMinRating: 3, maxMistakeCount: 6, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.014, maxSpeed: 0.24 }
         },
 
         loadCSS: function () {
@@ -83,7 +83,7 @@
             const div = document.createElement('div');
             div.id = 'game3-container';
             //檢查responsive.css是否有包括game3 - overlay.aspect - 5 - 8
-            div.className = 'game3-overlay aspect-5-8 hidden';
+            div.className = 'game3-overlay  hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
                 <!-- <div class="debug-frame"></div> -->
@@ -105,6 +105,16 @@
                 <div id="game3-history" class="game3-history"></div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
 
             this.renderHearts();
         },
@@ -138,7 +148,7 @@
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
                     if (window.updateResponsiveLayout) {
-                        window.updateResponsiveLayout();
+                        /* updateResponsiveLayout replaced */
                     }
                     this.startNewGame();
                 });
@@ -170,7 +180,7 @@
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         hideOtherContents: function () {
@@ -239,7 +249,7 @@
             this.rows.forEach(row => {
                 row.clicked = false;
                 row.y = row.originalY;
-                row.element.style.transform = `translateY(${row.y}rem)`;
+                row.element.style.transform = `translateY(${(row.y) * 20}px)`;
                 row.element.classList.remove('completed');
                 Array.from(row.element.querySelectorAll('button')).forEach(btn => {
                     btn.disabled = false;
@@ -417,10 +427,7 @@
             this.historyContainer = document.getElementById('game3-history');
             this.renderHistory();
 
-            const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-            const gameAreaHeightPx = this.gameArea.offsetHeight || (rootFontSize * 35);
-            const gameAreaHeightRem = gameAreaHeightPx / rootFontSize;
-
+            const gameAreaHeightRem = this.btnHeightRem * 9; //遊戲介面高度有9個按鍵高，第一個字放在最下緣。
             this.gameAreaHeightRem = gameAreaHeightRem;
             let currentY = gameAreaHeightRem;
 
@@ -464,7 +471,7 @@
         createRow: function (correctChar, index, numOptions, startY, decoyPool) {
             const rowEl = document.createElement('div');
             rowEl.className = 'ladder-row';
-            rowEl.style.transform = `translateY(${startY}rem)`;
+            rowEl.style.transform = `translateY(${(startY) * 20}px)`;
 
             let options = [correctChar];
 
@@ -650,7 +657,7 @@
 
             this.rows.forEach(row => {
                 row.y -= this.speed;
-                row.element.style.transform = `translateY(${row.y}rem)`;
+                row.element.style.transform = `translateY(${(row.y) * 20}px)`;
 
                 if (!row.clicked && row.index === this.currentRowIndex && row.y < -this.btnHeightRem / 4) {
                     row.clicked = true;
@@ -795,20 +802,20 @@
             let resultHtml = '';
             if (this.currentPoem) {
                 resultHtml = `
-                    <div class="game3-result-poem-info" style="text-align: center; margin-bottom: 0.2rem;">
-                        <h3 style="margin: 0; color: #333; font-size: 1.2rem; cursor: pointer; text-decoration: underline;"
+                    <div class="game3-result-poem-info" style="text-align: center; margin-bottom: 4px;">
+                        <h3 style="margin: 0; color: #333; font-size: 24px; cursor: pointer; text-decoration: underline;"
                             onclick="if(window.openPoemDialogById) window.openPoemDialogById('${this.currentPoem.id}')">
                             ${this.currentPoem.title}
                         </h3>
-                        <p style="margin: 0.1rem 0; color: #666; font-size: 1rem;">${this.currentPoem.dynasty} · ${this.currentPoem.author}</p>
+                        <p style="margin: 2px 0; color: #666; font-size: 20px;">${this.currentPoem.dynasty} · ${this.currentPoem.author}</p>
                     </div>
-                    <div class="game3-result-content" style="background: rgba(255,255,255,0.5); padding: 0.5rem; border-radius: 0.5rem;">
+                    <div class="game3-result-content" style="background: rgba(255,255,255,0.5); padding: 10px; border-radius: 10px;">
                 `;
 
                 let currentLine = '';
                 this.historyData.forEach(item => {
                     if (item.isSep) {
-                        resultHtml += `<div style="margin-bottom: 0.3rem;">${currentLine}${item.char}</div>`;
+                        resultHtml += `<div style="margin-bottom: 6px;">${currentLine}${item.char}</div>`;
                         currentLine = '';
                     } else if (item.status !== 'hidden') {
                         let color = '#333';
@@ -862,9 +869,9 @@
         adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
             if (textLen > threshold) {
                 const newSize = baseFontSizeRem * (threshold / textLen);
-                element.style.fontSize = `${newSize}rem`;
+                element.style.fontSize = `${(newSize) * 20}px`;
             } else {
-                element.style.fontSize = `${baseFontSizeRem}rem`;
+                element.style.fontSize = `${(baseFontSizeRem) * 20}px`;
             }
         }
     };

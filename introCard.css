@@ -1,7 +1,7 @@
 /* Intro Card (Splash Screen)
    架構：.intro-overlay 以 position:fixed 覆蓋全視窗，
          但寬高跟隨 #stage 的邏輯尺寸（JS 在 introCard.js 動態設定）
-   1rem = 20px
+   20px = 20px
 */
 
 .intro-overlay {
@@ -50,13 +50,13 @@
     width: 90%;
     height: 90%;
     background: hsl(45, 36%, 88%);
-    border: 1px solid hsl(36, 30%, 50%);   /* 0.05rem → 1px */
-    border-radius: 20px;                    /* 1rem → 20px */
-    box-shadow: 0 25px 62px rgba(0, 0, 0, 0.25); /* 1.25/3.125rem → 25/62px */
+    border: 1px solid hsl(36, 30%, 50%);   /* 1px → 1px */
+    border-radius: 20px;                    /* 20px → 20px */
+    box-shadow: 0 25px 62px rgba(0, 0, 0, 0.25); /* 1.25/62.5px → 25/62px */
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 50px 38px;                     /* 2.5/1.875rem → 50/38px */
+    padding: 50px 38px;                     /* 2.5/37.5px → 50/38px */
     text-align: center;
     box-sizing: border-box;
     cursor: pointer;
@@ -66,37 +66,37 @@
 .intro-card::before {
     content: '';
     position: absolute;
-    top: 8px;                               /* 0.375rem → 8px */
+    top: 8px;                               /* 7.5px → 8px */
     left: 8px;
     right: 8px;
     bottom: 8px;
-    border: 1px solid hsl(36, 30%, 50%);   /* 0.05rem → 1px */
-    border-radius: 12px;                    /* 0.625rem → 12px */
+    border: 1px solid hsl(36, 30%, 50%);   /* 1px → 1px */
+    border-radius: 12px;                    /* 12.5px → 12px */
     pointer-events: none;
 }
 
 /*花月標題*/
 .intro-title {
-    font-size: 76px;                        /* 3.8rem → 76px */
+    font-size: 76px;                        /* 76px → 76px */
     font-weight: bold;
     color: hsl(0, 66%, 33%);
-    margin-top: 40px;                       /* 2rem → 40px */
-    letter-spacing: 25px;                   /* 1.25rem → 25px */
-    text-indent: 25px;                      /* 1.25rem → 25px */
+    margin-top: 40px;                       /* 40px → 40px */
+    letter-spacing: 25px;                   /* 25px → 25px */
+    text-indent: 25px;                      /* 25px → 25px */
     background: linear-gradient(180deg, hsl(0, 60%, 44%), hsl(0, 72%, 24%));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 2px 2px 5px hsla(0, 66%, 33%, 0.1); /* 0.125/0.25rem → 2/5px */
+    text-shadow: 2px 2px 5px hsla(0, 66%, 33%, 0.1); /* 0.125/5px → 2/5px */
 }
 
 /*英文標題*/
 .intro-subtitle {
-    font-size: 24px;                        /* 1.2rem → 24px */
+    font-size: 24px;                        /* 24px → 24px */
     color: hsl(35, 13%, 40%);
-    margin-top: 20px;                       /* 1rem → 20px */
-    letter-spacing: 8px;                    /* 0.375rem → 8px */
-    text-indent: 8px;                       /* 0.375rem → 8px */
+    margin-top: 20px;                       /* 20px → 20px */
+    letter-spacing: 8px;                    /* 7.5px → 8px */
+    text-indent: 8px;                       /* 7.5px → 8px */
     font-family: sans-serif;
     text-transform: uppercase;
 }
@@ -108,16 +108,16 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    margin: 50px 0;                         /* 2.5rem → 50px */
+    margin: 50px 0;                         /* 50px → 50px */
 }
 
 /*簡介文字*/
 .intro-text-block {
     height: auto;
-    max-height: 500px;                      /* 25rem → 500px */
-    font-size: 20px;                        /* 1.0rem → 20px */
+    max-height: 500px;                      /* 500px → 500px */
+    font-size: 20px;                        /* 20px → 20px */
     color: hsl(0, 0%, 25%);
-    letter-spacing: 2px;                    /* 0.125rem → 2px */
+    letter-spacing: 2px;                    /* 2.5px → 2px */
     line-height: 1.6;
     display: flex;
     flex-direction: column;
@@ -126,7 +126,7 @@
 }
 
 .intro-text-block p {
-    margin: 12px 0;                         /* 0.625rem → 12px */
+    margin: 12px 0;                         /* 12.5px → 12px */
 }
 
 /*頁尾*/
@@ -135,14 +135,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;                              /* 0.5rem → 10px */
-    font-size: 18px;                        /* 0.9rem → 18px */
+    gap: 10px;                              /* 10px → 10px */
+    font-size: 18px;                        /* 18px → 18px */
     color: hsl(0, 0%, 25%);
-    border-top: 1px solid hsl(36, 30%, 50%); /* 0.05rem → 1px */
-    padding-top: 25px;                      /* 1.25rem → 25px */
+    border-top: 1px solid hsl(36, 30%, 50%); /* 1px → 1px */
+    padding-top: 25px;                      /* 25px → 25px */
     width: 100%;
     box-sizing: border-box;
-    margin-bottom: 25px;                    /* 1.25rem → 25px */
+    margin-bottom: 25px;                    /* 25px → 25px */
 }
 
 /*作者*/
@@ -152,20 +152,20 @@
 
 /*初版日期*/
 .intro-recent-updates {
-    font-size: 16px;                        /* 0.8rem → 16px */
+    font-size: 16px;                        /* 16px → 16px */
     color: hsl(0, 0%, 25%);
 }
 
 /*點擊離開提示*/
 .intro-swipe-hint {
     position: absolute;
-    bottom: 12px;                           /* 0.6rem → 12px */
+    bottom: 12px;                           /* 12px → 12px */
     left: 50%;
     transform: translateX(-50%);
-    font-size: 17px;                        /* 0.85rem → 17px */
+    font-size: 17px;                        /* 17px → 17px */
     color: hsl(0, 0%, 25%);
     animation: pulse 2.5s infinite;
-    padding: 0 19px;                        /* 0.9375rem → 19px */
+    padding: 0 19px;                        /* 18.75px → 19px */
 }
 
 @keyframes pulse {
@@ -177,9 +177,9 @@
 /* 簡單的開花裝飾 */
 .intro-decoration {
     position: absolute;
-    top: -38px;                             /* -1.875rem → -38px */
+    top: -38px;                             /* -37.5px → -38px */
     right: -38px;
-    font-size: 200px;                       /* 10rem → 200px */
+    font-size: 200px;                       /* 200px → 200px */
     color: hsla(0, 66%, 33%, 0.04);
     pointer-events: none;
     transform: rotate(15deg);
@@ -187,9 +187,9 @@
 
 .intro-decoration-left {
     position: absolute;
-    bottom: -38px;                          /* -1.875rem → -38px */
+    bottom: -38px;                          /* -37.5px → -38px */
     left: -38px;
-    font-size: 160px;                       /* 8rem → 160px */
+    font-size: 160px;                       /* 160px → 160px */
     color: hsla(0, 66%, 33%, 0.04);
     pointer-events: none;
     transform: rotate(-15deg);

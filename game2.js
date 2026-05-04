@@ -64,7 +64,7 @@
             const div = document.createElement('div');
             div.id = 'game2-container';
             //檢查responsive.css是否有包括game2 - overlay.aspect - 5 - 8
-            div.className = 'game2-overlay aspect-5-8 hidden';
+            div.className = 'game2-overlay  hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
                 <!-- <div class="debug-frame"></div> -->
@@ -103,6 +103,16 @@
             </div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left   = r.left   + 'px';
+                    div.style.top    = r.top    + 'px';
+                    div.style.width  = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
 
             // 綁定事件
             document.getElementById('game2-retryGame-btn').onclick = () => {
@@ -177,7 +187,7 @@
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
                     if (window.updateResponsiveLayout) {
-                        window.updateResponsiveLayout();
+                        /* updateResponsiveLayout replaced */
                     }
                     this.startNewGame();
                 });
@@ -217,7 +227,7 @@
                 if (retryBtn) retryBtn.style.display = 'inline-block';
                 if (kwSelector) kwSelector.style.display = 'flex';
             }
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout replaced */
         },
 
         hideOtherContents: function () {
@@ -675,9 +685,9 @@
         adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
             if (textLen > threshold) {
                 const newSize = baseFontSizeRem * (threshold / textLen);
-                element.style.fontSize = `${newSize}rem`;
+                element.style.fontSize = `${(newSize) * 20}px`;
             } else {
-                element.style.fontSize = `${baseFontSizeRem}rem`;
+                element.style.fontSize = `${(baseFontSizeRem) * 20}px`;
             }
         }
     };

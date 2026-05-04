@@ -48,7 +48,7 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game14-container';
-            div.className = 'game14-overlay aspect-5-8 hidden';
+            div.className = 'game14-overlay  hidden';
             div.innerHTML = `
                 <div class="game14-header">
                     <div class="game14-score-board">分數: <span id="game14-score">0</span></div>
@@ -71,6 +71,16 @@
                 <div id="game14-history" class="game14-history"></div>
             `;
             document.body.appendChild(div);
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left   = r.left   + 'px';
+                    div.style.top    = r.top    + 'px';
+                    div.style.width  = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
             this.renderHearts();
         },
 
@@ -201,7 +211,7 @@
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
 
-            // 扣除 stroke-width (預設 0.5rem 換算大約 8px) 避免邊框被截斷
+            // 扣除 stroke-width (預設 10px 換算大約 8px) 避免邊框被截斷
             const rw = Math.max(0, w - 8);
             const rh = Math.max(0, h - 8);
 
@@ -343,7 +353,7 @@
 
                     row.element.style.display = 'flex';
                     row.element.style.opacity = (1 - dist * 0.066).toString();
-                    row.element.style.transform = `translate3d(0, ${yShift}rem, ${zShift}px) scale(${scale})`;
+                    row.element.style.transform = `translate3d(0, ${(yShift) * 20}px, ${zShift}px) scale(${scale})`;
                     row.element.style.zIndex = 100 - dist;
                     row.element.classList.remove('active-row');
                     Array.from(row.element.querySelectorAll('button')).forEach(b => b.style.opacity = '0.7');
@@ -357,7 +367,7 @@
                 } else {
                     row.element.style.display = 'flex';
                     row.element.style.opacity = '0';
-                    row.element.style.transform = `translate3d(0, 15rem, -100px) scale(0.5)`;
+                    row.element.style.transform = `translate3d(0, 300px, -100px) scale(0.5)`;
                     row.element.style.zIndex = 50 - offset;
                     row.element.classList.remove('active-row');
                 }
