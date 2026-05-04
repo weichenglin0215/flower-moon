@@ -33,7 +33,7 @@
         createDOM: function () {
             const poemOverlay = document.createElement('div');
             poemOverlay.id = 'poemOverlay';
-            poemOverlay.className = 'pd-overlay aspect-5-8 hidden';
+            poemOverlay.className = 'pd-overlay hidden';
             poemOverlay.innerHTML = `
                 <div class="pd-container" role="dialog" aria-modal="true">
                     <div class="pd-header">
@@ -41,7 +41,7 @@
                         <button class="nav-btn" id="poemRandomBtn">隨機</button>
                         <button class="nav-btn" id="poemNextBtn">下首</button>
                         <button class="nav-btn" id="copyPoemDataBtn">複製詩文</button>
-                        <button class="nav-btn" id="searchPoemBtn" style="font-size: 1.2rem; padding: 0.1rem 0.5rem;">🔍</button>
+                        <button class="nav-btn" id="searchPoemBtn" style="font-size: 24px; padding: 2px 10px;">🔍</button>
                         <button class="nav-btn close-btn" id="poemCloseBtn">關閉</button>
                     </div>
                     <div class="pd-body">
@@ -66,17 +66,29 @@
             document.body.appendChild(poemOverlay);
             this.overlay = poemOverlay;
 
+            /* 跟隨 stage 位置與尺寸 */
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    poemOverlay.style.left   = r.left   + 'px';
+                    poemOverlay.style.top    = r.top    + 'px';
+                    poemOverlay.style.width = '500px';
+                    poemOverlay.style.height = '850px';
+                    poemOverlay.style.transform = 'scale(' + r.scale + ')';
+                    poemOverlay.style.transformOrigin = 'top left';
+                });
+            }
+
             // Search Overlay
             const searchOverlay = document.createElement('div');
             searchOverlay.id = 'poemSearchOverlay';
-            searchOverlay.className = 'pd-overlay pd-search-overlay hidden aspect-5-8';
+            searchOverlay.className = 'pd-overlay pd-search-overlay hidden';
             searchOverlay.innerHTML = `
                 <div class="pd-container" role="dialog" aria-modal="true">
                     <div class="pd-header" style="justify-content: center; background: hsl(40, 40%, 75%); border-bottom: none;">
-                        <h2 style="margin: 0; font-size: 1.5rem; color: hsl(40, 40%, 20%); letter-spacing: 0.2rem;">詩詞搜尋</h2>
+                        <h2 style="margin: 0; font-size: 30px; color: hsl(40, 40%, 20%); letter-spacing: 4px;">詩詞搜尋</h2>
                     </div>
-                    <div class="pd-body pd-search-body" id="poemSearchList" style="padding: 1rem; border-top: 0.05rem solid hsl(0, 0%, 93%);">
-                        <div class="pd-placeholder" style="text-align: center; margin-top: 2rem;">請輸入文字<br>搜尋作者、詩名或詩句。</div>
+                    <div class="pd-body pd-search-body" id="poemSearchList" style="padding: 20px; border-top: 1px solid hsl(0, 0%, 93%);">
+                        <div class="pd-placeholder" style="text-align: center; margin-top: 40px;">請輸入文字<br>搜尋作者、詩名或詩句。</div>
                     </div>
                     <div class="pd-search-footer">
                         <input type="text" id="poemSearchInput" placeholder="輸入搜尋字...">
@@ -86,6 +98,18 @@
                 </div>`;
             document.body.appendChild(searchOverlay);
             this.searchOverlay = searchOverlay;
+
+            /* 搜尋 overlay 也跟隨 stage */
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    searchOverlay.style.left   = r.left   + 'px';
+                    searchOverlay.style.top    = r.top    + 'px';
+                    searchOverlay.style.width = '500px';
+                    searchOverlay.style.height = '850px';
+                    searchOverlay.style.transform = 'scale(' + r.scale + ')';
+                    searchOverlay.style.transformOrigin = 'top left';
+                });
+            }
         },
 
         /**
@@ -542,8 +566,7 @@ ${m.poem.rating || ''}星</span></div>
             this.overlay.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             document.body.classList.add('overlay-active');
-
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout 已由 registerOverlayResize 取代 */
         },
 
         /**

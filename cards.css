@@ -1,8 +1,10 @@
 /* =========================================
-   卡片（默背）頁面樣式（cards.html）
-   - 僅更新必要部分，避免覆蓋既有調整
-   - 漢堡選單樣式請見 menu.css
+   卡片（默背）頁面樣式（cards.css）
+   架構：固定邏輯畫布（500×850px）+ transform:scale()
+   所有尺寸使用 px — 在 scale 容器內不受系統字體/縮放影響
+          原來的1.0rem=現在的20px
    ========================================= */
+
 :root {
     --bg-color: hsl(0, 60%, 24%);
     --font-main: 'Noto Serif TC', serif;
@@ -19,50 +21,49 @@
 body {
     background-color: var(--bg-color);
     font-family: var(--font-main);
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    /* 防止浏览器缩放影响布局 */
-    zoom: 1;
+
+    /* 防止瀏覽器縮放影響佈局 */
     -webkit-text-size-adjust: 100%;
-    -moz-text-size-adjust: 100%;
-    -ms-text-size-adjust: 100%;
     text-size-adjust: 100%;
 }
 
+/* ★ 這裡也要確保與 calendar.css 一致，避免切換頁面時跳動 */
 #cardContainer {
-    position: relative;
-    /* 螢幕比例與基礎尺寸由 responsive.js 管理 */
-    width: var(--responsive-width, 12.0rem);
-    height: var(--responsive-height, 19.2rem);
-    perspective: 30.0rem;
-    margin: 0 auto;
-    transition: width 0.3s ease, height 0.3s ease;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    perspective: 480px;
+    /* 30.0rem -> 480px */
 }
 
 /* 卡片樣式 */
 .card {
     position: absolute;
-    /* 使用 inset 和 margin auto 实现居中 */
     inset: 0;
     margin: auto;
 
-    /* 卡片是容器的90%，并居中显示 */
+    /* 卡片是容器的 90%，並居中顯示 */
     width: 90%;
     height: 90%;
 
     --card-hue: 0;
     background-color: hsl(var(--card-hue), 18%, 72%);
+
     /* 文字顏色：Same Hue, S 20%, L 20% */
     --main-text-color: hsl(var(--card-hue), 20%, 20%);
     color: var(--main-text-color);
 
-    border-radius: 1rem;
-    box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.5);
+    border-radius: 16px;
+    /* 1rem → 16px */
+    box-shadow: 0 10px 29px rgba(0, 0, 0, 0.5);
+    /* 0.6rem / 1.8rem → 10px / 29px */
     display: flex;
-    padding: 1rem 1.5rem;
+    padding: 16px 24px;
+    /* 1rem 1.5rem → 16px 24px */
     transition: transform 0.1s linear, opacity 0.3s ease;
     cursor: grab;
     will-change: transform;
@@ -75,51 +76,44 @@ body {
 /* Layout Columns */
 .col-left,
 .col-right {
-    flex: 0 0 0.6rem;
-    /* 寬度很窄，適合垂直文字 */
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    /* 改為 flex-start，方便用 margin auto 推底部 */
-    padding: 0.05rem 0;
-    /* 上下 padding 調整美觀 */
+    padding: 1px 0;
+    /* 0.05rem → 1px */
     height: 100%;
-    /* 確保有完整高度 */
 }
 
 /* 三欄布局 */
 .col-left {
     justify-content: flex-end;
-    /* 將內容推到底部 */
 }
 
 /* 左邊詩名作者名 Metadata Vertical (Left Column) */
 .poem-meta-and-logo-left {
     display: flex;
     flex-direction: row;
-    /* 在 vertical-rl 模式下，row 表示垂直排列，形成同一行 */
     writing-mode: vertical-rl;
-    /* 整體直排 */
-    gap: 1rem;
-    /* 每個之間的空白間距 */
+    gap: 20px;
+    /* 1rem → 16px */
     color: var(--main-text-color);
-    font-size: 1.2rem;
-    padding-bottom: 1rem;
-    /* 距離底邊一點內縮 */
+    font-size: 24px;
+    /* 1.2rem → 19px */
+    padding-bottom: 20px;
+    /* 1rem → 16px */
 }
 
 .poem-title,
 .poem-author {
-    font-size: 1.2rem;
-    /*字距*/
-    letter-spacing: 0.2em;
+    font-size: 24px;
+    /* 強制與 calendar.css 一致，解決你說的 10px 問題 */
+    letter-spacing: 4px;
+    /* 0.2em */
     opacity: 1;
     white-space: nowrap;
-    /* 防止换列 */
     overflow: hidden;
-    /* 隐藏超出部分 */
     text-overflow: ellipsis;
-    /* 超出显示省略号 */
     cursor: pointer;
     writing-mode: vertical-rl;
 }
@@ -132,15 +126,18 @@ body {
 .vertical-text {
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    letter-spacing: 0.2em;
+    letter-spacing: 3px;
+    /* 0.2em */
 }
 
-/* 花月商標BRAND LOGO */
+/* 花月商標 BRAND LOGO */
 .brand-logo {
     writing-mode: vertical-rl;
-    font-size: 1.2rem;
+    font-size: 24px;
+    /* 1.2rem → 19px */
     font-weight: bold;
-    letter-spacing: 0.5rem;
+    letter-spacing: 10px;
+    /* 0.5rem → 8px */
     white-space: nowrap;
 }
 
@@ -149,43 +146,41 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0 1rem;
+    padding: 0 20px;
+    /* 1rem → 16px */
     position: relative;
     white-space: nowrap;
-    /* 防止换列 */
     overflow: hidden;
-    /* 隐藏超出部分 */
     text-overflow: ellipsis;
-    /* 超出显示省略号 */
 }
-
 
 /* 中欄：詩詞內容 */
 .poem-content {
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    letter-spacing: 0.8rem;
-    font-size: 2.4rem;
-    /*font-weight: bold;*/
+    letter-spacing: 16px;
+    /* 0.8rem → 13px */
+    font-size: 48px;
+    /* 2.4rem → 38px */
     line-height: 1.6;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1rem;
+    gap: 20px;
+    /* 1rem → 16px */
     max-height: 90%;
-    /* 水平壓縮 0.8 倍 → 變窄長方形 */
     transform: scaleX(0.8);
 }
 
 .cards-poem-line {
     position: relative;
-    /*display: inline-block;*/
 }
 
 /* 左邊第一句詩往上移半個字高 */
 .cards-poem-line:first-child {
-    transform: translateY(-1.8rem);
+    transform: translateY(-29px);
+    /* 1.8rem → 29px */
 }
 
 /* 每個字符的容器 */
@@ -193,7 +188,6 @@ body {
     display: inline-block;
     position: relative;
     text-align: center;
-    /* 不再使用整體的 opacity，改由內層控制 */
 }
 
 /* 預留位置的方塊：50% 半透明 */
@@ -203,7 +197,7 @@ body {
     transition: opacity 0.5s ease;
 }
 
-/* 實際的文字內容：初始隱藏，逐字慢慢顯示 */
+/* 實際的文字內容 */
 .char-inner {
     position: absolute;
     left: 0;
@@ -214,11 +208,10 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0;
-    /* 動態決定顯示速度（預設 2.5s） */
     transition: opacity var(--reveal-duration, 2.5s) ease;
 }
 
-/* 當 visible 類別被加入後：方塊消失，文字顯現 */
+/* 顯示文字 */
 .char.visible .char-placeholder {
     opacity: 0;
 }
@@ -227,12 +220,10 @@ body {
     opacity: 1;
 }
 
-/* 初始顯示的字不需要過渡動畫 */
 .char.visible.instant .char-placeholder,
 .char.visible.instant .char-inner {
     transition: none !important;
 }
-
 
 /* 動畫類別 */
 .animate-recoil {
@@ -242,5 +233,3 @@ body {
 .animate-flyout {
     transition: transform 0.4s cubic-bezier(0.5, 0, 1, 0.5), opacity 0.4s ease;
 }
-
-/* 漢堡選單樣式由 menu.css 統一管理 */

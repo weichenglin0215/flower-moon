@@ -48,7 +48,7 @@
             this.overlay.classList.remove('hide-fade', 'hide-slide-left', 'hide-slide-right');
             document.body.classList.add('overlay-active');
 
-            if (window.updateResponsiveLayout) window.updateResponsiveLayout();
+            /* updateResponsiveLayout 已由 registerOverlayResize 取代，不需要再呼叫 */
             if (window.SoundManager) setTimeout(() => window.SoundManager.playJoyfulTriple(), 1000);
 
             if (autoClose) {
@@ -65,7 +65,7 @@
         createDOM: function () {
             const overlay = document.createElement('div');
             overlay.id = 'introOverlay';
-            overlay.className = 'intro-overlay aspect-5-8 hidden'; // 預設隱藏
+            overlay.className = 'intro-overlay hidden'; // 移除 aspect-5-8，改由 registerOverlayResize 控制
 
             overlay.innerHTML = `
                 <div class="intro-card" id="introCardNode" role="dialog" aria-modal="true">
@@ -95,6 +95,18 @@
 
             document.body.appendChild(overlay);
             this.overlay = overlay;
+
+            /* 跟隨 stage 的位置與尺寸 */
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    overlay.style.left   = r.left   + 'px';
+                    overlay.style.top    = r.top    + 'px';
+                    overlay.style.width = '500px';
+                    overlay.style.height = '850px';
+                    overlay.style.transform = 'scale(' + r.scale + ')';
+                    overlay.style.transformOrigin = 'top left';
+                });
+            }
         },
 
         bindEvents: function () {

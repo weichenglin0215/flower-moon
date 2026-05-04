@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="花月">
     <title>花月 Flower Moon</title>
 
-    <!-- 基礎樣式，responsive.css 必須在最前面，不要自作主張去調整順序 -->
-    <link rel="stylesheet" href="responsive.css">
+    <!-- 基礎樣式，screen_adaptive.css 必須在最前面，不要自作主張去調整順序 -->
+    <link rel="stylesheet" href="screen_adaptive.css">
     <link rel="stylesheet" href="achievement.css">
     <link rel="stylesheet" href="author_bio.css">
     <link rel="stylesheet" href="calendar.css">
@@ -47,21 +47,26 @@
 <body>
     <!-- 選單會由 menu.js 動態插入 -->
 
-    <!-- 主要內容區域：日曆 (預設顯示) -->
-    <script>
-        // 立即檢查是否需要開啟遊戲，如果是則隱藏日曆容器以避免閃爍
-        if (window.location.search.includes('game=') || window.location.search.includes('page=')) {
-            document.write('<style>#calendarCardContainer { display: none !important; }</style>');
-        }
-    </script>
-    <div id="calendarCardContainer" class="aspect-5-8">
-        <!-- JavaScript 會將卡片動態插入到這裡 -->
-    </div>
+    <!-- #stage：固定邏輯尺寸 500×850px，由 screen_adaptive.js 負責 transform:scale() 置中 -->
+    <div id="stage">
 
-    <!-- 卡片默背容器 (預設隱藏) -->
-    <div id="cardContainer" class="aspect-5-8" style="display: none;">
-        <!-- JavaScript 會將卡片動態插入到這裡 -->
-    </div>
+        <!-- 主要內容區域：日曆 (預設顯示) -->
+        <script>
+            // 立即檢查是否需要開啟遊戲，如果是則隱藏日曆容器以避免閃爍
+            if (window.location.search.includes('game=') || window.location.search.includes('page=')) {
+                document.write('<style>#calendarCardContainer { display: none !important; }</style>');
+            }
+        </script>
+        <div id="calendarCardContainer">
+            <!-- JavaScript 會將卡片動態插入到這裡 -->
+        </div>
+
+        <!-- 卡片默背容器 (預設隱藏) -->
+        <div id="cardContainer" style="display: none;">
+            <!-- JavaScript 會將卡片動態插入到這裡 -->
+        </div>
+
+    </div><!-- /#stage -->
 
     <!-- 單張卡片默背的模板 -->
     <template id="cardTemplate">
@@ -132,8 +137,8 @@
         </div>
     </template>
 
-    <!-- 核心邏輯載入 要讓 responsive.js 在最前面，不要自作主張去調整順序-->
-    <script src="responsive.js"></script>
+    <!-- 核心邏輯載入 要讓 screen_adaptive.js 在最前面，不要自作主張去調整順序-->
+    <script src="screen_adaptive.js"></script>
     <script src="script.js"></script>
     <script src="data/author_biography.js"></script>
     <script src="data/poems.js"></script>

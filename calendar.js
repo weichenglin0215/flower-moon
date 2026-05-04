@@ -376,8 +376,11 @@ document.addEventListener('DOMContentLoaded', () => {
         currentX = getClientX(e);
         const diffX = currentX - startX;
 
+        /* 將螢幕 px 除以 stageScale 轉為邏輯 px，再乘 0.5 作為視覺阻尼 */
+        const scale = window.stageScale || 1;
+        const logicalDiffX = (diffX / scale) * 0.5;
         const rotation = diffX * 0.05;
-        dragTarget.style.transform = `translateX(${((diffX) * 0.03).toFixed(1)}rem) rotate(${rotation}deg)`;
+        dragTarget.style.transform = `translateX(${logicalDiffX.toFixed(1)}px) rotate(${rotation}deg)`;
 
         const bottomCard = document.getElementById('calendarBottomCard');
         if (bottomCard) {
@@ -417,8 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
             card.classList.add('animate-flyout');
 
             const dir = diffX > 0 ? 1 : -1;
-            const endX = dir * window.innerWidth * 1.5;
-            card.style.transform = `translateX(${((endX) * 0.03).toFixed(1)}rem) rotate(${dir * 30}deg)`;
+            /* 飛出動畫：使用邏輯 px，超出舞台寬度（500px）即可 */
+            card.style.transform = `translateX(${dir * 800}px) rotate(${dir * 30}deg)`;
 
             const bottomCard = document.getElementById('calendarBottomCard');
             if (bottomCard) {
@@ -438,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
             void card.offsetWidth;
             card.classList.add('animate-recoil');
             requestAnimationFrame(() => {
-                card.style.transform = `translate(0.0rem, 0.0rem) rotate(0deg)`;
+                card.style.transform = `translate(0px, 0px) rotate(0deg)`;
             });
 
             const bottomCard = document.getElementById('calendarBottomCard');

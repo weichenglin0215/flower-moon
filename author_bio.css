@@ -1,19 +1,24 @@
-/* author_bio.css */
+/* author_bio.css
+   架構：#authorBioPage 以 position:absolute 填滿 #stage 內
+   1rem = 20px
+*/
+
 #authorBioPage {
+    position: fixed;
+    margin: 0;
     background-color: var(--bg-color);
     z-index: 2000;
     display: none;
     /* 預設隱藏 */
     flex-direction: column;
-    padding: 0.9375rem;
-    padding-top: 0.0625rem;
-    /* 縮小一點空間 */
+    padding: 10px;
     font-family: var(--font-main);
     color: whitesmoke;
     overflow: hidden;
-    border-radius: 0.75rem;
-    /* 增加圓角 */
-    box-shadow: 0 0.625rem 1.875rem rgba(0, 0, 0, 0.5);
+    border-radius: 15px;
+    /* 0.75rem → 15px */
+    box-shadow: 0 12px 38px rgba(0, 0, 0, 0.5);
+    /* 0.625/1.875rem → 12/38px */
     width: 100%;
     height: 100%;
 }
@@ -26,23 +31,31 @@
 .bio-header {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.3rem 1rem;
-    margin-bottom: 0.3rem;
+    gap: 6px 20px;
+    /* 0.3/1rem → 6/20px */
+    margin-bottom: 6px;
+    /* 0.3rem → 6px */
     background: rgba(255, 255, 255, 0.1);
-    padding: 0.6rem;
-    border-radius: 0.5rem;
-    backdrop-filter: blur(0.3rem);
-    border: 0.05rem solid rgba(255, 255, 255, 0.2);
+    padding: 12px;
+    /* 0.6rem → 12px */
+    border-radius: 10px;
+    /* 0.5rem → 10px */
+    backdrop-filter: blur(6px);
+    /* 0.3rem → 6px */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* 0.05rem → 1px */
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 6px;
+    /* 0.3rem → 6px */
 }
 
 .filter-group label {
-    font-size: 0.8rem;
+    font-size: 16px;
+    /* 0.8rem → 16px */
     opacity: 0.8;
 }
 
@@ -50,43 +63,52 @@
 .filter-group input {
     background: rgba(255, 255, 255, 0.9);
     border: none;
-    padding: 0.1rem 0.6rem;
-    border-radius: 0.3rem;
+    padding: 2px 12px;
+    /* 0.1/0.6rem → 2/12px */
+    border-radius: 6px;
+    /* 0.3rem → 6px */
     font-family: inherit;
-    font-size: 1rem;
+    font-size: 20px;
+    /* 1rem → 20px */
     color: #333;
     outline: none;
 }
 
 .filter-group input {
-    min-width: 10rem;
+    min-width: 200px;
+    /* 10rem → 200px */
     width: 100%;
 }
 
-/* Main Content Area 下方兩區的間隔*/
+/* Main Content Area */
 .bio-content {
     display: flex;
     flex: 1;
-    gap: 0.5rem;
+    gap: 10px;
+    /* 0.5rem → 10px */
     overflow: hidden;
     flex-direction: row;
 }
 
-/* Author List 左側欄*/
+/* Author List 左側欄 */
 .author-list-container {
     flex: 1;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 0.3rem;
+    border-radius: 6px;
+    /* 0.3rem → 6px */
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 .list-title {
-    padding: 0.3rem;
-    font-size: 1.2rem;
+    padding: 6px;
+    /* 0.3rem → 6px */
+    font-size: 24px;
+    /* 1.2rem → 24px */
     font-weight: bold;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    /* 0.05rem → 1px */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -95,7 +117,8 @@
 .author-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 0.3rem;
+    padding: 6px;
+    /* 0.3rem → 6px */
     cursor: grab;
     user-select: none;
     -webkit-overflow-scrolling: touch;
@@ -107,34 +130,42 @@
 
 /*作者列表item*/
 .author-item {
-    padding: 0.3rem;
-    margin-bottom: 0.3rem;
+    padding: 6px;
+    /* 0.3rem → 6px */
+    margin-bottom: 6px;
+    /* 0.3rem → 6px */
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 0.3rem;
+    border-radius: 6px;
+    /* 0.3rem → 6px */
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 4px;
+    /* 0.2rem → 4px */
 }
 
 .author-item:hover {
     background: rgba(255, 255, 255, 0.25);
-    transform: translateX(0.3125rem);
+    transform: translateX(6px);
+    /* 0.3125rem → 6px */
 }
 
 .author-item.selected {
     background: #c0392b;
-    box-shadow: 0 0.25rem 0.9375rem rgba(0, 0, 0, 0.3);
+    box-shadow: 0 5px 19px rgba(0, 0, 0, 0.3);
+    /* 0.25/0.9375rem → 5/19px */
 }
 
 .author-name {
-    font-size: 1.0rem;
+    font-size: 20px;
+    /* 1.0rem → 20px */
     font-weight: bold;
 }
 
 .author-stats {
-    font-size: 0.7rem;
+    font-size: 14px;
+    /* 0.7rem → 14px */
     opacity: 0.7;
     width: 100%;
     display: flex;
@@ -145,28 +176,36 @@
 .works-list-container {
     flex: 1.5;
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 0.3rem;
+    border-radius: 6px;
+    /* 0.3rem → 6px */
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 .works-controls {
-    padding: 0.4rem 0.6rem;
+    padding: 8px 12px;
+    /* 0.4/0.6rem → 8/12px */
     display: flex;
-    gap: 0.4rem;
+    gap: 8px;
+    /* 0.4rem → 8px */
     flex-wrap: wrap;
-    border-bottom: 0.05rem solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    /* 0.05rem → 1px */
 }
 
 .sort-btn {
     background: rgba(255, 255, 255, 0.1);
-    border: 0.05rem solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* 0.05rem → 1px */
     color: whitesmoke;
-    padding: 0.3rem 0.5rem;
-    border-radius: 0.5rem;
+    padding: 6px 10px;
+    /* 0.3/0.5rem → 6/10px */
+    border-radius: 10px;
+    /* 0.5rem → 10px */
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 18px;
+    /* 0.9rem → 18px */
     transition: all 0.2s;
 }
 
@@ -179,7 +218,8 @@
 .works-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 0.625rem;
+    padding: 12px;
+    /* 0.625rem → 12px */
     cursor: grab;
     user-select: none;
     -webkit-overflow-scrolling: touch;
@@ -191,10 +231,13 @@
 
 /*作品列表item*/
 .work-item {
-    padding: 0.3rem 0.3rem;
-    margin-bottom: 0.3rem;
+    padding: 6px;
+    /* 0.3rem → 6px */
+    margin-bottom: 6px;
+    /* 0.3rem → 6px */
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 0.5rem;
+    border-radius: 10px;
+    /* 0.5rem → 10px */
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -206,7 +249,8 @@
 .work-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 0.3125rem;
+    margin-bottom: 6px;
+    /* 0.3125rem → 6px */
 }
 
 .work-title {
@@ -215,12 +259,14 @@
 }
 
 .work-rating {
-    font-size: 0.9rem;
+    font-size: 18px;
+    /* 0.9rem → 18px */
     color: #ecf0f1;
 }
 
 .work-snippet {
-    font-size: 0.9rem;
+    font-size: 18px;
+    /* 0.9rem → 18px */
     opacity: 0.6;
     white-space: nowrap;
     overflow: hidden;
@@ -230,9 +276,12 @@
 /* Close button for the page */
 .page-close-btn {
     position: absolute;
-    top: 0.05rem;
-    right: 1rem;
-    font-size: 2rem;
+    top: 1px;
+    /* 0.05rem → 1px */
+    right: 20px;
+    /* 1rem → 20px */
+    font-size: 40px;
+    /* 2rem → 40px */
     cursor: pointer;
     z-index: 101;
     opacity: 0.6;
@@ -241,5 +290,3 @@
 .page-close-btn:hover {
     opacity: 1;
 }
-
-/* Responsive adjustments removed - unified for aspect-5-8 */
