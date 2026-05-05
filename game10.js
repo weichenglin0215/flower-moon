@@ -65,6 +65,10 @@
             '研究所': { poemMinRating: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.2, paddleBase: 4, balls: 5, blackHP: 3, lineHeight: 1, minLines: 6, minChars: 30, maxChars: 42, maxCharsInLine: 11, ballSpeed: 28, ballMaxSpeed: 42 }
         },
 
+        // 彩虹顏色
+        rainbowColors: ['hsl(0, 100%, 60%)', 'hsl(30, 100%, 66%)', 'hsl(60, 100%, 50%)', 'hsl(120, 100%, 50%)', 'hsl(180, 100%, 50%)', 'hsl(240, 100%, 70%)', 'hsl(300, 80%, 50%)'],
+        rainbowIndex: 0,
+
         loadCSS: function () {
             if (!document.getElementById('game10-css')) {
                 const link = document.createElement('link');
@@ -188,7 +192,7 @@
                     e.preventDefault();
                     this.ai.enabled = !this.ai.enabled;
                     console.log(`[Game10] AI 自動模式: ${this.ai.enabled ? '開啟' : '關閉'}`);
-                    
+
                     // 顯示 AI 狀態提示 (選用)
                     if (window.GameMessage && this.isActive) {
                         // 暫時借用 GameMessage 顯示狀態，3秒後消失
@@ -271,12 +275,18 @@
             this.countdown = 0;
         },
 
-        createBall: function (x, y, dx, dy, isMoving = true) {
+        createBall: function (x, y, dx, dy, isMoving = true, color = null) {
             const container = document.getElementById('game10-balls-container');
             if (!container) return null;
 
             const el = document.createElement('div');
             el.className = 'game10-ball';
+            if (color) {
+                //el.style.background = `radial-gradient(circle at 30% 30%, ${color}, #000)`;
+                //只要單色，不要明暗，同一遊戲美術風格一致
+                el.style.background = color;
+                // el.style.boxShadow = `0 2px 6px rgba(0, 0, 0, 0.5), 0 0 10px ${color}`;
+            }
             container.appendChild(el);
 
             const ball = {
@@ -355,6 +365,7 @@
             if (!this.currentPoem) return;
             this.score = 0;
             this.mistakes = 0;
+            this.rainbowIndex = 0;
 
             // 完全重置磚塊到初始位置與狀態
             this.bricks.forEach(b => {
@@ -383,6 +394,7 @@
             this.updateUIForMode();
             this.score = 0;
             this.mistakes = 0;
+            this.rainbowIndex = 0;
             this.prepareChallenge();
             this.resetGameRound();
         },
@@ -642,12 +654,12 @@
 
             // 更新撞擊條位置 (跟隨滑鼠/手指，使用平滑補間)
             this.paddle.prevX = this.paddle.x;
-            
+
             // 根據距離動態調整移動平滑度 (距離遠則快，距離近則優雅減速)
             const dist = Math.abs(this.paddle.targetX - this.paddle.x);
             const lerpFactor = this.ai.enabled ? Math.min(0.3, 0.1 + dist * 0.2) : 0.4;
             this.paddle.x += (this.paddle.targetX - this.paddle.x) * lerpFactor;
-            
+
             this.paddle.velX = (this.paddle.x - this.paddle.prevX) / dt; // 計算目前的左右移動速度
 
             // 限制撞擊條邊界，不超出畫面
@@ -788,7 +800,7 @@
 
             this.balls.forEach(ball => {
                 if (!ball.isMoving || ball.toRemove) return;
-                
+
                 // 只考慮正在向下掉落的球
                 if (ball.dy > 0) {
                     const timeToHit = (paddleY - ball.y) / ball.dy;
@@ -815,7 +827,7 @@
                 // --- 策略性反彈優化 ---
                 let offset = 0;
                 const paddleHalfWidth = this.paddle.width / 2;
-                
+
                 // 如果球在邊緣區域，則輕微偏移以利切入，但在中心區域則保持隨機適中位置
                 if (predictedX < wRem * 0.2) offset = paddleHalfWidth * 0.4; // 稍微撞右側
                 else if (predictedX > wRem * 0.8) offset = -paddleHalfWidth * 0.4; // 稍微撞左側
@@ -823,7 +835,7 @@
 
                 // --- 抖動修復與自然感優化 ---
                 // 1. 取得垂直距離 (px 轉換)
-                const distY = (paddleY - bestBall.y); 
+                const distY = (paddleY - bestBall.y);
                 const distX = Math.abs(predictedX + offset - this.paddle.x);
 
                 // 2. 距離法則：如果球還很高，且 X 偏移還在反彈棒寬度兩倍內，則不頻繁調整
@@ -834,7 +846,7 @@
                         return;
                     }
                 }
-                
+
                 // 3. X/Y 比例判斷：如果左右距離比垂直距離還小，不需要控制
                 if (distX < distY * 0.5 && distY > 5) {
                     return;
@@ -849,7 +861,7 @@
             } else {
                 // 沒有活動中的球，保持在原地，不要習慣性移回中心
                 // this.ai.targetX 保持不變即可
-                
+
                 // 如果有球準備發射，自動發射
                 if (this.balls.length > 0 && !this.balls[0].isMoving && this.isActive) {
                     this.launchBall();
@@ -1022,7 +1034,12 @@
                         const angle = -Math.PI / 2 + (Math.random() * 0.5 - 0.25);
                         const dx = baseSpeed * Math.cos(angle);
                         const dy = baseSpeed * Math.sin(angle);
-                        this.createBall(spawnX, spawnY, dx, dy, true);
+
+                        // 使用彩虹顏色
+                        const color = this.rainbowColors[this.rainbowIndex % this.rainbowColors.length];
+                        this.rainbowIndex++;
+
+                        this.createBall(spawnX, spawnY, dx, dy, true, color);
                     }, i * 100); // 每一顆新增白球之間有0.1秒的時間差
                 }
                 // 清除一行詩句，根據window.ScoreManager.gameSettings['game10'].getPointB加分
