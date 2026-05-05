@@ -78,7 +78,7 @@
                         <div class="intro-text-block">
                             <p>賞花吟月，品味詩詞之美</p>
                             <p>寓教於樂，挑戰傳統文學</p>
-                            <p>更新：2026-04-13 V0.16.0.0</p>
+                            <p>更新：2026-05-05 V0.18.0.0</p>
                         </div>
                     </div>
                     
@@ -99,8 +99,8 @@
             /* 跟隨 stage 的位置與尺寸 */
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    overlay.style.left   = r.left   + 'px';
-                    overlay.style.top    = r.top    + 'px';
+                    overlay.style.left = r.left + 'px';
+                    overlay.style.top = r.top + 'px';
                     overlay.style.width = '500px';
                     overlay.style.height = '850px';
                     overlay.style.transform = 'scale(' + r.scale + ')';

@@ -39,6 +39,15 @@
         requestID: null,
         lastTime: 0,
 
+        // AutoPlay
+        isAutoPlaying: false,
+        autoPlayPath: [],
+        evasionPath: [],             // 新增：儲存避險路徑
+        autoPlayState: 'SEEKING',     // SEEKING, EVADING
+        dangerousMonsters: [],
+        dangerousMonstersPaths: [],   // 記錄威脅小精靈的攔截路徑
+        isPaused: false,              // 新增：遊戲暫停狀態
+
         // Input
         touchStart: { x: 0, y: 0 },
         minSwipeDist: 30,
@@ -132,9 +141,9 @@
             document.body.appendChild(container);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    container.style.left   = r.left   + 'px';
-                    container.style.top    = r.top    + 'px';
-                    container.style.width  = 500 + 'px';
+                    container.style.left = r.left + 'px';
+                    container.style.top = r.top + 'px';
+                    container.style.width = 500 + 'px';
                     container.style.height = 850 + 'px';
                     container.style.transform = 'scale(' + r.scale + ')';
                     container.style.transformOrigin = 'top left';
@@ -214,7 +223,296 @@
                     case 'ArrowLeft': this.handleInput('LEFT'); break;
                     case 'ArrowRight': this.handleInput('RIGHT'); break;
                 }
-            });
+
+                // Alt + A to toggle Auto-Play
+                if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+                    e.preventDefault();
+                    this.toggleAutoPlay();
+                }
+
+                // Space to toggle Pause
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    this.togglePause();
+                }
+            }
+            );
+        },
+
+        togglePause: function () {
+            if (!this.isActive) return;
+            this.isPaused = !this.isPaused;
+            this.showAutoPlayStatus(this.isPaused ? "遊戲暫停" : "遊戲繼續");
+        },
+
+
+        toggleAutoPlay: function () {
+            if (!this.isActive) return;
+            this.isAutoPlaying = !this.isAutoPlaying;
+            this.showAutoPlayStatus(this.isAutoPlaying ? "自動遊玩：開啟" : "自動遊玩：關閉");
+        },
+
+        showAutoPlayStatus: function (text) {
+            let statusEl = document.getElementById('game5-autoplay-status');
+            if (!statusEl) {
+                statusEl = document.createElement('div');
+                statusEl.id = 'game5-autoplay-status';
+                statusEl.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0,0,0,0.7);
+                    color: gold;
+                    padding: 10px 20px;
+                    border-radius: 20px;
+                    font-weight: bold;
+                    pointer-events: none;
+                    z-index: 1000;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                `;
+                document.getElementById('game5-container').appendChild(statusEl);
+            }
+            statusEl.textContent = text;
+            statusEl.style.opacity = '1';
+            setTimeout(() => { statusEl.style.opacity = '0'; }, 1000);
+        },
+
+        autoPlayMove: function () {
+            if (!this.player || !this.isActive || this.isDying) return;
+
+            const pg = this.getGridPos(this.player.x, this.player.y);
+            const gridMid = this.gridSize / 2;
+            const offX = Math.abs(this.player.x - (pg.c * this.gridSize + gridMid));
+            const offY = Math.abs(this.player.y - (pg.r * this.gridSize + gridMid));
+            const isAtCenter = offX < this.player.speed && offY < this.player.speed;
+
+            // 只在中心點或是目前方向被阻擋時才計算新方向
+            const canContinue = this.canMoveFromCell(pg.r, pg.c, this.player.dir, true);
+
+            if (isAtCenter || !canContinue) {
+                const target = this.foods.find(f => f.index === this.collectedCount);
+                if (!target) return;
+                const targetPos = { r: target.row, c: target.col };
+                const nextDir = this.findBestDirection(pg, targetPos);
+                if (nextDir) {
+                    this.player.nextDir = nextDir;
+                }
+            }
+        },
+
+
+        // * 核心 AI 決策邏輯：遵循 3 步驟循環尋找安全路徑
+        // * 此函數負責計算玩家的最佳移動方向，並產生黃色（計畫）、藍色（繞道）、紅色（危險） 路徑視覺化。
+
+        findBestDirection: function (start, target) {
+            const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+
+            // --- 0. 初始化可視化清單 ---
+            // 這些清單會被 draw() 函數用來渲染 AI 的「思維」
+            this.autoPlayPath = [];         // 步驟 1：黃色計畫路徑 (原始意圖)
+            this.evasionPath = [];          // 步驟 3：藍色避險路徑 (成功的繞道)
+            this.dangerousMonsters = [];    // 紅圈：當前對玩家構成威脅的小精靈
+            this.dangerousMonstersPaths = []; // 紅點：威脅小精靈預計攔截玩家的路徑
+
+            const target1 = target;
+
+            // --- 步驟 1. 獲取初始路徑 (加入 持久化邏輯 以消除抖動) ---
+            // 為了防止 AI 在兩個路徑之間反覆猶豫（抖動），我們有高機率延用上一幀的路徑
+            let initialPath = null;
+
+            // 隨機決定是否延用上一幀的路徑 (80%~95% 延用，視當前設定而定)
+            const shouldReuse = Math.random() < 0.95 && this.lastCalculatedPath && this.lastCalculatedPath.length > 0;
+
+            if (shouldReuse) {
+                // 從緩存中複製一份路徑
+                initialPath = this.lastCalculatedPath.map(p => ({ ...p }));
+
+                // 檢查目前位置是否已經走到路徑的第一步，如果是則裁剪掉
+                if (initialPath.length > 0 && initialPath[0].r === start.r && initialPath[0].c === start.c) {
+                    initialPath.shift();
+                }
+
+                // 驗證延用的路徑是否仍然有效（是否通往正確的目標）
+                if (initialPath.length > 0) {
+                    const lastStep = initialPath[initialPath.length - 1];
+                    if (lastStep.r !== target1.r || lastStep.c !== target1.c) {
+                        initialPath = null; // 目標變更，此路徑失效
+                    }
+                } else {
+                    initialPath = null; // 路徑已走完
+                }
+            }
+
+            // 如果不延用、路徑失效或路徑為空，則重新執行 BFS 尋找最短路徑 (避開目前小精靈位置)
+            if (!initialPath) {
+                initialPath = this.findShortestPath(start, target1, [], true);
+            }
+
+            // 將此原始計畫存入黃色路徑清單，供視覺化渲染
+            this.autoPlayPath = initialPath ? initialPath.map(p => ({ ...p })) : [];
+
+            let currentForbidden = []; // 儲存被判定為危險的禁止通行格點
+            let retryCount = 0;        // 繞道嘗試次數
+            let currentBestPath = initialPath;
+            let dangerAt = -1;         // 危險發生在路徑的第幾步
+
+            // --- 步驟 3. 循環繞道機制 (最多嘗試 5 次避開危險點) ---
+            while (retryCount <= 5) {
+                // 根據當前的禁止區清單，重新計算一條「繞道」路徑 (避開危險點與目前小精靈位置)
+                let path = this.findShortestPath(start, target1, currentForbidden, true);
+                if (!path) break; // 如果完全找不到路徑，跳出循環
+
+                currentBestPath = path;
+
+                // --- 步驟 2. 預判未來 4 步的風險 (安全性分析) ---
+                dangerAt = -1;
+                const checkLen = Math.min(path.length, 4);
+
+                for (let i = 0; i < checkLen; i++) {
+                    const step = path[i];
+                    const stepsToReach = i + 1; // 玩家到達這一格所需的步數
+
+                    // 檢查每一隻小精靈是否能在玩家到達之前，也到達這一格
+                    for (let g of this.monsters) {
+                        const ggp = this.getGridPos(g.x, g.y);
+                        // 使用 BFS 計算小精靈的實際移動距離
+                        const gPath = this.findShortestPath(ggp, { r: step.r, c: step.c });
+
+                        if (gPath && gPath.length <= stepsToReach) {
+                            // 發現威脅：小精靈會先到或同時到達！
+                            dangerAt = i;
+                            step.isDangerous = true; // 標示為「實心不透明紅點」
+
+                            // 記錄這隻威脅小精靈及其攔截路線，用於視覺化
+                            if (!this.dangerousMonsters.includes(g)) {
+                                this.dangerousMonsters.push(g);
+                                this.dangerousMonstersPaths.push(gPath);
+                            }
+                            break;
+                        }
+                    }
+                    if (dangerAt !== -1) break; // 如果此步危險，不需再檢查後面的步數
+                }
+
+                // 如果目前路徑是安全的 (dangerAt === -1) 或已達重試上限
+                if (dangerAt === -1 || retryCount === 5) {
+                    if (retryCount > 0) {
+                        this.evasionPath = path; // 成功繞道後，標示為「藍色半透明圓點」
+                    }
+                    return path.length > 0 ? path[0].dir : null;
+                }
+
+                // --- 步驟 2-1. 處理不安全狀況：尋找交叉路口以避開危險 ---
+                const dangerPos = path[dangerAt];
+                // 將這個撞擊點加入禁止通行清單，下次循環時路徑將繞過它
+                currentForbidden.push({ r: dangerPos.r, c: dangerPos.c });
+
+                // 檢查危險點之前是否有任何岔路口可以逃生
+                let hasAlternative = false;
+                for (let j = dangerAt; j >= 0; j--) {
+                    const pos = (j === 0) ? start : path[j - 1];
+                    // 找出該點除了原計畫方向外，是否還有其他合法移動方向
+                    const exits = dirs.filter(d => this.canMoveFromCell(pos.r, pos.c, d, true));
+
+                    // 如果可用方向數 > 2 (或在起點且 > 1)，代表有岔路可供繞道
+                    if (exits.length > 2 || (j === 0 && exits.length > 1)) {
+                        hasAlternative = true;
+                        break;
+                    }
+                }
+
+                // --- 步驟 2-1-1. 如果完全沒有岔路 (例如在窄長的隧道內) ---
+                if (!hasAlternative) {
+                    // 將整段路徑標示為極度危險
+                    for (let k = 0; k <= dangerAt; k++) {
+                        path[k].isExtremeDanger = true; // 標示為「紅色半透明圓點」
+                    }
+                    this.evasionPath = path;
+                    break; // 既然無路可逃，不再進行繞道嘗試
+                }
+
+                retryCount++; // 進入下一次繞道計算
+            }
+
+            // --- 最終保底與緩存機制 ---
+            if (currentBestPath && currentBestPath.length > 0) {
+                // 如果找到的是完全安全的計畫，將其存入緩存供下一幀延用
+                if (dangerAt === -1) {
+                    this.lastCalculatedPath = currentBestPath.map(p => ({ ...p }));
+                } else {
+                    // 若路徑仍具風險，則清除緩存，強迫下一幀重新思考
+                    this.lastCalculatedPath = null;
+                }
+                return currentBestPath[0].dir;
+            }
+
+            // 如果真的完全無路可走，隨機選擇一個可移動的方向
+            this.lastCalculatedPath = null;
+            return this.getRandomValidDir(start.r, start.c);
+        },
+
+        // 廣度優先搜尋 (BFS)：計算兩點間的最短路徑
+        // @param {Object} start 起點座標 {r, c}
+        // @param {Object} target 終點座標 {r, c}
+        // @param {Array} forbiddenCells 可選的禁行格點清單
+        // @returns {Array|null} 路徑步數清單 [{r, c, dir}, ...]，若不可達則返回 null
+
+
+
+        findShortestPath: function (start, target, forbiddenCells = [], avoidGhosts = false) {
+            // 如果起點就是終點，返回空路徑
+            if (start.r === target.r && start.c === target.c) return [];
+
+            const queue = [{ r: start.r, c: start.c, path: [] }];
+            const visited = new Set();
+            visited.add(`${start.r},${start.c}`);
+
+            // 將禁止通行格點預先加入已訪問名單，使搜尋不會經過這些危險點
+            if (forbiddenCells && forbiddenCells.length > 0) {
+                forbiddenCells.forEach(cell => visited.add(`${cell.r},${cell.c}`));
+            }
+
+            // 如果設定為避開小精靈，將所有小精靈目前的座標也加入禁止名單
+            if (avoidGhosts) {
+                this.monsters.forEach(m => {
+                    const ggp = this.getGridPos(m.x, m.y);
+                    visited.add(`${ggp.r},${ggp.c}`);
+                });
+            }
+
+            let limit = 2000; // 限制最大搜尋次數，防止特殊情況下的死循環
+            while (queue.length > 0 && limit > 0) {
+                limit--;
+                const curr = queue.shift();
+
+                // 檢查是否抵達目標
+                if (curr.r === target.r && curr.c === target.c) return curr.path;
+
+                // 嘗試向四個方向擴散
+                for (let dir of ['UP', 'DOWN', 'LEFT', 'RIGHT']) {
+                    let nr = curr.r, nc = curr.c;
+                    if (dir === 'UP') nr--; else if (dir === 'DOWN') nr++; else if (dir === 'LEFT') nc--; else if (dir === 'RIGHT') nc++;
+
+                    // 處理迷宮兩側的傳送隧道
+                    if (curr.r === this.warpRowIndex) {
+                        if (nc < 0) nc = this.cols - 1;
+                        else if (nc >= this.cols) nc = 0;
+                    }
+
+                    // 檢查目標格子是否可通行 (無牆壁)
+                    if (this.canMoveFromCell(curr.r, curr.c, dir, true)) {
+                        const key = `${nr},${nc}`;
+                        if (!visited.has(key)) {
+                            visited.add(key);
+                            const newPath = [...curr.path, { r: nr, c: nc, dir: dir }];
+                            queue.push({ r: nr, c: nc, path: newPath });
+                        }
+                    }
+                }
+            }
+            return null; // 目標不可達
         },
 
         setupMaze: function () {
@@ -598,6 +896,11 @@
             const duration = this.timeLimit * 1000;
 
             this.timerInterval = setInterval(() => {
+                if (this.isPaused) {
+                    // 如果暫停，則補償 startTime 使得 elapsed 不會增加
+                    this.startTime += 100;
+                    return;
+                }
                 const elapsed = Date.now() - this.startTime;
                 const ratio = 1 - (elapsed / duration);
 
@@ -668,9 +971,11 @@
             cont.innerHTML = html;
         },
 
+
         gameLoop: function (now) {
             if (!this.isActive) return;
-            const dt = now - this.lastTime;
+            let dt = now - this.lastTime;
+            if (dt > 100) dt = 16.67; // 防止分頁切換後的突跳
             this.lastTime = now;
 
             this.update(dt);
@@ -680,10 +985,13 @@
         },
 
         update: function (dt) {
+            if (this.isPaused) return; // 暫停時不更新邏輯
+
             if (!this.isDying) {
-                this.moveEntity(this.player, true);
+                if (this.isAutoPlaying) this.autoPlayMove();
+                this.moveEntity(this.player, true, dt);
                 this.updatePlayerPath(); // 更新玩家路徑資料
-                this.monsters.forEach(m => this.moveMonster(m));
+                this.monsters.forEach(m => this.moveMonster(m, dt));
                 this.checkCollisions();
 
                 // 檢查是否所有怪物都已離開鬼屋，如果是則關閉鬼屋
@@ -696,15 +1004,18 @@
             }
         },
 
-        moveEntity: function (ent, isPlayer) {
+        moveEntity: function (ent, isPlayer, dt = 16.67) {
             const gridMid = this.gridSize / 2;
             const gp = this.getGridPos(ent.x, ent.y);
             const centerX = gp.c * this.gridSize + gridMid;
             const centerY = gp.r * this.gridSize + gridMid;
 
+            // 速度標準化 (以 60fps 為基準)
+            const speedFactor = dt / 16.67;
+            const currentSpeed = ent.speed * speedFactor;
+
             // 檢查是否到達中心點附近 (用於轉彎)
-            // 增加容忍度 (Tolerance) 以避免因浮點數誤差導致無法轉彎
-            const turnTolerance = this.gridSize * 0.45;
+            const turnTolerance = Math.max(currentSpeed, this.gridSize * 0.45);
             const offX = ent.x - centerX;
             const offY = ent.y - centerY;
             const isNearCenter = Math.abs(offX) < turnTolerance && Math.abs(offY) < turnTolerance;
@@ -722,7 +1033,7 @@
 
             // 確保實體在移動時保持對齊 (Alignment)
             // 避免因速度過快導致偏離中心線
-            const alignSpeed = ent.speed * 0.8;
+            const alignSpeed = currentSpeed * 0.8;
             if (ent.dir === 'UP' || ent.dir === 'DOWN') {
                 if (Math.abs(offX) < alignSpeed) ent.x = centerX;
                 else ent.x += (offX > 0 ? -alignSpeed : alignSpeed);
@@ -734,17 +1045,17 @@
             // 移動
             let nextX = ent.x;
             let nextY = ent.y;
-            if (ent.dir === 'UP') nextY -= ent.speed;
-            if (ent.dir === 'DOWN') nextY += ent.speed;
-            if (ent.dir === 'LEFT') nextX -= ent.speed;
-            if (ent.dir === 'RIGHT') nextX += ent.speed;
+            if (ent.dir === 'UP') nextY -= currentSpeed;
+            if (ent.dir === 'DOWN') nextY += currentSpeed;
+            if (ent.dir === 'LEFT') nextX -= currentSpeed;
+            if (ent.dir === 'RIGHT') nextX += currentSpeed;
 
             // 處理傳送門 (Warp tunnel)
             const isWarpRow = gp.r === this.warpRowIndex;
 
             if (isWarpRow && (nextX < 0 || nextX > this.canvas.width)) {
-                if (nextX < -ent.speed) ent.x = this.canvas.width;
-                else if (nextX > this.canvas.width + ent.speed) ent.x = 0;
+                if (nextX < -currentSpeed) ent.x = this.canvas.width;
+                else if (nextX > this.canvas.width + currentSpeed) ent.x = 0;
                 else ent.x = nextX;
             } else if (this.canMove(nextX, nextY, ent.dir, isPlayer)) {
                 ent.x = nextX;
@@ -759,11 +1070,14 @@
                 if (!isPlayer) {
                     // 怪物撞牆時隨機改變方向
                     ent.dir = this.getRandomValidDir(gp.r, gp.c);
+                } else if (this.isAutoPlaying) {
+                    // 自動遊玩撞牆時立即重新計算
+                    this.autoPlayMove();
                 }
             }
         },
 
-        moveMonster: function (m) {
+        moveMonster: function (m, dt) {
             const gp = this.getGridPos(m.x, m.y);
             const gridMid = this.gridSize / 2;
             const offX = Math.abs(m.x - (gp.c * this.gridSize + gridMid));
@@ -819,7 +1133,7 @@
                             if (distToPlayer < 9) {
                                 // 如果距離玩家小於 9 格，則隨機選擇方向遠離玩家 (逃跑)
                                 m.dir = options[Math.floor(Math.random() * options.length)];
-                                this.moveEntity(m, false);
+                                this.moveEntity(m, false, dt);
                                 return;
                             }
                         }
@@ -840,7 +1154,7 @@
                     }
                 }
             }
-            this.moveEntity(m, false);
+            this.moveEntity(m, false, dt);
         },
 
         updatePlayerPath: function () {
@@ -905,9 +1219,16 @@
         canMoveFromCell: function (r, c, dir, isPlayer = false) {
             let nr = r, nc = c;
             if (dir === 'UP') nr--;
-            if (dir === 'DOWN') nr++;
-            if (dir === 'LEFT') nc--;
-            if (dir === 'RIGHT') nc++;
+            else if (dir === 'DOWN') nr++;
+            else if (dir === 'LEFT') nc--;
+            else if (dir === 'RIGHT') nc++;
+
+            // 處理左右隧道傳送 (Wrap around)
+            if (r === this.warpRowIndex) {
+                if (nc < 0) nc = this.cols - 1;
+                else if (nc >= this.cols) nc = 0;
+            }
+
             const cell = (this.maze[nr] && this.maze[nr][nc] !== undefined) ? this.maze[nr][nc] : 1;
             if (isPlayer) return cell === 0; // 玩家只能走通道
             return cell === 0 || cell === 2; // 怪物可以走通道或鬼屋
@@ -1094,6 +1415,68 @@
                 this.ctx.fill();
                 this.ctx.restore();
             });
+
+            // --- 同時顯示所有 AI 路徑規劃 (遵循 3 步驟視覺化規則) ---
+            if (this.isAutoPlaying) {
+                this.ctx.save();
+
+                // 1. 畫黃色路徑 (步驟1：原始尋字計畫)
+                if (this.autoPlayPath) {
+                    for (let step of this.autoPlayPath) {
+                        // 步驟2-1：如果該點被判定為攔截點，顯示為「不透明實心紅點」
+                        this.ctx.fillStyle = step.isDangerous ? 'rgba(255, 0, 0, 1.0)' : 'rgba(255, 255, 0, 0.4)';
+                        this.ctx.shadowBlur = step.isDangerous ? 15 : 5;
+                        this.ctx.shadowColor = step.isDangerous ? 'red' : 'yellow';
+                        this.ctx.beginPath();
+                        this.ctx.arc(step.c * this.gridSize + this.gridSize / 2,
+                            step.r * this.gridSize + this.gridSize / 2,
+                            this.gridSize * (step.isDangerous ? 0.25 : 0.15), 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                }
+
+                // 2. 畫青藍色/紅色路徑 (步驟3：繞道計畫 或 步驟2-1-1：極度危險路徑)
+                if (this.evasionPath && this.evasionPath.length > 0) {
+                    for (let step of this.evasionPath) {
+                        // 步驟2-1-1：如果完全無路可逃，顯示為「半透明紅點」
+                        // 步驟3：成功繞道，顯示為「藍色半透明圓點」
+                        this.ctx.fillStyle = step.isExtremeDanger ? 'rgba(255, 0, 0, 0.5)' : 'rgba(0, 255, 255, 0.8)';
+                        this.ctx.shadowBlur = 5;
+                        this.ctx.shadowColor = step.isExtremeDanger ? 'red' : 'cyan';
+                        this.ctx.beginPath();
+                        this.ctx.arc(step.c * this.gridSize + this.gridSize / 2,
+                            step.r * this.gridSize + this.gridSize / 2,
+                            this.gridSize * 0.12, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                }
+
+                // 3. 畫威脅指示 (紅圈與紅點)
+                if (this.dangerousMonsters.length > 0) {
+                    // 紅圈
+                    this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.setLineDash([5, 5]);
+                    for (let m of this.dangerousMonsters) {
+                        this.ctx.beginPath();
+                        this.ctx.arc(m.x, m.y, this.gridSize * 0.7, 0, Math.PI * 2);
+                        this.ctx.stroke();
+                    }
+                    // 小精靈的攔截紅點
+                    this.ctx.fillStyle = 'rgba(255, 0, 0, 1)';
+                    for (let gPath of this.dangerousMonstersPaths) {
+                        for (let step of gPath) {
+                            this.ctx.beginPath();
+                            this.ctx.arc(step.c * this.gridSize + this.gridSize / 2,
+                                step.r * this.gridSize + this.gridSize / 2,
+                                this.gridSize * 0.2, 0, Math.PI * 2);
+                            this.ctx.fill();
+                        }
+                    }
+                }
+
+                this.ctx.restore();
+            }
 
             // Draw Player (Gold Ink Drop)
             if (!this.player) return;

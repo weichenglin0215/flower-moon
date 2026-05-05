@@ -25,6 +25,14 @@
         dropTimer: 0, // 磚塊下移計時器
         pendingSpawnCount: 0, // 正在等待產生的球數 (延遲生成用)
 
+        // AI 自動玩家狀態
+        ai: {
+            enabled: false,
+            targetX: 250 / 20,
+            cooldown: 0,
+            lastPredictTime: 0
+        },
+
         // 撞擊條狀態 (使用 rem 單位)
         paddle: { x: 0, width: 0, height: 0.8 },
         // 球群狀態
@@ -173,6 +181,21 @@
 
             this.gameArea.addEventListener('touchstart', handleDown, { passive: false });
             this.gameArea.addEventListener('mousedown', handleDown);
+
+            // 綁定熱鍵 Alt+A 切換 AI 模式
+            window.addEventListener('keydown', (e) => {
+                if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+                    e.preventDefault();
+                    this.ai.enabled = !this.ai.enabled;
+                    console.log(`[Game10] AI 自動模式: ${this.ai.enabled ? '開啟' : '關閉'}`);
+                    
+                    // 顯示 AI 狀態提示 (選用)
+                    if (window.GameMessage && this.isActive) {
+                        // 暫時借用 GameMessage 顯示狀態，3秒後消失
+                        // 但因為 GameMessage 會擋住視線，這裡改用 console 或小的 toast 較佳
+                    }
+                }
+            });
         },
 
         showDifficultySelector: function () {
@@ -607,12 +630,24 @@
                 }
             }
 
-            const wRem = this.areaRect.width / this.remToPx;
-            const hRem = this.areaRect.height / this.remToPx;
+            const wRem = 500 / 20;
+            const hRem = 850 / 20;
+
+            // AI 自動邏輯
+            if (this.ai.enabled) {
+                this.updateAI(dt, wRem, hRem);
+                // AI 模式下直接覆蓋 targetX
+                this.paddle.targetX = this.ai.targetX;
+            }
 
             // 更新撞擊條位置 (跟隨滑鼠/手指，使用平滑補間)
             this.paddle.prevX = this.paddle.x;
-            this.paddle.x += (this.paddle.targetX - this.paddle.x) * 0.4;
+            
+            // 根據距離動態調整移動平滑度 (距離遠則快，距離近則優雅減速)
+            const dist = Math.abs(this.paddle.targetX - this.paddle.x);
+            const lerpFactor = this.ai.enabled ? Math.min(0.3, 0.1 + dist * 0.2) : 0.4;
+            this.paddle.x += (this.paddle.targetX - this.paddle.x) * lerpFactor;
+            
             this.paddle.velX = (this.paddle.x - this.paddle.prevX) / dt; // 計算目前的左右移動速度
 
             // 限制撞擊條邊界，不超出畫面
@@ -734,6 +769,92 @@
             }
 
             this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+        },
+
+        // --- AI 自動玩家核心邏輯 ---
+        updateAI: function (dt, wRem, hRem) {
+            if (this.ai.cooldown > 0) {
+                this.ai.cooldown -= dt;
+                // 冷卻期間隨機微幅左右移動，模擬人類手感
+                this.ai.targetX += (Math.random() - 0.5) * 0.1;
+                return;
+            }
+
+            // 尋找最優先需要反彈的球 (y 最大且 dy > 0，且最快到達 paddle 高度)
+            let bestBall = null;
+            let minTimeToHit = Infinity;
+
+            const paddleY = this.paddle.y - this.paddle.height / 2;
+
+            this.balls.forEach(ball => {
+                if (!ball.isMoving || ball.toRemove) return;
+                
+                // 只考慮正在向下掉落的球
+                if (ball.dy > 0) {
+                    const timeToHit = (paddleY - ball.y) / ball.dy;
+                    if (timeToHit > 0 && timeToHit < minTimeToHit) {
+                        minTimeToHit = timeToHit;
+                        bestBall = ball;
+                    }
+                }
+            });
+
+            if (bestBall) {
+                // 預測到達位置
+                let predictedX = bestBall.x + bestBall.dx * minTimeToHit;
+
+                // 考慮牆壁反彈 (簡單一次反彈預測)
+                while (predictedX < bestBall.radius || predictedX > wRem - bestBall.radius) {
+                    if (predictedX < bestBall.radius) {
+                        predictedX = bestBall.radius + (bestBall.radius - predictedX);
+                    } else {
+                        predictedX = (wRem - bestBall.radius) - (predictedX - (wRem - bestBall.radius));
+                    }
+                }
+
+                // --- 策略性反彈優化 ---
+                let offset = 0;
+                const paddleHalfWidth = this.paddle.width / 2;
+                
+                // 如果球在邊緣區域，則輕微偏移以利切入，但在中心區域則保持隨機適中位置
+                if (predictedX < wRem * 0.2) offset = paddleHalfWidth * 0.4; // 稍微撞右側
+                else if (predictedX > wRem * 0.8) offset = -paddleHalfWidth * 0.4; // 稍微撞左側
+                else offset = (Math.random() - 0.5) * paddleHalfWidth * 0.5; // 在中間隨機小幅偏移，更像人類隨手接球
+
+                // --- 抖動修復與自然感優化 ---
+                // 1. 取得垂直距離 (px 轉換)
+                const distY = (paddleY - bestBall.y); 
+                const distX = Math.abs(predictedX + offset - this.paddle.x);
+
+                // 2. 距離法則：如果球還很高，且 X 偏移還在反彈棒寬度兩倍內，則不頻繁調整
+                // 模擬人類「只有在球快到了或明顯偏離時才移動」的觀察感
+                if (distY > 15) { // 約 300px (15rem * 20px)
+                    if (distX < this.paddle.width * 1.5) {
+                        // 保持現狀，不更新 targetX
+                        return;
+                    }
+                }
+                
+                // 3. X/Y 比例判斷：如果左右距離比垂直距離還小，不需要控制
+                if (distX < distY * 0.5 && distY > 5) {
+                    return;
+                }
+
+                // 模擬人類反應：在球碰撞前可能有機率進入觀察狀態
+                if (minTimeToHit > 0.6 && Math.random() < 0.01) {
+                    this.ai.cooldown = 0.2 + Math.random() * 0.4;
+                }
+
+                this.ai.targetX = predictedX + offset;
+            } else {
+                // 沒有活動中的球，保持在原地，不要習慣性移回中心
+                // this.ai.targetX 保持不變即可
+                
+                // 如果有球準備發射，自動發射
+                if (this.balls.length > 0 && !this.balls[0].isMoving && this.isActive) {
+                    this.launchBall();
+                }
+            }
         },
 
         // 撞擊條碰撞檢測：使用 AABB 盒子模型
