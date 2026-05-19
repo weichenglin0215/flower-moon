@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\3D_prj\\\\VS_2022_prj\\\\FlowerMoon_web\" -Recurse -Filter \"*.js\" -o Name)",
+      "Bash(Sort-Object)",
+      "Bash(Get-ChildItem -Path \"C:\\\\3D_prj\\\\VS_2022_prj\\\\FlowerMoon_web\" -Filter \"game*.css\")",
+      "Bash(Select-Object -ExpandProperty Name)"
+    ]
+  }
+}

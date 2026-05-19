@@ -41,7 +41,6 @@ body {
 /* =========================================
    #calendarCardContainer
    填滿整個 #stage（500×850px）
-   perspective 用 px，不再由 responsive.js 動態設定寬高
    ========================================= */
 #calendarCardContainer {
     position: absolute;
@@ -292,11 +291,11 @@ body {
 
 /* Animation Classes */
 .animate-recoil {
-    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
 }
 
 .animate-flyout {
-    transition: transform 0.4s cubic-bezier(0.5, 0, 1, 0.5), opacity 0.4s ease;
+    transition: transform 0.8s cubic-bezier(0.5, 0, 1, 0.5), opacity 1.2s ease;
 }
 
 /* Poem Section */

@@ -144,8 +144,6 @@ window.AuthorBio = (function () {
 
         page.id = 'authorBioPage';
 
-        //檢查responsive.css是否有包括game4 - overlay.aspect - 5 - 8
-
         page.className = 'author_bio-overlay hidden'; /* removed aspect-5-8, repositioned by registerOverlayResize */
 
         page.innerHTML = `

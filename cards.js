@@ -389,13 +389,13 @@ document.addEventListener('DOMContentLoaded', () => {
             revealTimeouts.forEach(timeout => clearTimeout(timeout));
             revealTimeouts = [];
 
-            // 切換到下一張卡片
+            // 切換到下一張卡片，配合 animate-flyout 的 0.8s，等卡片完全移出畫面才切換
             setTimeout(() => {
                 // 無論左右滑動，都平滑銜接底層預覽卡片，並產生新的預覽
                 currentPoemIndex = nextPoemIndex;
                 nextPoemIndex = Math.floor(Math.random() * POEMS.length);
                 renderStack(true);
-            }, 300);
+            }, 800);
             if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
         } else {
             // 回彈

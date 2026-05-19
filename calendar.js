@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 currentDate.setDate(currentDate.getDate() + offset);
                 renderStack();
-            }, 300);
+            }, 800); // 配合 animate-flyout 的 0.8s，等卡片完全移出畫面才切換
             if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
         } else {
             card.style.transition = '';

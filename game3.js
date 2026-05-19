@@ -82,7 +82,6 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game3-container';
-            //檢查responsive.css是否有包括game3 - overlay.aspect - 5 - 8
             div.className = 'game3-overlay  hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
