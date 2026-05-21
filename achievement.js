@@ -34,7 +34,8 @@
             'game11': '翻墨識蹤',
             'game12': '疏影橫斜',
             'game13': '人事時地',
-            'game14': '步步驚心'
+            'game14': '步步驚心',
+            'game15': '墨韻游龍'
         },
 
         rankCertTexts: {
@@ -147,12 +148,12 @@
                     // 將 Container 寬高設為符合邏輯比例
                     achCont.style.width = (500 * 0.96) + 'px';
                     achCont.style.height = (850 * 0.96) + 'px';
-                    
+
                     // 完全追蹤 stage 的座標與縮放
                     // 因為外圍是 500x850，0.96 代表兩側各留白 0.02
                     achCont.style.left = (r.left + 500 * 0.02 * r.scale) + 'px';
                     achCont.style.top = (r.top + 850 * 0.02 * r.scale) + 'px';
-                    
+
                     achCont.style.transform = 'scale(' + r.scale + ')';
                     achCont.style.transformOrigin = 'top left';
                 });

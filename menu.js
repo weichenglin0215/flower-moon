@@ -28,6 +28,7 @@
         { page: 'game9', label: '詩韻鎖扣', image: 'images/Menu/詩韻鎖扣_Menu256.jpg' },
         { page: 'game11', label: '翻墨識蹤', image: 'images/Menu/翻墨識蹤_Menu256.jpg' },
         { page: 'game12', label: '疏影橫斜', image: 'images/Menu/疏影橫斜_Menu256.jpg' },
+        { page: 'game15', label: '墨韻游龍', image: 'images/Menu/墨韻游龍_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
@@ -147,7 +148,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -333,6 +334,10 @@
                     case 'game14':
                         if (window.Game14) window.Game14.show();
                         else window.location.href = 'index.html?game=14';
+                        break;
+                    case 'game15':
+                        if (window.Game15) window.Game15.show();
+                        else window.location.href = 'index.html?game=15';
                         break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();

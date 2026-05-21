@@ -34,7 +34,8 @@ const ScoreManager = {
         'game11': { base: 100, heart: 10, time: 0, getPointA: 5, getPointB: 30 },
         'game12': { base: 100, heart: 10, time: 2, getPointA: 20 },
         'game13': { base: 100, heart: 10, time: 2, getPointA: 20 },
-        'game14': { base: 100, heart: 20, time: 5, getPointA: 10 }
+        'game14': { base: 100, heart: 20, time: 5, getPointA: 10 },
+        'game15': { base: 100, heart: 10, time: 3, getPointA: 15 }
     },
 
     // 玩家階級設定：根據總分決定玩家的級別

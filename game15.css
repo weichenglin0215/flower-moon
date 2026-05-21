@@ -1,0 +1,373 @@
+/* =========================================
+   遊戲十五：墨韻游龍（貪食詩句）
+   畫布：500×700px（邏輯畫素），套用 stage scale
+   格子：13列 × 18行，格子 36px
+   ========================================= */
+
+/* ── 全版覆蓋層 ── */
+.game15-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    width: 500px;
+    height: 850px;
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.game15-overlay.hidden {
+    display: none !important;
+}
+
+/* ── 頂部資訊列 ── */
+.game15-header {
+    flex: 0 0 50px;
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.game15-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 50px;
+}
+
+.game15-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* 控制按鈕 */
+.game15-controls .nav-btn {
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game15-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game15-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+/* 難度標籤 */
+.game15-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game15-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game15-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game15-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game15-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game15-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game15-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
+
+
+/* ── 生命值列 ── */
+.game15-sub-header {
+    flex: 0 0 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+}
+
+/* ── 詩句進度條 ── */
+.game15-progress-strip {
+    flex: 0 0 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 220, 100, 0.12);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.game15-progress-strip::-webkit-scrollbar {
+    height: 0;
+}
+
+.game15-progress-chars {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+/* 已收集的字 */
+.game15-collected-char {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 34px;
+    height: 42px;
+    font-size: 24px;
+    font-weight: bold;
+    color: hsl(130, 60%, 60%);
+    background: rgba(80, 180, 100, 0.2);
+    border-radius: 5px;
+    border: 1px solid rgba(80, 180, 100, 0.4);
+}
+
+/* 當前目標字（脈衝高亮，閃爍速度加倍，0.6s）*/
+.game15-target-char {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 38px;
+    height: 46px;
+    font-size: 28px;
+    font-weight: bold;
+    color: hsl(40, 100%, 60%);
+    background: rgba(255, 200, 50, 0.2);
+    border-radius: 5px;
+    border: 2px solid rgba(255, 200, 50, 0.7);
+    animation: game15-pulse-border 0.6s ease-in-out infinite;
+}
+
+/* 尚未收集 */
+.game15-remaining-char {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 36px;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.18);
+}
+
+@keyframes game15-pulse-border {
+
+    0%,
+    100% {
+        border-color: rgba(255, 200, 50, 0.7);
+        box-shadow: 0 0 6px rgba(255, 200, 50, 0.4);
+    }
+
+    50% {
+        border-color: rgba(255, 220, 80, 1.0);
+        box-shadow: 0 0 18px rgba(255, 220, 80, 0.9);
+    }
+}
+
+/* ── 畫布包裝器：相對定位，讓 SVG 計時框與 D-pad 用 absolute 定位 ── */
+.game15-canvas-wrapper {
+    position: relative;
+    flex: 1 1 auto;
+    width: 500px;
+    overflow: hidden;
+}
+
+/* ── 遊戲畫布 ── */
+#game15-canvas {
+    display: block;
+    width: 500px;
+    height: 700px;
+    background: transparent;
+    touch-action: none;
+}
+
+/* ── SVG 計時框（覆蓋整個畫布外框，顯示倒數紅邊）── */
+#game15-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#game15-timer-path {
+    fill: none;
+    stroke: hsl(0, 80%, 36%);
+    stroke-width: 6px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke-dashoffset 0.15s linear;
+}
+
+#game15-timer-path.game15-timer-urgent {
+    animation: game15-timer-flash 0.4s ease-in-out infinite;
+}
+
+@keyframes game15-timer-flash {
+
+    0%,
+    100% {
+        stroke: hsl(0, 80%, 36%);
+        filter: drop-shadow(0 0 4px rgba(220, 50, 50, 0.7));
+    }
+
+    50% {
+        stroke: hsl(0, 95%, 55%);
+        filter: drop-shadow(0 0 14px rgba(255, 60, 60, 0.95));
+    }
+}
+
+/* ── 虛擬方向鍵：絕對定位，覆蓋畫布下方區域 ──
+   三排按鍵各 200px = 600px；D-pad 中心在距底 300px 處，
+   對應畫布 y=400px → row=(400-26)/36≈10（0-indexed），接近 START_ROW=12 ✓ */
+.game15-dpad {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 500px;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    pointer-events: none;
+    /* 父層不攔截，只讓按鈕本身可點擊 */
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 6;
+}
+
+.game15-dpad-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+/* D-pad 中心空白 */
+.game15-dpad-center {
+    width: 100px;
+    height: 200px;
+}
+
+/* 方向鍵按鈕：無邊框，空心箭頭，200×200px */
+.game15-dpad-btn {
+    width: 200px;
+    height: 200px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 220, 100, 0.15);
+    font-size: 90px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    transition: color 0.1s, background 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    font-family: sans-serif;
+    pointer-events: all;
+}
+
+.game15-dpad-btn:active,
+.game15-dpad-btn:focus {
+    color: rgba(255, 220, 100, 0.65);
+    background: rgba(255, 220, 100, 0.05);
+    outline: none;
+}
+
+/* 上下按鍵與左右相同尺寸 */
+.game15-dpad-up,
+.game15-dpad-down {
+    width: 200px;
+    height: 200px;
+}
+
+/* ── 生命值紅心樣式 ──*/
+#game15-hearts .heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 32px;
+}
+
+#game15-hearts .heart.empty {
+    color: rgba(180, 100, 100, 0.30);
+    /* 淡化的空心♡，表示已扣除的命 */
+    font-size: 32px;
+}
+
+/* ── 方向鍵位置微調（各移動 1-2 格，1格=36px；使用 relative transform 不影響排版）──
+   向上：往下移2格(72px)
+   向左：往下1格(36px) + 往左1格(36px)
+   向右：往下1格(36px) + 往右1格(36px)
+   向下：不偏移 */
+.game15-dpad-up {
+    transform: translateY(72px);
+}
+
+.game15-dpad-left {
+    transform: translate(-36px, 36px);
+}
+
+.game15-dpad-right {
+    transform: translate(36px, 36px);
+}
+
+/* ── 進度條提示字（showHint=true 時，未吃到的詩句以灰色顯示） ── */
+.game15-hint-char {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 36px;
+    font-size: 18px;
+    color: rgba(200, 200, 200, 0.55);
+}
