@@ -96,7 +96,7 @@ const ScoreManager = {
     /**
      * 儲存分數並更新 LocalStorage 中的玩家資料
      */
-    saveScore: function (gameKey, difficulty, finalScore) {
+    saveScore: function (gameKey, difficulty, finalScore, poemId) {
         finalScore = Math.floor(finalScore);
         let data = this.loadPlayerData();
 
@@ -144,6 +144,18 @@ const ScoreManager = {
         // 更新全局階級
         data.globalRank = this.getCurrentRank(data.totalScore);
 
+        // 紀錄詩詞遊玩次數（與 saveScore 合併為一次 localStorage 寫入）
+        if (poemId && difficulty) {
+            const diffs = ['小學', '中學', '高中', '大學', '研究所'];
+            if (!data.poemRecords) data.poemRecords = {};
+            if (!data.poemRecords[poemId]) {
+                data.poemRecords[poemId] = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
+            }
+            if (diffs.includes(difficulty)) {
+                data.poemRecords[poemId][difficulty]++;
+            }
+        }
+
         // 寫入 localStorage 並更新 UI
         localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
         this.updateProfileUI(data);
@@ -186,6 +198,7 @@ const ScoreManager = {
             lastPlayedDate: new Date().toISOString().split('T')[0],
             games: {},
             levelProgress: {}, // 格式: { gameKey: { '小學': 0, '中學': 0, ... } }
+            poemRecords: {},   // 格式: { poemId: { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 } }
             difficultyCounts: {
                 '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0
             },
@@ -223,6 +236,7 @@ const ScoreManager = {
                     }
                 }
             }
+            if (!data.poemRecords) data.poemRecords = {};
             return data;
         }
 
@@ -240,6 +254,9 @@ const ScoreManager = {
         }
         if (data.levelProgress) {
             newData.levelProgress = data.levelProgress;
+        }
+        if (data.poemRecords) {
+            newData.poemRecords = data.poemRecords;
         }
 
         if (data.badges && Array.isArray(data.badges)) {
@@ -267,8 +284,9 @@ const ScoreManager = {
 
         data = this.migrateData(data);
 
-        // 雙重檢查確保 levelProgress 結構正確
+        // 雙重檢查確保 levelProgress / poemRecords 結構正確
         if (!data.levelProgress) data.levelProgress = {};
+        if (!data.poemRecords) data.poemRecords = {};
 
         // 更新累計登入天數
         const today = new Date().toISOString().split('T')[0];
@@ -343,6 +361,23 @@ const ScoreManager = {
     },
 
     /**
+     * 紀錄某首詩在某難度被勝利過關一次
+     * 由各遊戲在 onComplete 後呼叫：ScoreManager.recordPoemPlay(poemId, difficulty)
+     */
+    recordPoemPlay: function (poemId, difficulty) {
+        if (!poemId) return;
+        const diffs = ['小學', '中學', '高中', '大學', '研究所'];
+        if (!diffs.includes(difficulty)) return;
+        let data = this.loadPlayerData();
+        if (!data.poemRecords[poemId]) {
+            data.poemRecords[poemId] = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
+        }
+        data.poemRecords[poemId][difficulty]++;
+        localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+        if (window.SupabaseClient) window.SupabaseClient.saveGameToCloud(data);
+    },
+
+    /**
      * 播放過關結算動畫
      * 包含三個階段：紅心計算 -> 時間計算與星星飛舞 -> 難度加成捲動
      */
@@ -353,6 +388,10 @@ const ScoreManager = {
         let currentScore = Math.floor(options.game.score || 0); // 初始分數去小數點
         const gameInst = options.game;
         const gameKey = options.gameKey || 'game4';
+
+        // 自動從遊戲的 currentPoem 取得詩詞 ID，不需各遊戲個別傳入
+        const poemId = (gameInst.currentPoem && gameInst.currentPoem.id != null)
+            ? String(gameInst.currentPoem.id) : null;
 
         // 階段 1：給予基礎分
         currentScore += this.getBaseScore(gameKey);
@@ -417,14 +456,14 @@ const ScoreManager = {
                         if (idx > -1) this.activeIntervals.splice(idx, 1);
                         clearInterval(rollInterval);
                         document.getElementById(options.scoreElementId).textContent = finalScore;
-                        this.saveScore(gameKey, options.difficulty, finalScore);
+                        this.saveScore(gameKey, options.difficulty, finalScore, poemId);
                         checkCloudSaveAndComplete(finalScore);
                     }
                 }, 40);
                 this.activeIntervals.push(rollInterval);
             } else {
                 document.getElementById(options.scoreElementId).textContent = finalScore;
-                this.saveScore(gameKey, options.difficulty, finalScore);
+                this.saveScore(gameKey, options.difficulty, finalScore, poemId);
                 checkCloudSaveAndComplete(finalScore);
             }
         };

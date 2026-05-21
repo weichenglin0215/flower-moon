@@ -90,6 +90,7 @@
                         <div class="ach-tab active" data-target="ach-panel-overview">總覽</div>
                         <div class="ach-tab" data-target="ach-panel-games">遊戲紀錄</div>
                         <div class="ach-tab" data-target="ach-panel-badges">成就殿堂</div>
+                        <div class="ach-tab" data-target="ach-panel-poems">詩詞寶盒</div>
                     </div>
                     <div class="ach-body">
                         <!-- 總覽面板 -->
@@ -130,6 +131,12 @@
                         <!-- 成就殿堂徽章面板 -->
                         <div class="ach-panel" id="ach-panel-badges">
                             <div class="ach-badges" id="achBadgesContainer">
+                                <!-- 動態生成 -->
+                            </div>
+                        </div>
+                        <!-- 詩詞寶盒面板 -->
+                        <div class="ach-panel" id="ach-panel-poems">
+                            <div class="ach-poem-records" id="achPoemContainer">
                                 <!-- 動態生成 -->
                             </div>
                         </div>
@@ -1120,6 +1127,10 @@
 
 
 
+            // 渲染詩詞寶盒面板
+
+            this.renderPoemsPanel(data);
+
             // --- 核心修正：將所有成就狀態「數據化」，確保本地與雲端完全一致 ---
 
             this.syncAchievementStates(data);
@@ -1145,6 +1156,304 @@
             // 此函式保留為空，設計上不再推算 unlocked/progress
 
             // 雲端只需同步 totalScore, games, levelProgress, claimed
+
+        },
+
+        // 難度顯示顏色
+        diffColors: {
+            '研究所': 'hsl(280, 60%, 75%)',
+            '大學': 'hsl(10,  80%, 70%)',
+            '高中': 'hsl(35,  90%, 65%)',
+            '中學': 'hsl(210, 70%, 70%)',
+            '小學': 'hsl(120, 60%, 65%)'
+        },
+
+        // 渲染詩詞寶盒面板
+        renderPoemsPanel: function (data) {
+
+            const container = document.getElementById('achPoemContainer');
+
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            const poemRecords = data.poemRecords || {};
+
+            const played = [];
+
+            for (const poemId in poemRecords) {
+
+                const counts = poemRecords[poemId];
+
+                const total = (counts['小學'] || 0) + (counts['中學'] || 0) + (counts['高中'] || 0) + (counts['大學'] || 0) + (counts['研究所'] || 0);
+
+                if (total <= 0) continue;
+
+                let poem = null;
+
+                if (typeof POEMS !== 'undefined') poem = POEMS.find(p => String(p.id) === String(poemId));
+
+                played.push({ poemId, counts, total, poem });
+
+            }
+
+            played.sort((a, b) => b.total - a.total);
+
+            if (played.length === 0) {
+
+                container.innerHTML = '<div style="text-align:center;color:#999;padding:18px;">尚無詩詞遊玩紀錄</div>';
+
+                return;
+
+            }
+
+            const diffs = ['研究所', '大學', '高中', '中學', '小學'];
+
+            played.forEach(({ poemId, counts, total, poem }) => {
+
+                const title = poem ? poem.title : poemId;
+
+                const author = poem ? (poem.author || '') : '';
+
+                const item = document.createElement('div');
+
+                item.className = 'ach-poem-item';
+
+                const left = document.createElement('div');
+
+                left.className = 'ach-poem-left';
+
+                const titleEl = document.createElement('div');
+
+                titleEl.className = 'ach-poem-title';
+
+                titleEl.textContent = title;
+
+                if (author) titleEl.title = author;
+
+                titleEl.addEventListener('click', () => {
+
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+
+                    if (window.PoemDialog) window.PoemDialog.openById(poemId);
+
+                });
+
+                const countsEl = document.createElement('div');
+
+                countsEl.className = 'ach-poem-counts';
+
+                countsEl.innerHTML = '次數：';
+
+                diffs.forEach(diff => {
+
+                    const cnt = counts[diff] || 0;
+
+                    if (cnt <= 0) return;
+
+                    const span = document.createElement('span');
+
+                    span.className = 'ach-poem-count-tag';
+
+                    span.textContent = diff + '×' + cnt;
+
+                    span.style.color = this.diffColors[diff];
+
+                    countsEl.appendChild(span);
+
+                });
+
+                left.appendChild(titleEl);
+
+                left.appendChild(countsEl);
+
+                const right = document.createElement('div');
+
+                right.className = 'ach-item-right';
+
+                const btn = document.createElement('button');
+
+                btn.className = 'ach-btn-claim';
+
+                btn.textContent = '寶盒';
+
+                btn.onclick = () => {
+
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+
+                    this.showTreasureBox(poem, counts, total);
+
+                };
+
+                right.appendChild(btn);
+
+                item.appendChild(left);
+
+                item.appendChild(right);
+
+                container.appendChild(item);
+
+            });
+
+        },
+
+        // 顯示詩詞寶盒圖片 (5×8格子螺旋解鎖)
+        showTreasureBox: function (poem, counts, totalCount) {
+
+            const existing = document.getElementById('treasureBoxOverlay');
+
+            if (existing) existing.remove();
+
+            const imgSrc = 'images/TreasureBox/李白-早發白帝城-001.png';
+
+            const overlay = document.createElement('div');
+
+            overlay.id = 'treasureBoxOverlay';
+
+            overlay.className = 'treasurebox-overlay';
+
+            overlay.innerHTML = `
+
+                <div class="treasurebox-stage" id="tbStage">
+
+                    <div class="treasurebox-container" id="tbContainer">
+                        <img class="treasurebox-img" src="${imgSrc}" alt="">
+
+                        <div class="treasurebox-grid" id="tbGrid"></div>
+
+                    </div>
+
+                    <div class="treasurebox-hint">點擊任意處關閉</div>
+
+                </div>
+
+            `;
+
+            document.body.appendChild(overlay);
+
+            // 對齊舞台
+            const tbStage = overlay.querySelector('#tbStage');
+
+            if (window.stageRect) {
+
+                const r = window.stageRect;
+
+                tbStage.style.position = 'absolute';
+
+                tbStage.style.left = r.left + 'px';
+
+                tbStage.style.top = r.top + 'px';
+
+                tbStage.style.width = '500px';
+
+                tbStage.style.height = '850px';
+
+                tbStage.style.transform = 'scale(' + r.scale + ')';
+
+                tbStage.style.transformOrigin = 'top left';
+
+            }
+
+            // 建立 5×8 格子
+            const grid = overlay.querySelector('#tbGrid');
+
+            const spiralOrder = this.getGridSpiralOrder();
+
+            const ROWS = 8, COLS = 5;
+
+            const cellMap = {};
+
+            for (let r = 0; r < ROWS; r++) {
+
+                for (let c = 0; c < COLS; c++) {
+
+                    const cell = document.createElement('div');
+
+                    cell.className = 'tb-cell tb-cell-hidden';
+
+                    cell.style.gridRow = (r + 1).toString();
+
+                    cell.style.gridColumn = (c + 1).toString();
+
+                    cellMap[r + '_' + c] = cell;
+
+                    grid.appendChild(cell);
+
+                }
+
+            }
+
+            // 依通關次數解鎖格子（解鎖的格子顯示彩色原圖對應區塊）
+            const maxReveal = Math.min(Math.max(totalCount, 0), 40);
+
+            for (let i = 0; i < maxReveal; i++) {
+
+                const pos = spiralOrder[i];
+
+                const cell = cellMap[pos.row + '_' + pos.col];
+
+                if (cell) {
+                    cell.classList.remove('tb-cell-hidden');
+                    // 顯示彩色原圖對應的切片
+                    cell.style.backgroundImage = `url('${imgSrc}')`;
+                    cell.style.backgroundSize = '500% 800%';
+                    cell.style.backgroundPosition =
+                        `calc(${pos.col * 100 / 4}%) calc(${pos.row * 100 / 7}%)`;
+                }
+
+            }
+
+            overlay.addEventListener('click', () => {
+
+                if (window.SoundManager) window.SoundManager.playCloseItem();
+
+                overlay.remove();
+
+            });
+
+        },
+
+        // 計算 5×8 格子的逆時針螺旋順序 (從左下角出發)
+        getGridSpiralOrder: function () {
+
+            const ROWS = 8, COLS = 5;
+
+            const visited = [];
+
+            for (let r = 0; r < ROWS; r++) visited.push(Array(COLS).fill(false));
+
+            const order = [];
+
+            // 逆時針 (在螢幕座標系): 右→上→左→下
+            const dr = [0, -1, 0, 1];
+
+            const dc = [1, 0, -1, 0];
+
+            let r = ROWS - 1, c = 0, dir = 0;
+
+            for (let i = 0; i < ROWS * COLS; i++) {
+
+                order.push({ row: r, col: c });
+
+                visited[r][c] = true;
+
+                const nr = r + dr[dir], nc = c + dc[dir];
+
+                if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && !visited[nr][nc]) {
+
+                    r = nr; c = nc;
+
+                } else {
+
+                    dir = (dir + 1) % 4;
+
+                    r += dr[dir]; c += dc[dir];
+
+                }
+
+            }
+
+            return order;
 
         },
 
@@ -1193,6 +1502,45 @@
                     overlay.classList.remove('active');
 
                 });
+
+                // 對齊 500×850 舞台：同 ach-container 的做法
+                const certCardEl = overlay.querySelector('#certCard');
+
+                const certStarEl = overlay.querySelector('#certStarContainer');
+
+                if (window.registerOverlayResize) {
+
+                    window.registerOverlayResize(function (r) {
+
+                        const W = 500 * 0.96, H = 850 * 0.96;
+
+                        const x = r.left + 500 * 0.02 * r.scale;
+
+                        const y = r.top + 850 * 0.02 * r.scale;
+
+                        certCardEl.style.width = W + 'px';
+
+                        certCardEl.style.height = H + 'px';
+
+                        certCardEl.style.left = x + 'px';
+
+                        certCardEl.style.top = y + 'px';
+
+                        certCardEl.style.transform = 'scale(' + r.scale + ')';
+
+                        certCardEl.style.transformOrigin = 'top left';
+
+                        certStarEl.style.left = x + 'px';
+
+                        certStarEl.style.top = y + 'px';
+
+                        certStarEl.style.width = (W * r.scale) + 'px';
+
+                        certStarEl.style.height = (H * r.scale) + 'px';
+
+                    });
+
+                }
 
             }
 
@@ -1401,6 +1749,31 @@
             `;
 
             document.body.appendChild(popOverlay);
+
+            // 以 stageRect 建立 500×850 的邏輯容器，確保彈窗對齊舞台
+            if (window.stageRect) {
+
+                const r = window.stageRect;
+
+                const stageBox = document.createElement('div');
+
+                stageBox.style.cssText = 'position:absolute;left:' + r.left + 'px;top:' + r.top + 'px;width:500px;height:850px;transform:scale(' + r.scale + ');transform-origin:top left;display:flex;justify-content:center;align-items:center;pointer-events:none;';
+
+                const popEl = popOverlay.querySelector('.ach-instant-pop');
+
+                popEl.style.pointerEvents = 'auto';
+
+                popEl.style.width = '460px';
+
+                popEl.style.maxWidth = 'none';
+
+                popEl.style.boxSizing = 'border-box';
+
+                stageBox.appendChild(popEl);
+
+                popOverlay.appendChild(stageBox);
+
+            }
 
             /* updateResponsiveLayout replaced by registerOverlayResize */
 

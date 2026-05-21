@@ -33,7 +33,15 @@
             }
             if (!supabase) {
                 try {
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                        auth: {
+                            // 本專案不使用帳號登入，關閉 session 相關功能
+                            // 避免 SDK 在啟動時反覆嘗試重新整理已過期的舊 token
+                            persistSession:    false,
+                            autoRefreshToken:  false,
+                            detectSessionInUrl: false
+                        }
+                    });
                 } catch (e) {
                     console.error('初始化 Supabase 失敗:', e);
                     return false;
@@ -80,6 +88,7 @@
                     localData.levelProgress   = cloudData.level_progress || {};
                     localData.difficultyCounts= cloudData.difficulty_counts || {};
                     localData.achievements    = cloudData.achievements || { claimed: [] };
+                    localData.poemRecords     = cloudData.poem_records || {};
                     localData.settings        = cloudData.settings || { bgm: true, soundEffects: true };
                     localStorage.setItem('flowerMoon_playerData', JSON.stringify(localData));
                     if (window.ScoreManager) window.ScoreManager.updateProfileUI(localData);
@@ -186,6 +195,7 @@
                 level_progress: localData.levelProgress || {},
                 difficulty_counts: localData.difficultyCounts || {},
                 achievements: localData.achievements || {},
+                poem_records: localData.poemRecords || {},
                 settings: localData.settings || {},
                 updated_at: new Date().toISOString()
             };

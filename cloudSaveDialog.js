@@ -242,6 +242,7 @@
             localData.levelProgress = cloudData.level_progress || {};
             localData.difficultyCounts = cloudData.difficulty_counts || {};
             localData.achievements = cloudData.achievements || { unlocked: [], progress: {}, claimed: [] };
+            localData.poemRecords  = cloudData.poem_records || {};
             localData.settings = cloudData.settings || { bgm: true, soundEffects: true };
 
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(localData));
