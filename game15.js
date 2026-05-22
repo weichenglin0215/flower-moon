@@ -77,22 +77,22 @@
                 wallMargin: 3, showFadding: 3   // 全部白底，無漸隱
             },
             '中學': {
-                speed: 300, decoyCount: 0, poemMinRating: 5, minChars: 10, maxChars: 20,
+                speed: 300, decoyCount: 0, poemMinRating: 5, minChars: 15, maxChars: 28,
                 timeLimit: 120, showHint: true, maxShowCount: 10, maxMistakeCount: 9,
                 wallMargin: 2, showFadding: 4   // 前3個白底，其後漸隱
             },
             '高中': {
-                speed: 250, decoyCount: 0, poemMinRating: 4, minChars: 15, maxChars: 28,
-                timeLimit: 150, showHint: false, maxShowCount: 15, maxMistakeCount: 11,
+                speed: 250, decoyCount: 0, poemMinRating: 4, minChars: 20, maxChars: 28,
+                timeLimit: 150, showHint: false, maxShowCount: 14, maxMistakeCount: 11,
                 wallMargin: 1, showFadding: 3   // 前3個白底，其後漸隱
             },
             '大學': {
-                speed: 200, decoyCount: 2, poemMinRating: 4, minChars: 20, maxChars: 28,
+                speed: 200, decoyCount: 2, poemMinRating: 4, minChars: 20, maxChars: 56,
                 timeLimit: 180, showHint: false, maxShowCount: 20, maxMistakeCount: 13,
                 wallMargin: 0, showFadding: 5
             },
             '研究所': {
-                speed: 150, decoyCount: 4, poemMinRating: 4, minChars: 20, maxChars: 56,
+                speed: 150, decoyCount: 6, poemMinRating: 3, minChars: 28, maxChars: 56,
                 timeLimit: 240, showHint: false, maxShowCount: 28, maxMistakeCount: 14,
                 wallMargin: 0, showFadding: 7
             },
@@ -359,6 +359,10 @@
         stopGame: function () {
             this.isActive = false;
             this.stopGameLoop();
+            // Game15 的 overlay 掛在 document.body 而非 #stage，
+            // menu.js 全域清理只呼叫 stopGame()，不呼叫 hide()，
+            // 因此必須在此主動隱藏，防止 overlay 遮蔽 calendar/card/author_bio 等頁面。
+            if (this.container) this.container.classList.add('hidden');
         },
 
         stopGameLoop: function () {
@@ -1105,9 +1109,9 @@
 
                 if (isLit) {
                     ctx.save();
-                    ctx.filter = 'brightness(3.0)';  // 300% 亮度，明顯閃亮
+                    ctx.filter = 'brightness(3.0)';  // 300% 亮度（桌面效果）
                 }
-                ctx.fillStyle = `hsl(${hue}, 80%, 60% )`;
+                ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
                 this.fillRoundRect(ctx, sx + 2, sy + 2, C - 4, C - 4, 5);
                 if (char) {
                     ctx.fillStyle = `hsl(${(hue + 180) % 360}, 80%, 10%)`;
@@ -1116,7 +1120,13 @@
                     ctx.textBaseline = 'middle';
                     ctx.fillText(char, scx, scy + 1);
                 }
-                if (isLit) ctx.restore();
+                if (isLit) {
+                    // 白色粗邊框（5px）：手機若不支援 filter 時的備援發光效果，兩者同時呈現
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = 5;
+                    this.strokeRoundRect(ctx, sx + 2, sy + 2, C - 4, C - 4, 5);
+                    ctx.restore();
+                }
             }
 
             // ── 蛇頭（snake[0]）：黃色空心方框 ──
@@ -1194,7 +1204,9 @@
         },
 
         // ================================================================
-        // 輸入設定：觸控滑動 + 鍵盤 + 虛擬方向鍵
+        // 輸入設定：觸控滑動 + 鍵盤
+        // 說明：D-pad 箭頭圖形純作裝飾（指引視覺），不綁定任何點擊事件。
+        //       手機以手指在畫布上滑動可達最佳操作體驗；桌面以鍵盤方向鍵操控。
         // ================================================================
         setupInput: function () {
             const canvas = document.getElementById('game15-canvas');
@@ -1230,22 +1242,8 @@
                 }
             });
 
-            // 虛擬方向鍵
-            const bindDpad = (id, dc, dr) => {
-                const btn = document.getElementById(id);
-                if (!btn) return;
-                const handler = (e) => {
-                    e.preventDefault();
-                    if (!this.isActive) return;
-                    this.tryChangeDirection(dc, dr);
-                };
-                btn.addEventListener('touchstart', handler, { passive: false });
-                btn.addEventListener('mousedown', handler);
-            };
-            bindDpad('game15-up', 0, -1);
-            bindDpad('game15-down', 0, 1);
-            bindDpad('game15-left', -1, 0);
-            bindDpad('game15-right', 1, 0);
+            // D-pad 按鈕僅作裝飾，不綁定任何事件
+            // （手機改用畫布滑動；桌面改用鍵盤方向鍵）
         },
 
         processSwipe: function (dx, dy) {

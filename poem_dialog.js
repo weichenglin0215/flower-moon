@@ -338,6 +338,18 @@ ${m.poem.rating || ''}星</span></div>
             setupMomentumScroll(dialogBody);
             setupMomentumScroll(searchList);
 
+            // 點擊作者名稱 → 跳至作者列表並選取該作者
+            document.getElementById('dlgAuthor').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                if (typeof POEMS === 'undefined' || !POEMS.length) return;
+                const poem = POEMS[this.currentPoemIndex];
+                if (!poem || !poem.author) return;
+                this.close();
+                if (window.AuthorBio && window.AuthorBio.showAndSelect) {
+                    window.AuthorBio.showAndSelect(poem.author);
+                }
+            });
+
             // 支持點擊頁面上的詩名或作者開啟 (全域委派)
             document.addEventListener('click', (e) => {
                 const t = e.target.closest('.poem-title, .poem-author, [data-poem-id]');

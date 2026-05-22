@@ -688,6 +688,44 @@ window.AuthorBio = (function () {
 
 
 
+    // 顯示作者列表並自動選取指定作者
+    function showAndSelect(authorName) {
+
+        show();
+
+        if (!authorName) return;
+
+        // 重設所有篩選器，確保目標作者不會被過濾掉
+        const dynastyEl = document.getElementById('dynastyFilter');
+        const surnameEl = document.getElementById('surnameFilter');
+        const searchEl  = document.getElementById('bioSearch');
+        if (dynastyEl) dynastyEl.value = 'all';
+        if (surnameEl) surnameEl.value = 'all';
+        if (searchEl)  searchEl.value  = '';
+        filteredAuthors = [...allAuthors];
+
+        // 找到並選取作者
+        const found = allAuthors.find(a => a.name === authorName);
+        if (!found) {
+            updateAuthorList();
+            return;
+        }
+
+        selectedAuthor = found;
+        updateAuthorList();
+        updateWorksList();
+
+        // 捲動到已選取的作者項目
+        setTimeout(() => {
+            const list = document.getElementById('authorList');
+            const selectedItem = list && list.querySelector('.author-item.selected');
+            if (selectedItem) selectedItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 80);
+
+    }
+
+
+
     function hide() {
 
         const page = document.getElementById('authorBioPage');
@@ -720,7 +758,9 @@ window.AuthorBio = (function () {
 
         show,
 
-        hide
+        hide,
+
+        showAndSelect
 
     };
 

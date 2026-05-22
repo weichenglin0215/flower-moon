@@ -109,6 +109,18 @@
     font-size: 30px;                        /* 30px → 30px */
 }
 
+#dlgAuthor {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    color: hsl(210, 50%, 35%);
+    transition: opacity 0.15s;
+}
+
+#dlgAuthor:hover {
+    opacity: 0.65;
+}
+
 /* Line Content (詩行內容) */
 .pd-line-content {
     color: hsl(40, 40%, 20%);

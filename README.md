@@ -102,10 +102,33 @@
 - **觸發領獎過程**：按下 alt + W 可觸發領獎過程，方便測試領獎動畫與獎牌。
 ---
 
+## 🛠️ 開發與輔助工具(詳見'tools/詩詞資料更新說明書.md')
+為了維護龐大的詩詞資料庫，我們開發了幾項輔助工具（位於 `tools/` 與根目錄）：
+- **詩詞文字資料轉換器 (`tools/converter.html`)**：將EXCEL格式轉換為標準的 JSON 資料格式。
+- **日曆分配腳本 (`tools/refresh_assignments.py`與`tools/refresh_assignments.bat`)**：自動生成每日詩詞分配，確保日曆內容的多樣性與時令性。可直接執行`tools/三年份的日曆詩詞資料_refresh_assignments.bat`產生三年份的日曆詩詞資料。
+- **(已取消)詩詞自動標註工具 (`tools/enricher.html`)**：自動分析詩詞內容並匹配標籤（Tags）與宜/忌資訊。
+
+## 發布至GitHub Pages
+- **詳見'tools/發布至GitHub Pages.md'** 只需要跟著流程做一次，後續更新依照git commit與git push方式即可。
+
+## 技術棧
+- **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+).
+- **Styling**: 中式水墨宣紙渲染風格。
+- **Library**: [lunar-javascript](https://github.com/6tail/lunar-javascript) (農曆轉換).
+- **Architecture**: 響應式設計 (Responsive Design)，完美支援移動端與桌面端。
+
+## 如何運行
+1. 複製此倉庫到本地。
+2. 使用任何本地伺服器（如 VS Code 的 Live Server）開啟 `index.html`。
+3. 或是直接在瀏覽器中開啟 `index.html` 即可開始體驗。
+
+---
+
 ## GITHUB 主要更新歷程
 
 | 版本 | 日期 | 更新亮點 |
 | :--- | :--- | :--- |
+| **V0.21.1.0** | 2026-05-22 | 新增「遊戲企劃書撰寫規範.md」讓AI自行產出遊戲企劃書。優化墨韻游龍(Game15)手機輸入拖曳方式，詩詞資料點擊作者名稱可跳轉至名人列傳的該作者作品列表。|
 | **V0.21.0.0** | 2026-05-22 | 新增成就系統的詩詞寶盒，統計每一首詩的遊玩次數，收集拼圖，未來可領取獎勵。|
 | **V0.20.0.0** | 2026-05-21 | 新增墨韻游龍(Game15)，改編自經典遊戲-貪食蛇。實作九宮格均勻分布、逐節發光動畫、失誤暫停機制、showHint詩句提示欄、進度條置中捲動等完整功能。|
 | **V0.19.0.0** | 2026-05-19 | Claude Code整理SKILLS跟程式碼。|
@@ -154,29 +177,7 @@
 | **V0.1.1.0** | 2025-12-19 | 完成日曆、卡片、飛花令、字爬梯等基礎功能開發與上線測試。 |
 | **V0.1.0.0** | 2025-12-16 | **發布網頁初版**：專案「花月」網頁版正式誕生，建立基本架構。 |
 
----
 
-## 🛠️ 開發與輔助工具(詳見'tools/詩詞資料更新說明書.md')
-為了維護龐大的詩詞資料庫，我們開發了幾項輔助工具（位於 `tools/` 與根目錄）：
-- **詩詞文字資料轉換器 (`tools/converter.html`)**：將EXCEL格式轉換為標準的 JSON 資料格式。
-- **日曆分配腳本 (`tools/refresh_assignments.py`與`tools/refresh_assignments.bat`)**：自動生成每日詩詞分配，確保日曆內容的多樣性與時令性。可直接執行`tools/三年份的日曆詩詞資料_refresh_assignments.bat`產生三年份的日曆詩詞資料。
-- **(已取消)詩詞自動標註工具 (`tools/enricher.html`)**：自動分析詩詞內容並匹配標籤（Tags）與宜/忌資訊。
-
-## 發布至GitHub Pages
-- **詳見'tools/發布至GitHub Pages.md'** 只需要跟著流程做一次，後續更新依照git commit與git push方式即可。
-
-## 技術棧
-- **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+).
-- **Styling**: 中式水墨宣紙渲染風格。
-- **Library**: [lunar-javascript](https://github.com/6tail/lunar-javascript) (農曆轉換).
-- **Architecture**: 響應式設計 (Responsive Design)，完美支援移動端與桌面端。
-
-## 如何運行
-1. 複製此倉庫到本地。
-2. 使用任何本地伺服器（如 VS Code 的 Live Server）開啟 `index.html`。
-3. 或是直接在瀏覽器中開啟 `index.html` 即可開始體驗。
-
----
 
 ---
 
