@@ -1,0 +1,436 @@
+/* ============================================================
+   game16.css — 打地詩 (Whac-A-Verse)
+   所有 class 名稱皆以 game16- 為前綴，避免全域污染
+   ============================================================ */
+
+.game16-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 500px;
+    height: 850px;
+    background: radial-gradient(ellipse at center,
+        hsl(210, 30%, 20%) 0%,
+        hsl(210, 20%, 12%) 55%,
+        hsl(210, 10%, 6%) 100%);
+    display: flex;
+    flex-direction: column;
+    font-family: 'Noto Serif TC', serif;
+    color: hsl(45, 80%, 80%);
+    overflow: hidden;
+    z-index: 1000;
+}
+
+/* ── 頂部資訊列 ── */
+.game16-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid hsla(40, 60%, 50%, 0.15);
+    height: 44px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.game16-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 22px;
+    font-weight: bold;
+    padding-left: 4px;
+}
+
+.game16-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.game16-difficulty-tag {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 18px;
+    color: hsl(45, 30%, 90%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.15);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Serif TC', serif;
+}
+
+.game16-difficulty-tag[data-level="小學"]   { background: linear-gradient(135deg, hsl(100, 40%, 38%) 0%, hsl(120, 40%, 28%) 100%); }
+.game16-difficulty-tag[data-level="中學"]   { background: linear-gradient(135deg, hsl(210, 40%, 48%) 0%, hsl(230, 40%, 38%) 100%); }
+.game16-difficulty-tag[data-level="高中"]   { background: linear-gradient(135deg, hsl(0, 50%, 48%) 0%, hsl(0, 50%, 33%) 100%); }
+.game16-difficulty-tag[data-level="大學"]   { background: linear-gradient(135deg, hsl(290, 50%, 48%) 0%, hsl(270, 50%, 33%) 100%); }
+.game16-difficulty-tag[data-level="研究所"] { background: linear-gradient(135deg, hsl(50, 80%, 48%) 0%, hsl(40, 80%, 33%) 100%); }
+
+.game16-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+    filter: brightness(1.4);
+}
+
+.game16-controls .nav-btn {
+    padding: 2px 10px;
+    background: hsl(0, 55%, 22%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.25);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: filter 0.2s;
+    font-family: 'Noto Serif TC', serif;
+}
+
+.game16-controls .nav-btn:hover { filter: brightness(1.5); }
+.game16-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 40%);
+    color: hsl(0, 0%, 70%);
+    cursor: default;
+}
+
+/* ── 生命值 + 連擊列 ── */
+.game16-sub-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    height: 44px;
+    flex-shrink: 0;
+}
+
+.game16-combo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 16px;
+}
+
+#game16-hearts.hearts {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+#game16-hearts .heart {
+    font-size: 28px;
+    color: hsl(4, 90%, 60%);
+    transition: opacity 0.3s;
+}
+
+#game16-hearts .heart.empty {
+    opacity: 0.2;
+    color: hsl(4, 30%, 50%);
+}
+
+.game16-combo-wrap {
+    font-size: 20px;
+    color: hsl(45, 60%, 70%);
+}
+
+#game16-combo {
+    font-size: 24px;
+    font-weight: bold;
+    color: hsl(45, 80%, 75%);
+    transition: color 0.3s;
+}
+
+#game16-combo.game16-combo-max {
+    color: hsl(145, 68%, 55%);
+    animation: game16-pulse 0.6s ease-in-out infinite;
+}
+
+/* ── 詩詞資訊 + 進度條 ── */
+.game16-poem-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    height: 52px;
+    flex-shrink: 0;
+}
+
+.game16-poem-info {
+    font-size: 16px;
+    color: hsl(40, 60%, 65%);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: hsla(40, 60%, 65%, 0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.game16-poem-info:hover { color: hsl(40, 80%, 75%); }
+
+.game16-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.game16-progress-track {
+    flex: 1;
+    height: 8px;
+    background: hsl(210, 20%, 20%);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.game16-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, hsl(38, 80%, 45%), hsl(45, 90%, 60%));
+    border-radius: 4px;
+    transition: width 0.3s ease-out;
+    width: 0%;
+}
+
+#game16-progress-text {
+    font-size: 14px;
+    color: hsl(40, 50%, 60%);
+    white-space: nowrap;
+    min-width: 36px;
+    text-align: right;
+}
+
+/* ── 已完成詩句欄 ── */
+/* 始終顯示；遊戲開始時為空，每完成一整句才逐步填入 */
+.game16-hint-bar {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsla(140, 30%, 14%, 0.75);
+    border-bottom: 1px solid hsla(140, 50%, 40%, 0.18);
+    font-size: 17px;
+    color: hsl(140, 55%, 72%);
+    letter-spacing: 3px;
+    padding: 0 12px;
+    flex-shrink: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* ── 主遊戲區（地洞陣列）── */
+.game16-area {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    padding: 4px;
+}
+
+.game16-holes-grid {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    gap: 4px;
+    touch-action: none; /* 防止手機雙擊縮放 */
+}
+
+/* ── 單一地洞 ── */
+.game16-hole {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.game16-hole:active {
+    background: hsla(38, 60%, 30%, 0.2);
+}
+
+.game16-hole-pit {
+    width: var(--pit-size, 72px);
+    height: var(--pit-size, 72px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%,
+        hsl(30, 15%, 16%) 0%,
+        hsl(30, 10%, 9%) 60%,
+        hsl(30, 5%, 5%) 100%);
+    box-shadow:
+        inset 0 4px 14px rgba(0, 0, 0, 0.85),
+        inset 0 -1px 3px hsla(30, 40%, 30%, 0.15),
+        0 2px 6px rgba(0, 0, 0, 0.5);
+    transition: box-shadow 0.2s;
+    flex-shrink: 0;
+}
+
+/* ── 角色泡泡（從洞底升起的字） ── */
+.game16-char-bubble {
+    position: absolute;
+    left: 50%;
+    top: 38%;
+    width: var(--bubble-size, 58px);
+    height: var(--bubble-size, 58px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--char-font-size, 28px);
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 2;
+    transform: translate(-50%, -50%) translateY(var(--pit-size, 72px));
+    opacity: 0;
+    user-select: none;
+}
+
+/* 正確字提示：金橙色（hintMode='full' 或句首字） */
+.game16-char-target {
+    background: radial-gradient(circle at 40% 35%, hsl(50, 95%, 75%) 0%, hsl(38, 90%, 55%) 100%);
+    box-shadow: 0 0 10px hsl(45, 90%, 60%), 0 0 22px hsla(45, 80%, 50%, 0.6);
+    color: hsl(20, 60%, 18%);
+}
+
+/* 中性字（hintMode='none' 的正確字 / 所有難度的混淆字）：白底黑字 */
+.game16-char-neutral {
+    background: hsl(0, 0%, 96%);
+    color: hsl(0, 0%, 15%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+/* 混淆字：保留原樣（舊 class，保持向後相容） */
+.game16-char-decoy {
+    background: hsla(220, 25%, 55%, 0.88);
+    color: hsl(220, 10%, 92%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* ── 洞口動畫 ── */
+@keyframes game16-rise {
+    0%   { transform: translate(-50%, -50%) translateY(var(--pit-size, 72px)); opacity: 0; }
+    35%  { transform: translate(-50%, -50%) translateY(-8px);                  opacity: 1; }
+    100% { transform: translate(-50%, -50%) translateY(-8px);                  opacity: 1; }
+}
+
+@keyframes game16-sink {
+    0%   { transform: translate(-50%, -50%) translateY(-8px);                  opacity: 1; }
+    100% { transform: translate(-50%, -50%) translateY(var(--pit-size, 72px)); opacity: 0; }
+}
+
+@keyframes game16-hit-anim {
+    0%   { transform: translate(-50%, -50%) translateY(-8px) scale(1);   opacity: 1; }
+    40%  { transform: translate(-50%, -50%) translateY(-24px) scale(1.6); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) translateY(-40px) scale(2.2); opacity: 0; }
+}
+
+.game16-rise { animation: game16-rise 0.32s ease-out forwards; }
+.game16-sink { animation: game16-sink 0.28s ease-in forwards !important; }
+.game16-hit  { animation: game16-hit-anim 0.4s ease-out forwards !important; }
+
+/* ── 錯誤反饋：洞口震動 ── */
+@keyframes game16-shake {
+    0%, 100% { transform: translateX(0); }
+    20%       { transform: translateX(-9px); }
+    45%       { transform: translateX(9px); }
+    65%       { transform: translateX(-6px); }
+    82%       { transform: translateX(5px); }
+}
+
+.game16-shake { animation: game16-shake 0.42s ease-in-out; }
+
+/* 擊中混淆字：字泡泡閃紅 */
+.game16-wrong-flash {
+    background: hsl(4, 90%, 55%) !important;
+    box-shadow: 0 0 12px hsl(4, 90%, 55%) !important;
+}
+
+/* 漏失（字縮回）：洞口短暫變灰 */
+@keyframes game16-miss-flash {
+    0%, 100% { box-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.85); }
+    50%       { box-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.85), 0 0 8px hsla(0, 0%, 60%, 0.4); }
+}
+
+.game16-miss .game16-hole-pit {
+    animation: game16-miss-flash 0.4s ease-in-out;
+}
+
+/* ── 混亂期效果 ── */
+@keyframes game16-frenzy-glow {
+    0%, 100% { box-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.85), 0 0 6px hsla(32, 95%, 55%, 0.4); }
+    50%       { box-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.85), 0 0 20px hsla(32, 95%, 55%, 0.85), 0 0 40px hsla(32, 80%, 45%, 0.4); }
+}
+
+.game16-frenzy .game16-hole-pit {
+    animation: game16-frenzy-glow 0.5s ease-in-out infinite;
+}
+
+/* ── 浮動得分文字 ── */
+.game16-float-score {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    color: hsl(45, 95%, 70%);
+    font-size: 18px;
+    font-weight: bold;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+    animation: game16-float-up 0.9s ease-out forwards;
+}
+
+@keyframes game16-float-up {
+    0%   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-38px); opacity: 0; }
+}
+
+/* ── 底部計時條 ── */
+.game16-timer-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.game16-timer-track {
+    flex: 1;
+    height: 12px;
+    background: hsl(210, 20%, 14%);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#game16-timer-bar {
+    height: 100%;
+    width: 100%;
+    border-radius: 6px;
+    background: hsl(38, 80%, 44%);
+    transition: width 0.1s linear, background-color 0.6s ease;
+}
+
+#game16-timer-bar.game16-timer-urgent {
+    background: hsl(4, 90%, 52%);
+    animation: game16-timer-pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes game16-timer-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+}
+
+#game16-timer-label {
+    font-size: 14px;
+    color: hsl(45, 60%, 65%);
+    min-width: 28px;
+    text-align: right;
+}
+
+/* ── 共用連擊脈動 ── */
+@keyframes game16-pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.12); }
+}

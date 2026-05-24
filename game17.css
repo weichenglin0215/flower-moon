@@ -1,0 +1,250 @@
+/* ============================================================
+   game17.css — 青蛙過河 (Frog on the Verse)
+   所有 class 使用 game17- 前綴，避免全域 CSS 污染
+   ============================================================ */
+
+/* ── Overlay 全屏容器 ────────────────────────────────────── */
+.game17-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 500px;
+    height: 850px;
+    background: radial-gradient(ellipse at center, hsl(220, 35%, 14%) 0%, hsl(220, 40%, 6%) 100%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Noto Serif TC', serif;
+    z-index: 1000;
+    transform-origin: top left;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.game17-overlay.hidden {
+    display: none;
+}
+
+/* ── Header：分數 + 生命值 + 控制按鈕 ───────────────────── */
+.game17-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    height: 44px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.game17-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 22px;
+    font-weight: bold;
+    min-width: 120px;
+}
+
+/* 生命值（由 scoreManager 共用 .hearts / .heart class 渲染） */
+#game17-hearts {
+    display: flex;
+    gap: 1px;
+    justify-content: center;
+}
+
+#game17-hearts .heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 22px;
+}
+
+#game17-hearts .heart.empty {
+    color: hsl(0, 0%, 35%);
+    font-size: 22px;
+}
+
+.game17-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.game17-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 16px;
+    color: hsl(45, 30%, 88%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.15);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Serif TC', serif;
+}
+
+.game17-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.85);
+    filter: brightness(1.5);
+}
+
+.game17-controls .nav-btn {
+    padding: 0 10px;
+    background: hsl(0, 60%, 24%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.2s;
+    height: 32px;
+    font-family: 'Noto Serif TC', serif;
+}
+
+.game17-controls .nav-btn:hover {
+    filter: brightness(1.5);
+}
+
+.game17-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 40%);
+    color: hsl(45, 0%, 80%);
+    cursor: default;
+    filter: none;
+}
+
+/* ── 詩詞資訊列（詩名/朝代/作者 + 進度條）──────────────── */
+.game17-poem-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    height: 40px;
+    flex-shrink: 0;
+    gap: 8px;
+}
+
+.game17-poem-info {
+    color: hsl(45, 60%, 70%);
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    max-width: 240px;
+    transition: color 0.2s;
+}
+
+.game17-poem-info:hover {
+    color: hsl(45, 90%, 85%);
+}
+
+.game17-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.game17-progress-track {
+    width: 120px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.game17-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, hsl(120, 55%, 38%) 0%, hsl(140, 60%, 45%) 100%);
+    border-radius: 4px;
+    transition: width 0.35s ease;
+}
+
+#game17-progress-text {
+    color: hsl(45, 55%, 68%);
+    font-size: 13px;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* ── 提示欄（依難度顯示/隱藏）──────────────────────────── */
+.game17-hint-bar {
+    height: 30px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 20, 10, 0.55);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: hsl(120, 60%, 70%);
+    font-size: 15px;
+    padding: 0 12px;
+    letter-spacing: 0.04em;
+}
+
+/* ── Canvas 遊戲區 ───────────────────────────────────────── */
+.game17-canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+#game17-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* 震動效果 */
+.game17-shake {
+    animation: game17-shakeAnim 0.4s ease;
+}
+
+@keyframes game17-shakeAnim {
+    0%   { transform: translateX(0); }
+    15%  { transform: translateX(-6px); }
+    30%  { transform: translateX(6px); }
+    45%  { transform: translateX(-5px); }
+    60%  { transform: translateX(5px); }
+    75%  { transform: translateX(-3px); }
+    90%  { transform: translateX(3px); }
+    100% { transform: translateX(0); }
+}
+
+/* ── 計時條（底部橫向進度條）────────────────────────────── */
+.game17-timer-wrap {
+    height: 24px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    background: rgba(0, 0, 0, 0.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.game17-timer-track {
+    flex: 1;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+#game17-timer-bar {
+    height: 100%;
+    width: 100%;
+    background: hsl(193, 72%, 42%);
+    border-radius: 5px;
+    transition: background 0.5s;
+}
+
+/* 最後 15% 時閃爍警示 */
+.game17-timer-urgent {
+    animation: game17-timerFlash 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes game17-timerFlash {
+    from { opacity: 1; }
+    to   { opacity: 0.4; }
+}

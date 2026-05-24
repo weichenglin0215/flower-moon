@@ -99,9 +99,9 @@
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    div.style.left   = r.left   + 'px';
-                    div.style.top    = r.top    + 'px';
-                    div.style.width  = 500 + 'px';
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
                     div.style.height = 850 + 'px';
                     div.style.transform = 'scale(' + r.scale + ')';
                     div.style.transformOrigin = 'top left';
@@ -131,7 +131,7 @@
             if (window.MenuManager) window.MenuManager.closeAll();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('人事時地：考驗詩詞背景與記憶', (selectedLevel, levelIndex) => {
+                window.DifficultySelector.show('人事時地', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
@@ -147,12 +147,15 @@
 
         updateUIForMode: function () {
             const diffTag = document.getElementById('game13-diff-tag');
+            const newBtn = document.getElementById('game13-newGame-btn');
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
             if (diffTag) {
-                diffTag.textContent = this.isLevelMode ? `挑戰 ${this.currentLevelIndex}` : this.difficulty;
+                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
                 diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                 diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
             }
+            // 挑戰模式下隱藏「新局」按鈕，避免玩家意外跳出挑戰流程
+            if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
         },
 
         stopGame: function () {
@@ -169,6 +172,8 @@
             this.score = 0;
             this.mistakeCount = 0;
             document.getElementById('game13-score').textContent = this.score;
+            // 每次開新局都同步更新 UI（含挑戰關卡編號與按鈕顯示狀態）
+            this.updateUIForMode();
             this.renderHearts();
             if (window.GameMessage) window.GameMessage.hide();
             if (this.selectRandomPoem()) {

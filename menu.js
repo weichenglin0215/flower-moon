@@ -29,6 +29,8 @@
         { page: 'game11', label: '翻墨識蹤', image: 'images/Menu/翻墨識蹤_Menu256.jpg' },
         { page: 'game12', label: '疏影橫斜', image: 'images/Menu/疏影橫斜_Menu256.jpg' },
         { page: 'game15', label: '墨韻游龍', image: 'images/Menu/墨韻游龍_Menu256.jpg' },
+        { page: 'game16', label: '打地詩', image: 'images/Menu/打地詩_Menu256.jpg' },
+        { page: 'game17', label: '青蛙過河', image: 'images/Menu/青蛙過河_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
@@ -96,6 +98,16 @@
                 cell.appendChild(imgWrapper);
             }
 
+            // 遊戲頁面：在圖片下方插入過關次數進度條
+            if (/^game\d+$/.test(item.page)) {
+                const barWrap = document.createElement('div');
+                barWrap.className = 'menu-playcount-wrap';
+                const bar = document.createElement('div');
+                bar.className = 'menu-playcount-bar';
+                barWrap.appendChild(bar);
+                cell.appendChild(barWrap);
+            }
+
             const label = document.createElement('span');
             label.className = 'menu-item-label';
             label.textContent = item.label;
@@ -105,6 +117,8 @@
         });
 
         menuPanel.appendChild(grid);
+        // 初始化進度條數值
+        updateMenuProgressBars();
 
         // 遮罩層
         const menuOverlay = document.createElement('div');
@@ -143,12 +157,67 @@
     }
 
     // ----------------------------------------
+    // 更新選單內各遊戲的過關次數進度條
+    // 顏色與進度依過關次數分段：
+    //   0-20次 綠色（100%=20）
+    //   21-50次 藍色（100%=50）
+    //   51-100次 紅色（100%=100）
+    //   101-200次 紫色（100%=200）
+    //   201-300次 金黃色（100%=300）
+    // ----------------------------------------
+    function updateMenuProgressBars() {
+        const gamesData = window.ScoreManager
+            ? (window.ScoreManager.loadPlayerData().games || {})
+            : {};
+
+        document.querySelectorAll('.menu-item[data-page]').forEach(cell => {
+            const page = cell.getAttribute('data-page');
+            if (!/^game\d+$/.test(page)) return;
+            const bar = cell.querySelector('.menu-playcount-bar');
+            if (!bar) return;
+
+            const count = (gamesData[page] && gamesData[page].playCount) || 0;
+
+            let color, maxCount;
+            if (count <= 20) {
+                // 綠色（≤20次）
+                color = 'linear-gradient(135deg, hsl(100, 50%, 40%) 0%, hsl(120, 60%, 60%) 100%)';
+                maxCount = 20;
+            } else if (count <= 50) {
+                // 藍色（21-50次）
+                color = 'linear-gradient(135deg, hsl(200, 60%, 50%) 0%, hsl(200, 66%, 70%) 100%)';
+                maxCount = 50;
+            } else if (count <= 100) {
+                // 紅色（51-100次）
+                color = 'linear-gradient(135deg, hsl(0, 60%, 50%) 0%, hsl(0, 66%, 70%) 100%)';
+                maxCount = 100;
+            } else if (count <= 200) {
+                // 紫色（101-200次）
+                color = 'linear-gradient(135deg, hsl(290, 60%, 50%) 0%, hsl(270, 66%, 70%) 100%)';
+                maxCount = 200;
+            } else {
+                // 金黃色（201-300次）
+                color = 'linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(60, 80%, 70%) 100%)';
+                maxCount = 300;
+            }
+
+            const widthPct = Math.min(100, Math.round((count / maxCount) * 100));
+            bar.style.width = widthPct + '%';
+            bar.style.background = count > 0 ? color : 'transparent';
+            bar.title = `過關 ${count} 次`;
+        });
+    }
+
+    // 暴露讓外部可重整（例如過關動畫結束後更新）
+    window.MenuProgressBarsUpdate = updateMenuProgressBars;
+
+    // ----------------------------------------
     // 核心管理器：關閉所有活動中的覆蓋層
     // ----------------------------------------
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -229,6 +298,8 @@
             const isActive = menuPanel.classList.toggle('active');
             if (isActive) {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
+                // 打開選單時刷新各遊戲的過關次數進度條
+                updateMenuProgressBars();
             } else if (!isActive && window.SoundManager) {
                 window.SoundManager.playCloseItem();
             }
@@ -338,6 +409,14 @@
                     case 'game15':
                         if (window.Game15) window.Game15.show();
                         else window.location.href = 'index.html?game=15';
+                        break;
+                    case 'game16':
+                        if (window.Game16) window.Game16.show();
+                        else window.location.href = 'index.html?game=16';
+                        break;
+                    case 'game17':
+                        if (window.Game17) window.Game17.show();
+                        else window.location.href = 'index.html?game=17';
                         break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();

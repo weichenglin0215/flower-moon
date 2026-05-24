@@ -35,7 +35,9 @@ const ScoreManager = {
         'game12': { base: 100, heart: 10, time: 2, getPointA: 20 },
         'game13': { base: 100, heart: 10, time: 2, getPointA: 20 },
         'game14': { base: 100, heart: 20, time: 5, getPointA: 10 },
-        'game15': { base: 100, heart: 10, time: 3, getPointA: 15 }
+        'game15': { base: 100, heart: 10, time: 3, getPointA: 15 },
+        'game16': { base: 100, heart: 10, time: 2, getPointA: 15 },
+        'game17': { base: 100, heart: 10, time: 2, getPointA: 10 }
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -197,7 +199,8 @@ const ScoreManager = {
             playDays: 1,
             lastPlayedDate: new Date().toISOString().split('T')[0],
             games: {},
-            levelProgress: {}, // 格式: { gameKey: { '小學': 0, '中學': 0, ... } }
+            levelProgress: {}, // 格式: { gameKey: { '小學': 0, '中學': 0, ... } } — 各難度最高通關關卡（供鎖定判斷）
+            levelCleared: {},  // 格式: { gameKey: { '小學': [1,3,5,...], ... } } — 個別通關關卡紀錄（供星星顯示）
             poemRecords: {},   // 格式: { poemId: { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 } }
             difficultyCounts: {
                 '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0
@@ -284,8 +287,9 @@ const ScoreManager = {
 
         data = this.migrateData(data);
 
-        // 雙重檢查確保 levelProgress / poemRecords 結構正確
+        // 雙重檢查確保 levelProgress / levelCleared / poemRecords 結構正確
         if (!data.levelProgress) data.levelProgress = {};
+        if (!data.levelCleared) data.levelCleared = {};
         if (!data.poemRecords) data.poemRecords = {};
 
         // 更新累計登入天數
@@ -326,6 +330,9 @@ const ScoreManager = {
         if (!data.levelProgress[gameKey]) {
             data.levelProgress[gameKey] = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
         }
+        // 個別關卡通關星星紀錄（不依賴最高關卡推算，避免跳關一次解鎖前面所有關）
+        if (!data.levelCleared) data.levelCleared = {};
+        if (!data.levelCleared[gameKey]) data.levelCleared[gameKey] = {};
 
         let finalDifficulty = difficulty;
         let finalRelIdx = levelIndex;
@@ -336,15 +343,29 @@ const ScoreManager = {
             finalRelIdx = converted.relIdx;
         }
 
-        let achIdToReturn = null;
+        // 記錄此關卡通關（個別星星紀錄，不論是否為新高）
+        if (!data.levelCleared[gameKey][finalDifficulty]) data.levelCleared[gameKey][finalDifficulty] = [];
+        const alreadyCleared = data.levelCleared[gameKey][finalDifficulty].includes(finalRelIdx);
+        if (!alreadyCleared) {
+            data.levelCleared[gameKey][finalDifficulty].push(finalRelIdx);
+        }
 
-        // 只有在通關更高關卡時才更新
+        let achIdToReturn = null;
+        let needsSave = !alreadyCleared; // 新增個別通關紀錄時也需要存檔
+
+        // 只有在通關更高關卡時才更新最高紀錄（供鎖定判斷使用）
         if (finalRelIdx > (data.levelProgress[gameKey][finalDifficulty] || 0)) {
             data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
+            needsSave = true;
 
-            // 計算總通關數
-            const progress = data.levelProgress[gameKey];
-            const totalPassed = (progress['小學'] || 0) + (progress['中學'] || 0) + (progress['高中'] || 0) + (progress['大學'] || 0) + (progress['研究所'] || 0);
+            // 計算總通關數（以個別星星紀錄計算，不用 max 累加避免誇大）
+            const progress = data.levelCleared[gameKey];
+            const totalPassed =
+                (progress['小學']    ? progress['小學'].length    : 0) +
+                (progress['中學']    ? progress['中學'].length    : 0) +
+                (progress['高中']    ? progress['高中'].length    : 0) +
+                (progress['大學']    ? progress['大學'].length    : 0) +
+                (progress['研究所']  ? progress['研究所'].length  : 0);
 
             // 檢查 20 關里程碑成就
             if (totalPassed > 0 && totalPassed % 20 === 0) {
@@ -354,7 +375,9 @@ const ScoreManager = {
                     achIdToReturn = achId;
                 }
             }
+        }
 
+        if (needsSave) {
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
         }
         return achIdToReturn;

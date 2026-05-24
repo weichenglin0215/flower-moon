@@ -29,7 +29,10 @@
             '詩韻鎖扣': 'game9',
             '擊石鳴詩': 'game10',
             '翻墨識蹤': 'game11',
-            '疏影橫斜': 'game12'
+            '疏影橫斜': 'game12',
+            '人事時地': 'game13',
+            '步步驚心': 'game14',
+            '墨韻游龍': 'game15'
         },
 
         /**
@@ -68,8 +71,11 @@
             ).join('');
 
             overlay.innerHTML = `
-                <div class="difficulty-selector-container">
+                <div class="difficulty-selector-container" style="position:relative;">
                     <h2>請選擇難度</h2>
+                    <label id="difficulty-calendar-label" title="測試用：強制使用今日日曆詩（不消耗每日名額）" style="position:absolute;top:10px;right:10px;opacity:0.1;font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:#f4e4a0;user-select:none;">
+                        <input type="checkbox" id="difficulty-calendar-chk" style="cursor:pointer;">📅 日曆
+                    </label>
                     <div class="difficulty-buttons">
                         ${buttonsHTML}
                     </div>
@@ -84,9 +90,9 @@
             document.body.appendChild(overlay);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    overlay.style.left   = r.left   + 'px';
-                    overlay.style.top    = r.top    + 'px';
-                    overlay.style.width  = 500 + 'px';
+                    overlay.style.left = r.left + 'px';
+                    overlay.style.top = r.top + 'px';
+                    overlay.style.width = 500 + 'px';
                     overlay.style.height = 850 + 'px';
                     overlay.style.transform = 'scale(' + r.scale + ')';
                     overlay.style.transformOrigin = 'top left';
@@ -121,6 +127,14 @@
                     this.selectDifficulty(level);
                 });
             });
+
+            // 日曆測試勾選框（強制使用今日日曆詩，不消耗每日名額）
+            const calChk = this.overlay.querySelector('#difficulty-calendar-chk');
+            if (calChk) {
+                calChk.addEventListener('change', () => {
+                    window._forceCalendarPoem = calChk.checked;
+                });
+            }
 
             // 点击关卡挑战按钮
             const levelBtn = this.overlay.querySelector('#level-challenge-btn');

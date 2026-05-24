@@ -64,6 +64,10 @@
         touchStartX: 0,
         touchStartY: 0,
 
+        // ── D-pad 淡出計時器 ──
+        dpadFadeTimeoutId: null,      // 10 秒後觸發淡出的 setTimeout id
+        _dpadFadeStarted: false,      // 本局已啟動計時器，避免重複啟動
+
         // ── DOM 參照 ──
         container: null,
         canvas: null,
@@ -181,6 +185,7 @@
                 <div class="game15-progress-strip" id="game15-progress-strip">
                     <div class="game15-progress-chars"></div>
                 </div>
+                <div id="game15-poem-info" class="poem-info" style="cursor:pointer;text-decoration:underline;opacity:0.8;font-size:0.75rem;padding:2px 10px;"></div>
                 <div class="game15-canvas-wrapper" id="game15-canvas-wrapper">
                     <canvas id="game15-canvas" width="500" height="700"></canvas>
                     <svg id="game15-timer-ring" style="display:none">
@@ -188,19 +193,19 @@
                     </svg>
                     <div class="game15-dpad" id="game15-dpad">
                         <button class="game15-dpad-btn game15-dpad-up" id="game15-up" aria-label="上">
-                            <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><polygon points="40,4 76,76 4,76" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
+                            <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><path d="M 4,76 L 40,4 L 76,76" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
                         </button>
                         <div class="game15-dpad-row">
                             <button class="game15-dpad-btn game15-dpad-left" id="game15-left" aria-label="左">
-                                <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><polygon points="4,40 76,4 76,76" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
+                                <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><path d="M 76,4  L4,40 L 76,76" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
                             </button>
                             <div class="game15-dpad-center"></div>
                             <button class="game15-dpad-btn game15-dpad-right" id="game15-right" aria-label="右">
-                                <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><polygon points="76,40 4,4 4,76" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
+                                <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><path d="M 4,4 L 76,40 L 4,76" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
                             </button>
                         </div>
                         <button class="game15-dpad-btn game15-dpad-down" id="game15-down" aria-label="下">
-                            <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><polygon points="40,76 76,4 4,4" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
+                            <svg viewBox="0 0 80 80" width="72" height="72" aria-hidden="true"><path d="M 4,4 L 40,76 L 76,4 " fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
                         </button>
                     </div>
                 </div>
@@ -247,9 +252,12 @@
             this.stopGameLoop();
             if (window.GameMessage) window.GameMessage.hide();
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('墨韻游龍', (selectedLevel) => {
+                // 接收 levelIndex：若玩家選了挑戰關卡，levelIndex 為全域關卡編號（1-300）
+                window.DifficultySelector.show('墨韻游龍', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
-                    this._setDiffTag(selectedLevel);
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                    this.updateUIForMode();
                     this.startNewGame();
                 });
             } else {
@@ -257,9 +265,18 @@
             }
         },
 
-        _setDiffTag: function (level) {
-            const el = document.getElementById('game15-diff-tag');
-            if (el) { el.textContent = level; el.setAttribute('data-level', level); }
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game15-diff-tag');
+            const newBtn = document.getElementById('game15-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            if (diffTag) {
+                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
+                diffTag.setAttribute('data-level', this.difficulty);
+                diffTag.style.backgroundColor = colors[this.difficulty] || '#27ae60';
+                diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+            }
+            // 挑戰模式下隱藏「新局」按鈕，避免玩家意外跳出挑戰流程
+            if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
         },
 
         // ================================================================
@@ -269,6 +286,9 @@
             this.stopGameLoop();
             if (window.GameMessage) window.GameMessage.hide();
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+
+            // 同步更新 UI（含挑戰關卡編號與按鈕顯示狀態）
+            this.updateUIForMode();
 
             // 解鎖按鈕（若上局已鎖定）
             document.getElementById('game15-retryGame-btn').disabled = false;
@@ -288,11 +308,12 @@
             this.maxHearts = settings.maxMistakeCount;
             this.hearts = settings.maxMistakeCount;
 
-            // 取得詩詞
+            // 取得詩詞：挑戰模式使用關卡序號作為固定種子，確保同關卡題目相同
             const minLines = settings.minChars <= 14 ? 2 : 4;
+            const seed = this.isLevelMode ? this.currentLevelIndex : null;
             const result = (typeof getSharedRandomPoem === 'function')
                 ? getSharedRandomPoem(settings.poemMinRating, minLines, 4,
-                    settings.minChars, settings.maxChars, '', null, 'game15')
+                    settings.minChars, settings.maxChars, '', seed, 'game15')
                 : null;
 
             if (!result || !result.lines || result.lines.length === 0) {
@@ -301,12 +322,33 @@
             }
 
             this.currentPoem = result.poem;
+            // 更新詩詞資訊欄（可點擊查看全詩）
+            const poemInfoEl = document.getElementById('game15-poem-info');
+            if (poemInfoEl && this.currentPoem) {
+                poemInfoEl.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+                poemInfoEl.onclick = () => {
+                    if (window.SoundManager) window.SoundManager.playOpenItem();
+                    if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
+                };
+            }
             const raw = result.lines.join('');
             this.targetChars = raw.split('').filter(c => /[一-鿿]/.test(c));
 
             if (this.targetChars.length === 0) {
                 console.error('[Game15] 詩句解析後無有效漢字');
                 return;
+            }
+
+            // 重置 D-pad 淡出計時器（新局開始，D-pad 重新可見）
+            if (this.dpadFadeTimeoutId !== null) {
+                clearTimeout(this.dpadFadeTimeoutId);
+                this.dpadFadeTimeoutId = null;
+            }
+            this._dpadFadeStarted = false;
+            const dpadEl = document.getElementById('game15-dpad');
+            if (dpadEl) {
+                dpadEl.style.transition = 'none';    // 立即還原，不要淡入動畫
+                dpadEl.style.opacity = '1';
             }
 
             // 重置狀態
@@ -339,7 +381,6 @@
 
             // 更新 UI
             document.getElementById('game15-score').textContent = '0';
-            this._setDiffTag(this.difficulty);
             this.updateHearts();
             this.updateProgressStrip();
             this.updateTimerBorder(1);
@@ -760,14 +801,28 @@
                 if (window.SoundManager) window.SoundManager.playSadTriple();
             }
 
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) {
+                        // 挑戰模式：關卡編號遞增後繼續下一關
+                        this.currentLevelIndex++;
+                        this.startNewGame();
+                    } else {
+                        this.startNewGame();
+                    }
+                } else {
+                    this.retryGame();
+                }
+            };
+
             const showMsg = (finalScore) => {
                 if (window.GameMessage) {
                     window.GameMessage.show({
                         isWin: win,
                         score: win ? (finalScore ?? Math.floor(this.score)) : 0,
                         reason: win ? '' : (reason || '墨跡已散！'),
-                        btnText: win ? '下一局' : '再試一次',
-                        onConfirm: () => { win ? this.startNewGame() : this.retryGame(); }
+                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
+                        onConfirm: onConfirm
                     });
                 }
             };
@@ -782,7 +837,17 @@
                     heartsSelector: '#game15-hearts .heart:not(.empty)',
                     onComplete: (finalScore) => {
                         this.score = finalScore;
-                        showMsg(finalScore);
+                        // 挑戰模式：記錄關卡通關進度到 levelProgress
+                        if (this.isLevelMode) {
+                            const achId = window.ScoreManager.completeLevel('game15', this.difficulty, this.currentLevelIndex);
+                            if (achId && window.AchievementDialog) {
+                                window.AchievementDialog.showInstantAchievementPop(achId, 'game15', this.currentLevelIndex, showMsg);
+                            } else {
+                                showMsg(finalScore);
+                            }
+                        } else {
+                            showMsg(finalScore);
+                        }
                     }
                 });
             } else {
@@ -1156,10 +1221,10 @@
             if (this.waitingForInput && this.isActive && !this.mistakePause) {
                 const tipY = GY + (this.START_ROW - 2) * C + C / 2;
                 ctx.fillStyle = 'rgba(255, 220, 80, 0.85)';
-                ctx.font = `bold 18px 'Noto Serif TC', serif`;
+                ctx.font = `bold 24px 'Noto Serif TC', serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('↑↓←→ 選擇方向開始移動', W / 2, tipY);
+                ctx.fillText('以手指朝上↑ 下↓ 左← 右→ 滑動', W / 2, tipY);
             }
         },
 
@@ -1216,6 +1281,8 @@
                 e.preventDefault();
                 this.touchStartX = e.touches[0].clientX;
                 this.touchStartY = e.touches[0].clientY;
+                // 玩家首次碰觸畫布，啟動 D-pad 淡出倒數（10 秒後開始淡出）
+                this._startDpadFadeTimer();
             }, { passive: false });
 
             canvas.addEventListener('touchend', (e) => {
@@ -1232,12 +1299,16 @@
                 if (!this.isActive) return;
                 switch (e.key) {
                     case 'ArrowUp': case 'w': case 'W':
+                        this._startDpadFadeTimer();
                         this.tryChangeDirection(0, -1); e.preventDefault(); break;
                     case 'ArrowDown': case 's': case 'S':
+                        this._startDpadFadeTimer();
                         this.tryChangeDirection(0, 1); e.preventDefault(); break;
                     case 'ArrowLeft': case 'a': case 'A':
+                        this._startDpadFadeTimer();
                         this.tryChangeDirection(-1, 0); e.preventDefault(); break;
                     case 'ArrowRight': case 'd': case 'D':
+                        this._startDpadFadeTimer();
                         this.tryChangeDirection(1, 0); e.preventDefault(); break;
                 }
             });
@@ -1252,6 +1323,23 @@
             } else {
                 this.tryChangeDirection(0, dy > 0 ? 1 : -1);
             }
+        },
+
+        // ── D-pad 淡出：玩家首次滑動後 10 秒開始，5 秒淡至全透明 ──
+        _startDpadFadeTimer: function () {
+            // 本局已啟動過，不重複計時
+            if (this._dpadFadeStarted) return;
+            this._dpadFadeStarted = true;
+
+            this.dpadFadeTimeoutId = setTimeout(() => {
+                const dpad = document.getElementById('game15-dpad');
+                if (dpad) {
+                    // 設定過渡動畫再歸零透明度
+                    dpad.style.transition = 'opacity 5s ease';
+                    dpad.style.opacity = '0';
+                }
+                this.dpadFadeTimeoutId = null;
+            }, 10000);  // 10 秒後開始淡出
         },
 
         // ── 嘗試改變方向（禁止 180° 迴轉，失誤暫停期間忽略輸入）──

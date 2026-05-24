@@ -95,15 +95,24 @@
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
-
-                    const diffTag = document.getElementById('game14-diff-tag');
-                    if (diffTag) diffTag.textContent = this.isLevelMode ? `挑戰 ${this.currentLevelIndex}` : selectedLevel;
-
                     this.container.classList.remove('hidden');
                     document.body.classList.add('overlay-active');
                     this.startNewGame();
                 });
             }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game14-diff-tag');
+            const newBtn = document.getElementById('game14-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            if (diffTag) {
+                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
+                diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+            }
+            // 挑戰模式下隱藏「新局」按鈕，避免玩家意外跳出挑戰流程
+            if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
         },
 
         stopGame: function () {
@@ -130,6 +139,9 @@
             this.startTime = null;
 
             document.getElementById('game14-score').textContent = "0";
+
+            // 每次開新局都同步更新 UI（含挑戰關卡編號與按鈕顯示狀態）
+            this.updateUIForMode();
 
             // 啟用按鈕
             document.getElementById('game14-retryGame-btn').disabled = false;
@@ -326,7 +338,11 @@
                     }
 
                     btn.textContent = opt;
-                    btn.onclick = () => this.handleBtnClick(opt, char, idx, btn, rowEl);
+                    // 使用 pointerdown 碰觸即觸發，不必等到手指離開畫面（參考 game3.js）
+                    btn.addEventListener('pointerdown', (e) => {
+                        if (e.pointerType === 'touch') e.preventDefault();
+                        this.handleBtnClick(opt, char, idx, btn, rowEl);
+                    });
                     rowEl.appendChild(btn);
                 });
 

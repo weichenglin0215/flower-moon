@@ -165,9 +165,11 @@
 
             const data = window.ScoreManager ? window.ScoreManager.loadPlayerData() : null;
             const progressData = (data && data.levelProgress[this.gameKey]) ? data.levelProgress[this.gameKey] : {};
+            // 個別通關星星紀錄（只有實際通關過的關卡才亮星）
+            const clearedData = (data && data.levelCleared && data.levelCleared[this.gameKey]) ? data.levelCleared[this.gameKey] : {};
 
             for (let i = 1; i <= this.maxLevels; i++) {
-                const info = this.getLevelConfig(i, progressData);
+                const info = this.getLevelConfig(i, progressData, clearedData);
                 const btn = document.createElement('div');
                 btn.className = `level-item ${info.colorClass}`;
                 btn.innerHTML = `<span class="level-num">${i}</span>`;
@@ -194,31 +196,36 @@
             }
         },
 
-        getLevelConfig: function (i, progressData) {
+        getLevelConfig: function (i, progressData, clearedData) {
+            clearedData = clearedData || {};
             let diff = '';
             let relIdx = 0;
             let isLocked = false;
             let isCleared = false;
             let colorClass = '';
 
+            // 輔助：檢查此關是否已實際通關（查個別星星紀錄，不用最高關推算）
+            const hasCleared = (difficulty, relativeIdx) =>
+                Array.isArray(clearedData[difficulty]) && clearedData[difficulty].includes(relativeIdx);
+
             if (i <= 20) {
                 diff = '小學';
                 relIdx = i;
                 colorClass = 'green-bg';
-                isCleared = (progressData['小學'] || 0) >= relIdx;
+                isCleared = hasCleared('小學', relIdx);
                 isLocked = false;
             } else if (i <= 50) {
                 diff = '中學';
                 relIdx = i - 20;
                 colorClass = 'blue-bg';
-                isCleared = (progressData['中學'] || 0) >= relIdx;
+                isCleared = hasCleared('中學', relIdx);
                 isLocked = false;
             } else if (i <= 100) {
                 diff = '高中';
                 relIdx = i - 50;
                 colorClass = 'red-bg';
                 const currentProg = progressData['高中'] || 0;
-                isCleared = currentProg >= relIdx;
+                isCleared = hasCleared('高中', relIdx);
                 isLocked = relIdx > (currentProg + 1);
             } else if (i <= 150) {
                 diff = '大學';
@@ -226,7 +233,7 @@
                 colorClass = 'purple-bg';
                 const hsProg = progressData['高中'] || 0;
                 const currentProg = progressData['大學'] || 0;
-                isCleared = currentProg >= relIdx;
+                isCleared = hasCleared('大學', relIdx);
                 isLocked = (hsProg < 50) || (relIdx > (currentProg + 1));
             } else {
                 diff = '研究所';
@@ -234,7 +241,7 @@
                 colorClass = 'gold-bg';
                 const univProg = progressData['大學'] || 0;
                 const currentProg = progressData['研究所'] || 0;
-                isCleared = currentProg >= relIdx;
+                isCleared = hasCleared('研究所', relIdx);
                 isLocked = (univProg < 50) || (relIdx > (currentProg + 1));
             }
 

@@ -47,8 +47,120 @@
  * @param {number|null} seed 隨機種子/關卡序號 (若提供此值，則題目將會是確定性的)
  * @returns {object|null} 回傳包含 { poem: 原始詩詞物件, lines: [不含標點之乾淨句子字串陣列] } 的物件，若無結果則回傳 null。
  */
+// =============================================================================
+// 每日第一局：各遊戲當天第一次遊玩（非挑戰模式）時使用今日日曆詩
+// =============================================================================
+
+/**
+ * 取得今日日曆對應的詩詞物件（複製 calendar.js 的選詩邏輯）
+ */
+function getCalendarPoemForToday() {
+   if (typeof POEMS === 'undefined' || POEMS.length === 0) return null;
+   const today = new Date();
+   const y = today.getFullYear();
+   const m = today.getMonth() + 1;
+   const d = today.getDate();
+   const dateKey = `${y}${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}`;
+   const seed = y * 10000 + m * 100 + d;
+
+   // 與 calendar.js 相同的偽隨機：Math.sin(seed + offset)
+   const seededRandom = (offset) => {
+      const x = Math.sin(seed + offset) * 10000;
+      return x - Math.floor(x);
+   };
+
+   let poem = null;
+   // 優先使用 CALENDAR_ASSIGNMENTS 指定詩
+   if (typeof CALENDAR_ASSIGNMENTS !== 'undefined' && CALENDAR_ASSIGNMENTS[dateKey]) {
+      const assignment = CALENDAR_ASSIGNMENTS[dateKey];
+      const assignedId = Array.isArray(assignment) ? assignment[0] : assignment;
+      poem = POEMS.find(p => p.id === assignedId) || null;
+   }
+   // 退回：依種子從高評分詩中選取
+   if (!poem) {
+      const highRating = POEMS.filter(p => (p.rating || 0) >= 4);
+      if (highRating.length === 0) return null;
+      poem = highRating[Math.floor(seededRandom(2) * highRating.length)];
+   }
+   return poem || null;
+}
+
+/**
+ * 判斷今天此遊戲是否還有「每日第一局」機會（尚未消費）
+ */
+function isDailyFirstGame(gameKey) {
+   try {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+      const raw = localStorage.getItem('flowerMoon_dailyFirstGame');
+      if (!raw) return true;
+      const data = JSON.parse(raw);
+      // 新的一天：舊紀錄失效
+      if (data.date !== dateStr) return true;
+      return !(data.games && data.games[gameKey]);
+   } catch (e) { return false; }
+}
+
+/**
+ * 標記今天此遊戲的「每日第一局」已消費
+ */
+function markDailyFirstGameUsed(gameKey) {
+   try {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+      let data = { date: dateStr, games: {} };
+      const raw = localStorage.getItem('flowerMoon_dailyFirstGame');
+      if (raw) {
+         const parsed = JSON.parse(raw);
+         if (parsed.date === dateStr) data = parsed;
+      }
+      if (!data.games) data.games = {};
+      data.games[gameKey] = true;
+      localStorage.setItem('flowerMoon_dailyFirstGame', JSON.stringify(data));
+   } catch (e) { }
+}
+
 function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, keyword = "", seed = null, gameKey = "") {
    if (typeof POEMS === 'undefined' || POEMS.length === 0) return null;
+
+   // ── 每日第一局：非挑戰模式且有 gameKey 時，嘗試使用今日日曆詩 ──
+   // _forceCalendarPoem = true 時強制使用（測試用），不消耗每日名額
+   const isForcedCalendar = (window._forceCalendarPoem === true);
+   if (seed === null && gameKey && (isForcedCalendar || isDailyFirstGame(gameKey))) {
+      const dailyPoem = getCalendarPoemForToday();
+      if (dailyPoem && dailyPoem.content && dailyPoem.content.length >= minLines) {
+         // 找出符合行數與字數需求的起始位置（keyword 為空時略過關鍵字檢查）
+         const dailyStarts = [];
+         for (let i = 0; i <= dailyPoem.content.length - minLines; i += 2) {
+            let charCount = 0;
+            let kwOk = true;
+            for (let j = 0; j < minLines; j++) {
+               const clean = (dailyPoem.content[i + j] || '').replace(/[，。？！、：；「」『』\s]/g, '');
+               charCount += clean.length;
+               if (keyword && !clean.includes(keyword)) { kwOk = false; break; }
+            }
+            if (kwOk && charCount >= minChars && charCount <= maxChars) {
+               dailyStarts.push(i);
+            }
+         }
+         if (dailyStarts.length > 0) {
+            // 以今日日期作為決定性種子，確保同遊戲同一天永遠出同一段
+            const today = new Date();
+            const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+            const startIdx = dailyStarts[dateSeed % dailyStarts.length];
+            const poemLines = [];
+            for (let li = 0; li < minLines; li++) {
+               const clean = (dailyPoem.content[startIdx + li] || '').replace(/[，。？！、：；「」『』\s]/g, '');
+               if (clean.length > 0) poemLines.push(clean);
+            }
+            // ★ 只有在確定使用日曆詩時才標記「已消費」（強制模式不消耗名額）
+            if (!isForcedCalendar) markDailyFirstGameUsed(gameKey);
+            return { poem: dailyPoem, lines: poemLines, startIndex: startIdx };
+         }
+         // 日曆詩不符合此遊戲需求（行數/字數不合），退回隨機選詩
+         // ★ 此時不標記已消費，讓下次嘗試仍可使用日曆詩
+      }
+   }
 
    let currentSeed = seed !== null ? Number(seed) : null;
 
