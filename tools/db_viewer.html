@@ -361,6 +361,18 @@
         label {
             font-size: 1.2rem;
         }
+
+        /* 查詢筆數上限輸入框 */
+        #statsLimit {
+            padding: 2px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 1rem;
+            color: #333;
+            vertical-align: middle;
+            width: 5rem;
+        }
     </style>
 </head>
 
@@ -464,6 +476,8 @@
                     const barValuePlugin = {
                         id: 'barValuePlugin',
                         afterDatasetsDraw(chart) {
+                            // 堆疊總計圖由 stackedTotalPlugin 處理
+                            if (chart.options._showStackedTotal) return;
                             const { ctx } = chart;
                             ctx.save();
                             chart.data.datasets.forEach((dataset, i) => {
@@ -519,6 +533,43 @@
                         }
                     };
                     Chart.register(barValuePlugin);
+
+                    // 堆疊橫/直條圖：在最外段右側或頂端顯示各條合計數值
+                    const stackedTotalPlugin = {
+                        id: 'stackedTotalPlugin',
+                        afterDatasetsDraw(chart) {
+                            if (!chart.options._showStackedTotal) return;
+                            const { ctx } = chart;
+                            ctx.save();
+                            const numLabels = chart.data.labels.length;
+                            for (let i = 0; i < numLabels; i++) {
+                                let total = 0;
+                                let lastBar = null;
+                                chart.data.datasets.forEach((ds, d) => {
+                                    const v = ds.data[i] || 0;
+                                    total += v;
+                                    if (v > 0) lastBar = chart.getDatasetMeta(d).data[i];
+                                });
+                                if (!lastBar || total === 0) continue;
+                                ctx.font = 'bold 14px sans-serif';
+                                ctx.fillStyle = '#333';
+                                ctx.shadowBlur = 0;
+                                if (chart.options.indexAxis === 'y') {
+                                    // 橫條圖：合計顯示在右端外側
+                                    ctx.textAlign = 'left';
+                                    ctx.textBaseline = 'middle';
+                                    ctx.fillText(total, lastBar.x + 5, lastBar.y);
+                                } else {
+                                    // 直條圖：合計顯示在頂端上方
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'bottom';
+                                    ctx.fillText(total, lastBar.x, lastBar.y - 2);
+                                }
+                            }
+                            ctx.restore();
+                        }
+                    };
+                    Chart.register(stackedTotalPlugin);
                 }
 
                 loadData();
@@ -766,18 +817,34 @@
 
                 const dateFrom = document.getElementById('statsFrom').value;
                 const dateTo = document.getElementById('statsTo').value + 'T23:59:59Z';
+                // 讀取上限（最小100、最大5000）
+                const maxLimit = Math.min(Math.max(parseInt(document.getElementById('statsLimit').value) || 1000, 100), 5000);
                 document.getElementById('statsStatus').textContent = '載入中...';
 
                 try {
-                    const { data: logs, error } = await supabase
-                        .from('game_logs')
-                        .select('player_id, played_at, game_no, difficulty, score, is_win')
-                        .gte('played_at', dateFrom + 'T00:00:00Z')
-                        .lte('played_at', dateTo)
-                        .order('played_at', { ascending: true });
-                    if (error) throw error;
-                    document.getElementById('statsStatus').textContent = '共載入 ' + logs.length + ' 筆 LOG';
-                    renderStats(logs);
+                    // 使用 range 分批撈取，每批最多1000筆，直到達上限或資料耗盡
+                    const BATCH = 1000;
+                    let allLogs = [];
+                    let from = 0;
+
+                    while (allLogs.length < maxLimit) {
+                        const batchSize = Math.min(BATCH, maxLimit - allLogs.length);
+                        const { data: batch, error } = await supabase
+                            .from('game_logs')
+                            .select('player_id, played_at, game_no, difficulty, score, is_win, duration_s')
+                            .gte('played_at', dateFrom + 'T00:00:00Z')
+                            .lte('played_at', dateTo)
+                            .order('played_at', { ascending: true })
+                            .range(from, from + batchSize - 1);
+
+                        if (error) throw error;
+                        allLogs = allLogs.concat(batch);
+                        if (batch.length < batchSize) break; // 資料已全部撈完
+                        from += batchSize;
+                    }
+
+                    document.getElementById('statsStatus').textContent = '共載入 ' + allLogs.length + ' 筆 LOG';
+                    renderStats(allLogs);
                 } catch (e) {
                     document.getElementById('statsStatus').textContent = '載入失敗: ' + e.message;
                 }
@@ -786,7 +853,9 @@
             const GAME_NAMES = {
                 1: '01慢思快選', 2: '02飛花令', 3: '03字爬梯', 4: '04眾裡尋他千百度',
                 5: '05詩詞小精靈', 6: '06詩陣侵略', 7: '07青鳥雲梯', 8: '08一筆裁詩',
-                9: '09詩韻鎖扣', 10: '10擊石鳴詩', 11: '11翻墨識蹤', 12: '12疏影橫斜', 13: '13人事時地', 14: '14步步驚心'
+                9: '09詩韻鎖扣', 10: '10擊石鳴詩', 11: '11翻墨識蹤', 12: '12疏影橫斜', 13: '13人事時地', 14: '14步步驚心',
+                15: '15墨韻游龍', 16: '16打地詩', 17: '17青蛙過詩',
+                19: '19詩碟狂襲'
             };
 
             function renderStats(logs) {
@@ -803,88 +872,131 @@
                 document.getElementById('statTodayGames').textContent = todayLogs.length;
                 document.getElementById('statWeekGames').textContent = week7Logs.length;
 
-                const byDay = {}, byDayPlayers = {};
+                // --- 每日上線人數 & 遊戲局數（過關/失敗分開統計） ---
+                const byDayWin = {}, byDayFail = {}, byDayPlayers = {};
                 logs.forEach(l => {
                     const d = l.played_at.split('T')[0];
-                    byDay[d] = (byDay[d] || 0) + 1;
+                    if (l.is_win) byDayWin[d] = (byDayWin[d] || 0) + 1;
+                    else byDayFail[d] = (byDayFail[d] || 0) + 1;
                     if (!byDayPlayers[d]) byDayPlayers[d] = new Set();
                     byDayPlayers[d].add(l.player_id);
                 });
-                const days = Object.keys(byDay).sort();
-                const gameCnts = days.map(d => byDay[d]);
-                const plyCnts = days.map(d => byDayPlayers[d].size);
+                const days = [...new Set([...Object.keys(byDayWin), ...Object.keys(byDayFail)])].sort();
+                const plyCnts = days.map(d => byDayPlayers[d] ? byDayPlayers[d].size : 0);
+                const dayWinCnts = days.map(d => byDayWin[d] || 0);
+                const dayFailCnts = days.map(d => byDayFail[d] || 0);
 
-                const byGame = {};
-                logs.forEach(l => { byGame[l.game_no] = (byGame[l.game_no] || 0) + 1; });
-                const gameNos = Object.keys(byGame).sort((a, b) => a - b);
-                const gameLabels = gameNos.map(g => GAME_NAMES[g] || 'Game' + g);
-                const gameCounts = gameNos.map(g => byGame[g]);
+                // --- 每個遊戲總局數（過關/失敗） ---
+                const byGameWin = {}, byGameFail = {};
+                logs.forEach(l => {
+                    if (l.is_win) byGameWin[l.game_no] = (byGameWin[l.game_no] || 0) + 1;
+                    else byGameFail[l.game_no] = (byGameFail[l.game_no] || 0) + 1;
+                });
+                const allGameNos = [...new Set([...Object.keys(byGameWin), ...Object.keys(byGameFail)])]
+                    .sort((a, b) => Number(a) - Number(b));
+                const gameLabels = allGameNos.map(g => GAME_NAMES[g] || 'Game' + g);
+                const gameWinCounts = allGameNos.map(g => byGameWin[g] || 0);
+                const gameFailCounts = allGameNos.map(g => byGameFail[g] || 0);
 
-                const byDiff = {};
-                logs.forEach(l => { if (l.difficulty) byDiff[l.difficulty] = (byDiff[l.difficulty] || 0) + 1; });
+                // --- 每種難度總局數（過關/失敗） ---
+                const diffOrder = ['小學', '中學', '高中', '大學', '研究所'];
+                const byDiffWin = {}, byDiffFail = {};
+                logs.forEach(l => {
+                    if (!l.difficulty) return;
+                    if (l.is_win) byDiffWin[l.difficulty] = (byDiffWin[l.difficulty] || 0) + 1;
+                    else byDiffFail[l.difficulty] = (byDiffFail[l.difficulty] || 0) + 1;
+                });
+                const allDiffs = [...new Set([...Object.keys(byDiffWin), ...Object.keys(byDiffFail)])]
+                    .sort((a, b) => diffOrder.indexOf(a) - diffOrder.indexOf(b));
+                const diffWinCounts = allDiffs.map(d => byDiffWin[d] || 0);
+                const diffFailCounts = allDiffs.map(d => byDiffFail[d] || 0);
 
-                const byGameDiff = {};
+                // --- 每個遊戲×難度（過關依難度分色 + 失敗黑色） ---
+                const diffColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f'];
+                const byGameDiffWin = {}, byGameDiffFail = {};
                 logs.forEach(l => {
                     const name = GAME_NAMES[l.game_no] || 'Game' + l.game_no;
-                    if (!byGameDiff[name]) byGameDiff[name] = {};
-                    byGameDiff[name][l.difficulty] = (byGameDiff[name][l.difficulty] || 0) + 1;
+                    if (l.is_win) {
+                        if (!byGameDiffWin[name]) byGameDiffWin[name] = {};
+                        byGameDiffWin[name][l.difficulty] = (byGameDiffWin[name][l.difficulty] || 0) + 1;
+                    } else {
+                        byGameDiffFail[name] = (byGameDiffFail[name] || 0) + 1;
+                    }
                 });
-
-                const diffs = ['小學', '中學', '高中', '大學', '研究所'];
-                const diffColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f'];
-
-                renderChart('chartDailyPlayers', 'bar', days, plyCnts, '上線人數', '#4e79a7');
-                renderChart('chartDailyGames', 'bar', days, gameCnts, '遊戲局數', '#e15759');
-                renderHBar('chartGameTotal', gameLabels, gameCounts, '總局數', '#f28e2b');
-                renderHBar('chartDiffTotal', Object.keys(byDiff), Object.values(byDiff), '難度總局數', '#76b7b2');
-
-                const gdLabels = Object.keys(byGameDiff).sort();
-                const gdDatasets = diffs.map((d, i) => ({
-                    label: d,
-                    data: gdLabels.map(g => (byGameDiff[g] && byGameDiff[g][d]) || 0),
-                    backgroundColor: diffColors[i]
-                }));
+                const gdLabels = [...new Set([...Object.keys(byGameDiffWin), ...Object.keys(byGameDiffFail)])]
+                    .sort((a, b) => {
+                        const n = s => parseInt(s.match(/\d+/) || [0]);
+                        return n(a) - n(b);
+                    });
+                // 失敗黑色在最左段，過關依難度分色堆疊在右
+                const gdDatasets = [
+                    {
+                        label: '失敗',
+                        data: gdLabels.map(g => byGameDiffFail[g] || 0),
+                        backgroundColor: '#222',
+                        borderRadius: 0
+                    },
+                    ...diffOrder.map((d, i) => ({
+                        label: d,
+                        data: gdLabels.map(g => (byGameDiffWin[g] && byGameDiffWin[g][d]) || 0),
+                        backgroundColor: diffColors[i],
+                        borderRadius: 0
+                    }))
+                ];
                 if (charts['chartGameDiff']) charts['chartGameDiff'].destroy();
                 charts['chartGameDiff'] = new Chart(document.getElementById('chartGameDiff'), {
                     type: 'bar',
                     data: { labels: gdLabels, datasets: gdDatasets },
                     options: {
                         responsive: true, indexAxis: 'y',
+                        _showStackedTotal: true,
                         plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: { font: { size: 14, weight: 'bold' } }
-                            }
+                            legend: { position: 'top', labels: { font: { size: 14, weight: 'bold' } } }
                         },
                         scales: {
-                            x: { beginAtZero: true, ticks: { font: { size: 14 } } },
-                            y: { ticks: { font: { size: 14 } } }
+                            x: { stacked: true, beginAtZero: true, ticks: { font: { size: 14 } } },
+                            y: { stacked: true, ticks: { font: { size: 14 } } }
                         }
                     }
                 });
 
-                // --- 玩家總局數排名 (前 30 名，基於篩選範圍) ---
-                const byPlayerGames = {};
-                logs.forEach(l => { byPlayerGames[l.player_id] = (byPlayerGames[l.player_id] || 0) + 1; });
-                const topPlayerGames = Object.entries(byPlayerGames)
+                // --- 玩家總局數排名（前30名，過關/失敗堆疊） ---
+                const byPlayerWin = {}, byPlayerFail = {};
+                logs.forEach(l => {
+                    if (l.is_win) byPlayerWin[l.player_id] = (byPlayerWin[l.player_id] || 0) + 1;
+                    else byPlayerFail[l.player_id] = (byPlayerFail[l.player_id] || 0) + 1;
+                });
+                const byPlayerTotal = {};
+                [...new Set([...Object.keys(byPlayerWin), ...Object.keys(byPlayerFail)])].forEach(id => {
+                    byPlayerTotal[id] = (byPlayerWin[id] || 0) + (byPlayerFail[id] || 0);
+                });
+                const topPlayerGames = Object.entries(byPlayerTotal)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 30);
-
-                const pgLabels = topPlayerGames.map(([id, count]) => {
+                const pgLabels = topPlayerGames.map(([id, total]) => {
                     const p = playerMap[id];
-                    return (p ? p.nickname : id.substring(0, 8)) + ` (${count}局)`;
+                    return (p ? p.nickname : id.substring(0, 8)) + ` (${total}局)`;
                 });
-                const pgData = topPlayerGames.map(x => x[1]);
-                renderHBar('chartPlayerGamesRank', pgLabels, pgData, '總局數', '#2980b9');
+                const pgWinData = topPlayerGames.map(([id]) => byPlayerWin[id] || 0);
+                const pgFailData = topPlayerGames.map(([id]) => byPlayerFail[id] || 0);
 
-                // --- 玩家總積分排名 (前 30 名，總體排名) ---
+                // --- 渲染圖表 ---
+                // 每日上線人數（非堆疊，unique players）
+                renderChart('chartDailyPlayers', 'bar', days, plyCnts, '上線人數', '#4e79a7');
+                // 每日遊戲局數（過關/失敗堆疊）
+                renderStackedVBar('chartDailyGames', days, dayWinCnts, dayFailCnts, '#e15759');
+                // 每個遊戲總局數（過關/失敗堆疊橫條）
+                renderStackedHBar('chartGameTotal', gameLabels, gameWinCounts, gameFailCounts, '#f28e2b');
+                // 每種難度總局數（過關/失敗堆疊橫條）
+                renderStackedHBar('chartDiffTotal', allDiffs, diffWinCounts, diffFailCounts, '#76b7b2');
+                // 玩家總局數排名（過關/失敗堆疊橫條）
+                renderStackedHBar('chartPlayerGamesRank', pgLabels, pgWinData, pgFailData, '#2980b9');
+
+                // --- 玩家總積分排名（前30名，不涉及過關/失敗，保持原樣） ---
                 const topPlayerScore = [...allPlayers]
                     .sort((a, b) => (b.total_score || 0) - (a.total_score || 0))
                     .slice(0, 30);
-
-                const psLabels = topPlayerScore.map(p => {
-                    return `${p.nickname || '未具名'} 【${p.global_rank || '書僮'}】`;
-                });
+                const psLabels = topPlayerScore.map(p => `${p.nickname || '未具名'} 【${p.global_rank || '書僮'}】`);
                 const psData = topPlayerScore.map(p => p.total_score || 0);
                 renderHBar('chartPlayerScoreRank', psLabels, psData, '總積分', '#8e44ad');
             }
@@ -916,6 +1028,55 @@
                         scales: {
                             x: { beginAtZero: true, ticks: { font: { size: 14 } } },
                             y: { ticks: { font: { size: 14 } } }
+                        }
+                    }
+                });
+            }
+
+            // 堆疊直條圖：失敗（黑）在下，過關（色）在上，頂端顯示合計
+            function renderStackedVBar(id, labels, winData, failData, winColor) {
+                if (charts[id]) charts[id].destroy();
+                charts[id] = new Chart(document.getElementById(id), {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: '失敗', data: failData, backgroundColor: '#222', borderRadius: 0 },
+                            { label: '過關', data: winData, backgroundColor: winColor, borderRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        _showStackedTotal: true,
+                        plugins: { legend: { position: 'top', labels: { font: { size: 14 } } } },
+                        scales: {
+                            x: { stacked: true, ticks: { font: { size: 14 } } },
+                            y: { stacked: true, beginAtZero: true, ticks: { font: { size: 14 } } }
+                        }
+                    }
+                });
+            }
+
+            // 堆疊橫條圖：失敗（黑）在左，過關（色）在右，右端顯示合計
+            function renderStackedHBar(id, labels, winData, failData, winColor) {
+                if (charts[id]) charts[id].destroy();
+                charts[id] = new Chart(document.getElementById(id), {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: '失敗', data: failData, backgroundColor: '#222', borderRadius: 0 },
+                            { label: '過關', data: winData, backgroundColor: winColor, borderRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        _showStackedTotal: true,
+                        plugins: { legend: { position: 'top', labels: { font: { size: 14 } } } },
+                        scales: {
+                            x: { stacked: true, beginAtZero: true, ticks: { font: { size: 14 } } },
+                            y: { stacked: true, ticks: { font: { size: 14 } } }
                         }
                     }
                 });
@@ -1086,6 +1247,7 @@
             <label>結束日期：<input type="date" id="statsTo"></label>
             <button onclick="loadStats()"
                 style="padding:3px 18px;background:#8b0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem;">查詢</button>
+            <label>查詢筆數上限：<input type="number" id="statsLimit" value="1000" min="100" max="5000" step="100"></label>
             <span id="statsStatus" style="color:#666;"></span>
         </div>
 

@@ -19,6 +19,7 @@
         lastClickTime: 0,    // 防止連點的計時器
         timerInterval: null,
         turnId: 0,
+        gameStartTime: null,
 
         // 獲取各難度配置參數
         //poemMinRating 最低詩詞評分
@@ -394,6 +395,7 @@
 
         resetGameRound: function (isRetry = false) {
             this.stopAllTimers();
+            this.gameStartTime = Date.now();
             document.getElementById('game11-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
@@ -635,6 +637,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 11,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             this.gridContainer.classList.remove('is-player-phase');
 
             if (win) {

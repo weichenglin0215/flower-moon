@@ -21,6 +21,7 @@
 
         container: null,
         gameArea: null,
+        gameStartTime: null,
 
         // 遊戲參數設定
         // timeLimit:遊戲時間(秒), 
@@ -169,6 +170,7 @@
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
+            this.gameStartTime = Date.now();
             this.score = 0;
             this.mistakeCount = 0;
             document.getElementById('game13-score').textContent = this.score;
@@ -192,6 +194,7 @@
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
             this.isActive = true;
+            this.gameStartTime = Date.now();
             this.score = 0;
             this.mistakeCount = 0;
             document.getElementById('game13-score').textContent = this.score;
@@ -432,10 +435,11 @@
 
         adjustFontSize: function (element, length) {
             if (!element) return;
-            let baseSize = 2.0; // rem
-            if (length > 10) baseSize = 1.4;
-            else if (length > 7) baseSize = 1.7;
-            element.style.fontSize = baseSize + 'rem';
+            if (length <= 9) {
+                element.style.fontSize = '50px';
+            } else if (length > 9) {
+                element.style.fontSize = '40px';
+            }
         },
 
         checkAnswerPoolRows: function () {
@@ -572,6 +576,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 13,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             clearInterval(this.timerInterval);
 
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。

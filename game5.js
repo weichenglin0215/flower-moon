@@ -47,6 +47,7 @@
         dangerousMonsters: [],
         dangerousMonstersPaths: [],   // 記錄威脅小精靈的攔截路徑
         isPaused: false,              // 新增：遊戲暫停狀態
+        gameStartTime: null,          // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         // Input
         touchStart: { x: 0, y: 0 },
@@ -668,6 +669,8 @@
             // 確保重來/開新局按鈕在遊戲結束時可以再次點擊
             document.getElementById('game5-retryGame-btn').disabled = false;
             document.getElementById('game5-newGame-btn').disabled = false;
+            // 記錄本局開始時間（用於計算 duration_s）
+            this.gameStartTime = Date.now();
             this.gameLoop(this.lastTime);
         },
 
@@ -694,6 +697,8 @@
             document.getElementById('game5-newGame-btn').disabled = false;
             this.lastTime = performance.now();
             if (this.requestID) cancelAnimationFrame(this.requestID);
+            // 重試也重設本局計時
+            this.gameStartTime = Date.now();
             this.gameLoop(this.lastTime);
         },
         //放置精靈
@@ -1526,6 +1531,21 @@
                 document.getElementById('game5-newGame-btn').disabled = false;
             }
             this.isWin = win;
+
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 5,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
 

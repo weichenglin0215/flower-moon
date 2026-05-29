@@ -195,6 +195,26 @@
     color: rgba(255, 255, 255, 0.18);
 }
 
+.game15-poem-info {
+    position: absolute;
+    top: 165px;
+    right: 15px;
+    /*transform: translateX(-50%);*/
+    font-size: 18px;
+    color: hsla(0, 0%, 100%, 0.7);
+    cursor: pointer;
+    white-space: nowrap;
+    z-index: 1002;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.game15-poem-info:hover {
+    color: hsl(45, 80%, 70%);
+    text-decoration: underline;
+}
+
 @keyframes game15-pulse-border {
 
     0%,
@@ -312,7 +332,8 @@
     justify-content: center;
     border-radius: 10px;
     font-family: sans-serif;
-    pointer-events: none;   /* 觸控穿透，讓畫布接收滑動手勢 */
+    pointer-events: none;
+    /* 觸控穿透，讓畫布接收滑動手勢 */
 }
 
 /* 上下按鍵與左右相同尺寸 */

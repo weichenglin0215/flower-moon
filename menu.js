@@ -31,10 +31,12 @@
         { page: 'game15', label: '墨韻游龍', image: 'images/Menu/墨韻游龍_Menu256.jpg' },
         { page: 'game16', label: '打地詩', image: 'images/Menu/打地詩_Menu256.jpg' },
         { page: 'game17', label: '青蛙過河', image: 'images/Menu/青蛙過河_Menu256.jpg' },
+        { page: 'game19', label: '詩碟狂襲', image: 'images/Menu/詩碟狂襲_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
+        { page: 'qrcode', label: 'QR Code', image: 'images/Menu/QRCode_Menu256.jpg' },
         { page: 'fullscreen', label: '全螢幕', image: 'images/Menu/全螢幕_Menu256.jpg' },
     ];
 
@@ -217,7 +219,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -319,7 +321,7 @@
             console.log(`[Menu] 嘗試切換頁面: ${pageName}`);
             closeMenu();
 
-            if (pageName !== 'about' && pageName !== 'poem-data' && pageName !== 'fullscreen') {
+            if (pageName !== 'about' && pageName !== 'poem-data' && pageName !== 'fullscreen' && pageName !== 'qrcode') {
                 closeAllActiveOverlays();
             }
 
@@ -418,6 +420,10 @@
                         if (window.Game17) window.Game17.show();
                         else window.location.href = 'index.html?game=17';
                         break;
+                    case 'game19':
+                        if (window.Game19) window.Game19.show();
+                        else window.location.href = 'index.html?game=19';
+                        break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();
                         else window.location.href = 'index.html?page=author-bio';
@@ -428,6 +434,9 @@
                         break;
                     case 'about':
                         if (window.IntroCard) window.IntroCard.show();
+                        break;
+                    case 'qrcode':
+                        if (window.QRDialog) window.QRDialog.show();
                         break;
                     case 'poem-data':
                         if (window.PoemDialog) {

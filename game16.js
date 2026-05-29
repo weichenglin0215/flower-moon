@@ -32,6 +32,9 @@
         // 漏失計數（連續漏失同一個字）
         consecutiveMiss: 0,
 
+        // 失誤字索引集合：擊中混淆字 / 連續漏失超限時記錄，該位置字不再出現，hint-bar 紅色標示
+        errorIndices: null,
+
         // 地洞資料陣列：{ el, pitEl, bubbleEl, state, char, timeout }
         holes: [],
         cols: 3,
@@ -43,7 +46,8 @@
         frenzyTimeout: null,    // 混亂期觸發計時器
 
         isFrenzy: false,
-        cycleId: 0,           // 用於取消上一批延遲字的 setTimeout
+        cycleId: 0,              // 用於取消上一批延遲字的 setTimeout
+        currentBatchRemaining: 0, // 本批次尚未被擊中的正確字數（含 target + target-preview）
 
         // -------------------------------------------------------------------
         // 難度設定
@@ -51,20 +55,50 @@
         // minStayDuration：目標字停留毫秒
         // maxStayDuration：目標字停留毫秒
         // minDecoys/maxDecoys：同時出現的混淆字數量
-        // maxMissPerTarget：連續漏失幾次才扣血（99=不扣）
+        // maxMissPerTarget：連續漏失幾次才扣血（99=不扣），全改成0，因為與原版遊戲規格不符。
         // maxHearts：生命值
         // hintMode：提示模式 'full'|'sentence-first'|'none'
-        // frenzyInterval：混亂期觸發間隔（毫秒）
+        // frenzyInterval：混亂期觸發間隔（毫秒），全改成9999999，取消混亂期。
         // frenzyDecoys：混亂期額外噴出的混淆字數
         // timeLimit：限時（秒）
+        // poemMinRating:詩詞最低評分
+        // minLines/maxLines:詩詞行數範圍
+        // maxChars:詩詞最大字數
+        // maxTargetCount:目標字數
         // -------------------------------------------------------------------
         difficultySettings: {
-            '小學': { cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 3500, minDecoys: 1, maxDecoys: 2, maxMissPerTarget: 99, maxHearts: 6, hintMode: 'full', frenzyInterval: 30000, frenzyDecoys: 3, timeLimit: 90, poemMinRating: 6, minLines: 2, maxLines: 4, maxChars: 36 },
-            '中學': { cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 3, maxMissPerTarget: 3, maxHearts: 5, hintMode: 'sentence-first', frenzyInterval: 25000, frenzyDecoys: 4, timeLimit: 80, poemMinRating: 5, minLines: 2, maxLines: 4, maxChars: 40 },
-            '高中': { cols: 4, rows: 4, minStayDuration: 800, maxStayDuration: 1800, minDecoys: 3, maxDecoys: 5, maxMissPerTarget: 2, maxHearts: 4, hintMode: 'sentence-first', frenzyInterval: 20000, frenzyDecoys: 6, timeLimit: 70, poemMinRating: 4, minLines: 4, maxLines: 8, maxChars: 56 },
-            '大學': { cols: 5, rows: 4, minStayDuration: 500, maxStayDuration: 1200, minDecoys: 5, maxDecoys: 8, maxMissPerTarget: 1, maxHearts: 3, hintMode: 'none', frenzyInterval: 15000, frenzyDecoys: 8, timeLimit: 60, poemMinRating: 3, minLines: 4, maxLines: 8, maxChars: 56 },
-            '研究所': { cols: 5, rows: 5, minStayDuration: 300, maxStayDuration: 900, minDecoys: 8, maxDecoys: 12, maxMissPerTarget: 0, maxHearts: 3, hintMode: 'none', frenzyInterval: 10000, frenzyDecoys: 12, timeLimit: 60, poemMinRating: 3, minLines: 4, maxLines: 8, maxChars: 56 }
+            '小學': {
+                cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 3500, minDecoys: 1, maxDecoys: 2,
+                maxMissPerTarget: 0, maxHearts: 8, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 3,
+                timeLimit: 90, poemMinRating: 6, minLines: 4, maxLines: 4, maxChars: 36, maxTargetCount: 1,
+                targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
+            },
+            '中學': {
+                cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 3,
+                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 4,
+                timeLimit: 80, poemMinRating: 5, minLines: 4, maxLines: 6, maxChars: 40, maxTargetCount: 2,
+                targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
+            },
+            '高中': {
+                cols: 4, rows: 4, minStayDuration: 1200, maxStayDuration: 2200, minDecoys: 2, maxDecoys: 4,
+                maxMissPerTarget: 0, maxHearts: 4, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 6,
+                timeLimit: 70, poemMinRating: 4, minLines: 4, maxLines: 8, maxChars: 56, maxTargetCount: 3,
+                targetCharPreview: true  // 正確字一律金色，玩家須自行判斷順序
+            },
+            '大學': {
+                cols: 5, rows: 4, minStayDuration: 2000, maxStayDuration: 3000, minDecoys: 3, maxDecoys: 6,
+                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 8,
+                timeLimit: 60, poemMinRating: 3, minLines: 8, maxLines: 12, maxChars: 56, maxTargetCount: 3,
+                targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
+            },
+            '研究所': {
+                cols: 5, rows: 5, minStayDuration: 1500, maxStayDuration: 3000, minDecoys: 4, maxDecoys: 8,
+                maxMissPerTarget: 0, maxHearts: 8, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 12,
+                timeLimit: 60, poemMinRating: 3, minLines: 8, maxLines: 20, maxChars: 80, maxTargetCount: 3,
+                targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
+            }
         },
+        gameStartTime: null,
 
         // ── 載入 CSS ────────────────────────────────────────────
         loadCSS: function () {
@@ -108,22 +142,10 @@
                 </div>
                 <div class="game16-poem-bar">
                     <div id="game16-poem-info" class="game16-poem-info"></div>
-                    <div class="game16-progress-row">
-                        <div class="game16-progress-track">
-                            <div id="game16-progress-fill" class="game16-progress-fill"></div>
-                        </div>
-                        <span id="game16-progress-text">0/0</span>
-                    </div>
                 </div>
                 <div id="game16-hint-bar" class="game16-hint-bar"></div>
                 <div id="game16-area" class="game16-area">
                     <div id="game16-holes-grid" class="game16-holes-grid"></div>
-                </div>
-                <div class="game16-timer-wrap">
-                    <div class="game16-timer-track">
-                        <div id="game16-timer-bar"></div>
-                    </div>
-                    <span id="game16-timer-label">60s</span>
                 </div>
             `;
             document.body.appendChild(div);
@@ -254,13 +276,16 @@
             const settings = this.difficultySettings[this.difficulty];
 
             this.isActive = true;
+            this.gameStartTime = Date.now();
             this.score = 0;
             this.comboCount = 0;
             this.comboMultiplier = 1;
             this.targetIndex = 0;
             this.consecutiveMiss = 0;
+            this.errorIndices = new Set();
             this.isFrenzy = false;
             this.cycleId = 0;
+            this.currentBatchRemaining = 0;
             this.cols = settings.cols;
             this.rows = settings.rows;
             this.hearts = settings.maxHearts;
@@ -279,7 +304,6 @@
             this.buildHoles();
             this.updateHint();
             this.updateProgress();
-            this.updateTimerBar(1);
 
             // 計時器初始化（scoreManager 讀取 this.timer / this.maxTimer）
             this.timer = settings.timeLimit;
@@ -331,16 +355,20 @@
             this.holes = [];
 
             // 動態計算洞口尺寸（提示欄始終顯示，固定佔 32px）
-            const areaH = 850 - 44 - 44 - 52 - 32 - 28 - 8; // 8px for area padding
+            const areaH = 850 - 44 - 44 - 52 - 40 - 8; // header(44)+sub-header(44)+poem-bar(52)+hint-bar(40)+padding(8)
             const cellW = Math.floor(480 / this.cols); // 480 = 500 - padding
             const cellH = Math.floor(areaH / this.rows);
             const minCell = Math.min(cellW, cellH);
-            const pitSize = Math.round(minCell * 0.58);
-            const bubbleSize = Math.round(minCell * 0.48);
-            const fontSize = Math.round(minCell * 0.25);
+            const pitSize = Math.round(minCell * 0.60);
+            const bubbleSize = Math.round(minCell * 0.75);
+            const fontSize = Math.round(minCell * 0.50);
 
-            // 透過 CSS 變數傳遞尺寸
+            // 透過 CSS 變數傳遞尺寸；橢圓地洞：高度 = 寬度的 1/3，向下偏移使下緣位置不變
+            const pitHeight = Math.round(pitSize / 3);
+            const pitShift = Math.round((pitSize - pitHeight) / 2);
             grid.style.setProperty('--pit-size', pitSize + 'px');
+            grid.style.setProperty('--pit-height', pitHeight + 'px');
+            grid.style.setProperty('--pit-shift', pitShift + 'px');
             grid.style.setProperty('--bubble-size', bubbleSize + 'px');
             grid.style.setProperty('--char-font-size', fontSize + 'px');
             grid.style.gridTemplateColumns = `repeat(${this.cols}, 1fr)`;
@@ -360,7 +388,7 @@
                 holeEl.appendChild(bubbleEl);
                 grid.appendChild(holeEl);
 
-                const holeData = { el: holeEl, pitEl, bubbleEl, state: 'idle', char: '', timeout: null };
+                const holeData = { el: holeEl, pitEl, bubbleEl, state: 'idle', char: '', timeout: null, hitId: 0, seqOffset: -1 };
                 this.holes.push(holeData);
 
                 // pointerdown 立即響應，手機觸控優先
@@ -371,30 +399,48 @@
             }
         },
 
-        // ── 更新提示欄（顯示已擊完的詩句）───────────────────────
-        // 無論 hintMode 為何，欄位始終顯示；遊戲開始時為空，
-        // 每完成一整句詩後才會累積顯示。
+        // ── 更新提示欄（全文逐字顯示進度：已擊灰色 / 目標金色 / 未擊淺綠）──
         updateHint: function () {
             const bar = document.getElementById('game16-hint-bar');
             if (!bar) return;
             bar.style.display = '';
             if (!this.currentPoem || !this.poemLines.length) {
-                bar.textContent = '';
+                bar.innerHTML = '';
                 return;
             }
-            // 累積已完成的句子：targetIndex 已超過整句尾端才算完成
-            let completedText = '';
-            let charCount = 0;
-            for (let l = 0; l < this.poemLines.length; l++) {
-                const lineEnd = charCount + this.poemLines[l].length;
-                if (this.targetIndex >= lineEnd) {
-                    completedText += (completedText ? '　' : '') + this.poemLines[l];
-                } else {
-                    break;
+
+            bar.innerHTML = '';
+            let globalIdx = 0;
+            this.poemLines.forEach((line, lineIdx) => {
+                // 句與句之間插入空隙
+                if (lineIdx > 0) {
+                    const sep = document.createElement('span');
+                    sep.className = 'game16-hint-sep';
+                    bar.appendChild(sep);
                 }
-                charCount = lineEnd;
+                for (let i = 0; i < line.length; i++) {
+                    const span = document.createElement('span');
+                    span.className = 'game16-hint-char';
+                    span.textContent = line[i];
+                    if (this.errorIndices && this.errorIndices.has(globalIdx)) {
+                        span.dataset.state = 'error';
+                    } else if (globalIdx < this.targetIndex) {
+                        span.dataset.state = 'done';
+                    } else if (globalIdx === this.targetIndex) {
+                        span.dataset.state = 'target';
+                        span.id = 'game16-hint-current';
+                    } else {
+                        span.dataset.state = 'future';
+                    }
+                    bar.appendChild(span);
+                    globalIdx++;
+                }
+            });
+            // 自動水平捲動至目前目標字，保持置中顯示
+            const current = document.getElementById('game16-hint-current');
+            if (current) {
+                current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }
-            bar.textContent = completedText;
         },
 
         // ── 判斷目標字是否為某句詩的第一個字 ───────────────────
@@ -447,11 +493,8 @@
                 this.timer -= step / 1000;
                 if (this.timer <= 0) {
                     this.timer = 0;
-                    this.updateTimerBar(0);
                     clearInterval(this.timerInterval);
                     this.gameOver(false, 'timeout');
-                } else {
-                    this.updateTimerBar(this.timer / this.maxTimer);
                 }
             }, step);
         },
@@ -470,7 +513,7 @@
             }
         },
 
-        // ── 排程下一個目標字（A–G 週期批次邏輯）────────────────────
+        // ── 排程下一個目標字（A–G 週期批次邏輯，支援多正確字同時顯示）────
         scheduleNextTarget: function () {
             if (!this.isActive) return;
             if (this.targetIndex >= this.fullPoemText.length) {
@@ -479,75 +522,92 @@
             }
 
             const settings = this.difficultySettings[this.difficulty];
-            const targetChar = this.fullPoemText[this.targetIndex];
 
-            // A. 取得空閒洞口索引
+            // A. 取得空閒洞口索引（'hit-wrong' 動畫中的洞不算空閒）
             const idle = this.holes.reduce((acc, h, i) => { if (h.state === 'idle') acc.push(i); return acc; }, []);
 
             if (idle.length === 0) {
-                // 全部洞口被佔用，稍後重試
                 this.nextTargetTimer = setTimeout(() => this.scheduleNextTarget(), 250);
                 return;
             }
 
-            // B. 決定混淆字數量並生成混淆字
+            // B-new. 決定本批次要同時顯示的正確字數（受剩餘詩句長度與空閒洞口數限制）
+            // 先以亂數決定每批要出幾個字正確字
+            const maxTargets = Math.floor(Math.random() * settings.maxTargetCount) + 1;
+            //剩餘詩句長度
+            const remaining = this.fullPoemText.length - this.targetIndex;
+            //空閒洞口數限制
+            const batchTargetCount = Math.min(maxTargets, remaining, idle.length);
+            this.currentBatchRemaining = batchTargetCount; // 追蹤本批未擊中正確字數，供 handleCycleMiss 使用
+
+            // 取出本批次所有正確字（依詩句順序）
+            const targetChars = [];
+            for (let t = 0; t < batchTargetCount; t++) {
+                targetChars.push(this.fullPoemText[this.targetIndex + t]);
+            }
+
+            // B. 決定混淆字數量（扣除正確字佔用的洞口數）
             const decoyCount = Math.min(
                 settings.minDecoys + Math.floor(Math.random() * (settings.maxDecoys - settings.minDecoys + 1)),
-                idle.length - 1  // 至少保留一個洞給正確字
+                idle.length - batchTargetCount
             );
             let decoyChars = [];
             if (window.SharedDecoy && decoyCount > 0) {
                 decoyChars = window.SharedDecoy.getDecoyChars(
                     this.fullPoemText.split(''),
                     decoyCount,
-                    [targetChar],
+                    targetChars,      // 排除本批次所有正確字
                     settings.poemMinRating
                 );
             }
             while (decoyChars.length < decoyCount) decoyChars.push('虛');
 
-            // C. 正確字加入混淆字，打亂顯示順序，分配各洞口位置
+            // C. 建立所有項目：主要正確字 + 預覽正確字 + 混淆字，打亂位置
             const allItems = [
-                { char: targetChar, isTarget: true },
-                ...decoyChars.map(c => ({ char: c, isTarget: false }))
+                { char: targetChars[0], type: 'target', seqOffset: 0 },
+                ...targetChars.slice(1).map((c, i) => ({ char: c, type: 'target-preview', seqOffset: i + 1 })),
+                ...decoyChars.map(c => ({ char: c, type: 'decoy', seqOffset: -1 }))
             ];
-            // Fisher-Yates 洗牌：確保正確字的洞口位置無規律
+            // Fisher-Yates 洗牌
             for (let i = allItems.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [allItems[i], allItems[j]] = [allItems[j], allItems[i]];
             }
-            // 從空閒洞口隨機取對應數量
             const shuffledIdle = [...idle].sort(() => Math.random() - 0.5);
             const assignedHoles = shuffledIdle.slice(0, allItems.length);
 
-            // 更新週期 ID：防止上一批延遲的字在新週期中誤入畫面
+            // 更新週期 ID
             this.cycleId++;
             const thisCycleId = this.cycleId;
 
-            // D + E. 每個字各自決定停留時間（min~max 隨機值）與出現延遲（0–500ms）
+            // D + E. 正確字同時出現；混淆字各自隨機延遲，出現順序打亂
+            // 多個正確字的核心玩法是「讓玩家自行判斷打擊順序」，
+            // 若正確字依序出現玩家只需按出現順序擊打，完全失去難度。
+            // 因此同一批所有正確字共用同一個隨機延遲（同時冒出），混淆字則各自隨機散佈。
+            // maxDelay 依 minStayDuration 等比縮放：困難關卡字停留短，延遲也要短以保留足夠反應時間。
+            const maxDelay = Math.min(Math.floor(settings.minStayDuration * 0.25), 450);
+            const targetDelay = Math.floor(Math.random() * maxDelay); // 本批所有正確字共用此延遲
             assignedHoles.forEach((hIdx, i) => {
                 const item = allItems[i];
-                const delay = Math.floor(Math.random() * 500);
+                const isTargetType = (item.type === 'target' || item.type === 'target-preview');
+                const delay = isTargetType ? targetDelay : Math.floor(Math.random() * maxDelay);
                 const stayDuration = settings.minStayDuration +
                     Math.random() * (settings.maxStayDuration - settings.minStayDuration);
 
                 setTimeout(() => {
-                    // 確認仍在同一週期且遊戲仍在進行
                     if (!this.isActive || this.cycleId !== thisCycleId) return;
                     if (this.holes[hIdx] && this.holes[hIdx].state === 'idle') {
-                        this.activateHole(hIdx, item.char, item.isTarget ? 'target' : 'decoy', stayDuration);
+                        this.activateHole(hIdx, item.char, item.type, stayDuration, item.seqOffset);
                     }
                 }, delay);
             });
 
-            // F. 週期計時器 = maxStayDuration + 500ms
-            // 若正確字在此週期內未被擊中 → 漏失，G. 重複進入下一輪 A–F
+            // F. 週期計時器：超時視為漏失（跳過 hit-wrong 動畫中的洞）
             const cycleDuration = settings.maxStayDuration + 500;
             this.targetTimeout = setTimeout(() => {
                 if (!this.isActive) return;
-                // 清除本批次中仍存在的所有字
                 this.holes.forEach((h, i) => {
-                    if (h.state !== 'idle') this.deactivateHole(i, 'sink');
+                    if (h.state !== 'idle' && h.state !== 'hit-wrong') this.deactivateHole(i, 'sink');
                 });
                 this.handleCycleMiss();
             }, cycleDuration);
@@ -555,18 +615,21 @@
 
         // ── 激活洞口（字從洞底升起）─────────────────────────────
         // stayDuration：此字的停留時間（ms），到期後自動縮回；正確字與混淆字皆適用
-        activateHole: function (idx, char, type, stayDuration) {
+        // seqOffset：-1=混淆字，0=主要正確字，1+=預覽正確字（尚未輪到）
+        activateHole: function (idx, char, type, stayDuration, seqOffset = -1) {
             const hole = this.holes[idx];
             if (!hole || hole.state !== 'idle') return;
 
             hole.char = char;
-            hole.state = type;
+            hole.state = type;       // 'target' | 'target-preview' | 'decoy'
+            hole.seqOffset = seqOffset;
+            hole.hitId = (hole.hitId || 0) + 1; // 遞增版本號，失效任何先前擊中動畫的計時器
             hole.bubbleEl.textContent = char;
 
-            // 依 hintMode 決定泡泡視覺樣式
-            // 'full'：正確字→黃色，混淆字→白底黑字
-            // 'sentence-first'：正確字且為句首→黃色，其餘→白底黑字
-            // 'none'：全部→白底黑字
+            // 依 hintMode 與 type 決定泡泡視覺樣式
+            // target：依 hintMode 決定金色或白色
+            // target-preview：淺暖橙色（即將要打但尚未輪到）
+            // decoy：白底黑字
             let visualClass = 'game16-char-neutral';
             if (type === 'target') {
                 const mode = this.difficultySettings[this.difficulty].hintMode;
@@ -574,6 +637,14 @@
                     (mode === 'sentence-first' && this.isFirstOfSentence(this.targetIndex))) {
                     visualClass = 'game16-char-target';
                 }
+            } else if (type === 'target-preview') {
+                // targetCharPreview: true  → 顯示橙色（game16-char-preview），方便辨別順序（小學/中學）
+                // targetCharPreview: false → 顯示黑白中性色（game16-char-neutral），與混淆字外觀相同，
+                //                           玩家無法從顏色辨別哪些是預覽正確字，必須靠記憶詩句判斷（高中以上）
+                const settings2 = this.difficultySettings[this.difficulty];
+                visualClass = (settings2.targetCharPreview === false)
+                    ? 'game16-char-neutral'
+                    : 'game16-char-preview';
             }
 
             // 先清除舊動畫類，再設定新的，確保 animation 重新觸發
@@ -581,10 +652,13 @@
             void hole.bubbleEl.offsetWidth; // 強制 reflow
             hole.bubbleEl.className = `game16-char-bubble ${visualClass} game16-rise`;
 
-            // 所有字（正確字與混淆字）都有各自的停留時間，到期後自動縮回
+            // 所有字都有各自的停留時間，到期後自動縮回
+            // 條件改為「洞口非空閒且非 hit-wrong」而非「state 完全吻合」：
+            // 這樣 target-preview 升格為 target 後，state 雖然改變，計時器仍能正常觸發縮回，
+            // 不會因升格後 state 與 type 不符而讓字永遠停在畫面上。
             if (stayDuration) {
                 hole.timeout = setTimeout(() => {
-                    if (hole.state === type) this.deactivateHole(idx, 'sink');
+                    if (hole.state !== 'idle' && hole.state !== 'hit-wrong') this.deactivateHole(idx, 'sink');
                 }, stayDuration);
             }
         },
@@ -595,19 +669,34 @@
             if (!hole) return;
             if (hole.timeout) { clearTimeout(hole.timeout); hole.timeout = null; }
 
+            // 縮回時保留視覺顏色：
+            //   正確字（game16-char-target）→ 繼續顯示金色，讓玩家知道哪個是正確字
+            //   預覽正確字（game16-char-preview）→ 繼續顯示橙色
+            //   混淆字／中性字 → 改為深色半透明，讓玩家知道縮回的是混淆字
+            const currentClass = hole.bubbleEl.className;
+            let colorClass;
+            if (currentClass.includes('game16-char-target')) {
+                colorClass = 'game16-char-target';
+            } else if (currentClass.includes('game16-char-preview')) {
+                colorClass = 'game16-char-preview';
+            } else {
+                colorClass = 'game16-char-sink-dark';  // 混淆字：黑色半透明
+            }
+
             hole.state = 'idle';
             hole.char = '';
 
-            void hole.bubbleEl.offsetWidth;
-            hole.bubbleEl.className = `game16-char-bubble game16-${animClass || 'sink'}`;
+            void hole.bubbleEl.offsetWidth;  // 強制 reflow，確保動畫重新觸發
+            hole.bubbleEl.className = `game16-char-bubble ${colorClass} game16-${animClass || 'sink'}`;
 
-            // 動畫結束後清空泡泡
+            // 動畫結束後清空泡泡（fast-sink 動畫較短，提早清除）
+            const clearDelay = animClass === 'fast-sink' ? 100 : 200;
             setTimeout(() => {
                 if (hole.bubbleEl) {
                     hole.bubbleEl.className = 'game16-char-bubble';
                     hole.bubbleEl.textContent = '';
                 }
-            }, 320);
+            }, clearDelay);
         },
 
         // ── 點擊洞口 ─────────────────────────────────────────────
@@ -621,9 +710,11 @@
                 this.breakCombo();
             } else if (hole.state === 'target') {
                 this.hitCorrect(idx);
-            } else if (hole.state === 'decoy') {
+            } else if (hole.state === 'decoy' || hole.state === 'target-preview') {
+                // 混淆字 或 順序錯誤的預覽正確字：均視為擊錯
                 this.hitWrong(idx);
             }
+            // 'hit-wrong' 動畫進行中：忽略點擊
         },
 
         // ── 擊中正確字 ───────────────────────────────────────────
@@ -634,26 +725,30 @@
                     : window.SoundManager.playSuccessShort();
             }
 
-            // 取消週期計時器
+            // 取消週期計時器；遞增 cycleId 使本批尚在延遲中的字不再出現
             clearTimeout(this.targetTimeout);
             this.targetTimeout = null;
-            // 遞增 cycleId：使本批尚在延遲中的字不再出現
             this.cycleId++;
 
-            // 播放擊中動畫
+            // 播放擊中動畫：正確字放大停留 0.5 秒，再快速往下鑽入地洞
             const hole = this.holes[idx];
             hole.state = 'idle'; // 立即標為空閒，防止重複點擊
-            if (hole.timeout) { clearTimeout(hole.timeout); hole.timeout = null; } // 清除此洞的停留計時器
+            if (hole.timeout) { clearTimeout(hole.timeout); hole.timeout = null; }
+            hole.hitId = (hole.hitId || 0) + 1;         // 遞增版本號，使 500ms 後的計時器能識別是否仍有效
+            const capturedHitId = hole.hitId;
             void hole.bubbleEl.offsetWidth;
-            hole.bubbleEl.className = 'game16-char-bubble game16-char-target game16-hit';
+            hole.bubbleEl.className = 'game16-char-bubble game16-char-target game16-hit-enlarge';
             setTimeout(() => {
-                if (hole.bubbleEl) { hole.bubbleEl.className = 'game16-char-bubble'; hole.bubbleEl.textContent = ''; }
-            }, 420);
-
-            // 清除所有混淆字
-            this.holes.forEach((h, i) => {
-                if (i !== idx && h.state === 'decoy') this.deactivateHole(i, 'sink');
-            });
+                // 只有版本號一致且泡泡仍有內容時才切換動畫（防止閃爍金色 bug）
+                if (hole.hitId !== capturedHitId || !hole.bubbleEl || !hole.bubbleEl.textContent) return;
+                hole.bubbleEl.className = 'game16-char-bubble game16-char-target game16-hit-sink-down';
+                setTimeout(() => {
+                    if (hole.hitId === capturedHitId && hole.bubbleEl) {
+                        hole.bubbleEl.className = 'game16-char-bubble';
+                        hole.bubbleEl.textContent = '';
+                    }
+                }, 100);
+            }, 200);
 
             // 更新連擊與分數
             this.comboCount++;
@@ -666,38 +761,98 @@
             this.showFloatingScore(idx, '+' + pts);
 
             this.targetIndex++;
+            this.currentBatchRemaining = Math.max(0, this.currentBatchRemaining - 1); // 已擊中一個，剩餘數遞減
             this.updateProgress();
             this.updateHint();
 
             // 勝利判斷
             if (this.targetIndex >= this.fullPoemText.length) {
-                setTimeout(() => this.gameOver(true, 'complete'), 400);
+                setTimeout(() => this.gameOver(true, 'complete'), 750);
                 return;
             }
 
-            // 排程下一個目標字
-            this.nextTargetTimer = setTimeout(() => this.scheduleNextTarget(), 180);
+            // 嘗試將預覽正確字（target-preview）升格為主要目標
+            const promoted = this.promotePreviewTarget();
+
+            if (promoted) {
+                // 預覽字已升格，但本批尚有正確字待擊：
+                // 混淆字【不】立刻清除，讓玩家仍需在混淆字中辨別下一個正確字。
+                // 各混淆字的 stayDuration 計時器依舊在跑，時間到自然縮回；
+                // 若玩家誤擊混淆字仍會扣血。
+                // 只設定新週期計時器，超時視為漏失並清空剩餘字。
+                this.cycleId++;
+                const newCycleId = this.cycleId;
+                const settings = this.difficultySettings[this.difficulty];
+                this.targetTimeout = setTimeout(() => {
+                    if (!this.isActive || this.cycleId !== newCycleId) return;
+                    this.holes.forEach((h, i) => {
+                        if (h.state !== 'idle' && h.state !== 'hit-wrong') this.deactivateHole(i, 'sink');
+                    });
+                    this.handleCycleMiss();
+                }, settings.maxStayDuration + 300);
+            } else {
+                // 本批所有正確字已擊完：立刻清除剩餘混淆字，排程下一批
+                this.holes.forEach((h, i) => {
+                    if (i !== idx && h.state === 'decoy') this.deactivateHole(i, 'fast-sink');
+                });
+                this.nextTargetTimer = setTimeout(() => this.scheduleNextTarget(), 200);
+            }
         },
 
-        // ── 擊中混淆字 ───────────────────────────────────────────
+        // ── 將 seqOffset 最低的 target-preview 升格為主要目標 ────────
+        promotePreviewTarget: function () {
+            let bestHole = null;
+            let bestOffset = Infinity;
+            this.holes.forEach(h => {
+                if (h.state === 'target-preview' && h.seqOffset < bestOffset) {
+                    bestOffset = h.seqOffset;
+                    bestHole = h;
+                }
+            });
+            if (!bestHole) return false;
+
+            bestHole.state = 'target';
+            bestHole.seqOffset = 0;
+
+            // 根據 hintMode 切換為金黃色目標樣式
+            const mode = this.difficultySettings[this.difficulty].hintMode;
+            if (mode === 'full' ||
+                (mode === 'sentence-first' && this.isFirstOfSentence(this.targetIndex))) {
+                bestHole.bubbleEl.className = bestHole.bubbleEl.className
+                    .replace('game16-char-preview', 'game16-char-target')
+                    .replace('game16-char-neutral', 'game16-char-target');
+            }
+            return true;
+        },
+
+        // ── 擊中混淆字（或順序錯誤的預覽正確字）───────────────────
         hitWrong: function (idx) {
             if (window.SoundManager) window.SoundManager.playFailure();
 
             const hole = this.holes[idx];
+            // 設為 hit-wrong 狀態：防止重複點擊；週期計時器與其他字不受影響
+            hole.state = 'hit-wrong';
+            if (hole.timeout) { clearTimeout(hole.timeout); hole.timeout = null; }
+
+            // 被擊中的字：變紅色 + 晃動，1 秒後快速鑽入地洞
+            // 其他字（正確字與其他混淆字）繼續保有預設的顯示時間，不受干擾
             hole.bubbleEl.classList.add('game16-wrong-flash');
             hole.el.classList.add('game16-shake');
-            setTimeout(() => {
+            hole.timeout = setTimeout(() => {
                 hole.el.classList.remove('game16-shake');
-                this.deactivateHole(idx, 'sink');
-            }, 450);
+                this.deactivateHole(idx, 'fast-sink');
+            }, 1000);
 
             this.hearts--;
             this.breakCombo();
             this.renderHearts();
 
             if (this.hearts <= 0) {
-                setTimeout(() => this.gameOver(false, 'heartless'), 600);
+                setTimeout(() => this.gameOver(false, 'heartless'), 1200);
+                return;
             }
+            // 不取消 targetTimeout、不清除其他字、不推進 targetIndex
+            // 玩家仍有機會在週期結束前擊中正確字
         },
 
         // ── 週期結束漏失處理（由週期計時器 targetTimeout 呼叫）────
@@ -706,7 +861,13 @@
             this.consecutiveMiss++;
             const settings = this.difficultySettings[this.difficulty];
 
-            // 連續漏失超過容忍上限 → 扣血
+            // missCount：本批尚未擊中的正確字數（至少 1）
+            // 若批次有 2 個正確字且玩家一個都沒打到，需跳過 2 個；
+            // 若已擊中第 1 個（currentBatchRemaining 已遞減為 1），只跳過剩下 1 個。
+            const missCount = Math.max(1, this.currentBatchRemaining);
+            this.currentBatchRemaining = 0;
+
+            // 連續漏失超過容忍上限 → 扣血 + 標記所有本批未擊中的正確字
             if (settings.maxMissPerTarget < 99 && this.consecutiveMiss > settings.maxMissPerTarget) {
                 if (window.SoundManager) window.SoundManager.playFailure();
                 this.hearts--;
@@ -717,6 +878,14 @@
                     setTimeout(() => this.gameOver(false, 'heartless'), 400);
                     return;
                 }
+
+                // 標記本批所有未擊中的正確字：不再重複出現，hint-bar 以紅色標示
+                for (let i = 0; i < missCount; i++) {
+                    this.errorIndices.add(this.targetIndex + i);
+                }
+                this.targetIndex += missCount;
+                this.updateProgress();
+                this.updateHint();
             }
 
             // G. 重複進入下一個 A–F 週期
@@ -812,6 +981,20 @@
             if (!this.isActive) return;
             this.isActive = false;
             this.clearAllTimers();
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 16,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
 
             // 清除所有洞口
             this.holes.forEach((h, i) => { if (h.state !== 'idle') this.deactivateHole(i, 'sink'); });

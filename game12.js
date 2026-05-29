@@ -48,6 +48,7 @@
         },
         showTimeout: null,
         cluesRevealed: false,
+        gameStartTime: null,
 
         loadCSS: function () {
             if (!document.getElementById('game12-css')) {
@@ -236,6 +237,7 @@
             document.getElementById('game12-newGame-btn').disabled = false;
 
             this.isActive = true;
+            this.gameStartTime = Date.now();
             this.score = 0;
             this.mistakeCount = 0;
             this.currentInputIndex = 0;
@@ -266,6 +268,7 @@
             document.getElementById('game12-newGame-btn').disabled = false;
 
             this.isActive = true;
+            this.gameStartTime = Date.now();
             this.score = 0;
             this.mistakeCount = 0;
             this.currentInputIndex = 0;
@@ -756,6 +759,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 12,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             clearInterval(this.timerInterval);
             this.isRevealed = true;
             this.renderQuestion();

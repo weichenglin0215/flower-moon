@@ -20,6 +20,7 @@
         inactivityThreshold: 5000, //無操作時間閾值，超過秒數無移動步伐就罰一次移動步數。
 
         moveInfo: [], // for undo
+        gameStartTime: null, // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         // 難度設定：
         // timeLimit 時間限制
@@ -330,6 +331,7 @@
         startGameProcess: function (isRetry) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
+            this.gameStartTime = Date.now(); // 記錄本局開始時間（用於計算 duration_s）
             this.score = 0;
             this.moveInfo = [];
             this.isWinning = false;
@@ -864,6 +866,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 9,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             clearInterval(this.timerInterval);
 
             if (win) {

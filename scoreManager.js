@@ -37,7 +37,8 @@ const ScoreManager = {
         'game14': { base: 100, heart: 20, time: 5, getPointA: 10 },
         'game15': { base: 100, heart: 10, time: 3, getPointA: 15 },
         'game16': { base: 100, heart: 10, time: 2, getPointA: 15 },
-        'game17': { base: 100, heart: 10, time: 2, getPointA: 10 }
+        'game17': { base: 100, heart: 10, time: 2, getPointA: 10 },
+        'game19': { base: 100, heart: 10, time: 1, getPointA: 5 }
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -98,7 +99,7 @@ const ScoreManager = {
     /**
      * 儲存分數並更新 LocalStorage 中的玩家資料
      */
-    saveScore: function (gameKey, difficulty, finalScore, poemId) {
+    saveScore: function (gameKey, difficulty, finalScore, poemId, durationS) {
         finalScore = Math.floor(finalScore);
         let data = this.loadPlayerData();
 
@@ -169,7 +170,8 @@ const ScoreManager = {
                 gameNo: parseInt(gameKey.replace('game', '')) || 0,
                 difficulty: difficulty || '',
                 score: finalScore,
-                isWin: true
+                isWin: true,
+                durationS: durationS || 0  // 本局遊玩時長（秒）
             });
         } else if (window.SupabaseClient) {
             window.SupabaseClient.saveGameToCloud(data);
@@ -240,6 +242,25 @@ const ScoreManager = {
                 }
             }
             if (!data.poemRecords) data.poemRecords = {};
+
+            // 相容性補丁：若 levelCleared 為空但 levelProgress 有資料，
+            // 從 levelProgress 的最高關卡回填（1 ~ maxIdx），以還原舊存檔的星星。
+            if (!data.levelCleared) data.levelCleared = {};
+            if (data.levelProgress && Object.keys(data.levelCleared).length === 0) {
+                const diffs = ['小學', '中學', '高中', '大學', '研究所'];
+                for (const gk in data.levelProgress) {
+                    const prog = data.levelProgress[gk];
+                    if (!prog) continue;
+                    data.levelCleared[gk] = {};
+                    for (const diff of diffs) {
+                        const maxIdx = prog[diff] || 0;
+                        if (maxIdx > 0) {
+                            data.levelCleared[gk][diff] = Array.from({ length: maxIdx }, (_, k) => k + 1);
+                        }
+                    }
+                }
+            }
+
             return data;
         }
 
@@ -257,6 +278,9 @@ const ScoreManager = {
         }
         if (data.levelProgress) {
             newData.levelProgress = data.levelProgress;
+        }
+        if (data.levelCleared) {
+            newData.levelCleared = data.levelCleared;
         }
         if (data.poemRecords) {
             newData.poemRecords = data.poemRecords;
@@ -406,6 +430,13 @@ const ScoreManager = {
      */
     playWinAnimation: function (options) {
         this.cancelAnimation(); // 在開始新的動畫前，先取消舊的
+
+        // 玩家過關瞬間（動畫啟動前）計算本局遊玩時長（秒）
+        // 需各遊戲在 options.game 物件上設置 gameStartTime = Date.now()
+        const durationS = (options.game && options.game.gameStartTime)
+            ? Math.floor((Date.now() - options.game.gameStartTime) / 1000)
+            : 0;
+
         this.initCSS();
 
         let currentScore = Math.floor(options.game.score || 0); // 初始分數去小數點
@@ -479,14 +510,14 @@ const ScoreManager = {
                         if (idx > -1) this.activeIntervals.splice(idx, 1);
                         clearInterval(rollInterval);
                         document.getElementById(options.scoreElementId).textContent = finalScore;
-                        this.saveScore(gameKey, options.difficulty, finalScore, poemId);
+                        this.saveScore(gameKey, options.difficulty, finalScore, poemId, durationS);
                         checkCloudSaveAndComplete(finalScore);
                     }
                 }, 40);
                 this.activeIntervals.push(rollInterval);
             } else {
                 document.getElementById(options.scoreElementId).textContent = finalScore;
-                this.saveScore(gameKey, options.difficulty, finalScore, poemId);
+                this.saveScore(gameKey, options.difficulty, finalScore, poemId, durationS);
                 checkCloudSaveAndComplete(finalScore);
             }
         };

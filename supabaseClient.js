@@ -87,9 +87,22 @@
                     localData.games           = cloudData.games || {};
                     localData.levelProgress   = cloudData.level_progress || {};
                     localData.difficultyCounts= cloudData.difficulty_counts || {};
-                    localData.achievements    = cloudData.achievements || { claimed: [] };
                     localData.poemRecords     = cloudData.poem_records || {};
                     localData.settings        = cloudData.settings || { bgm: true, soundEffects: true };
+
+                    // 從雲端 achievements._levelCleared 還原關卡星星紀錄
+                    // 若雲端無此欄位則保留本機現有資料
+                    const ach = cloudData.achievements || {};
+                    const cloudLevelCleared = ach._levelCleared || {};
+                    localData.achievements = { unlocked: ach.unlocked || [], progress: ach.progress || {}, claimed: ach.claimed || [] };
+                    try {
+                        const existingRaw = localStorage.getItem('flowerMoon_playerData');
+                        const localLevelCleared = existingRaw ? (JSON.parse(existingRaw).levelCleared || {}) : {};
+                        localData.levelCleared = Object.keys(cloudLevelCleared).length > 0 ? cloudLevelCleared : localLevelCleared;
+                    } catch (e) {
+                        localData.levelCleared = cloudLevelCleared;
+                    }
+
                     localStorage.setItem('flowerMoon_playerData', JSON.stringify(localData));
                     if (window.ScoreManager) window.ScoreManager.updateProfileUI(localData);
                 }
@@ -182,6 +195,12 @@
             // 從 "#" 分割取得 nickname 顯示部分
             const nickname = currentId.split('#')[0] || localData.nickname || '訪客';
 
+            // 將 levelCleared 嵌入 achievements._levelCleared 一起存雲端（不需額外欄位）
+            const achievementsToSave = Object.assign(
+                {}, localData.achievements || {},
+                { _levelCleared: localData.levelCleared || {} }
+            );
+
             // 準備上傳的結構
             const payload = {
                 id: currentId,
@@ -194,7 +213,7 @@
                 games: localData.games || {},
                 level_progress: localData.levelProgress || {},
                 difficulty_counts: localData.difficultyCounts || {},
-                achievements: localData.achievements || {},
+                achievements: achievementsToSave,
                 poem_records: localData.poemRecords || {},
                 settings: localData.settings || {},
                 updated_at: new Date().toISOString()
@@ -218,7 +237,8 @@
 
         /**
          * 寫入一筆遊戲 LOG 到 Supabase game_logs 資料表
-         * @param {object} opts - { gameNo, difficulty, score, isWin }
+         * @param {object} opts - { gameNo, difficulty, score, isWin, durationS }
+         *   durationS: 本局遊玩時長（秒），從進入關卡到過關/失敗的整數秒數
          */
         logGame: async function (opts) {
             if (!this.init()) return;
@@ -231,7 +251,7 @@
                     .insert({
                         player_id:  currentId,
                         played_at:  new Date().toISOString(),
-                        duration_s: 0,
+                        duration_s: Math.round(opts.durationS || 0), // 本局遊玩時長（秒）
                         game_no:    opts.gameNo || 0,
                         difficulty: opts.difficulty || '',
                         score:      opts.score || 0,

@@ -4,7 +4,11 @@
       "Bash(Get-ChildItem -Path \"C:\\\\3D_prj\\\\VS_2022_prj\\\\FlowerMoon_web\" -Recurse -Filter \"*.js\" -o Name)",
       "Bash(Sort-Object)",
       "Bash(Get-ChildItem -Path \"C:\\\\3D_prj\\\\VS_2022_prj\\\\FlowerMoon_web\" -Filter \"game*.css\")",
-      "Bash(Select-Object -ExpandProperty Name)"
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(node -e ' *)",
+      "Bash(python -c ' *)",
+      "Bash(node -e \"const fs=require\\('fs'\\); const code=fs.readFileSync\\('game17.js','utf8'\\); let open=0,close=0; for\\(const c of code\\){if\\(c==='{'\\)open++;if\\(c==='}'\\)close++;} console.log\\('open:',open,'close:',close,'diff:',open-close\\);\")",
+      "PowerShell($code = Get-Content 'C:\\\\3D_prj\\\\VS_2022_prj\\\\FlowerMoon_web\\\\game17.js' -Raw; $open = [regex]::Matches\\($code, '\\\\{'\\).Count; $close = [regex]::Matches\\($code, '\\\\}'\\).Count; $parOpen = [regex]::Matches\\($code, '\\\\\\('\\).Count; $parClose = [regex]::Matches\\($code, '\\\\\\)'\\).Count; Write-Host \"braces: open=$open close=$close diff=$\\($open-$close\\)\"; Write-Host \"parens: open=$parOpen close=$parClose diff=$\\($parOpen-$parClose\\)\")"
     ]
   }
 }

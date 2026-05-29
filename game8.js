@@ -27,6 +27,7 @@
         timerInterval: null,  // 計時器節拍實例
         startTime: 0,         // 本局遊戲開始的時間戳
         maxTimer: 0,          // 根據困難度設定的總限時（秒）
+        gameStartTime: null,  // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         // --- 計時器與進度控制 ---
         // timeLimit 時間限制（秒，0= 無限）
@@ -252,6 +253,7 @@
         //game8只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
             this.isActive = true;
+            this.gameStartTime = Date.now(); // 記錄本局開始時間（用於計算 duration_s）
             this.updateUIForMode();
             this.score = 0;
             this.mistakeCount = 0;
@@ -1355,6 +1357,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 8,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             clearInterval(this.timerInterval);
 
             if (win) {

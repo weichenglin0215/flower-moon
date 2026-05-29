@@ -24,3 +24,4 @@ description: 開始任何 FlowerMoon_web 開發任務前必須先讀此文件，
 - 不得使用無前綴的通用 class 名稱
 - 不得在模組外直接呼叫 localStorage
 - 不得修改 screen_adaptive.js 的核心邏輯
+- 非經同意，禁止修改 difficultySettings: 的內容

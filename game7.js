@@ -12,6 +12,7 @@
         score: 0,
         mistakeCount: 0,
         maxMistakeCount: 3,
+        gameStartTime: null, // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         // 物理參數
         gravity: 0.25,
@@ -492,6 +493,7 @@
 
             this.state = 'LANDED';
             this.startTime = Date.now(); // 記錄開始時間
+            this.gameStartTime = Date.now(); // 記錄本局開始時間（用於計算 duration_s）
             if (this.requestID) cancelAnimationFrame(this.requestID);
             this.startLoop();
         },
@@ -936,6 +938,20 @@
         gameOver: function (isWin, message) {
             this.isActive = false;
             this.isWin = isWin;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!isWin && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 7,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             this.state = 'GAME_OVER';
 
             if (isWin) {

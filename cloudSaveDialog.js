@@ -241,9 +241,25 @@
             localData.games = cloudData.games || {};
             localData.levelProgress = cloudData.level_progress || {};
             localData.difficultyCounts = cloudData.difficulty_counts || {};
-            localData.achievements = cloudData.achievements || { unlocked: [], progress: {}, claimed: [] };
             localData.poemRecords  = cloudData.poem_records || {};
             localData.settings = cloudData.settings || { bgm: true, soundEffects: true };
+
+            // 從雲端 achievements._levelCleared 還原關卡星星紀錄
+            // 若雲端無此欄位（舊存檔），則保留本機現有的 levelCleared 資料
+            const ach = cloudData.achievements || {};
+            const cloudLevelCleared = ach._levelCleared || {};
+            localData.achievements = {
+                unlocked: ach.unlocked || [],
+                progress: ach.progress || {},
+                claimed:  ach.claimed  || []
+            };
+            try {
+                const existingRaw = localStorage.getItem('flowerMoon_playerData');
+                const localLevelCleared = existingRaw ? (JSON.parse(existingRaw).levelCleared || {}) : {};
+                localData.levelCleared = Object.keys(cloudLevelCleared).length > 0 ? cloudLevelCleared : localLevelCleared;
+            } catch (e) {
+                localData.levelCleared = cloudLevelCleared;
+            }
 
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(localData));
 

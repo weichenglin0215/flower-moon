@@ -396,6 +396,8 @@ window.SharedDecoy = {
                const matchedSet = sets.find(s => s.includes(targetChar));
                if (matchedSet) {
                   // 從該主題集中過濾掉已使用的字，隨機取出填充
+                  const candidates = (typeof matchedSet === 'string' ? matchedSet.split('') : [...matchedSet])
+                     .filter(c => !allExcluded.has(c));
                   candidates.sort(() => Math.random() - 0.5);
                   for (const c of candidates) {
                      if (decoys.size >= requiredCount) break;
@@ -473,6 +475,86 @@ window.SharedDecoy = {
 
       return '巃'; // 萬用保底
    }
+};
+
+// =============================================================================
+// 詩句拆分工具 sharedSplitLine（各遊戲可共用）
+// =============================================================================
+/**
+ * 將一句詩依規則拆分成短句陣列。
+ *
+ * 規則：
+ *   A. 5字：[0:2,2:5] 或 [0:3,3:5]，隨機，避開疊字
+ *   B. 7字：[0:4,4:7] 或 [0:2,2:4,4:7]，隨機，避開疊字
+ *   C. <5字：不拆；>7字：平均兩段，避開疊字
+ *   D. 疊字處理：拆分點前後同字 → 往後移動拆分點
+ *   E. singleCharProb：已拆短句再拆成各單字的機率（0~1）
+ *
+ * @param {string} line             詩句原文
+ * @param {number} [singleCharProb=0]  短句再拆成單字的機率
+ * @returns {string[]}              拆分後的短句陣列
+ */
+window.sharedSplitLine = function sharedSplitLine(line, singleCharProb) {
+   if (!line) return [];
+   const prob = typeof singleCharProb === 'number' ? singleCharProb : 0;
+   const len  = line.length;
+
+   // D: 從 pos 往後找不疊字的分割點（line[p-1] !== line[p]）
+   const noDouble = (pos, max) => {
+      let p = pos;
+      while (p < max && line[p - 1] === line[p]) p++;
+      return Math.min(p, max);
+   };
+
+   let parts;
+
+   if (len < 5) {
+      // C: <5字不拆
+      parts = [line];
+
+   } else if (len === 5) {
+      // A: 前2+後3 or 前3+後2，隨機，避疊字
+      const pref = Math.random() < 0.5 ? 2 : 3;
+      const alt  = 5 - pref;
+      let sp;
+      if (line[pref - 1] !== line[pref]) {
+         sp = pref;
+      } else if (line[alt - 1] !== line[alt]) {
+         sp = alt;
+      } else {
+         sp = pref; // 兩處皆疊字，維持原偏好點
+      }
+      parts = [line.slice(0, sp), line.slice(sp)];
+
+   } else if (len === 7) {
+      // B: [4,3] or [2,2,3]，隨機，避疊字
+      if (Math.random() < 0.5) {
+         // [4,3]
+         const sp = noDouble(4, 6);
+         parts = [line.slice(0, sp), line.slice(sp)];
+      } else {
+         // [2,2,3]
+         const sp1 = noDouble(2, 4);
+         const sp2 = noDouble(Math.max(sp1 + 1, 4), 6);
+         parts = [line.slice(0, sp1), line.slice(sp1, sp2), line.slice(sp2)];
+      }
+
+   } else {
+      // C: >7字，平均兩段，避疊字
+      const sp = noDouble(Math.ceil(len / 2), len - 1);
+      parts = [line.slice(0, sp), line.slice(sp)];
+   }
+
+   // E: singleCharProb 機率再拆成各單字
+   const result = [];
+   for (const seg of parts) {
+      if (seg.length > 1 && Math.random() < prob) {
+         for (const ch of seg) result.push(ch);
+      } else {
+         result.push(seg);
+      }
+   }
+   return result;
 };
 
 /**

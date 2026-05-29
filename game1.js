@@ -19,6 +19,7 @@
         game1Area: null,
         timerBar: null,
         timerText: null,
+        gameStartTime: null, // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         //timeLimit: 時間限制
         //poemMinRating: 最低詩詞評分
@@ -246,6 +247,7 @@
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
+            this.gameStartTime = Date.now(); // 重試也重設本局計時
             this.renderHearts();
             document.getElementById('game1-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
@@ -275,6 +277,9 @@
             document.getElementById('game1-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
 
+
+            // 記錄本局開始時間（用於計算 duration_s）
+            this.gameStartTime = Date.now();
 
             // 準備新題目並開始
             this.prepareChallenge();
@@ -692,6 +697,22 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 1,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
+
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
                 document.getElementById('game1-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數

@@ -23,6 +23,7 @@
         timer: 30,
         maxTimer: 30,
         startTime: null,
+        gameStartTime: null,
 
         // ── 詩詞資料 ──
         currentPoem: null,
@@ -73,37 +74,52 @@
         canvas: null,
         ctx: null,
 
-        // ── 難度設定 ──
+        // ── 難度設定說明 ──
+        /*
+        speed:移動間隔，數字越小越快。
+        decoyCount:干擾字數量。
+        poemMinRating:詩詞最低評分。
+        minChars:詩詞最少字數。
+        maxChars:詩詞最多字數。
+        timeLimit:時間限制。
+        showHint:目標字金黃底色提示持續秒數（0=不顯示，999=永遠顯示）。
+        maxShowCount:最大顯示數量。
+        maxMistakeCount:最大錯誤次數。
+        wallMargin:邊界間距。
+        showFadding:漸隱數量。
+        gridTransparency:格線透明度。
+        */
         difficultySettings: {
             '小學': {
                 speed: 400, decoyCount: 0, poemMinRating: 6, minChars: 10, maxChars: 20,
-                timeLimit: 90, showHint: true, maxShowCount: 5, maxMistakeCount: 7,
-                wallMargin: 3, showFadding: 3   // 全部白底，無漸隱
+                timeLimit: 90, showHint: 999, maxShowCount: 4, maxMistakeCount: 7,
+                wallMargin: 3, showFadding: 3, gridTransparency: 0.8   // 金黃底色永遠顯示
             },
             '中學': {
-                speed: 300, decoyCount: 0, poemMinRating: 5, minChars: 15, maxChars: 28,
-                timeLimit: 120, showHint: true, maxShowCount: 10, maxMistakeCount: 9,
-                wallMargin: 2, showFadding: 4   // 前3個白底，其後漸隱
+                speed: 360, decoyCount: 0, poemMinRating: 5, minChars: 15, maxChars: 28,
+                timeLimit: 120, showHint: 10, maxShowCount: 8, maxMistakeCount: 9,
+                wallMargin: 2, showFadding: 4, gridTransparency: 0.4   // 金黃底色顯示 10 秒後回復白底
             },
             '高中': {
-                speed: 250, decoyCount: 0, poemMinRating: 4, minChars: 20, maxChars: 28,
-                timeLimit: 150, showHint: false, maxShowCount: 14, maxMistakeCount: 11,
-                wallMargin: 1, showFadding: 3   // 前3個白底，其後漸隱
+                speed: 340, decoyCount: 0, poemMinRating: 4, minChars: 20, maxChars: 28,
+                timeLimit: 150, showHint: 3, maxShowCount: 12, maxMistakeCount: 11,
+                wallMargin: 1, showFadding: 3, gridTransparency: 0.2   // 金黃底色顯示 3 秒後回復白底
             },
             '大學': {
-                speed: 200, decoyCount: 2, poemMinRating: 4, minChars: 20, maxChars: 56,
-                timeLimit: 180, showHint: false, maxShowCount: 20, maxMistakeCount: 13,
-                wallMargin: 0, showFadding: 5
+                speed: 320, decoyCount: 2, poemMinRating: 4, minChars: 20, maxChars: 56,
+                timeLimit: 180, showHint: 1, maxShowCount: 16, maxMistakeCount: 13,
+                wallMargin: 0, showFadding: 5, gridTransparency: 0.1   // 金黃底色僅顯示 1 秒
             },
             '研究所': {
-                speed: 150, decoyCount: 6, poemMinRating: 3, minChars: 28, maxChars: 56,
-                timeLimit: 240, showHint: false, maxShowCount: 28, maxMistakeCount: 14,
-                wallMargin: 0, showFadding: 7
+                speed: 300, decoyCount: 6, poemMinRating: 3, minChars: 28, maxChars: 56,
+                timeLimit: 240, showHint: 0, maxShowCount: 20, maxMistakeCount: 14,
+                wallMargin: 0, showFadding: 7, gridTransparency: 0.0   // 完全不顯示金黃提示
             },
         },
 
         // ── 目前難度快取 ──
-        showHint: true,
+        showHint: 0,           // 目標字金黃提示持續秒數（由 difficultySettings 載入）
+        hintStartTime: 0,      // 當前目標字出現（或重設）的時間戳（performance.now()）
         maxShowCount: 3,
         maxMistakeCount: 7,
         mistakeCount: 0,
@@ -185,7 +201,7 @@
                 <div class="game15-progress-strip" id="game15-progress-strip">
                     <div class="game15-progress-chars"></div>
                 </div>
-                <div id="game15-poem-info" class="poem-info" style="cursor:pointer;text-decoration:underline;opacity:0.8;font-size:0.75rem;padding:2px 10px;"></div>
+                <div id="game15-poem-info" class="game15-poem-info" ></div>
                 <div class="game15-canvas-wrapper" id="game15-canvas-wrapper">
                     <canvas id="game15-canvas" width="500" height="700"></canvas>
                     <svg id="game15-timer-ring" style="display:none">
@@ -301,6 +317,7 @@
             this.timer = settings.timeLimit;
             this.maxTimer = settings.timeLimit;
             this.showHint = settings.showHint;
+            this.hintStartTime = performance.now();  // 開局時計時器歸零
             this.maxShowCount = settings.maxShowCount;
             this.maxMistakeCount = settings.maxMistakeCount;
             this.wallMargin = settings.wallMargin;
@@ -368,6 +385,7 @@
             this.eatAnimSegCount = 0;
             this.showFadding = settings.showFadding || 0;
             this.startTime = Date.now();
+            this.gameStartTime = Date.now();
 
             // 初始化蛇（只有頭）
             this._resetSnakeToStart();
@@ -632,6 +650,7 @@
                         this.direction = { dc: 1, dr: 0 };
                         this.nextDirection = { dc: 1, dr: 0 };
                         this.waitingForInput = true;      // 強制等待新方向輸入（防止暫停期間累積的按鍵）
+                        this.hintStartTime = performance.now();  // 重設金黃提示計時器（讓玩家重新看清目標字位置）
                         this.refreshDecoys();
                     }
                     this.renderCanvas();
@@ -719,6 +738,7 @@
                     this.bodyChars.push(food.char);   // push 確保頭→尾 = 詩句正序
                     this.foods.splice(foodIdx, 1);
                     this.currentCharIdx++;
+                    this.hintStartTime = performance.now();  // 下一個目標字出現，重新計提示倒數
 
                     // 觸發逐格發光動畫（從頭節到尾節依序 brightness 1.5）
                     this.eatAnimStart = performance.now();
@@ -790,6 +810,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.stopGameLoop();
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 15,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
 
             if (win) {
                 document.getElementById('game15-retryGame-btn').disabled = true;
@@ -1024,9 +1058,9 @@
                     html += `<span class="game15-target-char">${char}</span>`;
                 } else {
                     // 尚未收集：
-                    // showHint=true → 顯示實際詩句字（50%灰色，讓玩家看到題目）
-                    // showHint=false → 顯示占位符
-                    if (this.showHint) {
+                    // showHint > 0 → 顯示實際詩句字（50%灰色，讓玩家看到題目）
+                    // showHint = 0 → 顯示占位符（研究所難度，完全不暴露題目）
+                    if (this.showHint > 0) {
                         html += `<span class="game15-hint-char">${char}</span>`;
                     } else {
                         html += `<span class="game15-remaining-char">□</span>`;
@@ -1066,7 +1100,14 @@
             ctx.clearRect(0, 0, W, H);
 
             // ── 背景格線 ──
-            ctx.strokeStyle = 'rgba(255, 220, 130, 0.06)';
+            // 格線透明度隨難度遞減
+            // 小學：0.8（淡粉紅格，不干擾）
+            // 中學：0.6（近乎消失）
+            // 高中：0.4（只剩淡淡紋理）
+            // 大學：0.2（幾乎隱形）
+            // 研究所：0.0（幾乎看不見，只有邊框）
+            const gt = this.difficultySettings[this.difficulty].gridTransparency;
+            ctx.strokeStyle = `rgba(255, 220, 130, ${gt})`;
             ctx.lineWidth = 0.5;
             for (let c = 0; c <= this.COLS; c++) {
                 ctx.beginPath();
@@ -1080,6 +1121,9 @@
                 ctx.lineTo(GX + this.COLS * C, GY + r * C);
                 ctx.stroke();
             }
+
+            // ── 每幀時間戳（供吃字動畫 + showHint 倒數共用）──
+            const now = performance.now();
 
             // ── 食物（目標字 + 干擾字）──
             const pulse = 0.55 + 0.45 * Math.sin(this.pulsePhase);
@@ -1129,8 +1173,9 @@
                 const fy = GY + food.row * C;
                 const visPos = food.isTarget ? food.targetIdx - this.currentCharIdx : -1;
 
-                // showHint：當前目標字 → 黃底閃爍
-                const isHinted = food.isTarget && visPos === 0 && this.showHint;
+                // showHint（秒數）：當前目標字在 showHint 秒內以金黃底色顯示，時間到後回復白底黑字
+                const hintElapsedS = (now - this.hintStartTime) / 1000;
+                const isHinted = food.isTarget && visPos === 0 && this.showHint > 0 && hintElapsedS < this.showHint;
                 // showFadding：目標字超出前 N 個 → 50%灰底白字（統一，不漸變）
                 const isFaded = this.showFadding > 0 && food.isTarget && visPos >= this.showFadding;
 
@@ -1149,7 +1194,6 @@
             const totalBody = this.snake.length - 1;
 
             // 計算吃到字後的逐格發光動畫狀態
-            const now = performance.now();
             const eatElapsed = this.eatAnimStart >= 0 ? now - this.eatAnimStart : -1;
             // 動畫完成後自動關閉
             if (eatElapsed >= 0 && eatElapsed > this.eatAnimSegCount * this.EAT_ANIM_PER_SEG + 100) {
@@ -1220,11 +1264,14 @@
             // ── 等待輸入時顯示提示文字 ──
             if (this.waitingForInput && this.isActive && !this.mistakePause) {
                 const tipY = GY + (this.START_ROW - 2) * C + C / 2;
-                ctx.fillStyle = 'rgba(255, 220, 80, 0.85)';
-                ctx.font = `bold 24px 'Noto Serif TC', serif`;
+                ctx.fillStyle = 'hsla(150, 50%, 75%, 1.00)';
+                ctx.font = `bold 32px 'Noto Serif TC', serif`;
+                ctx.strokeStyle = 'hsla(48, 100%, 0%, 0.66)';
+                ctx.lineWidth = 6;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('以手指朝上↑ 下↓ 左← 右→ 滑動', W / 2, tipY);
+                ctx.strokeText('以手指朝 上 下 左 右 滑動', W / 2, tipY); // 若需要描邊
+                ctx.fillText('以手指朝 上 下 左 右 滑動', W / 2, tipY);
             }
         },
 

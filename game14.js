@@ -31,6 +31,7 @@
             '大學': { timeMutiply: 0.85, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56 },
             '研究所': { timeMutiply: 0.6, poemMinRating: 3, maxMistakeCount: 2, minChars: 28, maxChars: 120 }
         },
+        gameStartTime: null,
 
         init: function () {
             if (!this.container) {
@@ -198,6 +199,7 @@
         gameStart: function () {
             this.isActive = true;
             this.startTime = Date.now();
+            this.gameStartTime = Date.now();
             if (this.timerInterval) clearInterval(this.timerInterval);
             this.timerInterval = setInterval(() => {
                 if (!this.isActive) return;
@@ -485,6 +487,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 14,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             if (this.timerInterval) clearInterval(this.timerInterval);
 
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。

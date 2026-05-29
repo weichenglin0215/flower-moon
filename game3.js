@@ -20,6 +20,7 @@
         historyContainer: null,
         historyData: [], // 紀錄每個字的狀態 { char, status, isSep }
         mistakeCount: 0,//錯誤次數
+        gameStartTime: null, // 本局開始時的時間戳（Date.now()），用於計算 duration_s
         updateLayoutMetrics: function () { }, // deprecated
         // 按鈕高度 CSS 定義為 70px，垂直間距固定為 16px
         btnHeightRem: 3.5,
@@ -228,6 +229,7 @@
             this.maxSpeed = this.difficultySettings[this.difficulty].maxSpeed;
             this.currentRowIndex = 0;
             this.mistakeCount = 0;
+            this.gameStartTime = Date.now(); // 重試也重設本局計時
             document.getElementById('game3-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
             if (this.historyContainer) this.historyContainer.style.display = '';
@@ -325,6 +327,8 @@
             this.rows = [];
             this.historyData = [];
             this.mistakeCount = 0;
+            // 記錄本局開始時間（用於計算 duration_s）
+            this.gameStartTime = Date.now();
             document.getElementById('game3-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
             if (this.historyContainer) this.historyContainer.style.display = '';
@@ -777,6 +781,21 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 3,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             if (this.animationId) cancelAnimationFrame(this.animationId);
 
             this.rows.forEach(row => {

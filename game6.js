@@ -69,6 +69,7 @@
         monuments: [], // { blocks: [] }
         particles: [], // { x, y, color, life, vx, vy } 粒子效果
         isPausedForPowerUp: false, // 是否因寶箱介面而暫停
+        gameStartTime: null,       // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         // 渲染與控制變數
         canvas: null,
@@ -374,6 +375,8 @@
             this.startTimer();
             this.renderHearts();
             this.updateScoreUI();
+            // 記錄本局開始時間（用於計算 duration_s）
+            this.gameStartTime = Date.now();
             // 啟用按鈕
             document.getElementById('game6-retryGame-btn').disabled = false;
             document.getElementById('game6-newGame-btn').disabled = false;
@@ -395,6 +398,8 @@
             this.startTimer();
             this.renderHearts();
             this.updateScoreUI();
+            // 重試也重設本局計時
+            this.gameStartTime = Date.now();
             // 啟用按鈕
             document.getElementById('game6-retryGame-btn').disabled = false;
             document.getElementById('game6-newGame-btn').disabled = false;
@@ -1176,6 +1181,21 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 6,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             if (win) {
                 document.getElementById('game6-retryGame-btn').disabled = true;
                 document.getElementById('game6-newGame-btn').disabled = true;

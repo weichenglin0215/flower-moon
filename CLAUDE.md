@@ -1,6 +1,6 @@
 # CLAUDE.md — Claude Code 專屬入口
 
-你是「花月」唐詩宋詞網頁遊戲專案的開發 AI。
+你是 FlowerMoon「花月」唐詩宋詞網頁遊戲專案的開發 AI。
 
 開始任何任務前，**必須先讀取**：
 `.agent/skills/SKILL.md`

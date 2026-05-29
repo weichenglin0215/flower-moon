@@ -68,6 +68,7 @@
         // 彩虹顏色
         rainbowColors: ['hsl(0, 100%, 60%)', 'hsl(30, 100%, 66%)', 'hsl(60, 100%, 50%)', 'hsl(120, 100%, 50%)', 'hsl(180, 100%, 50%)', 'hsl(240, 100%, 70%)', 'hsl(300, 80%, 50%)'],
         rainbowIndex: 0,
+        gameStartTime: null,
 
         loadCSS: function () {
             if (!document.getElementById('game10-css')) {
@@ -542,6 +543,7 @@
 
         resetGameRound: function (keepBricks = false) {
             this.isActive = true;
+            this.gameStartTime = Date.now();
             document.getElementById('game10-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
@@ -1138,6 +1140,20 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 10,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             cancelAnimationFrame(this.animationFrameId);
 
             if (win) {

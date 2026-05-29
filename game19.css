@@ -1,0 +1,224 @@
+/* ============================================================
+   game19.css — 詩碟狂襲 (Poetry Barrage)
+   所有 class 均加 game19- 前綴，避免全域 CSS 污染
+   ============================================================ */
+
+/* ── 主容器 ───────────────────────────────────────────────── */
+.game19-overlay {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    width: 500px;
+    height: 850px;
+    background: radial-gradient(ellipse at center, hsl(210, 30%, 14%) 0%, hsl(210, 15%, 5%) 100%);
+    color: hsl(45, 80%, 85%);
+    font-family: 'Noto Serif TC', serif;
+    overflow: hidden;
+    z-index: 1000;
+    box-sizing: border-box;
+}
+
+.game19-overlay.hidden {
+    display: none;
+}
+
+/* ── 頂部資訊列 ─────────────────────────────────────────── */
+.game19-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 8px;
+    height: 42px;
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.game19-score-board {
+    color: hsl(50, 75%, 65%);
+    font-size: 22px;
+    font-weight: bold;
+    padding-left: 36px;
+}
+
+/* ── 控制按鈕 ─────────────────────────────────────────────── */
+.game19-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.game19-controls .nav-btn {
+    padding: 0 10px;
+    height: 32px;
+    background: hsl(0, 55%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 72%);
+    border-radius: 12px;
+    font-size: 18px;
+    font-family: 'Noto Serif TC', serif;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+
+.game19-controls .nav-btn:hover {
+    filter: brightness(1.5);
+}
+
+.game19-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 40%);
+    color: hsl(45, 0%, 75%);
+    cursor: default;
+}
+
+/* ── 難度標籤 ─────────────────────────────────────────────── */
+.game19-difficulty-tag {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 18px;
+    font-family: 'Noto Serif TC', serif;
+    color: hsl(45, 30%, 90%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.15);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game19-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+    filter: brightness(1.4);
+}
+
+/* ── 生命值列 ─────────────────────────────────────────────── */
+.game19-sub-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+.game19-sub-header .hearts {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.game19-sub-header .heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 28px;
+}
+
+.game19-sub-header .heart.empty {
+    opacity: 0.35;
+}
+
+/* ── 詩句提示欄 ─────────────────────────────────────────── */
+.game19-hint-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 4px 8px;
+    flex-shrink: 0;
+    gap: 3px;
+}
+
+.game19-poem-info {
+    font-size: 13px;
+    color: hsla(45, 60%, 70%, 0.8);
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 460px;
+}
+
+.game19-poem-info:hover {
+    color: hsl(45, 80%, 85%);
+    text-decoration: underline;
+}
+
+.game19-hint-text {
+    font-size: 18px;
+    text-align: center;
+    letter-spacing: 3px;
+    line-height: 1.2;
+}
+
+/* 已完成的字：暗灰打勾 */
+.game19-hint-done {
+    color: hsla(145, 60%, 55%, 0.8);
+    font-size: 16px;
+}
+
+/* 當前目標字：金橙色 + 輕微發光 */
+.game19-hint-current {
+    color: hsl(45, 95%, 65%);
+    font-weight: bold;
+    font-size: 20px;
+    text-shadow: 0 0 8px hsl(45, 90%, 55%);
+    margin: 0 3px;
+}
+
+/* 後續字 */
+.game19-hint-next {
+    color: hsla(0, 0%, 70%, 0.5);
+    font-size: 16px;
+}
+
+/* ── 遊戲主區域 ─────────────────────────────────────────── */
+.game19-area {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* 計時方框 SVG（覆蓋於 canvas 之上）*/
+#game19-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#game19-timer-path {
+    fill: none;
+    stroke: hsl(210, 70%, 50%);
+    stroke-width: 6px;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.1s linear, stroke 0.5s ease;
+}
+
+#game19-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ── 底部提示列 ─────────────────────────────────────────── */
+.game19-footer {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.0);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.game19-drag-hint {
+    font-size: 18px;
+    color: hsla(45, 40%, 65%, 0.8);
+    letter-spacing: 1px;
+}

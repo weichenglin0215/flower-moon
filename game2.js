@@ -10,6 +10,7 @@
         mistakeCount: 0,
         selectedKeyword: '花',
         keywords: ['花', '月', '清', '雲', '玉', '霞', '國', '家', '酒', '愛', '恨', '春', '雨', '山', '水', '夢'],
+        gameStartTime: null, // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         // 遊戲狀態
         currentPoem: null,
@@ -258,6 +259,7 @@
             this.isActive = true;
             this.score = 0;
             this.mistakeCount = 0;
+            this.gameStartTime = Date.now(); // 重試也重設本局計時
             this.currentInputIndex = 0;
             this.isRevealed = false;
             document.getElementById('game2-score').textContent = this.score;
@@ -299,6 +301,8 @@
             this.timeLeft = settings.timeLimit; // 遊戲時間
             this.timer = settings.timeLimit; // 倒數計時
 
+            // 記錄本局開始時間（用於計算 duration_s）
+            this.gameStartTime = Date.now();
             if (this.selectPoem()) {
                 this.renderQuestion();
                 this.renderGrid(false); // 生成新的 gridChars
@@ -635,6 +639,21 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+
+            // 失敗時寫入 game_logs（score=0，記錄本局時長）
+            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
+                    : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 2,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
             // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
             if (win) {
                 document.getElementById('game2-retryGame-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
