@@ -81,7 +81,7 @@
         poemMinRating:詩詞最低評分。
         minChars:詩詞最少字數。
         maxChars:詩詞最多字數。
-        timeLimit:時間限制。
+        timeLimitRate:每字時間倍率（秒），實際時限 = 題目字數 × timeLimitRate。
         showHint:目標字金黃底色提示持續秒數（0=不顯示，999=永遠顯示）。
         maxShowCount:最大顯示數量。
         maxMistakeCount:最大錯誤次數。
@@ -91,29 +91,29 @@
         */
         difficultySettings: {
             '小學': {
-                speed: 400, decoyCount: 0, poemMinRating: 6, minChars: 10, maxChars: 20,
-                timeLimit: 90, showHint: 999, maxShowCount: 4, maxMistakeCount: 7,
-                wallMargin: 3, showFadding: 3, gridTransparency: 0.8   // 金黃底色永遠顯示
+                speed: 400, decoyCount: 0, poemMinRating: 6, minChars: 10, maxChars: 14,
+                timeLimitRate: 6, showHint: 999, maxShowCount: 4, maxMistakeCount: 5,
+                wallMargin: 3, showFadding: 3, gridTransparency: 0.8   // showHint金黃底色永遠顯示
             },
             '中學': {
-                speed: 360, decoyCount: 0, poemMinRating: 5, minChars: 15, maxChars: 28,
-                timeLimit: 120, showHint: 10, maxShowCount: 8, maxMistakeCount: 9,
-                wallMargin: 2, showFadding: 4, gridTransparency: 0.4   // 金黃底色顯示 10 秒後回復白底
+                speed: 360, decoyCount: 0, poemMinRating: 5, minChars: 14, maxChars: 20,
+                timeLimitRate: 6, showHint: 10, maxShowCount: 8, maxMistakeCount: 4,
+                wallMargin: 2, showFadding: 4, gridTransparency: 0.4   // showHint金黃底色顯示 10 秒後回復白底
             },
             '高中': {
                 speed: 340, decoyCount: 0, poemMinRating: 4, minChars: 20, maxChars: 28,
-                timeLimit: 150, showHint: 3, maxShowCount: 12, maxMistakeCount: 11,
-                wallMargin: 1, showFadding: 3, gridTransparency: 0.2   // 金黃底色顯示 3 秒後回復白底
+                timeLimitRate: 6, showHint: 3, maxShowCount: 12, maxMistakeCount: 3,
+                wallMargin: 1, showFadding: 3, gridTransparency: 0.2   // showHint金黃底色顯示 3 秒後回復白底
             },
             '大學': {
                 speed: 320, decoyCount: 2, poemMinRating: 4, minChars: 20, maxChars: 56,
-                timeLimit: 180, showHint: 1, maxShowCount: 16, maxMistakeCount: 13,
-                wallMargin: 0, showFadding: 5, gridTransparency: 0.1   // 金黃底色僅顯示 1 秒
+                timeLimitRate: 6, showHint: 1, maxShowCount: 16, maxMistakeCount: 2,
+                wallMargin: 1, showFadding: 5, gridTransparency: 0.1   // showHint金黃底色僅顯示 1 秒
             },
             '研究所': {
                 speed: 300, decoyCount: 6, poemMinRating: 3, minChars: 28, maxChars: 56,
-                timeLimit: 240, showHint: 0, maxShowCount: 20, maxMistakeCount: 14,
-                wallMargin: 0, showFadding: 7, gridTransparency: 0.0   // 完全不顯示金黃提示
+                timeLimitRate: 6, showHint: 0, maxShowCount: 20, maxMistakeCount: 1,
+                wallMargin: 0, showFadding: 7, gridTransparency: 0.0   // showHint完全不顯示金黃提示
             },
         },
 
@@ -312,10 +312,7 @@
 
             const settings = this.difficultySettings[this.difficulty];
 
-            // 套用難度參數
-            this.timeLimit = settings.timeLimit;
-            this.timer = settings.timeLimit;
-            this.maxTimer = settings.timeLimit;
+            // 套用難度參數（計時器依題目字數動態計算，需待取得詩詞後才能設定）
             this.showHint = settings.showHint;
             this.hintStartTime = performance.now();  // 開局時計時器歸零
             this.maxShowCount = settings.maxShowCount;
@@ -355,6 +352,12 @@
                 console.error('[Game15] 詩句解析後無有效漢字');
                 return;
             }
+
+            // 依題目字數動態計算時間限制（字數 × timeLimitRate）
+            const calcTimeLimit = this.targetChars.length * settings.timeLimitRate;
+            this.timeLimit = calcTimeLimit;
+            this.timer = calcTimeLimit;
+            this.maxTimer = calcTimeLimit;
 
             // 重置 D-pad 淡出計時器（新局開始，D-pad 重新可見）
             if (this.dpadFadeTimeoutId !== null) {

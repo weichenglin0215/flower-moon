@@ -25,7 +25,7 @@
         userInputs: [],
         evaluationResult: null,
         gameStartTime: null, // 本局開始時的時間戳（Date.now()），用於計算 duration_s
-        //timeLimit: 時間限制
+        //timeLimitRate: 每遮罩字時間倍率（秒），實際時限 = 實際遮罩字數 × timeLimitRate
         //poemMinRating: 最低詩詞評分
         //maxMistakeCount: 最大錯誤次數
         //answerAtLine: 答案出現在第幾行，0=第一行或第二行，1=第一行，2=第二行，3=第一行和第二行
@@ -34,13 +34,11 @@
         //showDelay: 顯示延遲時間
         //singleCharReaction: 單字反應對錯，true=單字反應對錯，false=整句反應對錯
         difficultySettings: {
-            '小學': { timeLimit: 20, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0, singleCharReaction: true },
-            '中學': { timeLimit: 40, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 20, singleCharReaction: true },
-            '高中': { timeLimit: 60, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 30, singleCharReaction: false },
-            //'大學': { timeLimit: 80, poemMinRating: 4, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 10, singleCharReaction: false },
-            //'研究所': { timeLimit: 100, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 12, singleCharReaction: false }
-            '大學': { timeLimit: 160, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 80, singleCharReaction: false },
-            '研究所': { timeLimit: 200, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false }
+            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0, singleCharReaction: true },
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 5, singleCharReaction: true },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 15, singleCharReaction: false },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 20, singleCharReaction: false },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false }
         },
 
         // 常用字庫已移至 script.js 的 window.SharedDecoy 中
@@ -106,9 +104,9 @@
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    div.style.left   = r.left   + 'px';
-                    div.style.top    = r.top    + 'px';
-                    div.style.width  = 500 + 'px';
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
                     div.style.height = 850 + 'px';
                     div.style.transform = 'scale(' + r.scale + ')';
                     div.style.transformOrigin = 'top left';
@@ -226,8 +224,10 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.timeLimit;
-            this.timeLimit = settings.timeLimit;
+            // 實際時限 = 實際遮罩字數 × timeLimitRate
+            const calcTimeLimit4r = this.hiddenPositions.length * settings.timeLimitRate;
+            this.timeLeft = calcTimeLimit4r;
+            this.timeLimit = calcTimeLimit4r;
 
             // 重試也重設本局計時
             this.gameStartTime = Date.now();
@@ -272,14 +272,16 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.timeLimit;
-            this.timeLimit = settings.timeLimit;
 
             // 記錄本局開始時間（用於計算 duration_s）
             this.gameStartTime = Date.now();
             if (this.selectRandomPoem()) {
                 this.renderQuestion();
                 this.renderGrid(false); // 生成新的 gridChars
+                // 實際時限 = 實際遮罩字數 × timeLimitRate
+                const calcTimeLimit4 = this.hiddenPositions.length * settings.timeLimitRate;
+                this.timeLeft = calcTimeLimit4;
+                this.timeLimit = calcTimeLimit4;
                 this.startTimer();
 
                 this.cluesRevealed = settings.showDelay === 0;

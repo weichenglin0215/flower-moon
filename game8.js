@@ -30,7 +30,7 @@
         gameStartTime: null,  // 本局開始時的時間戳（Date.now()），用於計算 duration_s
 
         // --- 計時器與進度控制 ---
-        // timeLimit 時間限制（秒，0= 無限）
+        // timeLimitRate 每字時間倍率（秒），實際時限 = fullPoemText.length × timeLimitRate（0 = 無限）
         // poemMinRating 最低詩評rating
         // maxMistakeCount 最大錯誤次數
         // hints 提示方式：all/startEnd/start/none
@@ -40,11 +40,11 @@
         // minLines 最少句數（必須偶數，從奇數句開始連續挑選）
         // maxChars 總字數上限
         difficultySettings: {
-            '小學': { timeLimit: 80, poemMinRating: 6, maxMistakeCount: 6, hints: 'all', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
-            '中學': { timeLimit: 75, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
-            '高中': { timeLimit: 70, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
-            '大學': { timeLimit: 65, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, maxChars: 56 },
-            '研究所': { timeLimit: 60, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, maxChars: 56 }
+            '小學': { timeLimitRate: 1, poemMinRating: 6, maxMistakeCount: 6, hints: 'all', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
+            '中學': { timeLimitRate: 1, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
+            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
+            '大學': { timeLimitRate: 1.5, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, maxChars: 56 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, maxChars: 56 }
         },
 
 
@@ -106,9 +106,9 @@
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    div.style.left   = r.left   + 'px';
-                    div.style.top    = r.top    + 'px';
-                    div.style.width  = 500 + 'px';
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
                     div.style.height = 850 + 'px';
                     div.style.transform = 'scale(' + r.scale + ')';
                     div.style.transformOrigin = 'top left';
@@ -287,8 +287,9 @@
 
             // 標籤文字與顏色由 updateUIForMode 統一管理，此處不再重複更新以免蓋掉關卡編號
 
-            if (settings.timeLimit > 0) {
-                this.maxTimer = settings.timeLimit;
+            if (settings.timeLimitRate > 0) {
+                // 依實際詩詞字數動態計算時間限制（字數 × timeLimitRate）
+                this.maxTimer = Math.ceil(this.fullPoemText.length * settings.timeLimitRate);
                 this.timer = this.maxTimer;
                 document.getElementById('game8-timer-ring').style.display = 'block';
                 this.startTimer();

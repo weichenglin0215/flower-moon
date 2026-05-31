@@ -63,8 +63,8 @@
         powerUpChoices: [],
 
         // ── 計時器 ────────────────────────────────────────────────
-        timeLeft: 120,
-        timeLimit: 120,
+        timeLeft: 0,
+        timeLimit: 0,
         timerInterval: null,
 
         // ── 輸入 ──────────────────────────────────────────────────
@@ -72,7 +72,7 @@
         container: null,
 
         // ── 難度設定 ──────────────────────────────────────────────
-        // timeLimit：限時（秒）
+        // timeLimitRate：每字時間倍率（秒），實際時限 = poemChars 字數 × timeLimitRate
         // maxLives：最大生命次數
         // descentSpeed：下降速度（px/s）
         // bombInterval：混淆字投彈間隔（秒）
@@ -85,23 +85,23 @@
         // goldBorderHint：小/中學在最底排顯示可攻擊提示線
         difficultySettings: {
             '小學': {
-                timeLimit: 120, maxLives: 6, descentSpeed: 14, bombInterval: 5, driftMin: 10, driftMax: 30,
+                timeLimitRate: 12, maxLives: 6, descentSpeed: 14, bombInterval: 5, driftMin: 10, driftMax: 30,
                 arcRaiderInterval: 20, poemMinRating: 6, lineCount: 2, goldBorderHint: true
             },
             '中學': {
-                timeLimit: 120, maxLives: 5, descentSpeed: 14, bombInterval: 4, driftMin: 20, driftMax: 40,
+                timeLimitRate: 6, maxLives: 5, descentSpeed: 14, bombInterval: 4, driftMin: 20, driftMax: 40,
                 arcRaiderInterval: 15, poemMinRating: 5, lineCount: 4, goldBorderHint: true
             },
             '高中': {
-                timeLimit: 120, maxLives: 4, descentSpeed: 14, bombInterval: 3, driftMin: 40, driftMax: 60,
+                timeLimitRate: 6, maxLives: 4, descentSpeed: 14, bombInterval: 3, driftMin: 40, driftMax: 60,
                 arcRaiderInterval: 10, poemMinRating: 4, lineCount: 4, goldBorderHint: false
             },
             '大學': {
-                timeLimit: 120, maxLives: 3, descentSpeed: 16, bombInterval: 2, driftMin: 60, driftMax: 80,
+                timeLimitRate: 4, maxLives: 3, descentSpeed: 16, bombInterval: 2, driftMin: 60, driftMax: 80,
                 arcRaiderInterval: 8, poemMinRating: 3, lineCount: 6, goldBorderHint: false
             },
             '研究所': {
-                timeLimit: 120, maxLives: 2, descentSpeed: 18, bombInterval: 1, driftMin: 80, driftMax: 100,
+                timeLimitRate: 3, maxLives: 2, descentSpeed: 18, bombInterval: 1, driftMin: 80, driftMax: 100,
                 arcRaiderInterval: 5, poemMinRating: 3, lineCount: 8, goldBorderHint: false
             }
         },
@@ -838,12 +838,12 @@
                             bottomRow.correctScale = 1.0 + bottomRow.correctHitCount * 0.1;
                             this.spawnParticles(b.x, b.y, 'gold', 6);
                             if (window.SoundManager) window.SoundManager.playHit(15, 0.8);
-                            this.score += (window.ScoreManager ? window.ScoreManager.gameSettings['game19'].getPointA : 5);
-                            this.updateScoreUI();
 
                             if (bottomRow.correctHitCount >= bottomRow.maxHits) {
                                 // 正確字膨脹至 150% → 爆炸，整排消除
                                 consumed = true;
+                                this.score += (window.ScoreManager ? window.ScoreManager.gameSettings['game19'].getPointA : 5);
+                                this.updateScoreUI();
                                 this.destroyBottomRow(bottomRow);
                                 this.player.bullets.splice(bi, 1);
                                 return; // 本幀結束
@@ -1217,8 +1217,9 @@
         startTimer: function () {
             clearInterval(this.timerInterval);
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLimit = settings.timeLimit;
-            this.timeLeft = settings.timeLimit;
+            // 實際時限 = 全詩字數 × timeLimitRate
+            this.timeLimit = this.poemChars.length * settings.timeLimitRate;
+            this.timeLeft = this.timeLimit;
             const start = Date.now();
             this.timerInterval = setInterval(() => {
                 if (this.isPausedForPowerUp || !this.isActive) return;

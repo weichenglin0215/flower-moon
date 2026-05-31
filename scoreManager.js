@@ -21,24 +21,24 @@ const ScoreManager = {
     // getPointB：遊戲中得分B(例如：擊石鳴詩消除一行詩句)
 
     gameSettings: {
-        'game1': { base: 50, heart: 10, time: 1 },
-        'game2': { base: 100, heart: 10, time: 2, getPointA: 10 },
-        'game3': { base: 100, heart: 10, time: 2, getPointA: 5 },
-        'game4': { base: 100, heart: 10, time: 2, getPointA: 10 },
-        'game5': { base: 100, heart: 10, time: 1, getPointA: 25 },
-        'game6': { base: 100, heart: 10, time: 1, getPointA: 3 },
-        'game7': { base: 100, heart: 10, time: 2, getPointA: 5 },
-        'game8': { base: 100, heart: 10, time: 1, getPointA: 2 },
-        'game9': { base: 100, heart: 10, time: 5, getPointA: 0.5 },
-        'game10': { base: 100, heart: 10, time: 0, getPointA: 1, getPointB: 20 },
-        'game11': { base: 100, heart: 10, time: 0, getPointA: 5, getPointB: 30 },
-        'game12': { base: 100, heart: 10, time: 2, getPointA: 20 },
-        'game13': { base: 100, heart: 10, time: 2, getPointA: 20 },
-        'game14': { base: 100, heart: 20, time: 5, getPointA: 10 },
-        'game15': { base: 100, heart: 10, time: 3, getPointA: 15 },
-        'game16': { base: 100, heart: 10, time: 2, getPointA: 15 },
-        'game17': { base: 100, heart: 10, time: 2, getPointA: 10 },
-        'game19': { base: 100, heart: 10, time: 1, getPointA: 5 }
+        'game1': { base: 50, heart: 10, time: 1 }, //慢思快選
+        'game2': { base: 100, heart: 10, time: 2, getPointA: 10 }, //飛花令
+        'game3': { base: 100, heart: 10, time: 0, getPointA: 5 }, //字爬梯，無時間限制
+        'game4': { base: 100, heart: 10, time: 2, getPointA: 10 }, //眾裡尋他千百度
+        'game5': { base: 100, heart: 10, time: 1, getPointA: 25 }, //詩詞小精靈
+        'game6': { base: 100, heart: 10, time: 1, getPointA: 3 }, //詩陣侵略
+        'game7': { base: 100, heart: 10, time: 2, getPointA: 5 }, //青鳥雲梯
+        'game8': { base: 100, heart: 10, time: 1, getPointA: 2 }, //一筆裁詩
+        'game9': { base: 100, heart: 10, time: 5, getPointA: 0.5 }, //詩韻鎖扣
+        'game10': { base: 100, heart: 10, time: 0, getPointA: 1, getPointB: 20 }, //擊石鳴詩，無時間限制
+        'game11': { base: 100, heart: 10, time: 0, getPointA: 5, getPointB: 30 }, //翻墨識蹤，無時間限制
+        'game12': { base: 100, heart: 10, time: 2, getPointA: 20 }, //疏影橫斜
+        'game13': { base: 100, heart: 10, time: 2, getPointA: 20 }, //人事時地
+        'game14': { base: 100, heart: 10, time: 3, getPointA: 10 }, //步步驚心
+        'game15': { base: 100, heart: 10, time: 2, getPointA: 15 }, //墨韻游龍
+        'game16': { base: 100, heart: 10, time: 0, getPointA: 5 }, //打地詩，無時間限制 
+        'game17': { base: 100, heart: 10, time: 2, getPointA: 10 }, //青蛙過河
+        'game19': { base: 100, heart: 10, time: 0, getPointA: 5 } //詩碟狂襲，無時間限制
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -385,11 +385,11 @@ const ScoreManager = {
             // 計算總通關數（以個別星星紀錄計算，不用 max 累加避免誇大）
             const progress = data.levelCleared[gameKey];
             const totalPassed =
-                (progress['小學']    ? progress['小學'].length    : 0) +
-                (progress['中學']    ? progress['中學'].length    : 0) +
-                (progress['高中']    ? progress['高中'].length    : 0) +
-                (progress['大學']    ? progress['大學'].length    : 0) +
-                (progress['研究所']  ? progress['研究所'].length  : 0);
+                (progress['小學'] ? progress['小學'].length : 0) +
+                (progress['中學'] ? progress['中學'].length : 0) +
+                (progress['高中'] ? progress['高中'].length : 0) +
+                (progress['大學'] ? progress['大學'].length : 0) +
+                (progress['研究所'] ? progress['研究所'].length : 0);
 
             // 檢查 20 關里程碑成就
             if (totalPassed > 0 && totalPassed % 20 === 0) {

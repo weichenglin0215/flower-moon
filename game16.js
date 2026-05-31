@@ -60,7 +60,6 @@
         // hintMode：提示模式 'full'|'sentence-first'|'none'
         // frenzyInterval：混亂期觸發間隔（毫秒），全改成9999999，取消混亂期。
         // frenzyDecoys：混亂期額外噴出的混淆字數
-        // timeLimit：限時（秒）
         // poemMinRating:詩詞最低評分
         // minLines/maxLines:詩詞行數範圍
         // maxChars:詩詞最大字數
@@ -68,33 +67,33 @@
         // -------------------------------------------------------------------
         difficultySettings: {
             '小學': {
-                cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 3500, minDecoys: 1, maxDecoys: 2,
-                maxMissPerTarget: 0, maxHearts: 8, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 3,
-                timeLimit: 90, poemMinRating: 6, minLines: 4, maxLines: 4, maxChars: 36, maxTargetCount: 1,
+                cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 2500, minDecoys: 1, maxDecoys: 2,
+                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 3,
+                poemMinRating: 6, minLines: 4, maxLines: 4, maxChars: 28, maxTargetCount: 1,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '中學': {
                 cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 3,
-                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 4,
-                timeLimit: 80, poemMinRating: 5, minLines: 4, maxLines: 6, maxChars: 40, maxTargetCount: 2,
+                maxMissPerTarget: 0, maxHearts: 5, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 4,
+                poemMinRating: 5, minLines: 4, maxLines: 6, maxChars: 42, maxTargetCount: 2,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '高中': {
                 cols: 4, rows: 4, minStayDuration: 1200, maxStayDuration: 2200, minDecoys: 2, maxDecoys: 4,
                 maxMissPerTarget: 0, maxHearts: 4, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 6,
-                timeLimit: 70, poemMinRating: 4, minLines: 4, maxLines: 8, maxChars: 56, maxTargetCount: 3,
+                poemMinRating: 4, minLines: 4, maxLines: 8, maxChars: 56, maxTargetCount: 3,
                 targetCharPreview: true  // 正確字一律金色，玩家須自行判斷順序
             },
             '大學': {
-                cols: 5, rows: 4, minStayDuration: 2000, maxStayDuration: 3000, minDecoys: 3, maxDecoys: 6,
-                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 8,
-                timeLimit: 60, poemMinRating: 3, minLines: 8, maxLines: 12, maxChars: 56, maxTargetCount: 3,
+                cols: 5, rows: 4, minStayDuration: 1500, maxStayDuration: 3000, minDecoys: 3, maxDecoys: 6,
+                maxMissPerTarget: 0, maxHearts: 3, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 8,
+                poemMinRating: 3, minLines: 8, maxLines: 12, maxChars: 56, maxTargetCount: 3,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             },
             '研究所': {
                 cols: 5, rows: 5, minStayDuration: 1500, maxStayDuration: 3000, minDecoys: 4, maxDecoys: 8,
-                maxMissPerTarget: 0, maxHearts: 8, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 12,
-                timeLimit: 60, poemMinRating: 3, minLines: 8, maxLines: 20, maxChars: 80, maxTargetCount: 3,
+                maxMissPerTarget: 0, maxHearts: 2, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 12,
+                poemMinRating: 3, minLines: 8, maxLines: 20, maxChars: 80, maxTargetCount: 3,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             }
         },
@@ -305,11 +304,6 @@
             this.updateHint();
             this.updateProgress();
 
-            // 計時器初始化（scoreManager 讀取 this.timer / this.maxTimer）
-            this.timer = settings.timeLimit;
-            this.maxTimer = settings.timeLimit;
-            this.startTimer();
-
             // 排程第一次混亂期
             this.frenzyTimeout = setTimeout(() => this.startFrenzy(), settings.frenzyInterval);
 
@@ -483,20 +477,6 @@
             }
 
             if (label) label.textContent = Math.ceil(this.timer) + 's';
-        },
-
-        // ── 啟動計時器 ───────────────────────────────────────────
-        startTimer: function () {
-            const step = 100;
-            this.timerInterval = setInterval(() => {
-                if (!this.isActive) return;
-                this.timer -= step / 1000;
-                if (this.timer <= 0) {
-                    this.timer = 0;
-                    clearInterval(this.timerInterval);
-                    this.gameOver(false, 'timeout');
-                }
-            }, step);
         },
 
         // ── 渲染生命值 ───────────────────────────────────────────
@@ -755,7 +735,8 @@
             this.consecutiveMiss = 0;
             this.updateCombo();
 
-            const pts = this.getPointA() * this.comboMultiplier;
+            // COMBO 加成最多只允許 2 倍：保持連擊中(連5以上) → ×2，否則 ×1
+            const pts = this.comboMultiplier > 5 ? this.getPointA() * 2 : this.getPointA();
             this.score += pts;
             document.getElementById('game16-score').textContent = Math.floor(this.score);
             this.showFloatingScore(idx, '+' + pts);
@@ -894,14 +875,13 @@
 
         // ── 更新連擊倍率顯示 ─────────────────────────────────────
         updateCombo: function () {
-            if (this.comboCount >= 5) this.comboMultiplier = 5;
-            else if (this.comboCount >= 3) this.comboMultiplier = 3;
-            else if (this.comboCount >= 2) this.comboMultiplier = 2;
-            else this.comboMultiplier = 1;
+            // 直接顯示真實連擊數，最低為 1（不會顯示 ×0）
+            this.comboMultiplier = Math.max(1, this.comboCount);
 
             const el = document.getElementById('game16-combo');
             if (el) {
                 el.textContent = '×' + this.comboMultiplier;
+                // 連擊達 5 以上才觸發最高階視覺特效
                 el.className = this.comboCount >= 5 ? 'game16-combo-max' : '';
             }
         },

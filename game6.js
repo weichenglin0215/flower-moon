@@ -82,7 +82,7 @@
 
         // 難度等級設定
         difficultySettings: {
-            //timeLimit: 時間限制
+            //timeLimitRate: 每字時間倍率（秒），實際時限 = 實際敵人字數 × timeLimitRate
             //poemMinRating: 詩詞評分要求
             //maxMistakeCount: 最大錯誤次數
             //fireRate: 射擊頻率
@@ -90,11 +90,11 @@
             //speedInc: 速度增量
             //maxSpeed: 最大速度
             //lineCount: 敵人波次詩句數
-            '小學': { timeLimit: 120, poemMinRating: 6, maxMistakeCount: 6, fireRate: 0.8, baseSpeed: 50, speedInc: 5, maxSpeed: 200, lineCount: 2 },
-            '中學': { timeLimit: 120, poemMinRating: 5, maxMistakeCount: 5, fireRate: 0.75, baseSpeed: 50, speedInc: 6, maxSpeed: 250, lineCount: 4 },
-            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 4, fireRate: 0.7, baseSpeed: 50, speedInc: 7, maxSpeed: 300, lineCount: 6 },
-            '大學': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.65, baseSpeed: 50, speedInc: 8, maxSpeed: 350, lineCount: 8 },
-            '研究所': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.6, baseSpeed: 50, speedInc: 9, maxSpeed: 400, lineCount: 8 }
+            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 6, fireRate: 0.8, baseSpeed: 50, speedInc: 5, maxSpeed: 200, lineCount: 2 },
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, fireRate: 0.75, baseSpeed: 50, speedInc: 6, maxSpeed: 250, lineCount: 4 },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 4, fireRate: 0.7, baseSpeed: 50, speedInc: 7, maxSpeed: 300, lineCount: 6 },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.65, baseSpeed: 50, speedInc: 8, maxSpeed: 350, lineCount: 8 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.6, baseSpeed: 50, speedInc: 9, maxSpeed: 400, lineCount: 8 }
         },
 
         enemyDirection: 1, // 1 向右, -1 向左
@@ -1124,8 +1124,9 @@
         startTimer: function () {
             clearInterval(this.timerInterval);
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLimit = settings.timeLimit;
-            this.timeLeft = settings.timeLimit;
+            // 實際時限 = 實際敵人字數 × timeLimitRate
+            this.timeLimit = this.enemies.length * settings.timeLimitRate;
+            this.timeLeft = this.timeLimit;
 
             const start = Date.now();
             this.timerInterval = setInterval(() => {

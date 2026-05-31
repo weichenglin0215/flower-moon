@@ -58,7 +58,7 @@
 
         // ─── 難度設定 ────────────────────────────────────────────
         difficultySettings: {
-            //timeLimit：限時（秒）
+            //timeLimitRate：每字時間倍率（秒），實際時限 = fullPoemText 字數 × timeLimitRate
             //baseSpeed：浮木漂流速度（px/s）
             //minPadsPerRow / maxPadsPerRow：每列浮木數量隨機區間（含端點）
             //sinkDelay：浮木下沉延遲（ms）
@@ -69,27 +69,27 @@
             //hint: 正確字提示，all / sentence / none
             //maxMistakeCount：最大失誤次數（即生命值，扣完即遊戲結束）
             '小學': {
-                timeLimit: 90, baseSpeed: 50, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 8000,
+                timeLimitRate: 5, baseSpeed: 50, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 8000,
                 poemMinRating: 6, lineCount: 4, singleCharProb: 0.10, closeNeighborProb: 0.70, hint: 'all',
                 maxMistakeCount: 8
             },
             '中學': {
-                timeLimit: 80, baseSpeed: 55, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 7000,
+                timeLimitRate: 4, baseSpeed: 55, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 7000,
                 poemMinRating: 5, lineCount: 4, singleCharProb: 0.15, closeNeighborProb: 0.50, hint: 'sentence',
                 maxMistakeCount: 6
             },
             '高中': {
-                timeLimit: 70, baseSpeed: 60, minPadsPerRow: 3, maxPadsPerRow: 5, sinkDelay: 6000,
+                timeLimitRate: 3.5, baseSpeed: 60, minPadsPerRow: 3, maxPadsPerRow: 5, sinkDelay: 6000,
                 poemMinRating: 4, lineCount: 4, singleCharProb: 0.20, closeNeighborProb: 0.30, hint: 'all',
                 maxMistakeCount: 5
             },
             '大學': {
-                timeLimit: 60, baseSpeed: 75, minPadsPerRow: 3, maxPadsPerRow: 4, sinkDelay: 5000,
+                timeLimitRate: 2, baseSpeed: 75, minPadsPerRow: 3, maxPadsPerRow: 4, sinkDelay: 5000,
                 poemMinRating: 3, lineCount: 6, singleCharProb: 0.25, closeNeighborProb: 0.20, hint: 'sentence',
                 maxMistakeCount: 4
             },
             '研究所': {
-                timeLimit: 50, baseSpeed: 90, minPadsPerRow: 2, maxPadsPerRow: 4, sinkDelay: 4000,
+                timeLimitRate: 1.5, baseSpeed: 90, minPadsPerRow: 2, maxPadsPerRow: 4, sinkDelay: 4000,
                 poemMinRating: 3, lineCount: 8, singleCharProb: 0.3, closeNeighborProb: 0.10, hint: 'none',
                 maxMistakeCount: 3
             },
@@ -427,8 +427,10 @@
             this._startRowReplenished = false;
             this.splashes = [];
             this.floatTexts = [];
-            this.timer = s.timeLimit;
-            this.maxTimer = s.timeLimit;
+            // 實際時限 = 全詩字數 × timeLimitRate
+            const calcTimeLimit17 = this.fullPoemText.length * s.timeLimitRate;
+            this.timer = calcTimeLimit17;
+            this.maxTimer = calcTimeLimit17;
             this.lastTimestamp = 0;
 
             document.getElementById('game17-score').textContent = '0';

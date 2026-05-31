@@ -52,25 +52,25 @@
         bgTime: 'morning',
 
         // 難度設定
-        // timeLimit:時間限制
+        // timeLimitRate: 每字時間倍率（秒），實際時限 = poemChars.length × timeLimitRate
         // poemMinRating:詩詞星等
-        // maxMistakeCount:最大錯誤次數, 
+        // maxMistakeCount:最大錯誤次數,
         // g:重力,
         // jump:跳躍力,
-        // width:方塊寬度, 
-        // maxDist:最大間距, 
-        // heightVar:高度變異, 
-        // move:移動, 
-        // speed:速度, 
-        // minChars:最少字數, 
-        // maxChars:最多字數, 
-        // stopOnLand:是否停留, 
+        // width:方塊寬度,
+        // maxDist:最大間距,
+        // heightVar:高度變異,
+        // move:移動,
+        // speed:速度,
+        // minChars:最少字數,
+        // maxChars:最多字數,
+        // stopOnLand:是否停留,
         difficultySettings: {
-            '小學': { timeLimit: 100, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 300, heightVar: 200, move: false, speed: 100, minChars: 10, maxChars: 14, stopOnLand: true },
-            '中學': { timeLimit: 110, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 275, heightVar: 300, move: false, speed: 120, minChars: 14, maxChars: 20, stopOnLand: true },
-            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 250, heightVar: 400, move: false, speed: 140, minChars: 20, maxChars: 28, stopOnLand: false },
-            '大學': { timeLimit: 135, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 225, heightVar: 500, move: true, speed: 160, minChars: 20, maxChars: 56, stopOnLand: false },
-            '研究所': { timeLimit: 150, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 28, maxChars: 70, stopOnLand: false }
+            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 300, heightVar: 200, move: false, speed: 100, minChars: 10, maxChars: 14, stopOnLand: true },
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 275, heightVar: 300, move: false, speed: 120, minChars: 14, maxChars: 20, stopOnLand: true },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 250, heightVar: 400, move: false, speed: 140, minChars: 20, maxChars: 28, stopOnLand: false },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 225, heightVar: 500, move: true, speed: 160, minChars: 20, maxChars: 56, stopOnLand: false },
+            '研究所': { timeLimitRate: 2, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 28, maxChars: 70, stopOnLand: false }
         },
 
         init: function () {
@@ -112,9 +112,9 @@
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    div.style.left   = r.left   + 'px';
-                    div.style.top    = r.top    + 'px';
-                    div.style.width  = 500 + 'px';
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
                     div.style.height = 850 + 'px';
                     div.style.transform = 'scale(' + r.scale + ')';
                     div.style.transformOrigin = 'top left';
@@ -311,9 +311,6 @@
             this.targetCameraX = 0;
             this.scrollSpeed = settings.speed;
             this.stopOnLand = settings.stopOnLand;
-            this.timeLeft = settings.timeLimit;
-            this.maxTime = settings.timeLimit;
-
             this.updateScoreUI();
             this.renderHearts();
             if (!isRetry) {
@@ -322,9 +319,11 @@
                 // 如果是重來，重置命中狀態
                 this.hitStatus = new Array(this.poemChars.length).fill(0);
             }
-            this.timer = settings.timeLimit;
-            this.timeLeft = settings.timeLimit;
-            this.maxTime = settings.timeLimit;
+            // 依實際詩詞字數動態計算時間限制（字數 × timeLimitRate）
+            const calcTimeLimit7 = this.poemChars.length * settings.timeLimitRate;
+            this.timer = calcTimeLimit7;
+            this.timeLeft = calcTimeLimit7;
+            this.maxTime = calcTimeLimit7;
             this.startTime = null; // 重置計時點
 
             this.particles = []; // 確保重來或開新局時先清空所有雲
@@ -351,7 +350,7 @@
             this.resetGame(false, levelIndex);
             if (window.GameMessage) window.GameMessage.hide();
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            
+
             // 開新局顯示規則摘要
             setTimeout(() => {
                 this.showStartMessage();

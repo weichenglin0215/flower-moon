@@ -24,18 +24,18 @@
         container: null, // 遊戲容器
         game2Area: null, // 遊戲區域
 
-        //timeLimit: 時間限制
+        //timeLimitRate: 每題每字時間倍率（秒），實際時限 = 答案行實際字數 × timeLimitRate
         //poemMinRating: 最低詩詞評分
         //maxMistakeCount: 最大錯誤次數
         //answerAtLine: 答案出現在第幾行，0=第一行或第二行，1=第一行，2=第二行，3=第一行和第二行
         //grid: [行, 列]
         //questionCount: 每行要問幾個字
         difficultySettings: {
-            '小學': { timeLimit: 20, poemMinRating: 6, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
-            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
-            '高中': { timeLimit: 30, poemMinRating: 4, maxMistakeCount: 3, answerAtLine: 0, grid: [4, 3], questionCount: 4 },
-            '大學': { timeLimit: 35, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
-            '研究所': { timeLimit: 40, poemMinRating: 3, maxMistakeCount: 1, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
+            '小學': { timeLimitRate: 8, poemMinRating: 6, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
+            '中學': { timeLimitRate: 4, poemMinRating: 5, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
+            '高中': { timeLimitRate: 3, poemMinRating: 4, maxMistakeCount: 3, answerAtLine: 0, grid: [4, 3], questionCount: 4 },
+            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
+            '研究所': { timeLimitRate: 1, poemMinRating: 3, maxMistakeCount: 1, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
         },
 
         loadCSS: function () {
@@ -105,9 +105,9 @@
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    div.style.left   = r.left   + 'px';
-                    div.style.top    = r.top    + 'px';
-                    div.style.width  = 500 + 'px';
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
                     div.style.height = 850 + 'px';
                     div.style.transform = 'scale(' + r.scale + ')';
                     div.style.transformOrigin = 'top left';
@@ -268,11 +268,14 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.timeLimit; // 遊戲時間
-            this.timer = settings.timeLimit; // 倒數計時
 
             this.renderQuestion();
             this.renderGrid(true); // 使用舊有的 gridChars
+            // 實際時限 = 答案行實際字數 × timeLimitRate
+            const targetLine2r = this.answerLine === 1 ? this.line1 : this.line2;
+            const calcTimeLimit = targetLine2r.replace(/[，。？！、；：「」（）《》]/g, '').length * settings.timeLimitRate;
+            this.timeLeft = calcTimeLimit;
+            this.timer = calcTimeLimit;
             this.startTimer();
             // 啟用重來按鈕
             document.getElementById('game2-retryGame-btn').disabled = false;
@@ -298,14 +301,17 @@
             this.renderHearts();
 
             const settings = this.difficultySettings[this.difficulty];
-            this.timeLeft = settings.timeLimit; // 遊戲時間
-            this.timer = settings.timeLimit; // 倒數計時
 
             // 記錄本局開始時間（用於計算 duration_s）
             this.gameStartTime = Date.now();
             if (this.selectPoem()) {
                 this.renderQuestion();
                 this.renderGrid(false); // 生成新的 gridChars
+                // 實際時限 = 答案行實際字數 × timeLimitRate
+                const targetLine2 = this.answerLine === 1 ? this.line1 : this.line2;
+                const calcTimeLimit = targetLine2.replace(/[，。？！、；：「」（）《》]/g, '').length * settings.timeLimitRate;
+                this.timeLeft = calcTimeLimit;
+                this.timer = calcTimeLimit;
                 this.startTimer();
             } else {
                 if (this.isLevelMode) {

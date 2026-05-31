@@ -59,19 +59,19 @@
         // 失誤後冷卻與閃爍
         mistakePenaltyDuration: 150,
         // 難度設定對照表
-        // timeLimit: 倒計時秒數,
-        // poemMinRating: 詩詞評分要求, 
+        // timeLimitRate: 每字時間倍率（秒），實際時限 = 實際收集字數 × timeLimitRate
+        // poemMinRating: 詩詞評分要求,
         // maxMistakeCount: 最大錯誤次數,
-        // monsters: 怪物數量, 
+        // monsters: 怪物數量,
         // answerLen: 需收集的文字長度,
-        // hintDuration: 下一個字提示閃爍持續時間, 
+        // hintDuration: 下一個字提示閃爍持續時間,
         // lostInt/lostDur: 小精靈故意失誤的相隔時間與失誤持續時間
         difficultySettings: {
-            '小學': { timeLimit: 120, poemMinRating: 6, maxMistakeCount: 7, monsters: 2, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
-            '中學': { timeLimit: 120, poemMinRating: 5, maxMistakeCount: 6, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
-            '高中': { timeLimit: 120, poemMinRating: 4, maxMistakeCount: 5, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
-            '大學': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 4, monsters: 4, answerLen: 12, hintDuration: -1, lostInt: 0, lostDur: 500 },
-            '研究所': { timeLimit: 120, poemMinRating: 3, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
+            '小學': { timeLimitRate: 10, poemMinRating: 6, maxMistakeCount: 7, monsters: 2, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
+            '中學': { timeLimitRate: 9, poemMinRating: 5, maxMistakeCount: 6, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
+            '高中': { timeLimitRate: 8, poemMinRating: 4, maxMistakeCount: 5, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
+            '大學': { timeLimitRate: 7, poemMinRating: 3, maxMistakeCount: 4, monsters: 4, answerLen: 12, hintDuration: -1, lostInt: 0, lostDur: 500 },
+            '研究所': { timeLimitRate: 6, poemMinRating: 3, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
         },
 
         // Maze layout (1 = wall, 0 = path, 2 = ghost house)
@@ -617,7 +617,6 @@
                         return;
                     }
                     this.maxMistakes = settings.maxMistakeCount;
-                    this.timeLimit = settings.timeLimit;
 
                     this.updateUIForMode();
 
@@ -654,6 +653,9 @@
             this.collectedCount = 0;
             this.isDying = false; // 確保重啟時狀態重置
             this.preparePoem();
+            // 實際時限 = 實際收集字數 × timeLimitRate
+            const settings5 = this.difficultySettings[this.difficulty];
+            this.timeLimit = this.targetChars.length * settings5.timeLimitRate;
             this.resetEntities();
             this.startTimer();
             this.isActive = true;

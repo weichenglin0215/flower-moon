@@ -24,19 +24,19 @@
         gameStartTime: null,
 
         // 遊戲參數設定
-        // timeLimit:遊戲時間(秒), 
-        // poemMinRating:詩詞最低評分, 
-        // maxMistakeCount:最大錯誤次數, 
-        // metaHideCount:隱藏欄位數量, 
-        // charHideCount:隱藏字數量, 
-        // metaDistractors:每個隱藏欄位額外增加的干擾項, 
+        // timeLimitRate: 每題空格時間倍率（秒），實際時限 = 實際(meta+char)隱藏數 × timeLimitRate
+        // poemMinRating:詩詞最低評分,
+        // maxMistakeCount:最大錯誤次數,
+        // metaHideCount:隱藏欄位數量,
+        // charHideCount:隱藏字數量,
+        // metaDistractors:每個隱藏欄位額外增加的干擾項,
         // charDistractors:每個隱藏字額外增加的干擾項
         difficultySettings: {
-            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 3, metaHideCount: 1, charHideCount: 1, metaDistractors: 2, charDistractors: 5 },
-            '中學': { timeLimit: 45, poemMinRating: 5, maxMistakeCount: 4, metaHideCount: 2, charHideCount: 3, metaDistractors: 2, charDistractors: 3 },
-            '高中': { timeLimit: 60, poemMinRating: 4, maxMistakeCount: 5, metaHideCount: 3, charHideCount: 5, metaDistractors: 2, charDistractors: 3 },
-            '大學': { timeLimit: 80, poemMinRating: 3, maxMistakeCount: 6, metaHideCount: 3, charHideCount: 7, metaDistractors: 2, charDistractors: 2 },
-            '研究所': { timeLimit: 100, poemMinRating: 3, maxMistakeCount: 7, metaHideCount: 3, charHideCount: 14, metaDistractors: 2, charDistractors: 1 }
+            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 3, metaHideCount: 1, charHideCount: 1, metaDistractors: 2, charDistractors: 5 },
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 4, metaHideCount: 2, charHideCount: 3, metaDistractors: 2, charDistractors: 3 },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 5, metaHideCount: 3, charHideCount: 5, metaDistractors: 2, charDistractors: 3 },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 6, metaHideCount: 3, charHideCount: 7, metaDistractors: 2, charDistractors: 2 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 7, metaHideCount: 3, charHideCount: 14, metaDistractors: 2, charDistractors: 1 }
         },
 
         loadCSS: function () {
@@ -183,6 +183,9 @@
                 this.renderUI();
                 this.adjustFontSize(document.getElementById('game13-line1'), this.lines[0].length);
                 this.adjustFontSize(document.getElementById('game13-line2'), this.lines[1].length);
+                // 依實際隱藏題目數量動態計算時間限制（(meta+char) × timeLimitRate）
+                const settings13 = this.difficultySettings[this.difficulty];
+                this.timeLimit = (this.hiddenMeta.filter(m => m.isHidden).length + this.hiddenChars.length) * settings13.timeLimitRate;
                 this.startTimer();
             } else {
                 alert('載入詩詞失敗');
@@ -210,6 +213,9 @@
 
             this.refreshNextHole();
             this.renderUI();
+            // 依實際隱藏題目數量動態計算時間限制（(meta+char) × timeLimitRate）
+            const settings13r = this.difficultySettings[this.difficulty];
+            this.timeLimit = (this.hiddenMeta.filter(m => m.isHidden).length + this.hiddenChars.length) * settings13r.timeLimitRate;
             this.startTimer();
         },
 
