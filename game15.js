@@ -895,7 +895,7 @@
         // ================================================================
         // 更新 SVG 計時框（ratio 0→1）
         // ================================================================
-        updateTimerBorder: function (ratio) {
+        updateTimerBorder: function (ratio, mode) {
             const rect = document.getElementById('game15-timer-path');
             const wrapper = document.getElementById('game15-canvas-wrapper');
             const svg = document.getElementById('game15-timer-ring');
@@ -915,14 +915,25 @@
 
             const perimeter = (rw + rh) * 2;
             rect.style.strokeDasharray = perimeter;
-            rect.style.strokeDashoffset = perimeter * (1 - Math.max(0, Math.min(1, ratio)));
-
-            if (ratio <= 0.2) {
-                rect.classList.add('game15-timer-urgent');
+            if (mode === 'win') {
+                // 勝利動畫：黃色弧段從紅色結束點繼續，顯示剩餘時間，順時針縮短至消失
+                const clamped = Math.max(0, Math.min(1, ratio));
+                rect.style.transition = 'stroke 0.3s ease';
+                rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
+                rect.style.strokeDashoffset = clamped * perimeter;
+                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
             } else {
-                rect.classList.remove('game15-timer-urgent');
+                // 正常計時：顯示消逝時間（暗紅→鮮紅，順時針增長）
+                rect.style.transition = '';
+                rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
+                const elapsed = 1 - Math.max(0, Math.min(1, ratio));
+                rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
             }
+            rect.classList.remove('game15-timer-urgent'); // 停用舊閃爍效果
         },
+
+        // scoreManager 透過 updateTimerRing 呼叫，此 alias 轉發給 updateTimerBorder
+        updateTimerRing: function (ratio, mode) { this.updateTimerBorder(ratio, mode); },
 
         // ================================================================
         // 生成食物：目標字懶加載分配格位，干擾字使用預分配固定格位

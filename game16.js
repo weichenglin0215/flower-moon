@@ -68,32 +68,32 @@
         difficultySettings: {
             '小學': {
                 cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 2500, minDecoys: 1, maxDecoys: 2,
-                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 3,
+                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 6, minLines: 4, maxLines: 4, maxChars: 28, maxTargetCount: 1,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '中學': {
-                cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 3,
-                maxMissPerTarget: 0, maxHearts: 5, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 4,
+                cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 4,
+                maxMissPerTarget: 0, maxHearts: 5, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 5, minLines: 4, maxLines: 6, maxChars: 42, maxTargetCount: 2,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '高中': {
-                cols: 4, rows: 4, minStayDuration: 1200, maxStayDuration: 2200, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 4, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 6,
+                cols: 4, rows: 4, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 4,
+                maxMissPerTarget: 0, maxHearts: 4, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 4, minLines: 4, maxLines: 8, maxChars: 56, maxTargetCount: 3,
                 targetCharPreview: true  // 正確字一律金色，玩家須自行判斷順序
             },
             '大學': {
-                cols: 5, rows: 4, minStayDuration: 1500, maxStayDuration: 3000, minDecoys: 3, maxDecoys: 6,
-                maxMissPerTarget: 0, maxHearts: 3, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 8,
+                cols: 5, rows: 4, minStayDuration: 2500, maxStayDuration: 3500, minDecoys: 2, maxDecoys: 4,
+                maxMissPerTarget: 0, maxHearts: 3, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 3, minLines: 8, maxLines: 12, maxChars: 56, maxTargetCount: 3,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             },
             '研究所': {
-                cols: 5, rows: 5, minStayDuration: 1500, maxStayDuration: 3000, minDecoys: 4, maxDecoys: 8,
-                maxMissPerTarget: 0, maxHearts: 2, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 12,
-                poemMinRating: 3, minLines: 8, maxLines: 20, maxChars: 80, maxTargetCount: 3,
+                cols: 5, rows: 5, minStayDuration: 3000, maxStayDuration: 5000, minDecoys: 2, maxDecoys: 4,
+                maxMissPerTarget: 0, maxHearts: 2, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 1,
+                poemMinRating: 3, minLines: 8, maxLines: 20, maxChars: 80, maxTargetCount: 4,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             }
         },
@@ -837,7 +837,7 @@
         },
 
         // ── 週期結束漏失處理（由週期計時器 targetTimeout 呼叫）────
-        // 注意：漏失不斷連擊，只有打錯混淆字才斷連擊
+        // 注意：漏失跟打錯混淆字都會中斷連擊
         handleCycleMiss: function () {
             this.consecutiveMiss++;
             const settings = this.difficultySettings[this.difficulty];
@@ -852,6 +852,7 @@
             if (settings.maxMissPerTarget < 99 && this.consecutiveMiss > settings.maxMissPerTarget) {
                 if (window.SoundManager) window.SoundManager.playFailure();
                 this.hearts--;
+                this.breakCombo();
                 this.renderHearts();
                 this.consecutiveMiss = 0;
 

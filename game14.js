@@ -213,7 +213,7 @@
             }, 1000);
         },
 
-        updateTimerRing: function (ratio) {
+        updateTimerRing: function (ratio, mode) {
             const path = document.getElementById('game14-timer-path');
             const svg = document.getElementById('game14-timer-ring');
             const area = document.getElementById('game14-area');
@@ -234,10 +234,20 @@
 
             const perimeter = 2 * (rw + rh);
             path.style.strokeDasharray = perimeter;
-            path.style.strokeDashoffset = perimeter * (1 - ratio);
-
-            if (ratio < 0.25) path.style.stroke = 'hsl(0, 100%, 50%)';
-            else path.style.stroke = 'hsl(0, 80%, 36%)';
+            if (mode === 'win') {
+                // 勝利動畫：黃色弧段從紅色結束點繼續，顯示剩餘時間，順時針縮短至消失
+                const clamped = Math.max(0, Math.min(1, ratio));
+                path.style.transition = 'stroke 0.3s ease';
+                path.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
+                path.style.strokeDashoffset = clamped * perimeter;
+                path.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
+            } else {
+                // 正常計時：顯示消逝時間（暗紅→鮮紅，順時針增長）
+                path.style.transition = '';
+                path.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
+                const elapsed = 1 - Math.max(0, Math.min(1, ratio));
+                path.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+            }
         },
 
         selectPoem: function (settings) {

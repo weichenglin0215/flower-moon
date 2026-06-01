@@ -114,10 +114,14 @@ const GameMessage = {
             this.wrapper.style.display = 'flex';
             this.wrapper.style.justifyContent = 'center';
             this.wrapper.style.alignItems = 'center';
+            // pointer-events:none 讓 wrapper 不攔截底層點擊（難度按鈕、poem-info 等）
+            // container 本身設 auto 確保訊息框內的按鈕仍可正常點擊
+            this.wrapper.style.pointerEvents = 'none';
 
             this.container = document.createElement('div');
             this.container.id = 'common-game-message';
             this.container.className = 'common-game-message';
+            this.container.style.pointerEvents = 'auto'; // 訊息框本身可點擊
             this.container.innerHTML = `
                 <div class="msg-header-line">
                     <h2></h2>

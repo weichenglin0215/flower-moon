@@ -49,6 +49,7 @@
             hitTimer: 0,       // 受傷閃紅計時
             invincibleTimer: 0, // 無敵幀計時（護盾 / 受傷後）
             bullets: [],
+            bulletsInitSpeed: 2000, //子彈初始速度
             fireRateMultiplier: 1.0, // 快速發射倍率（1.0=正常，最高2.5）
             multiLevel: 1
         },
@@ -85,24 +86,24 @@
         // goldBorderHint：小/中學在最底排顯示可攻擊提示線
         difficultySettings: {
             '小學': {
-                timeLimitRate: 12, maxLives: 6, descentSpeed: 14, bombInterval: 5, driftMin: 10, driftMax: 30,
+                timeLimitRate: 10, maxLives: 6, descentSpeed: 14, bombInterval: 5, driftMin: 20, driftMax: 30,
                 arcRaiderInterval: 20, poemMinRating: 6, lineCount: 2, goldBorderHint: true
             },
             '中學': {
-                timeLimitRate: 6, maxLives: 5, descentSpeed: 14, bombInterval: 4, driftMin: 20, driftMax: 40,
+                timeLimitRate: 8, maxLives: 5, descentSpeed: 16, bombInterval: 4, driftMin: 40, driftMax: 60,
                 arcRaiderInterval: 15, poemMinRating: 5, lineCount: 4, goldBorderHint: true
             },
             '高中': {
-                timeLimitRate: 6, maxLives: 4, descentSpeed: 14, bombInterval: 3, driftMin: 40, driftMax: 60,
-                arcRaiderInterval: 10, poemMinRating: 4, lineCount: 4, goldBorderHint: false
+                timeLimitRate: 6, maxLives: 4, descentSpeed: 18, bombInterval: 3, driftMin: 60, driftMax: 80,
+                arcRaiderInterval: 10, poemMinRating: 4, lineCount: 6, goldBorderHint: false
             },
             '大學': {
-                timeLimitRate: 4, maxLives: 3, descentSpeed: 16, bombInterval: 2, driftMin: 60, driftMax: 80,
-                arcRaiderInterval: 8, poemMinRating: 3, lineCount: 6, goldBorderHint: false
+                timeLimitRate: 4, maxLives: 3, descentSpeed: 20, bombInterval: 2, driftMin: 80, driftMax: 100,
+                arcRaiderInterval: 8, poemMinRating: 3, lineCount: 8, goldBorderHint: false
             },
             '研究所': {
-                timeLimitRate: 3, maxLives: 2, descentSpeed: 18, bombInterval: 1, driftMin: 80, driftMax: 100,
-                arcRaiderInterval: 5, poemMinRating: 3, lineCount: 8, goldBorderHint: false
+                timeLimitRate: 3, maxLives: 2, descentSpeed: 22, bombInterval: 1, driftMin: 80, driftMax: 100,
+                arcRaiderInterval: 5, poemMinRating: 3, lineCount: 10, goldBorderHint: false
             }
         },
 
@@ -317,7 +318,7 @@
             if (!this.canvas) return;
             this.ctx = this.canvas.getContext('2d');
             this.canvasW = 500;
-            this.canvasH = 670;
+            this.canvasH = 660;
             this.canvas.width = this.canvasW;
             this.canvas.height = this.canvasH;
         },
@@ -390,7 +391,7 @@
 
         resetPlayerState: function () {
             this.player.x = this.canvasW / 2;
-            this.player.y = this.canvasH - 40; //玩家的y座標
+            this.player.y = this.canvasH - 80; //玩家的y座標
             this.player.isFiring = false;
             this.player.lastFired = 0;
             this.player.hitTimer = 0;
@@ -661,7 +662,7 @@
 
             // 子彈向上移動，子彈速度
             for (let i = this.player.bullets.length - 1; i >= 0; i--) {
-                this.player.bullets[i].y -= 800 * dt;
+                this.player.bullets[i].y -= this.player.bulletsInitSpeed * dt;
                 if (this.player.bullets[i].y < -10) this.player.bullets.splice(i, 1);
             }
 
@@ -1220,6 +1221,8 @@
             // 實際時限 = 全詩字數 × timeLimitRate
             this.timeLimit = this.poemChars.length * settings.timeLimitRate;
             this.timeLeft = this.timeLimit;
+            // 立即把框重置為空（ratio=1 → 無筆觸顯示），避免殘留上一局的框
+            this.updateTimerRing(1);
             const start = Date.now();
             this.timerInterval = setInterval(() => {
                 if (this.isPausedForPowerUp || !this.isActive) return;
@@ -1230,7 +1233,13 @@
             }, 100);
         },
 
-        updateTimerRing: function (ratio) {
+        // ── 計時框更新 ────────────────────────────────────────────
+        // 設計邏輯：框從「空」慢慢增長到「滿」，配合顏色從暗紅→鮮紅
+        //   ‣ 一開始框完全不顯示（零壓力）
+        //   ‣ 時間流逝 → 框順時針從左上角開始慢慢延伸
+        //   ‣ 快時間到 → 框幾乎填滿 + 顏色鮮亮，逐漸加大壓力感
+        // ratio = timeLeft / timeLimit（1=剛開始，0=時間到）
+        updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game19-timer-path');
             const svg = document.getElementById('game19-timer-ring');
             if (!rect || !svg) return;
@@ -1242,8 +1251,25 @@
             rect.setAttribute('height', rh);
             const perimeter = (rw + rh) * 2;
             rect.style.strokeDasharray = perimeter;
-            rect.style.strokeDashoffset = perimeter * (1 - ratio);
-            rect.style.stroke = ratio > 0.4 ? 'hsl(210, 70%, 50%)' : ratio > 0.2 ? 'hsl(30, 80%, 50%)' : 'hsl(0, 80%, 50%)';
+            if (mode === 'win') {
+                // 勝利動畫：黃色弧段從紅色結束點繼續，顯示剩餘時間，順時針縮短至消失
+                // 二段 dasharray：[剩餘*P, 消逝*P]，dashoffset=剩餘*P
+                // → 可見弧段 = 路徑「消逝%→100%」區段（正確接在紅色弧段之後）
+                const clamped = Math.max(0, Math.min(1, ratio));
+                rect.style.transition = 'stroke 0.3s ease';
+                rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
+                rect.style.strokeDashoffset = clamped * perimeter;
+                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
+            } else {
+                // 正常計時：顯示消逝時間（暗紅→鮮紅，順時針增長）
+                // dashoffset = perimeter * ratio：ratio=1→空框，ratio=0→完整框
+                rect.style.transition = '';
+                rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
+                const elapsed = 1 - Math.max(0, Math.min(1, ratio));
+                const s = Math.round(50 + 40 * elapsed);
+                const l = Math.round(22 + 32 * elapsed);
+                rect.style.stroke = `hsl(0, ${s}%, ${l}%)`;
+            }
         },
 
         renderHearts: function () {

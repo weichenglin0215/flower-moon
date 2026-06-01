@@ -30,7 +30,6 @@
 
 /* ── 頂部資訊列 ── */
 .game15-header {
-    flex: 0 0 50px;
     padding: 2px 8px;
     display: flex;
     justify-content: space-between;
@@ -38,7 +37,7 @@
     background: rgba(0, 0, 0, 0.4);
     z-index: 10;
     width: 100%;
-    box-sizing: border-box;
+    height: 50px;
 }
 
 .game15-score-board {
@@ -117,14 +116,25 @@
 
 /* ── 生命值列 ── */
 .game15-sub-header {
-    flex: 0 0 40px;
     display: flex;
     justify-content: center;
     align-items: center;
+    /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
+    height: 40px;
+}
+
+/* ── 生命值紅心樣式 ──*/
+#game15-hearts .heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 32px;
+}
+
+#game15-hearts .heart.empty {
+    font-weight: bold;
 }
 
 /* ── 詩句進度條 ── */
@@ -259,15 +269,18 @@
 
 #game15-timer-path {
     fill: none;
-    stroke: hsl(0, 80%, 36%);
+    stroke: hsl(0, 50%, 22%); /* 初始暗紅色（由 JS 插值到鮮紅）*/
     stroke-width: 6px;
     stroke-linecap: round;
     stroke-linejoin: round;
-    transition: stroke-dashoffset 0.15s linear;
+    stroke-dasharray: 10000; /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
+    stroke-dashoffset: 10000; /* 預設隱藏：offset=dasharray → 完全不可見 */
+    transition: stroke-dashoffset 0.15s linear, stroke 0.4s ease;
 }
 
+/* game15-timer-urgent 已停用（改用 JS 顏色插值，class 不再被加入）*/
 #game15-timer-path.game15-timer-urgent {
-    animation: game15-timer-flash 0.4s ease-in-out infinite;
+    animation: none;
 }
 
 @keyframes game15-timer-flash {
@@ -343,17 +356,6 @@
     height: 200px;
 }
 
-/* ── 生命值紅心樣式 ──*/
-#game15-hearts .heart {
-    color: hsl(4, 90%, 60%);
-    font-size: 32px;
-}
-
-#game15-hearts .heart.empty {
-    color: rgba(180, 100, 100, 0.30);
-    /* 淡化的空心♡，表示已扣除的命 */
-    font-size: 32px;
-}
 
 /* ── 方向鍵位置微調（各移動 1-2 格，1格=36px；使用 relative transform 不影響排版）──
    向上：往下移2格(72px)

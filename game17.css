@@ -26,7 +26,7 @@
     display: none;
 }
 
-/* ── Header：分數 + 生命值 + 控制按鈕 ───────────────────── */
+/* ── Header：分數 + 控制按鈕 ───────────────────── */
 .game17-header {
     display: flex;
     align-items: center;
@@ -34,7 +34,7 @@
     padding: 2px 8px;
     background: rgba(0, 0, 0, 0.45);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    height: 44px;
+    height: 50px;
     flex-shrink: 0;
     z-index: 10;
 }
@@ -46,16 +46,80 @@
     padding-left: 50px;
 }
 
+.game17-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.game17-controls .nav-btn {
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game17-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game17-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+.game17-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 16px;
+    color: hsl(45, 30%, 88%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.15);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Serif TC', serif;
+}
+
+.game17-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game17-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game17-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game17-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game17-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game17-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
 /* ── 生命值列 ── */
 .game17-sub-header {
-    flex: 0 0 40px;
     display: flex;
     justify-content: center;
     align-items: center;
+    /* 垂直居中 */
     background: rgba(0, 0, 0, 0.4);
     z-index: 9;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
+    height: 40px;
 }
 
 /* 生命值（由 scoreManager 共用 .hearts / .heart class 渲染） */
@@ -71,56 +135,9 @@
 }
 
 #game17-hearts .heart.empty {
-    color: hsl(4, 90%, 60%);
-    font-size: 28px;
     font-weight: bold;
 }
 
-.game17-controls {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.game17-difficulty-tag {
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-size: 16px;
-    color: hsl(45, 30%, 88%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.15);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: 'Noto Serif TC', serif;
-}
-
-.game17-difficulty-tag:hover {
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.85);
-    filter: brightness(1.5);
-}
-
-.game17-controls .nav-btn {
-    padding: 0 10px;
-    background: hsl(0, 60%, 24%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
-    color: hsl(45, 80%, 70%);
-    border-radius: 12px;
-    font-size: 18px;
-    cursor: pointer;
-    transition: background 0.2s;
-    height: 32px;
-    font-family: 'Noto Serif TC', serif;
-}
-
-.game17-controls .nav-btn:hover {
-    filter: brightness(1.5);
-}
-
-.game17-controls .nav-btn:disabled {
-    background: hsl(0, 0%, 40%);
-    color: hsl(45, 0%, 80%);
-    cursor: default;
-    filter: none;
-}
 
 /* ── 詩詞資訊列（詩名/朝代/作者 + 進度條）──────────────── */
 .game17-poem-bar {
@@ -310,15 +327,21 @@
 
 #game17-timer-path {
     fill: none;
-    stroke: hsl(0, 80%, 36%);
+    stroke: hsl(0, 50%, 22%);
+    /* 初始暗紅色（由 JS 插值到鮮紅）*/
     stroke-width: 6px;
     stroke-linecap: round;
     stroke-linejoin: round;
-    transition: stroke-dashoffset 0.15s linear;
+    stroke-dasharray: 10000;
+    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
+    stroke-dashoffset: 10000;
+    /* 預設隱藏：offset=dasharray → 完全不可見 */
+    /*transition: stroke-dashoffset 0.15s linear, stroke 0.4s ease;*/
 }
 
+/* game17-timer-urgent 已停用（改用 JS 顏色插值，class 不再被加入）*/
 #game17-timer-path.game17-timer-urgent {
-    animation: game17-timerFlash 0.4s ease-in-out infinite;
+    animation: none;
 }
 
 @keyframes game17-timerFlash {

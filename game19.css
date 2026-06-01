@@ -24,42 +24,39 @@
 
 /* ── 頂部資訊列 ─────────────────────────────────────────── */
 .game19-header {
+    padding: 2px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 2px 8px;
-    height: 42px;
-    background: rgba(0, 0, 0, 0.45);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.4);
     z-index: 10;
+    width: 100%;
+    height: 50px;
 }
 
 .game19-score-board {
-    color: hsl(50, 75%, 65%);
-    font-size: 22px;
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
     font-weight: bold;
-    padding-left: 36px;
+    padding-left: 50px;
 }
 
 /* ── 控制按鈕 ─────────────────────────────────────────────── */
 .game19-controls {
     display: flex;
-    align-items: center;
     gap: 6px;
+    align-items: center;
 }
 
 .game19-controls .nav-btn {
-    padding: 0 10px;
-    height: 32px;
-    background: hsl(0, 55%, 25%);
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
     border: 0.6px solid hsla(40, 100%, 80%, 0.3);
-    color: hsl(45, 80%, 72%);
+    color: hsl(45, 80%, 70%);
     border-radius: 12px;
-    font-size: 18px;
-    font-family: 'Noto Serif TC', serif;
+    font-size: 20px;
     cursor: pointer;
-    transition: filter 0.2s;
+    transition: background 0.2s;
 }
 
 .game19-controls .nav-btn:hover {
@@ -74,14 +71,34 @@
 
 /* ── 難度標籤 ─────────────────────────────────────────────── */
 .game19-difficulty-tag {
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 6px;
-    font-size: 18px;
-    font-family: 'Noto Serif TC', serif;
-    color: hsl(45, 30%, 90%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.15);
+    font-size: 20px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
     cursor: pointer;
     transition: all 0.2s;
+}
+
+.game15-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game15-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game15-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game15-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game15-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
 }
 
 .game19-difficulty-tag:hover {
@@ -94,44 +111,58 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    /* 垂直居中 */
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
     height: 40px;
-    background: rgba(0, 0, 0, 0.35);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    flex-shrink: 0;
 }
 
 .game19-sub-header .hearts {
-    display: flex;
-    gap: 2px;
-    justify-content: center;
-    flex-wrap: wrap;
+    color: hsl(4, 90%, 60%);
+    font-size: 32px;
 }
 
 .game19-sub-header .heart {
     color: hsl(4, 90%, 60%);
-    font-size: 28px;
+    font-size: 32px;
 }
 
 .game19-sub-header .heart.empty {
-    opacity: 0.35;
+    font-weight: bold;
 }
 
 /* ── 詩句提示欄 ─────────────────────────────────────────── */
 .game19-hint-bar {
+    flex: 0 0 60px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 60px;
+    padding: 0 10px;
     background: rgba(0, 0, 0, 0.3);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 4px 8px;
-    flex-shrink: 0;
-    gap: 3px;
+    border-bottom: 1px solid rgba(255, 220, 100, 0.12);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+    scrollbar-width: none;
+    /* Firefox：隱藏捲動軸 */
+    -ms-overflow-style: none;
+    /* IE/Edge：隱藏捲動軸 */
+}
+
+/* Webkit（Chrome/Safari）：隱藏捲動軸但保留捲動功能 */
+.game19-hint-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .game19-poem-info {
-    font-size: 13px;
+    position: absolute;
+    top: 165px;
+    right: 15px;
+    font-size: 18px;
     color: hsla(45, 60%, 70%, 0.8);
     cursor: pointer;
     text-align: center;
@@ -147,31 +178,52 @@
 }
 
 .game19-hint-text {
-    font-size: 18px;
+    font-size: 24px;
     text-align: center;
     letter-spacing: 3px;
     line-height: 1.2;
 }
 
-/* 已完成的字：暗灰打勾 */
+/* 已完成的字 */
 .game19-hint-done {
-    color: hsla(145, 60%, 55%, 0.8);
-    font-size: 16px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 34px;
+    height: 42px;
+    font-size: 24px;
+    font-weight: bold;
+    color: hsl(130, 60%, 60%);
+    background: rgba(80, 180, 100, 0.2);
+    border-radius: 5px;
+    border: 1px solid rgba(80, 180, 100, 0.4);
 }
 
 /* 當前目標字：金橙色 + 輕微發光 */
 .game19-hint-current {
-    color: hsl(45, 95%, 65%);
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 38px;
+    height: 46px;
+    font-size: 28px;
     font-weight: bold;
-    font-size: 20px;
-    text-shadow: 0 0 8px hsl(45, 90%, 55%);
-    margin: 0 3px;
+    color: hsl(40, 100%, 60%);
+    background: rgba(255, 200, 50, 0.2);
+    border-radius: 5px;
+    border: 2px solid rgba(255, 200, 50, 0.7);
+    animation: game15-pulse-border 0.6s ease-in-out infinite;
 }
 
 /* 後續字 */
 .game19-hint-next {
-    color: hsla(0, 0%, 70%, 0.5);
-    font-size: 16px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 36px;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.18);
 }
 
 /* ── 遊戲主區域 ─────────────────────────────────────────── */
@@ -194,10 +246,16 @@
 
 #game19-timer-path {
     fill: none;
-    stroke: hsl(210, 70%, 50%);
+    stroke: hsl(0, 50%, 22%);
+    /* 初始暗紅色（由 JS 動態插值到鮮紅）*/
     stroke-width: 6px;
     stroke-linecap: round;
-    transition: stroke-dashoffset 0.1s linear, stroke 0.5s ease;
+    stroke-dasharray: 10000;
+    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
+    stroke-dashoffset: 10000;
+    /* 預設隱藏：offset=dasharray → 完全不可見 */
+    /* dashoffset 快速跟上（0.1s），stroke 顏色緩慢過渡（0.4s）*/
+    /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
 }
 
 #game19-canvas {

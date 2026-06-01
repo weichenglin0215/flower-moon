@@ -534,6 +534,11 @@ const ScoreManager = {
             if (tickDelay > 100) tickDelay = 100;
             if (tickDelay < 30) tickDelay = 30;
 
+            // 勝利動畫開始：立即切換計時框為「黃色剩餘時間」模式
+            // 傳入 'win' mode，讓各遊戲的 updateTimerRing 用舊公式（剩餘時間顯示）
+            const initRatio = remainingSeconds / (duration / 1000);
+            if (gameInst.updateTimerRing) gameInst.updateTimerRing(initRatio, 'win');
+
             let starsLaunched = 0;
             let starsLanded = 0;
             let isLaunchComplete = false;
@@ -557,13 +562,13 @@ const ScoreManager = {
 
                     remainingSeconds--;
                     const newRatio = remainingSeconds / (duration / 1000);
-                    // 更新遊戲畫面上的計時環 (如果有對應的方法)
-                    if (gameInst.updateTimerRing) gameInst.updateTimerRing(newRatio);
+                    // 更新計時框（'win' mode：黃色剩餘時間，順時針縮短）
+                    if (gameInst.updateTimerRing) gameInst.updateTimerRing(newRatio, 'win');
                 } else {
                     const idx = this.activeIntervals.indexOf(winInterval);
                     if (idx > -1) this.activeIntervals.splice(idx, 1);
                     clearInterval(winInterval);
-                    if (gameInst.updateTimerRing) gameInst.updateTimerRing(0);
+                    if (gameInst.updateTimerRing) gameInst.updateTimerRing(0, 'win');
                     isLaunchComplete = true;
                     if (starsLanded === starsLaunched) {
                         applyMultiplier();

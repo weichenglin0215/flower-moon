@@ -430,11 +430,16 @@
 /*計時器外環的線*/
 #game8-timer-path {
     fill: none;
-    stroke: hsl(0, 80%, 36%);
+    stroke: hsl(0, 50%, 22%);
+    /* 初始暗紅色（由 JS 插值到鮮紅）*/
     stroke-width: 10px;
     stroke-linecap: round;
     stroke-linejoin: round;
-    transition: stroke-dashoffset 0.1s linear;
+    stroke-dasharray: 10000;
+    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
+    stroke-dashoffset: 10000;
+    /* 預設隱藏：offset=dasharray → 完全不可見 */
+    /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
 }
 
 /* .game8-message Styles Removed - Using Unified GameMessage Component */
