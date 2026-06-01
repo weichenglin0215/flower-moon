@@ -204,7 +204,7 @@
             let isCleared = false;
             let colorClass = '';
 
-            // 輔助：檢查此關是否已實際通關（查個別星星紀錄，不用最高關推算）
+            // 自由區 (1~51) 星星：查個別通關紀錄
             const hasCleared = (difficulty, relativeIdx) =>
                 Array.isArray(clearedData[difficulty]) && clearedData[difficulty].includes(relativeIdx);
 
@@ -225,15 +225,16 @@
                 relIdx = i - 50;
                 colorClass = 'red-bg';
                 const currentProg = progressData['高中'] || 0;
-                isCleared = hasCleared('高中', relIdx);
-                isLocked = relIdx > (currentProg + 1);
+                // 第 51 關 (relIdx=1) 屬於自由區，查個別紀錄；52+ 屬於依序區，用最高關卡推算
+                isCleared = (i <= 51) ? hasCleared('高中', relIdx) : (relIdx <= currentProg);
+                isLocked = (i <= 51) ? false : (relIdx > (currentProg + 1));
             } else if (i <= 150) {
                 diff = '大學';
                 relIdx = i - 100;
                 colorClass = 'purple-bg';
                 const hsProg = progressData['高中'] || 0;
                 const currentProg = progressData['大學'] || 0;
-                isCleared = hasCleared('大學', relIdx);
+                isCleared = relIdx <= currentProg;
                 isLocked = (hsProg < 50) || (relIdx > (currentProg + 1));
             } else {
                 diff = '研究所';
@@ -241,7 +242,7 @@
                 colorClass = 'gold-bg';
                 const univProg = progressData['大學'] || 0;
                 const currentProg = progressData['研究所'] || 0;
-                isCleared = hasCleared('研究所', relIdx);
+                isCleared = relIdx <= currentProg;
                 isLocked = (univProg < 50) || (relIdx > (currentProg + 1));
             }
 

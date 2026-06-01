@@ -27,7 +27,8 @@
 
         // ── 詩詞資料 ──
         currentPoem: null,
-        targetChars: [],        // 目標詩句所有字（去標點）
+        targetChars: [],        // 目標詩句所有字（去標點，flat 陣列）
+        poemLines: [],          // 各句去標點字元陣列（用於 hint bar 句間分隔）
         currentCharIdx: 0,      // 下一個要收集的字的索引
 
         // ── 蛇的狀態 ──
@@ -198,9 +199,7 @@
                 <div class="game15-sub-header">
                     <div id="game15-hearts" class="hearts"></div>
                 </div>
-                <div class="game15-progress-strip" id="game15-progress-strip">
-                    <div class="game15-progress-chars"></div>
-                </div>
+                <div class="game15-hint-bar" id="game15-hint-bar"></div>
                 <div id="game15-poem-info" class="game15-poem-info" ></div>
                 <div class="game15-canvas-wrapper" id="game15-canvas-wrapper">
                     <canvas id="game15-canvas" width="500" height="700"></canvas>
@@ -296,33 +295,10 @@
         },
 
         // ================================================================
-        // 開新局
+        // 選取詩詞（開新局專用）：抽詩並解析，成功傳回 true
         // ================================================================
-        startNewGame: function () {
-            this.stopGameLoop();
-            if (window.GameMessage) window.GameMessage.hide();
-            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
-
-            // 同步更新 UI（含挑戰關卡編號與按鈕顯示狀態）
-            this.updateUIForMode();
-
-            // 解鎖按鈕（若上局已鎖定）
-            document.getElementById('game15-retryGame-btn').disabled = false;
-            document.getElementById('game15-newGame-btn').disabled = false;
-
+        selectPoem: function () {
             const settings = this.difficultySettings[this.difficulty];
-
-            // 套用難度參數（計時器依題目字數動態計算，需待取得詩詞後才能設定）
-            this.showHint = settings.showHint;
-            this.hintStartTime = performance.now();  // 開局時計時器歸零
-            this.maxShowCount = settings.maxShowCount;
-            this.maxMistakeCount = settings.maxMistakeCount;
-            this.wallMargin = settings.wallMargin;
-            this.mistakeCount = 0;
-            this.maxHearts = settings.maxMistakeCount;
-            this.hearts = settings.maxMistakeCount;
-
-            // 取得詩詞：挑戰模式使用關卡序號作為固定種子，確保同關卡題目相同
             const minLines = settings.minChars <= 14 ? 2 : 4;
             const seed = this.isLevelMode ? this.currentLevelIndex : null;
             const result = (typeof getSharedRandomPoem === 'function')
@@ -332,11 +308,73 @@
 
             if (!result || !result.lines || result.lines.length === 0) {
                 console.error('[Game15] 無法取得詩詞');
-                return;
+                return false;
             }
-
             this.currentPoem = result.poem;
-            // 更新詩詞資訊欄（可點擊查看全詩）
+            // 逐句過濾標點，保留句結構以供 hint bar 加分隔符
+            this.poemLines = result.lines.map(l => [...l].filter(c => /[一-鿿]/.test(c)));
+            this.targetChars = this.poemLines.flat();
+            if (this.targetChars.length === 0) {
+                console.error('[Game15] 詩句解析後無有效漢字');
+                return false;
+            }
+            return true;
+        },
+
+        // ================================================================
+        // 重來（保留當前詩詞，僅重置遊戲狀態）
+        // ================================================================
+        retryGame: function () {
+            if (!this.currentPoem) return;
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            this.startGameProcess(true);
+        },
+
+        // ================================================================
+        // 開新局（抽新詩 + 重置）
+        // ================================================================
+        startNewGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            this.updateUIForMode();
+            if (!this.selectPoem()) return;
+            this.startGameProcess(false);
+        },
+
+        // ================================================================
+        // 啟動遊戲流程
+        // isRetry=true：保留 this.currentPoem / this.targetChars，回到第一字重玩
+        // isRetry=false：詩詞已由 selectPoem() 選好，直接重置並開始
+        // ================================================================
+        startGameProcess: function (isRetry) {
+            this.stopGameLoop();
+            if (window.GameMessage) window.GameMessage.hide();
+
+            // 同步 UI（含挑戰關卡編號與按鈕顯示狀態）
+            this.updateUIForMode();
+
+            // 解鎖按鈕（若上局已鎖定）
+            document.getElementById('game15-retryGame-btn').disabled = false;
+            document.getElementById('game15-newGame-btn').disabled = false;
+
+            const settings = this.difficultySettings[this.difficulty];
+
+            // 套用難度參數
+            this.showHint = settings.showHint;
+            this.hintStartTime = performance.now();
+            this.maxShowCount = settings.maxShowCount;
+            this.maxMistakeCount = settings.maxMistakeCount;
+            this.wallMargin = settings.wallMargin;
+            this.mistakeCount = 0;
+            this.maxHearts = settings.maxMistakeCount;
+            this.hearts = settings.maxMistakeCount;
+
+            // 依題目字數動態計算時間限制（字數 × timeLimitRate）
+            const calcTimeLimit = this.targetChars.length * settings.timeLimitRate;
+            this.timeLimit = calcTimeLimit;
+            this.timer = calcTimeLimit;
+            this.maxTimer = calcTimeLimit;
+
+            // 更新詩詞資訊欄（重來時 poem 已存在，直接更新 UI；確保 onclick 指向正確 poem）
             const poemInfoEl = document.getElementById('game15-poem-info');
             if (poemInfoEl && this.currentPoem) {
                 poemInfoEl.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
@@ -345,21 +383,8 @@
                     if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
                 };
             }
-            const raw = result.lines.join('');
-            this.targetChars = raw.split('').filter(c => /[一-鿿]/.test(c));
 
-            if (this.targetChars.length === 0) {
-                console.error('[Game15] 詩句解析後無有效漢字');
-                return;
-            }
-
-            // 依題目字數動態計算時間限制（字數 × timeLimitRate）
-            const calcTimeLimit = this.targetChars.length * settings.timeLimitRate;
-            this.timeLimit = calcTimeLimit;
-            this.timer = calcTimeLimit;
-            this.maxTimer = calcTimeLimit;
-
-            // 重置 D-pad 淡出計時器（新局開始，D-pad 重新可見）
+            // 重置 D-pad 淡出計時器（新局/重來後 D-pad 重新可見）
             if (this.dpadFadeTimeoutId !== null) {
                 clearTimeout(this.dpadFadeTimeoutId);
                 this.dpadFadeTimeoutId = null;
@@ -367,7 +392,7 @@
             this._dpadFadeStarted = false;
             const dpadEl = document.getElementById('game15-dpad');
             if (dpadEl) {
-                dpadEl.style.transition = 'none';    // 立即還原，不要淡入動畫
+                dpadEl.style.transition = 'none';
                 dpadEl.style.opacity = '1';
             }
 
@@ -395,15 +420,15 @@
             this.direction = { dc: 1, dr: 0 };
             this.nextDirection = { dc: 1, dr: 0 };
 
-            // ── 懶加載：先分配初始可見目標字格位，後續在 spawnFoods 時再分配 ──
+            // 懶加載：先分配初始可見目標字格位，後續在 spawnFoods 時再分配
             this._initTargetPositions();
-            // ── 預先分配干擾字格位（固定不移動，失誤時不重排）──
+            // 預先分配干擾字格位（固定不移動，失誤時不重排）
             this._initDecoyPositions();
 
             // 更新 UI
             document.getElementById('game15-score').textContent = '0';
             this.updateHearts();
-            this.updateProgressStrip();
+            this.updateHintBar();
             this.updateTimerBorder(1);
 
             // 生成初始食物（含可見目標字 + 干擾字）
@@ -415,8 +440,6 @@
             this.lastFrameTime = performance.now();
             this.startGameLoop();
         },
-
-        retryGame: function () { this.startNewGame(); },
 
         stopGame: function () {
             this.isActive = false;
@@ -753,7 +776,7 @@
                     document.getElementById('game15-score').textContent = Math.floor(this.score);
 
                     if (window.SoundManager) window.SoundManager.playMelodyNote(this.currentCharIdx);
-                    this.updateProgressStrip();
+                    this.updateHintBar();
 
                     if (this.currentCharIdx >= this.targetChars.length) {
                         // 不立即結算，讓本幀先渲染龍頭覆蓋最後目標字的畫面
@@ -1057,46 +1080,42 @@
         },
 
         // ================================================================
-        // 更新進度條
+        // 更新詩文進度欄（同 game16 updateHint 寫法）
         // ================================================================
-        updateProgressStrip: function () {
-            const strip = document.getElementById('game15-progress-strip');
-            if (!strip) return;
-            let html = '<div class="game15-progress-chars">';
-            this.targetChars.forEach((char, idx) => {
-                if (idx < this.currentCharIdx) {
-                    // 已收集：綠色
-                    html += `<span class="game15-collected-char">${char}</span>`;
-                } else if (idx === this.currentCharIdx) {
-                    // 當前目標：金黃色閃爍
-                    html += `<span class="game15-target-char">${char}</span>`;
-                } else {
-                    // 尚未收集：
-                    // showHint > 0 → 顯示實際詩句字（50%灰色，讓玩家看到題目）
-                    // showHint = 0 → 顯示占位符（研究所難度，完全不暴露題目）
-                    if (this.showHint > 0) {
-                        html += `<span class="game15-hint-char">${char}</span>`;
-                    } else {
-                        html += `<span class="game15-remaining-char">□</span>`;
-                    }
-                }
-            });
-            html += '</div>';
-            strip.innerHTML = html;
+        updateHintBar: function () {
+            const bar = document.getElementById('game15-hint-bar');
+            if (!bar) return;
+            bar.innerHTML = '';
 
-            // 自動捲動：目標字置中顯示，同時限制在有效範圍內（不留空白邊）
-            const targetEl = strip.querySelector('.game15-target-char');
-            if (targetEl) {
-                // 使用 getBoundingClientRect 計算目標字在捲動容器中的實際位置
-                const stripRect = strip.getBoundingClientRect();
-                const targetRect = targetEl.getBoundingClientRect();
-                // 目標字左邊緣在捲動內容中的 x 座標
-                const targetLeftInContent = targetRect.left - stripRect.left + strip.scrollLeft;
-                // 使目標字水平置中的理想 scrollLeft
-                const idealScroll = targetLeftInContent + targetRect.width / 2 - strip.clientWidth / 2;
-                // 限制在 [0, maxScroll]，不讓左右邊出現空白
-                const maxScroll = Math.max(0, strip.scrollWidth - strip.clientWidth);
-                strip.scrollLeft = Math.max(0, Math.min(idealScroll, maxScroll));
+            let globalIdx = 0;
+            this.poemLines.forEach((line, lineIdx) => {
+                // 句與句之間插入空隙（同 game16-hint-sep）
+                if (lineIdx > 0) {
+                    const sep = document.createElement('span');
+                    sep.className = 'game15-hint-sep';
+                    bar.appendChild(sep);
+                }
+                line.forEach(char => {
+                    const span = document.createElement('span');
+                    span.className = 'game15-hint-char';
+                    span.textContent = char;
+                    if (globalIdx < this.currentCharIdx) {
+                        span.dataset.state = 'done';
+                    } else if (globalIdx === this.currentCharIdx) {
+                        span.dataset.state = 'target';
+                        span.id = 'game15-hint-current';
+                    } else {
+                        span.dataset.state = 'future';
+                    }
+                    bar.appendChild(span);
+                    globalIdx++;
+                });
+            });
+
+            // 自動水平捲動至目前目標字（同 game16）
+            const current = document.getElementById('game15-hint-current');
+            if (current) {
+                current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }
         },
 

@@ -139,61 +139,24 @@
 }
 
 
-/* ── 詩詞資訊列（詩名/朝代/作者 + 進度條）──────────────── */
-.game17-poem-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 10px;
-    background: rgba(0, 0, 0, 0.35);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    height: 40px;
-    flex-shrink: 0;
-    gap: 8px;
-}
-
+/* ── 詩詞資訊（絕對定位於右上，參考 game15 寫法）──────────── */
 .game17-poem-info {
+    position: absolute;
+    top: 125px;
+    right: 5px;
     font-size: 18px;
     color: hsla(0, 0%, 100%, 0.7);
     cursor: pointer;
     white-space: nowrap;
     z-index: 1002;
     background: rgba(0, 0, 0, 0.2);
-    padding: 4px 12px;
+    padding: 1px 12px;
     border-radius: 20px;
 }
 
 .game17-poem-info:hover {
-    color: hsl(45, 90%, 85%);
-}
-
-.game17-progress-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-}
-
-.game17-progress-track {
-    width: 120px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.game17-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, hsl(120, 55%, 38%) 0%, hsl(140, 60%, 45%) 100%);
-    border-radius: 4px;
-    transition: width 0.35s ease;
-}
-
-#game17-progress-text {
-    color: hsl(45, 55%, 68%);
-    font-size: 13px;
-    min-width: 40px;
-    text-align: right;
+    color: hsl(45, 80%, 70%);
+    text-decoration: underline;
 }
 
 /* ── 提示欄（逐段顯示，可水平捲動，仿 game16 設計）────────── */

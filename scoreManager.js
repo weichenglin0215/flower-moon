@@ -354,55 +354,72 @@ const ScoreManager = {
         if (!data.levelProgress[gameKey]) {
             data.levelProgress[gameKey] = { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 };
         }
-        // 個別關卡通關星星紀錄（不依賴最高關卡推算，避免跳關一次解鎖前面所有關）
         if (!data.levelCleared) data.levelCleared = {};
         if (!data.levelCleared[gameKey]) data.levelCleared[gameKey] = {};
+        if (!data.achievements) data.achievements = { unlocked: [], progress: {}, claimed: [] };
+        if (!data.achievements.unlocked) data.achievements.unlocked = [];
 
+        // 將全域編號轉成 (難度, 相對編號)
         let finalDifficulty = difficulty;
         let finalRelIdx = levelIndex;
-
         if (levelIndex >= 1 && levelIndex <= 300) {
             const converted = this.getRelativeLevelIndex(levelIndex);
             finalDifficulty = converted.difficulty;
             finalRelIdx = converted.relIdx;
         }
 
-        // 記錄此關卡通關（個別星星紀錄，不論是否為新高）
-        if (!data.levelCleared[gameKey][finalDifficulty]) data.levelCleared[gameKey][finalDifficulty] = [];
-        const alreadyCleared = data.levelCleared[gameKey][finalDifficulty].includes(finalRelIdx);
-        if (!alreadyCleared) {
-            data.levelCleared[gameKey][finalDifficulty].push(finalRelIdx);
+        let needsSave = false;
+        let achIdToReturn = null;
+
+        // ─────────────────────────────────────────────────────
+        // 區段 A：第 1~51 關 ── 自由區，每關個別留紀錄（星星用）
+        // 區段 B：第 52 關以後 ── 依序區，只記最高關卡（解鎖+星星用）
+        // ─────────────────────────────────────────────────────
+        if (levelIndex <= 51) {
+            // 自由區：把 finalRelIdx 加入個別星星陣列
+            if (!data.levelCleared[gameKey][finalDifficulty]) {
+                data.levelCleared[gameKey][finalDifficulty] = [];
+            }
+            if (!data.levelCleared[gameKey][finalDifficulty].includes(finalRelIdx)) {
+                data.levelCleared[gameKey][finalDifficulty].push(finalRelIdx);
+                needsSave = true;
+            }
+            // 特例：第 51 關 (高中 relIdx=1) 同時推進 levelProgress[高中]，
+            // 讓第 52 關之後的依序解鎖邏輯能順利啟動。
+            if (levelIndex === 51) {
+                if ((data.levelProgress[gameKey]['高中'] || 0) < 1) {
+                    data.levelProgress[gameKey]['高中'] = 1;
+                    needsSave = true;
+                }
+            }
+        } else {
+            // 依序區：只更新該難度的最高關卡編號
+            const currentMax = data.levelProgress[gameKey][finalDifficulty] || 0;
+            if (finalRelIdx > currentMax) {
+                data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
+                needsSave = true;
+            }
         }
 
-        let achIdToReturn = null;
-        let needsSave = !alreadyCleared; // 新增個別通關紀錄時也需要存檔
-
-        // 只有在通關更高關卡時才更新最高紀錄（供鎖定判斷使用）
-        if (finalRelIdx > (data.levelProgress[gameKey][finalDifficulty] || 0)) {
-            data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
-            needsSave = true;
-
-            // 計算總通關數（以個別星星紀錄計算，不用 max 累加避免誇大）
-            const progress = data.levelCleared[gameKey];
-            const totalPassed =
-                (progress['小學'] ? progress['小學'].length : 0) +
-                (progress['中學'] ? progress['中學'].length : 0) +
-                (progress['高中'] ? progress['高中'].length : 0) +
-                (progress['大學'] ? progress['大學'].length : 0) +
-                (progress['研究所'] ? progress['研究所'].length : 0);
-
-            // 檢查 20 關里程碑成就
-            if (totalPassed > 0 && totalPassed % 20 === 0) {
-                const milestone = totalPassed;
-                const achId = `level_milestone_${gameKey}_${milestone}`;
-                if (!data.achievements.claimed || !data.achievements.claimed.includes(achId)) {
-                    achIdToReturn = achId;
-                }
+        // ─────────────────────────────────────────────────────
+        // 里程碑成就：當全域編號為 20 的倍數 (20, 40, 60, ..., 300)
+        // 不再依賴累計通關次數，與通關順序無關
+        // ─────────────────────────────────────────────────────
+        if (levelIndex > 0 && levelIndex % 20 === 0) {
+            const achId = `level_milestone_${gameKey}_${levelIndex}`;
+            if (!data.achievements.unlocked.includes(achId)) {
+                data.achievements.unlocked.push(achId);
+                achIdToReturn = achId;
+                needsSave = true;
             }
         }
 
         if (needsSave) {
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+            // ★ 修復關鍵：通關紀錄必須同步至雲端，避免下次開啟時被舊雲端資料覆蓋
+            if (window.SupabaseClient) {
+                window.SupabaseClient.saveGameToCloud(data);
+            }
         }
         return achIdToReturn;
     },

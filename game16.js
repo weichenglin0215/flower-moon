@@ -139,9 +139,7 @@
                         <div class="game16-combo-wrap">連擊&nbsp;<span id="game16-combo">×1</span></div>
                     </div>
                 </div>
-                <div class="game16-poem-bar">
-                    <div id="game16-poem-info" class="game16-poem-info"></div>
-                </div>
+                <div id="game16-poem-info" class="game16-poem-info"></div>
                 <div id="game16-hint-bar" class="game16-hint-bar"></div>
                 <div id="game16-area" class="game16-area">
                     <div id="game16-holes-grid" class="game16-holes-grid"></div>

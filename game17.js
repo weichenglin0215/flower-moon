@@ -133,15 +133,7 @@
                 <div class="game17-sub-header">
                     <div id="game17-hearts" class="hearts"></div>
                 </div>
-                <div class="game17-poem-bar">
-                    <div id="game17-poem-info" class="game17-poem-info"></div>
-                    <div class="game17-progress-row">
-                        <div class="game17-progress-track">
-                            <div id="game17-progress-fill" class="game17-progress-fill"></div>
-                        </div>
-                        <span id="game17-progress-text">0/0</span>
-                    </div>
-                </div>
+                <div id="game17-poem-info" class="game17-poem-info"></div>
                 <div id="game17-hint-bar" class="game17-hint-bar"></div>
                 <div id="game17-canvas-wrap" class="game17-canvas-wrap">
                     <canvas id="game17-canvas"></canvas>

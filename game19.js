@@ -50,7 +50,7 @@
             invincibleTimer: 0, // 無敵幀計時（護盾 / 受傷後）
             bullets: [],
             bulletsInitSpeed: 2000, //子彈初始速度
-            fireRateMultiplier: 1.0, // 快速發射倍率（1.0=正常，最高2.5）
+            fireRateMultiplier: 2.0, // 快速發射倍率（1.0=正常，最高10）
             multiLevel: 1
         },
         bombs: [],       // 敵方炸彈 { x, y, vx, vy, r }
@@ -145,10 +145,8 @@
                 <div class="game19-sub-header">
                     <div id="game19-hearts" class="hearts"></div>
                 </div>
-                <div class="game19-hint-bar">
-                    <div id="game19-poem-info" class="game19-poem-info"></div>
-                    <div id="game19-hint-text" class="game19-hint-text"></div>
-                </div>
+                <div id="game19-hint-bar" class="game19-hint-bar"></div>
+                <div id="game19-poem-info" class="game19-poem-info"></div>
                 <div class="game19-area" id="game19-area">
                     <svg id="game19-timer-ring">
                         <rect id="game19-timer-path" x="3" y="3"></rect>
@@ -397,7 +395,8 @@
             this.player.hitTimer = 0;
             this.player.invincibleTimer = 0;
             this.player.bullets = [];
-            this.player.fireRateMultiplier = 1.0; // 快速發射倍率重置
+            this.player.bulletsInitSpeed = 2000; //子彈初始速度
+            this.player.fireRateMultiplier = 2.0; // 快速發射倍率重置
             this.player.multiLevel = 1;
         },
 
@@ -566,30 +565,40 @@
             el.onclick = () => { if (window.PoemDialog) window.PoemDialog.show(this.currentPoem.id); };
         },
 
-        // ── 詩句提示欄 ────────────────────────────────────────────
+        // ── 詩句提示欄（同 game16 updateHint 寫法）────────────────
         updateHintBar: function () {
-            const el = document.getElementById('game19-hint-text');
-            if (!el) return;
-            const settings = this.difficultySettings[this.difficulty];
-            const done = this.currentTargetIdx;
-            if (done >= this.poemChars.length) { el.innerHTML = ''; return; }
+            const bar = document.getElementById('game19-hint-bar');
+            if (!bar) return;
+            bar.innerHTML = '';
+            if (!this.poemChars || this.poemChars.length === 0) return;
 
-            if (this.difficulty === '研究所') {
-                // 研究所只顯示進度點，不顯示字
-                el.innerHTML = `<span class="game19-hint-done">${'●'.repeat(done)}</span><span class="game19-hint-current">▶ 第 ${done + 1} 字</span><span class="game19-hint-next">${'○'.repeat(this.poemChars.length - done - 1)}</span>`;
-            } else {
-                let html = '';
-                for (let i = 0; i < this.poemChars.length; i++) {
-                    if (i < done) {
-                        html += `<span class="game19-hint-done">${this.poemChars[i]}</span>`;
-                    } else if (i === done) {
-                        html += `<span class="game19-hint-current">${this.poemChars[i]}</span>`;
-                    } else {
-                        // 小/中學顯示後續字；高中以上顯示方框
-                        html += `<span class="game19-hint-next">${settings.goldBorderHint ? this.poemChars[i] : '□'}</span>`;
-                    }
+            const done = this.currentTargetIdx;
+            this.poemChars.forEach((char, i) => {
+                const span = document.createElement('span');
+                span.className = 'game19-hint-char';
+                span.textContent = char;
+                if (i < done) {
+                    span.dataset.state = 'done';
+                } else if (i === done) {
+                    span.dataset.state = 'target';
+                    span.id = 'game19-hint-current';
+                } else {
+                    span.dataset.state = 'future';
                 }
-                el.innerHTML = html;
+                bar.appendChild(span);
+
+                // 句末加分隔符（在下一句字前插入，最後一字不加）
+                if (this.sentenceEndIndices && this.sentenceEndIndices.has(i) && i < this.poemChars.length - 1) {
+                    const sep = document.createElement('span');
+                    sep.className = 'game19-hint-sep';
+                    bar.appendChild(sep);
+                }
+            });
+
+            // 自動水平捲動至目前目標字（同 game16）
+            const current = document.getElementById('game19-hint-current');
+            if (current) {
+                current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }
         },
 

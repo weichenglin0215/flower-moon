@@ -137,77 +137,33 @@
     font-weight: bold;
 }
 
-/* ── 詩句進度條 ── */
-.game15-progress-strip {
-    flex: 0 0 60px;
+/* ── 詩文進度欄（全文逐字：已收綠 / 目標金底 / 未收灰，同 game16-hint-bar）── */
+.game15-hint-bar {
+    height: 40px;
+    font-size: 20px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    color: hsl(0, 0%, 80%);
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid hsl(35, 30%, 0%);
     padding: 0 10px;
-    background: rgba(0, 0, 0, 0.3);
-    border-bottom: 1px solid rgba(255, 220, 100, 0.12);
+    flex-shrink: 0;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
     width: 100%;
     box-sizing: border-box;
 }
 
-.game15-progress-strip::-webkit-scrollbar {
-    height: 0;
-}
-
-.game15-progress-chars {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-}
-
-/* 已收集的字 */
-.game15-collected-char {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: 34px;
-    height: 42px;
-    font-size: 24px;
-    font-weight: bold;
-    color: hsl(130, 60%, 60%);
-    background: rgba(80, 180, 100, 0.2);
-    border-radius: 5px;
-    border: 1px solid rgba(80, 180, 100, 0.4);
-}
-
-/* 當前目標字（脈衝高亮，閃爍速度加倍，0.6s）*/
-.game15-target-char {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: 38px;
-    height: 46px;
-    font-size: 28px;
-    font-weight: bold;
-    color: hsl(40, 100%, 60%);
-    background: rgba(255, 200, 50, 0.2);
-    border-radius: 5px;
-    border: 2px solid rgba(255, 200, 50, 0.7);
-    animation: game15-pulse-border 0.6s ease-in-out infinite;
-}
-
-/* 尚未收集 */
-.game15-remaining-char {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: 28px;
-    height: 36px;
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.18);
+.game15-hint-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .game15-poem-info {
     position: absolute;
-    top: 165px;
+    top: 135px;
     right: 15px;
     /*transform: translateX(-50%);*/
     font-size: 18px;
@@ -269,12 +225,15 @@
 
 #game15-timer-path {
     fill: none;
-    stroke: hsl(0, 50%, 22%); /* 初始暗紅色（由 JS 插值到鮮紅）*/
+    stroke: hsl(0, 50%, 22%);
+    /* 初始暗紅色（由 JS 插值到鮮紅）*/
     stroke-width: 6px;
     stroke-linecap: round;
     stroke-linejoin: round;
-    stroke-dasharray: 10000; /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
-    stroke-dashoffset: 10000; /* 預設隱藏：offset=dasharray → 完全不可見 */
+    stroke-dasharray: 10000;
+    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
+    stroke-dashoffset: 10000;
+    /* 預設隱藏：offset=dasharray → 完全不可見 */
     transition: stroke-dashoffset 0.15s linear, stroke 0.4s ease;
 }
 
@@ -374,13 +333,31 @@
     transform: translate(36px, 36px);
 }
 
-/* ── 進度條提示字（showHint=true 時，未吃到的詩句以灰色顯示） ── */
+/* ── 詩文進度欄字元樣式（同 game16-hint-char）── */
 .game15-hint-char {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: 28px;
-    height: 36px;
-    font-size: 18px;
-    color: rgba(200, 200, 200, 0.55);
+    font-family: 'Noto Serif TC', serif;
+    display: inline-block;
+    padding: 0 1px;
+    transition: color 0.25s;
+}
+
+.game15-hint-char[data-state="done"] {
+    color: hsl(130, 38%, 50%);
+    font-weight: bold;
+}
+
+.game15-hint-char[data-state="target"] {
+    color: hsl(45, 100%, 10%);
+    background-color: hsl(45, 100%, 50%);
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.game15-hint-char[data-state="future"] {
+    color: hsl(0, 0%, 70%);
+}
+
+.game15-hint-sep {
+    display: inline-block;
+    width: 10px;
 }

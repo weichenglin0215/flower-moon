@@ -165,31 +165,24 @@
     animation: game16-pulse 0.6s ease-in-out infinite;
 }
 
-/* ── 詩詞資訊列（宣紙底色） ── */
-.game16-poem-bar {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 6px 12px;
-    background: hsl(42, 30%, 75%);
-    border-bottom: 1px solid hsl(35, 30%, 72%);
-    height: 40px;
-    flex-shrink: 0;
-}
-
+/* ── 詩詞資訊（絕對定位於右上，參考 game15 寫法）── */
 .game16-poem-info {
-    font-size: 20px;
-    color: hsl(25, 55%, 25%);
+    position: absolute;
+    top: 125px;
+    right: 15px;
+    font-size: 18px;
+    color: hsla(0, 0%, 100%, 0.9);
     cursor: pointer;
-    text-decoration: underline;
-    text-decoration-color: hsla(25, 55%, 28%, 0.35);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    z-index: 1002;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0px 12px;
+    border-radius: 20px;
 }
 
 .game16-poem-info:hover {
-    color: hsl(25, 70%, 18%);
+    color: hsl(45, 80%, 70%);
+    text-decoration: underline;
 }
 
 /* ── 詩文進度欄（全文逐字顯示：已擊灰 / 目標金 / 未擊綠） ── */
