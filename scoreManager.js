@@ -38,7 +38,11 @@ const ScoreManager = {
         'game15': { base: 100, heart: 10, time: 2, getPointA: 15 }, //墨韻游龍
         'game16': { base: 100, heart: 10, time: 0, getPointA: 5 }, //打地詩，無時間限制 
         'game17': { base: 100, heart: 10, time: 2, getPointA: 10 }, //青蛙過河
-        'game19': { base: 100, heart: 10, time: 0, getPointA: 5 } //詩碟狂襲，無時間限制
+        'game19': { base: 100, heart: 10, time: 0, getPointA: 5 }, //詩碟狂襲，無時間限制
+        'game20': { base: 100, heart: 50, time: 3, getPointA: 0 }, //丟三落一（單題決勝，無連續得分）
+        'game21': { base: 100, heart: 0, time: 1, getPointA: 0 }, //橫批成詩（單題決勝，時限長故每秒分數較低）
+        'game22': { base: 100, heart: 0, time: 1, getPointA: 0 }, //詩詞拼圖（單題決勝，時限長故每秒分數較低）
+        'game23': { base: 100, heart: 0, time: 1, getPointA: 0 } //縱橫集句（單題決勝，時限長故每秒分數較低）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別

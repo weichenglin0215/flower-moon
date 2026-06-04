@@ -302,6 +302,192 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
 }
 
 
+// =============================================================================
+// 詩句字元索引（CharLineIndex）與「直棒選句」共用工具
+// -----------------------------------------------------------------------------
+// 設計目的：
+//   - game21（橫批成詩）需要為每個謎題字「在其它詩中找一根含該字的詩句」作為
+//     可拖曳的直棒。未來若有類似玩法（依字反查詩句）也可重用此工具。
+//   - 同時提供「孤立字偵測」（某字僅出現在單一行 → isolated），用於過濾
+//     不適合作為謎題的詩句（避免太多 fix bar）。
+//
+// 字頻來源優先順序：
+//   ① 若已載入 `CharacterFrequencyRank`（由 tools/generate_char_rank.js 產生），
+//      用其快速取得每個字在全詩庫的出現「次數」（注意：是字總次數，非行數）。
+//   ② 永遠額外建立 `__poemLineIndex`（char → 含此字的乾淨行陣列），
+//      因為「孤立字」精確定義是「僅出現於 1 行」，需要的是「行數」而非「字數」。
+// =============================================================================
+
+/** 內部：移除標點與空白 */
+function _cleanPoemLine(s) {
+   return (s || '').replace(/[，。？！、：；「」『』\s]/g, '');
+}
+
+/**
+ * 建立 char → [{ poemId, lineIdx, clean, rating }, ...] 的索引（懶建立）。
+ * 同一句若包含某字多次，只記一筆（以「行」為單位）。
+ */
+function _buildPoemLineIndex() {
+   if (window.__poemLineIndex) return window.__poemLineIndex;
+   const map = new Map();
+   if (typeof POEMS === 'undefined') {
+      window.__poemLineIndex = map;
+      return map;
+   }
+   for (const p of POEMS) {
+      const lines = p.content || [];
+      const rating = p.rating || 0;
+      for (let i = 0; i < lines.length; i++) {
+         const clean = _cleanPoemLine(lines[i]);
+         if (!clean) continue;
+         const seen = new Set();
+         for (const c of clean) {
+            if (seen.has(c)) continue;
+            seen.add(c);
+            if (!map.has(c)) map.set(c, []);
+            map.get(c).push({ poemId: p.id, lineIdx: i, clean, rating });
+         }
+      }
+   }
+   window.__poemLineIndex = map;
+   return map;
+}
+
+/**
+ * 取得某字在全詩庫中出現的「行數」（distinct line count）。
+ * - 適合判斷「該字是否孤立」：回傳 1 表示僅在單行出現。
+ * - 與 CharacterFrequencyRank 的「字次數」概念不同，請勿混用。
+ */
+window.getCharLineCount = function (ch) {
+   const idx = _buildPoemLineIndex();
+   const list = idx.get(ch);
+   return list ? list.length : 0;
+};
+
+/**
+ * 取得某字在全詩庫中出現的「字次數」（CharacterFrequencyRank）。
+ * 若 rank 未載入，回退到行數計算。
+ */
+window.getCharGlobalFreq = function (ch) {
+   if (typeof CharacterFrequencyRank !== 'undefined') {
+      for (const item of CharacterFrequencyRank) {
+         const k = Array.isArray(item) ? item[0] : item;
+         if (k === ch) return Array.isArray(item) ? (item[1] || 0) : 0;
+      }
+      return 0;
+   }
+   return window.getCharLineCount(ch);
+};
+
+/**
+ * 計算一個乾淨詩句中的「孤立字」數量。
+ * 孤立字定義：getCharLineCount(c) <= 1（即僅在本句出現，沒有任何其它句子含此字）。
+ *
+ * @param {string} cleanLine 已去標點的詩句
+ * @returns {number} 孤立字的個數
+ */
+window.countIsolatedChars = function (cleanLine) {
+   if (!cleanLine) return 0;
+   let n = 0;
+   const seen = new Set();
+   for (const c of cleanLine) {
+      if (seen.has(c)) continue;
+      seen.add(c);
+      if (window.getCharLineCount(c) <= 1) n++;
+   }
+   return n;
+};
+
+/**
+ * 共用：為「橫批成詩」這類玩法挑一根含 targetChar 的詩句直棒。
+ *
+ * 規則：
+ * 1. 從全詩庫（不受 minRating 限制）找出所有含 targetChar 且長度落在
+ *    [minLen, maxLen] 的乾淨詩句；長度限制不足時自動放寬。
+ * 2. 優先排除 excludePoemId（避免直棒與謎題出自同首詩，增加學習面）。
+ * 3. 排除 excludeLines（已使用過的句子）。
+ * 4. ⚠️ 評分加權：依詩詞 rating 加權隨機（rating+1 為權重），高評分詩
+ *    被選中機率較高，但低評分仍有機會被選中，避免每次都挑到最高評分
+ *    詩造成題目雷同。
+ * 5. 若有 preferMid=true（預設），同權重時優先選 targetChar 接近句子中段者。
+ *
+ * @param {string} targetChar 目標字
+ * @param {object} [opts]
+ *   @param {number} [opts.minLen=4]       句子最短字數
+ *   @param {number} [opts.maxLen=12]      句子最長字數
+ *   @param {string|number} [opts.excludePoemId] 不希望出自此 poem.id
+ *   @param {Set<string>}  [opts.excludeLines]   不可再次使用的乾淨詩句
+ *   @param {boolean}      [opts.preferMid=true] 是否偏好 targetChar 在中段
+ * @returns {string|null} 回傳乾淨詩句字串；找不到回傳 null
+ */
+window.getSharedBarLine = function (targetChar, opts) {
+   opts = opts || {};
+   const minLen = typeof opts.minLen === 'number' ? opts.minLen : 4;
+   const maxLen = typeof opts.maxLen === 'number' ? opts.maxLen : 12;
+   const excludeLines = opts.excludeLines || new Set();
+   const excludePoemId = opts.excludePoemId;
+   const preferMid = opts.preferMid !== false;
+   const minRating = typeof opts.minRating === 'number' ? opts.minRating : 0;
+
+   const idx = _buildPoemLineIndex();
+   const allLines = idx.get(targetChar) || [];
+   if (allLines.length === 0) return null;
+
+   // ── 第 0 道：嚴格長度 + 排除同詩 + 排除已用 + 最低評分（新增）──
+   let pool = allLines.filter(it =>
+      it.clean.length >= minLen &&
+      it.clean.length <= maxLen &&
+      !excludeLines.has(it.clean) &&
+      it.poemId !== excludePoemId &&
+      it.rating >= minRating
+   );
+   // ── 第 1 道：放寬「評分」限制 ──
+   if (pool.length === 0) {
+      pool = allLines.filter(it =>
+         it.clean.length >= minLen &&
+         it.clean.length <= maxLen &&
+         !excludeLines.has(it.clean) &&
+         it.poemId !== excludePoemId
+      );
+   }
+   // ── 第 2 道：放寬「排除同詩」 ──
+   if (pool.length === 0) {
+      pool = allLines.filter(it =>
+         it.clean.length >= minLen &&
+         it.clean.length <= maxLen &&
+         !excludeLines.has(it.clean)
+      );
+   }
+   // ── 第 3 道：完全放寬長度 ──
+   if (pool.length === 0) {
+      pool = allLines.filter(it => !excludeLines.has(it.clean));
+   }
+   if (pool.length === 0) return null;
+
+   // 評分加權隨機選取：權重 = rating + 1（保證最低評分也有機率）
+   // 同分時若 preferMid，再以「字在句中位置距中段距離」決定先後
+   const totalWeight = pool.reduce((s, it) => s + (it.rating + 1), 0);
+   let r = Math.random() * totalWeight;
+   let chosen = pool[0];
+   for (const it of pool) {
+      r -= (it.rating + 1);
+      if (r <= 0) { chosen = it; break; }
+   }
+   // 若同 rating 候選很多且要求 preferMid，從同分群中挑「中段位置」最佳者
+   if (preferMid) {
+      const sameRating = pool.filter(it => it.rating === chosen.rating);
+      sameRating.sort((a, b) => {
+         const da = Math.abs(a.clean.indexOf(targetChar) - a.clean.length / 2);
+         const db = Math.abs(b.clean.indexOf(targetChar) - b.clean.length / 2);
+         return da - db;
+      });
+      // 在同分群中保留中段最優的前 60%，再從中隨機取（兼顧多樣性）
+      const top = sameRating.slice(0, Math.max(1, Math.floor(sameRating.length * 0.6)));
+      chosen = top[Math.floor(Math.random() * top.length)];
+   }
+   return chosen.clean;
+};
+
 /**
  * 全站通用的混淆字元與混淆句產生工具
  */

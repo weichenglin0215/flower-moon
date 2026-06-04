@@ -32,6 +32,10 @@
         { page: 'game16', label: '打地詩', image: 'images/Menu/打地詩_Menu256.jpg' },
         { page: 'game17', label: '青蛙過河', image: 'images/Menu/青蛙過河_Menu256.jpg' },
         { page: 'game19', label: '詩碟狂襲', image: 'images/Menu/詩碟狂襲_Menu256.jpg' },
+        { page: 'game20', label: '丟三落一', image: 'images/Menu/丟三落一_Menu256.jpg' },
+        { page: 'game21', label: '橫批成詩', image: 'images/Menu/橫批成詩_Menu256.jpg' },
+        { page: 'game22', label: '詩詞拼圖', image: 'images/Menu/詩詞拼圖_Menu256.jpg' },
+        { page: 'game23', label: '縱橫集句', image: 'images/Menu/縱橫集句_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
@@ -219,7 +223,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -423,6 +427,22 @@
                     case 'game19':
                         if (window.Game19) window.Game19.show();
                         else window.location.href = 'index.html?game=19';
+                        break;
+                    case 'game20':
+                        if (window.Game20) window.Game20.show();
+                        else window.location.href = 'index.html?game=20';
+                        break;
+                    case 'game21':
+                        if (window.Game21) window.Game21.show();
+                        else window.location.href = 'index.html?game=21';
+                        break;
+                    case 'game22':
+                        if (window.Game22) window.Game22.show();
+                        else window.location.href = 'index.html?game=22';
+                        break;
+                    case 'game23':
+                        if (window.Game23) window.Game23.show();
+                        else window.location.href = 'index.html?game=23';
                         break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();

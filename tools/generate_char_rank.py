@@ -3,7 +3,10 @@ import os
 import re
 
 # Parameters
-min_rating = 4 # Only collect characters from poems with rating >= minRating
+# ⚠️ 2026-06 調整：原本限制 rating >= 4，現改為 1 以涵蓋全詩庫。
+# 目的：讓 game21（橫批成詩）等需要「找其它詩句」的演算法
+# 能利用完整字頻索引，更準確地判定「孤立字」（僅在單句中出現）。
+min_rating = 1
 poems_file_path = os.path.join(os.path.dirname(__file__), '../data/poems.js')
 output_file_path = os.path.join(os.path.dirname(__file__), '../data/最常見詩詞字排名.js')
 

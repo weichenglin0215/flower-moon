@@ -168,8 +168,9 @@
 /* ── 詩詞資訊（絕對定位於右上，參考 game15 寫法）── */
 .game16-poem-info {
     position: absolute;
-    top: 125px;
-    right: 15px;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 18px;
     color: hsla(0, 0%, 100%, 0.9);
     cursor: pointer;

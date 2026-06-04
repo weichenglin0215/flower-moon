@@ -2,7 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 // 參數
-const minRating = 4; // 只收集詩詞評價大於等於預設值 4
+// ⚠️ 2026-06 調整：原本限制 rating >= 4，現改為 1 以涵蓋全詩庫。
+//   目的：讓 game21（橫批成詩）等需要「找其它詩句」的演算法
+//   能利用完整字頻索引，更準確地判定「孤立字」（僅在單句中出現）。
+const minRating = 1;
 
 // 讀取 poems.js，提取 POEMS 陣列
 const poemsFilePath = path.join(__dirname, '../data/poems.js');

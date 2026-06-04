@@ -1,0 +1,315 @@
+/* =========================================
+   遊戲二十二：詩詞拼圖樣式
+   - 多格形拼圖切割、拖曳組裝、暫存區、復原
+   ========================================= */
+
+.game22-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    background: radial-gradient(circle at center, hsl(210, 30%, 18%) 0%, hsl(0, 0%, 5%) 100%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    zoom: 1;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 頂部資訊列 */
+.game22-header {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 40px;
+}
+
+.game22-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 50px;
+}
+
+.game22-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding-right: 8px;
+}
+
+.game22-controls .nav-btn {
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game22-controls .nav-btn:hover {
+    filter: brightness(1.5);
+}
+
+.game22-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+/* 復原按鈕：與 nav-btn 同寬高，金色調，置於難度標籤左側 */
+.game22-undo-btn {
+    background: hsl(35, 70%, 35%) !important;
+    color: hsl(45, 90%, 80%) !important;
+    font-size: 20px !important;
+    padding: 0 8px !important;
+}
+
+.game22-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 18px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game22-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game22-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game22-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game22-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game22-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game22-difficulty-tag:hover {
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
+/* 提示行 + 詩詞資訊區 */
+.game22-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 44px;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+.game22-hint {
+    display: flex;
+    gap: 4px;
+    color: hsl(36, 80%, 60%);
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 4px;
+}
+
+.game22-hint-char.shown {
+    color: hsl(36, 80%, 65%);
+}
+
+.game22-hint-char.hidden {
+    color: hsla(0, 0%, 50%, 0.4);
+}
+
+.game22-poem-info {
+    font-size: 18px;
+    margin: 2px 16px 2px auto;
+    color: hsl(40, 50%, 80%);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    align-self: flex-end;
+}
+
+/* 主區域 */
+.game22-area {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+    padding: 6px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.game22-grid-container {
+    position: relative;
+    margin-top: 8px;
+    padding: 10px;
+    border-radius: 14px;
+}
+
+#game22-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#game22-timer-path {
+    fill: none;
+    stroke: hsl(0, 50%, 22%);
+    stroke-width: 8px;
+    stroke-linecap: round;
+    stroke-dasharray: 10000;
+    stroke-dashoffset: 10000;
+}
+
+.game22-grid {
+    position: relative;
+    background: hsla(220, 30%, 10%, 0.85);
+    border: 2px solid hsla(45, 60%, 50%, 0.25);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* 每格的背景層（顯示提示字、提示行高亮） */
+.game22-cell-bg {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dotted hsla(0, 0%, 100%, 0.04);
+    color: hsla(36, 80%, 65%, 0.5);
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.game22-cell-bg.hint-row {
+    background: hsla(50, 100%, 70%, 0.12);
+}
+
+.game22-cell-bg.hint-char {
+    color: hsla(36, 80%, 65%, 0.55);
+}
+
+/* 拼圖片：容器透明，外框由內部 SVG polygon 負責（L型正確輪廓） */
+.game22-piece {
+    position: absolute;
+    background: transparent;
+    border: none;
+    cursor: grab;
+    transition: left 0.18s ease, top 0.18s ease;
+    user-select: none;
+    z-index: 2;
+    touch-action: none;
+    box-sizing: border-box;
+}
+
+.game22-piece.dragging {
+    cursor: grabbing;
+    filter: drop-shadow(0 4px 10px hsla(45, 80%, 60%, 0.7));
+    transition: none;
+    z-index: 50;
+}
+
+.game22-piece.hold {
+    position: relative;
+    flex-shrink: 0;
+    transition: none;
+}
+
+/* 文字層：絕對定位浮在 SVG 上，無邊框 */
+.game22-piece-cell {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: hsla(0, 0%, 100%, 0.97);
+    font-weight: bold;
+    box-sizing: border-box;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+}
+
+/* 勝利金光閃爍 */
+.game22-piece-cell.win-flash {
+    animation: game22-win-flash 0.8s ease;
+    color: hsl(45, 100%, 75%);
+    text-shadow: 0 0 12px hsla(45, 100%, 60%, 0.9);
+}
+
+@keyframes game22-win-flash {
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.3);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 暫存區 */
+.game22-hold-wrap {
+    margin-top: 10px;
+    width: 92%;
+    background: hsla(220, 20%, 8%, 0.7);
+    border: 1px solid hsla(45, 40%, 50%, 0.2);
+    border-radius: 10px;
+    padding: 6px 8px;
+    box-sizing: border-box;
+}
+
+.game22-hold-label {
+    color: hsl(40, 50%, 75%);
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.game22-hold {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 4px;
+    min-height: 40px;
+    max-height: 110px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}

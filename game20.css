@@ -1,0 +1,358 @@
+/* =========================================
+   遊戲二十：丟三落一樣式（句子級填空 + 多選 1）
+   - 題目區依出題格式顯示 1-2 句可見句與 1 句佔位欄
+   - 答案區為縱向單欄選項，每顆按鈕為完整詩句
+   ========================================= */
+
+.game20-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    zoom: 1;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* 顯示／隱藏 */
+.hidden {
+    display: none !important;
+}
+
+/* 頂部資訊列（分數 + 控制） */
+.game20-header {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    width: 100%;
+    height: 50px;
+}
+
+.game20-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 50px;
+}
+
+.game20-controls .nav-btn {
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game20-controls .nav-btn:hover {
+    filter: brightness(1.5);
+}
+
+.game20-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+/* 難度標籤 */
+.game20-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game20-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game20-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game20-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game20-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game20-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game20-difficulty-tag:hover {
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
+/* 紅心區 */
+.game20-sub-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 40px;
+}
+
+/* 主區域 */
+.game20-area {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    padding: 0px;
+    width: 100%;
+}
+
+/* 題目區 */
+.game20-question-area {
+    text-align: center;
+    width: 100%;
+    margin: 1px 0;
+    padding: 2px 8px;
+    color: hsl(40, 50%, 80%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+}
+
+.game20-question-lines {
+    line-height: 1.2;
+    margin-bottom: 4px;
+    letter-spacing: 4px;
+    color: hsl(40, 50%, 80%);
+    text-align: center;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.66);
+}
+
+/* 單句可見詩句（字級由 JS 設定） */
+.game20-poem-line {
+    font-weight: bold;
+    margin: 2px 0;
+    letter-spacing: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* 可見句中的遮罩字 ◎ */
+.game20-poem-line .hidden-char {
+    color: hsl(36, 80%, 55%);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* 隱藏句佔位欄：灰色虛線框 + 提示文字 */
+.game20-hidden-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 44px;
+    margin: 6px auto;
+    padding: 4px 12px;
+    width: 90%;
+    border: 2px dashed hsla(0, 0%, 70%, 0.5);
+    border-radius: 8px;
+    background: hsla(0, 0%, 100%, 0.04);
+    animation: game20-slot-pulse 1.6s ease-in-out infinite;
+}
+
+.game20-slot-hint {
+    color: hsla(0, 0%, 100%, 0.8);
+    font-size: 40px;
+    letter-spacing: 2px;
+}
+
+/* 答對後佔位欄填入綠色正解 */
+.game20-slot-correct {
+    color: hsl(145, 68%, 50%);
+    font-size: 50px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px hsla(145, 68%, 40%, 0.5);
+}
+
+/* 超時揭曉時佔位欄填入藍色正解（教育提示） */
+.game20-slot-reveal {
+    color: hsl(210, 80%, 65%);
+    font-size: 50px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px hsla(210, 80%, 50%, 0.5);
+}
+
+@keyframes game20-slot-pulse {
+
+    0%,
+    100% {
+        border-color: hsla(0, 0%, 70%, 0.5);
+    }
+
+    50% {
+        border-color: hsla(45, 80%, 60%, 0.8);
+    }
+}
+
+/* 詩詞資訊（可點開詩詞資料） */
+.game20-poem-info {
+    font-size: 18px;
+    margin-top: 4px;
+    margin-right: 20px;
+    color: hsl(40, 50%, 80%);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+/* 答案區 */
+.game20-answer-area {
+    padding-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 96%;
+    flex: 1;
+}
+
+.game20-answer-grid-container {
+    position: relative;
+    padding: 1px;
+    background: rgba(255, 255, 255, 0.0);
+    border-radius: 20px;
+    width: 96%;
+}
+
+/* SVG 計時器邊框 */
+#game20-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#game20-timer-path {
+    fill: none;
+    stroke: hsl(0, 50%, 22%);
+    stroke-width: 10px;
+    stroke-linecap: round;
+    stroke-dasharray: 10000;
+    stroke-dashoffset: 10000;
+}
+
+/* 答案網格：縱向單欄排列（適應長句） */
+.game20-answer-grid {
+    display: flex;
+    flex-direction: column;
+    margin: 2px;
+    padding: 10px;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+}
+
+.game20-option-btn {
+    margin: 0px 0;
+    padding: 2px 10px;
+    background: hsl(48, 100%, 90%);
+    color: hsl(30, 75%, 20%);
+    border: 3px solid hsl(0, 0%, 92%);
+    border-radius: 12px;
+    font-size: 40px;
+    /*字體由JS程式決定*/
+    letter-spacing: 3px;
+    line-height: 1.0;
+    min-height: 44px;
+    width: 92%;
+    max-width: 420px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    box-shadow: 0 4px 5px rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.game20-option-btn:hover {
+    border-color: hsl(45, 80%, 50%);
+    background: #fffdf9;
+    transform: scale(1.02);
+}
+
+.game20-option-btn:disabled {
+    cursor: default;
+    transform: none;
+}
+
+.game20-option-btn.correct {
+    background: hsl(145, 68%, 88%);
+    border-color: hsl(145, 80%, 60%);
+    color: hsl(145, 60%, 25%);
+}
+
+.game20-option-btn.wrong {
+    background: hsl(0, 70%, 88%);
+    border-color: hsl(0, 80%, 60%);
+    color: hsl(0, 60%, 25%);
+    animation: shake 0.5s;
+}
+
+/* 超時揭曉時，正解選項以藍底高亮 */
+.game20-option-btn.hint {
+    background: hsl(220, 58%, 88%);
+    border-color: hsl(220, 80%, 60%);
+    color: hsl(222, 60%, 25%);
+}
+
+/* 抖動動畫（沿用 game1 設計） */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-4px);
+    }
+
+    40% {
+        transform: translateX(4px);
+    }
+
+    60% {
+        transform: translateX(-4px);
+    }
+
+    80% {
+        transform: translateX(4px);
+    }
+}

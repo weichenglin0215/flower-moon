@@ -147,7 +147,31 @@ SVG 矩形邊框環繞整個 7×8 遊戲區（不含暫存區）。`stroke-dasho
 
 ---
 
-### 5. 拼圖切割與打亂演算法
+### 5. 題目生成、切割與打亂演算法
+
+#### 0. 詩詞選取（沿用 GAME21 確立的共用基礎建設）
+
+⚠️ **重要：本作的題目詩篩選與 GAME21《橫批成詩》同源共用 `script.js` 中的共用工具，請參照 GAME21 第 5 節的詳細說明。**
+
+呼叫 `getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, ...)` 取得符合難度的詩詞，並遵循以下三段式退讓：
+
+1. **嚴格篩選**：詩評分 ≥ `poemMinRating` **且** 全部選用行的 `line_ratings[i]` ≥ `poemMinRating` **且** 每行的孤立字（`window.countIsolatedChars(clean)`）≤ 1
+2. **退讓一**：放寬「孤立字 ≤ 1」限制，保留詩+句評分要求
+3. **退讓二**：僅保留詩評分達標（最後保底）
+
+**孤立字定義**：透過 `window.countIsolatedChars(cleanLine)` 計算——該句中無法在其它詩句找到的字數量。詩詞拼圖中若孤立字過多，玩家在無上下文線索時極難辨認該字屬於哪行哪位置。
+
+**共用工具（已上移至 `script.js`，與 GAME21 共享）**：
+
+```js
+window.getSharedRandomPoem(...)     // 取詩主入口
+window.countIsolatedChars(clean)    // 計算句中孤立字數量
+window.getCharLineCount(ch)         // 某字出現的「行數」
+window.getCharGlobalFreq(ch)        // 某字的字頻
+window.__poemLineIndex              // char → 含此字的乾淨行陣列（懶建立、O(1) lookup）
+```
+
+**char rank 前置作業**：`tools/generate_char_rank.js` / `.py` 的 `minRating` 從 4 改為 **1**，讓 `CharacterFrequencyRank` 涵蓋全詩庫；修改後需手動執行重新產生 `data/最常見詩詞字排名.js`。
 
 #### 1. 隨機多格形切割（Random Polyomino Tiling）
 

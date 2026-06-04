@@ -1,0 +1,331 @@
+/* =========================================
+   遊戲二十三：縱橫集句樣式
+   - 9×9 交叉填字拼圖
+   ========================================= */
+
+.game23-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    background: radial-gradient(circle at center, hsl(35, 25%, 16%) 0%, hsl(0, 0%, 5%) 100%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    zoom: 1;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.game23-header {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 40px;
+}
+
+.game23-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 50px;
+}
+
+.game23-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding-right: 8px;
+}
+
+.game23-controls .nav-btn {
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game23-controls .nav-btn:hover {
+    filter: brightness(1.5);
+}
+
+.game23-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+.game23-undo-btn {
+    background: hsl(35, 70%, 35%) !important;
+    color: hsl(45, 90%, 80%) !important;
+    font-size: 20px !important;
+    padding: 0 8px !important;
+}
+
+.game23-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 18px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game23-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.game23-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.game23-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.game23-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.game23-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+.game23-difficulty-tag:hover {
+    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
+.game23-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 44px;
+    padding: 0 10px;
+    box-sizing: border-box;
+    gap: 6px;
+}
+
+.game23-orient-icon {
+    color: hsl(45, 90%, 65%);
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.game23-hint {
+    flex: 1;
+    display: flex;
+    gap: 4px;
+    color: hsl(36, 80%, 60%);
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    justify-content: flex-start;
+}
+
+.game23-hint-char.shown {
+    color: hsl(36, 80%, 65%);
+}
+
+.game23-hint-char.hidden {
+    color: hsla(0, 0%, 50%, 0.4);
+}
+
+.game23-poem-info {
+    font-size: 18px;
+    margin: 2px 16px 2px auto;
+    color: hsl(40, 50%, 80%);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    align-self: flex-end;
+}
+
+.game23-area {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+    padding: 6px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.game23-grid-container {
+    position: relative;
+    margin-top: 6px;
+    padding: 10px;
+    border-radius: 12px;
+}
+
+#game23-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#game23-timer-path {
+    fill: none;
+    stroke: hsl(0, 50%, 22%);
+    stroke-width: 8px;
+    stroke-linecap: round;
+    stroke-dasharray: 10000;
+    stroke-dashoffset: 10000;
+}
+
+.game23-grid {
+    position: relative;
+    background: hsla(35, 30%, 8%, 0.85);
+    border: 2px solid hsla(45, 60%, 50%, 0.25);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.game23-cell-bg {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dotted hsla(0, 0%, 100%, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.game23-cell-bg.main-row {
+    background: hsla(50, 100%, 70%, 0.18);
+}
+
+.game23-cell-bg.cross-cell {
+    color: hsla(45, 90%, 70%, 0.7);
+    font-size: 18px;
+}
+
+/* 空白格提示：showEmptyDelay 秒後出現，提醒玩家此區域不需放拼圖 */
+/* 無邊框、緊密相鄰，形成一大片灰色區域 */
+.game23-cell-empty-hint {
+    position: absolute;
+    box-sizing: border-box;
+    background: hsla(0, 0%, 50%, 0.25);  /* 25% 中灰 */
+    border: none;
+    pointer-events: none;
+    z-index: 0;  /* 最底層，在 cell-bg 與 piece 下方 */
+    animation: game23-hint-fadein 0.8s ease;
+}
+
+@keyframes game23-hint-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.game23-piece {
+    position: absolute;
+    background: transparent;
+    border: none;
+    cursor: grab;
+    transition: left 0.18s ease, top 0.18s ease;
+    user-select: none;
+    z-index: 2;
+    touch-action: none;
+    box-sizing: border-box;
+}
+
+.game23-piece.dragging {
+    cursor: grabbing;
+    filter: drop-shadow(0 4px 10px hsla(45, 80%, 60%, 0.7));
+    transition: none;
+    z-index: 50;
+}
+
+.game23-piece.hold {
+    position: relative;
+    flex-shrink: 0;
+    transition: none;
+}
+
+.game23-piece-cell {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: hsla(0, 0%, 100%, 0.97);
+    font-weight: bold;
+    box-sizing: border-box;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+}
+
+.game23-piece-cell.win-flash {
+    animation: game23-win-flash 0.8s ease;
+    color: hsl(45, 100%, 75%);
+    text-shadow: 0 0 12px hsla(45, 100%, 60%, 0.9);
+}
+
+@keyframes game23-win-flash {
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.3);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.game23-hold-wrap {
+    margin-top: 8px;
+    width: 92%;
+    background: hsla(35, 20%, 8%, 0.7);
+    border: 1px solid hsla(45, 40%, 50%, 0.2);
+    border-radius: 10px;
+    padding: 6px 8px;
+    box-sizing: border-box;
+}
+
+.game23-hold-label {
+    color: hsl(40, 50%, 75%);
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.game23-hold {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 4px;
+    min-height: 100px;
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}

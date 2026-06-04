@@ -1,0 +1,1 @@
+python ./generate_char_rank.py
