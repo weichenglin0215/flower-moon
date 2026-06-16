@@ -1,0 +1,535 @@
+/* =========================================
+   遊戲35：詩人的一天 (A Day with the Poet) 樣式
+   故事卡（羊皮紙、依場景換色、可滑動）+ 縱向首句候選卡
+   + 情境動畫疊層（答對後顯示整首詩）
+   ========================================= */
+
+.game35-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    /* 對齊 game4：冷暗藍漸層舞台背景 */
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.game35-overlay.hidden {
+    display: none !important;
+}
+
+/* ---- Header ---- */
+.game35-header {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 50px;
+}
+
+.game35-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 50px;
+}
+
+.game35-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.game35-controls .nav-btn {
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game35-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game35-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+.game35-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game35-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
+/* ---- Sub Header ---- */
+.game35-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 40px;
+    padding: 0 16px;
+    box-sizing: border-box;
+}
+
+.game35-combo {
+    color: hsl(0, 80%, 65%);
+    font-size: 20px;
+    font-weight: bold;
+    transition: transform 0.2s;
+}
+
+@keyframes game35ComboPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.6); color: hsl(45, 100%, 60%); }
+    100% { transform: scale(1); }
+}
+
+.game35-combo.combo-pop {
+    animation: game35ComboPop 0.6s ease;
+}
+
+/* ---- 主遊戲區 ---- */
+.game35-area {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    position: relative;
+    padding: 4px;
+    width: 100%;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.game35-info {
+    text-align: center;
+    width: 100%;
+    padding: 2px;
+    color: hsl(40, 50%, 80%);
+    min-height: 36px;
+}
+
+.game35-info .poem-info {
+    font-size: 20px;
+    color: hsl(40, 50%, 80%);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.game35-progress-text {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    color: hsl(36, 80%, 55%);
+    margin-bottom: 2px;
+}
+
+/* ---- 遊戲容器（計時框包圍） ---- */
+.game35-game-wrapper {
+    position: relative;
+    width: 96%;
+    flex: 1;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 6px;
+    box-sizing: border-box;
+}
+
+#game35-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    display: none;
+}
+
+#game35-timer-path {
+    fill: none;
+    stroke: hsl(0, 50%, 22%);
+    stroke-width: 10px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 10000;
+    stroke-dashoffset: 10000;
+}
+
+/* ---- 故事卡（羊皮紙質感、可滑動） ---- */
+.game35-story-card {
+    position: relative;
+    margin-top: 8px;
+    width: 94%;
+    max-width: 460px;
+    height: 240px;
+    padding: 12px 14px 28px 14px;
+    background: linear-gradient(135deg, hsla(45, 60%, 92%, 1) 0%, hsla(40, 50%, 86%, 1) 100%);
+    border: 2px solid hsl(30, 50%, 40%);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), inset 0 0 30px hsla(35, 60%, 75%, 0.5);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    color: hsl(0, 0%, 10%);
+    font-family: 'KaiTi', '標楷體', 'Noto Serif TC', serif;
+    z-index: 6;
+    box-sizing: border-box;
+    transition: background 0.5s ease, border-color 0.5s ease;
+}
+
+/* 故事卡依場景換色 — 微微染色 */
+.game35-story-card[data-scene="night"] {
+    background: linear-gradient(135deg, hsla(220, 35%, 88%, 1) 0%, hsla(230, 30%, 78%, 1) 100%);
+    border-color: hsl(220, 40%, 35%);
+}
+.game35-story-card[data-scene="snow"] {
+    background: linear-gradient(135deg, hsla(200, 20%, 96%, 1) 0%, hsla(210, 15%, 88%, 1) 100%);
+    border-color: hsl(210, 25%, 55%);
+}
+.game35-story-card[data-scene="tavern"] {
+    background: linear-gradient(135deg, hsla(30, 70%, 88%, 1) 0%, hsla(20, 60%, 78%, 1) 100%);
+    border-color: hsl(20, 60%, 40%);
+}
+.game35-story-card[data-scene="boat"] {
+    background: linear-gradient(135deg, hsla(180, 30%, 88%, 1) 0%, hsla(190, 25%, 78%, 1) 100%);
+    border-color: hsl(195, 45%, 35%);
+}
+.game35-story-card[data-scene="spring"] {
+    background: linear-gradient(135deg, hsla(100, 35%, 90%, 1) 0%, hsla(90, 30%, 80%, 1) 100%);
+    border-color: hsl(110, 35%, 35%);
+}
+.game35-story-card[data-scene="mountain"] {
+    background: linear-gradient(135deg, hsla(80, 25%, 88%, 1) 0%, hsla(60, 20%, 78%, 1) 100%);
+    border-color: hsl(80, 30%, 30%);
+}
+.game35-story-card[data-scene="farewell"] {
+    background: linear-gradient(135deg, hsla(40, 30%, 88%, 1) 0%, hsla(30, 25%, 78%, 1) 100%);
+    border-color: hsl(30, 40%, 35%);
+}
+
+.game35-story-author {
+    font-size: 16px;
+    font-weight: bold;
+    color: hsl(0, 65%, 25%);
+    margin-bottom: 6px;
+    border-bottom: 1px dashed hsla(20, 50%, 40%, 0.4);
+    padding-bottom: 4px;
+}
+
+.game35-story-text {
+    font-size: 17px;
+    line-height: 1.75;
+    letter-spacing: 1.5px;
+    color: hsl(0, 0%, 12%);
+    white-space: pre-wrap;
+    text-align: justify;
+    text-shadow: 0.5px 0.5px 0 hsla(30, 50%, 40%, 0.15);
+}
+
+.game35-scroll-hint {
+    position: sticky;
+    bottom: -28px;
+    margin-top: 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: bold;
+    color: hsl(0, 70%, 35%);
+    background: hsla(45, 60%, 90%, 0.85);
+    padding: 4px 0;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.game35-scroll-hint.done {
+    color: hsl(140, 70%, 30%);
+    background: hsla(120, 50%, 90%, 0.85);
+}
+
+@keyframes game35ShakeHint {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+}
+
+.game35-scroll-hint.shake {
+    animation: game35ShakeHint 0.35s ease;
+}
+
+/* ---- 提問文字 ---- */
+.game35-question-title {
+    margin-top: 8px;
+    font-size: 18px;
+    color: hsl(45, 80%, 65%);
+    letter-spacing: 4px;
+    z-index: 6;
+    font-weight: bold;
+}
+
+/* ---- 候選首句卡（縱向） ---- */
+.game35-candidates {
+    margin-top: 6px;
+    width: 94%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 6;
+}
+
+.game35-cand-wrap {
+    display: flex;
+    flex-direction: column;
+}
+
+.game35-cand-btn {
+    padding: 8px 8px;
+    background: linear-gradient(135deg, hsla(45, 30%, 90%, 1) 0%, hsla(40, 25%, 82%, 1) 100%);
+    color: hsl(0, 0%, 10%);
+    border: 2px solid hsl(30, 40%, 50%);
+    border-radius: 8px;
+    font-family: 'KaiTi', '標楷體', serif;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.game35-cand-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 0 12px hsl(45, 90%, 65%);
+    background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 78%, 1) 100%);
+}
+
+.game35-cand-btn:active {
+    transform: scale(0.98);
+}
+
+/* 答對 */
+.game35-cand-btn.correct {
+    background: hsl(140, 70%, 50%) !important;
+    color: white !important;
+    border-color: hsl(140, 70%, 30%) !important;
+    animation: game35CorrectPop 0.5s ease;
+}
+
+.game35-cand-btn.correct::after {
+    content: ' ✓';
+    color: white;
+}
+
+@keyframes game35CorrectPop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); }
+    100% { transform: scale(1.06); }
+}
+
+/* 答錯 */
+.game35-cand-btn.wrong {
+    background: hsl(0, 90%, 60%) !important;
+    color: white !important;
+    border-color: hsl(0, 90%, 40%) !important;
+    animation: game35WrongShake 0.4s ease;
+    opacity: 0.9;
+}
+
+.game35-cand-btn.wrong::after {
+    content: ' ✗';
+    color: white;
+}
+
+@keyframes game35WrongShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+}
+
+/* 正解卡閃光（答錯時提示） */
+.game35-cand-btn.flash-correct {
+    animation: game35FlashCorrect 1s ease infinite;
+    border-color: hsl(45, 90%, 65%) !important;
+}
+
+@keyframes game35FlashCorrect {
+    0%, 100% {
+        box-shadow: 0 0 6px hsl(45, 90%, 65%);
+        background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 80%, 1) 100%);
+    }
+    50% {
+        box-shadow: 0 0 24px hsl(45, 100%, 70%), 0 0 40px hsl(45, 100%, 60%);
+        background: linear-gradient(135deg, hsla(45, 100%, 82%, 1) 0%, hsla(40, 100%, 72%, 1) 100%);
+    }
+}
+
+/* ---- 答錯下方提示（淡出文字）---- */
+.game35-cand-hint {
+    margin-top: 4px;
+    padding: 6px 10px;
+    background: hsla(0, 50%, 20%, 0.85);
+    color: hsl(45, 80%, 80%);
+    border: 1px solid hsl(45, 60%, 40%);
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: center;
+    animation: game35HintFade 0.5s ease;
+}
+
+.game35-cand-hint b {
+    color: hsl(45, 100%, 75%);
+    letter-spacing: 2px;
+    font-family: 'KaiTi', '標楷體', serif;
+}
+
+.game35-cand-hint.hidden {
+    display: none;
+}
+
+@keyframes game35HintFade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- 情境動畫疊層 ---- */
+.game35-scene-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    animation: game35SceneFadeIn 0.6s ease;
+}
+
+.game35-scene-overlay.hidden {
+    display: none;
+}
+
+@keyframes game35SceneFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.game35-scene-bg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, hsl(220, 40%, 18%) 0%, hsl(230, 50%, 8%) 100%);
+    opacity: 0.92;
+    overflow: hidden;
+}
+
+/* 情境配色 */
+.game35-scene-bg[data-scene="night"] {
+    background: linear-gradient(180deg, hsl(220, 50%, 18%) 0%, hsl(230, 60%, 6%) 100%);
+}
+.game35-scene-bg[data-scene="snow"] {
+    background: linear-gradient(180deg, hsl(210, 25%, 78%) 0%, hsl(220, 30%, 60%) 100%);
+}
+.game35-scene-bg[data-scene="tavern"] {
+    background: radial-gradient(circle at 50% 60%, hsl(30, 90%, 45%) 0%, hsl(20, 80%, 20%) 70%, hsl(15, 70%, 10%) 100%);
+}
+.game35-scene-bg[data-scene="boat"] {
+    background: linear-gradient(180deg, hsl(195, 50%, 35%) 0%, hsl(205, 60%, 18%) 100%);
+}
+.game35-scene-bg[data-scene="spring"] {
+    background: linear-gradient(180deg, hsl(100, 45%, 40%) 0%, hsl(80, 50%, 22%) 100%);
+}
+.game35-scene-bg[data-scene="mountain"] {
+    background: linear-gradient(180deg, hsl(80, 30%, 30%) 0%, hsl(40, 25%, 18%) 100%);
+}
+.game35-scene-bg[data-scene="farewell"] {
+    background: linear-gradient(180deg, hsl(30, 40%, 40%) 0%, hsl(20, 50%, 20%) 100%);
+}
+
+/* 場景主要意象 — 用大型 emoji 漂浮 */
+.game35-scene-icon {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    font-size: 60px;
+    text-shadow: 0 0 20px hsla(45, 100%, 70%, 0.6);
+    animation: game35IconFloat 3s ease-in-out infinite;
+}
+
+@keyframes game35IconFloat {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-8px) rotate(3deg); }
+}
+
+/* 整首詩 — 飛升至中央 */
+.game35-scene-poem {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: hsl(45, 95%, 75%);
+    text-shadow: 0 0 8px hsla(45, 100%, 60%, 0.85), 0 0 16px hsla(45, 100%, 50%, 0.4);
+    font-family: 'KaiTi', '標楷體', 'Noto Serif TC', serif;
+    padding: 12px;
+    max-width: 90%;
+    animation: game35PoemRise 1.2s ease;
+}
+
+@keyframes game35PoemRise {
+    0% { opacity: 0; transform: translateY(40px) scale(0.92); }
+    60% { opacity: 1; transform: translateY(-6px) scale(1.04); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.game35-scene-title {
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 6px;
+    margin-bottom: 10px;
+    color: hsl(45, 100%, 78%);
+}
+
+.game35-scene-line {
+    font-size: 19px;
+    line-height: 1.7;
+    letter-spacing: 3px;
+}

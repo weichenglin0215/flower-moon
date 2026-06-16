@@ -1,0 +1,438 @@
+/* =========================================
+   遊戲34：詩題猜猜看 (Verse-Title Guess) 樣式
+   題眼鑑賞、羊皮紙詩文卡 + 縱向標題候選卡
+   ========================================= */
+
+.game34-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    /* 對齊 game4：冷暗藍漸層舞台背景 */
+    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.game34-overlay.hidden {
+    display: none !important;
+}
+
+/* ---- Header ---- */
+.game34-header {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    width: 100%;
+    height: 50px;
+}
+
+.game34-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 50px;
+}
+
+.game34-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.game34-controls .nav-btn {
+    padding: 0px 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game34-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game34-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+.game34-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game34-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
+/* ---- Sub Header ---- */
+.game34-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 40px;
+    padding: 0 16px;
+    box-sizing: border-box;
+}
+
+.hearts {
+    display: flex;
+    gap: 2px;
+}
+
+.heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 32px;
+}
+
+.heart.empty {
+    opacity: 0.9;
+}
+
+.game34-combo {
+    color: hsl(0, 80%, 65%);
+    font-size: 20px;
+    font-weight: bold;
+    transition: transform 0.2s;
+}
+
+@keyframes comboPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.6); color: hsl(45, 100%, 60%); }
+    100% { transform: scale(1); }
+}
+
+.game34-combo.combo-pop {
+    animation: comboPop 0.6s ease;
+}
+
+/* ---- 主遊戲區 ---- */
+.game34-area {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    position: relative;
+    padding: 4px;
+    width: 100%;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.game34-info {
+    text-align: center;
+    width: 100%;
+    padding: 2px;
+    color: hsl(40, 50%, 80%);
+    min-height: 36px;
+}
+
+.poem-info {
+    font-size: 20px;
+    color: hsl(40, 50%, 80%);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.game34-progress-text {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    color: hsl(36, 80%, 55%);
+    margin-bottom: 2px;
+}
+
+/* ---- 遊戲容器（計時框包圍） ---- */
+.game34-game-wrapper {
+    position: relative;
+    width: 96%;
+    flex: 1;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+#game34-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    display: none;
+}
+
+#game34-timer-path {
+    fill: none;
+    stroke: hsl(0, 50%, 22%);
+    stroke-width: 10px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 10000;
+    stroke-dashoffset: 10000;
+}
+
+/* ---- 詩文卡（羊皮紙質感） ---- */
+.game34-question-box {
+    margin-top: 18px;
+    width: 92%;
+    max-width: 440px;
+    padding: 14px 16px 18px 16px;
+    background: linear-gradient(135deg, hsla(45, 60%, 92%, 1) 0%, hsla(40, 50%, 86%, 1) 100%);
+    border: 2px solid hsl(30, 50%, 40%);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 0 30px hsla(35, 60%, 75%, 0.5);
+    text-align: center;
+    position: relative;
+    z-index: 6;
+}
+
+/* 標題遮蔽列 */
+.game34-mask-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    min-height: 40px;
+}
+
+/* 〈？？？〉金色脈動 */
+.game34-title-mask {
+    display: inline-block;
+    font-family: 'KaiTi', '標楷體', 'Noto Serif TC', serif;
+    font-size: 30px;
+    font-weight: bold;
+    color: hsl(45, 90%, 55%);
+    letter-spacing: 4px;
+    text-shadow: 0 0 6px hsla(45, 100%, 60%, 0.6);
+    animation: maskPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes maskPulse {
+    0%, 100% {
+        color: hsl(45, 90%, 55%);
+        text-shadow: 0 0 6px hsla(45, 100%, 60%, 0.4);
+    }
+    50% {
+        color: hsl(45, 100%, 70%);
+        text-shadow: 0 0 18px hsla(45, 100%, 65%, 0.95), 0 0 30px hsla(45, 100%, 50%, 0.6);
+    }
+}
+
+/* 答對後標題以毛筆逐字書寫浮現 */
+.game34-title-mask.reveal {
+    animation: none;
+    color: hsl(30, 75%, 35%);
+}
+
+.game34-brush-ch {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.6);
+    color: hsl(35, 80%, 30%);
+    text-shadow: 1px 1px 0 hsla(20, 60%, 25%, 0.6), 0 0 6px hsla(45, 100%, 60%, 0.7);
+    animation: brushWrite 0.5s ease forwards;
+}
+
+@keyframes brushWrite {
+    0% { opacity: 0; transform: translateY(-8px) scale(0.5); filter: blur(2px); }
+    60% { opacity: 1; transform: translateY(0) scale(1.15); filter: blur(0); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* 朗誦圖示 */
+.game34-recite-icon {
+    font-size: 20px;
+    color: hsl(20, 50%, 35%);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s;
+    opacity: 0.7;
+}
+
+.game34-recite-icon:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+/* 詩文本體（橫排，每句一行） */
+.game34-poem-body {
+    color: hsl(0, 0%, 8%);
+    font-family: 'KaiTi', '標楷體', 'Noto Serif TC', serif;
+    font-weight: bold;
+}
+
+.game34-poem-line {
+    font-size: 22px;
+    line-height: 1.55;
+    letter-spacing: 4px;
+    text-shadow: 1px 1px 0 hsla(30, 50%, 40%, 0.25);
+}
+
+/* ---- 提問文字 ---- */
+.game34-question-title {
+    margin-top: 12px;
+    font-size: 16px;
+    color: hsl(45, 60%, 75%);
+    letter-spacing: 4px;
+    z-index: 6;
+}
+
+/* ---- 候選標題卡（縱向） ---- */
+.game34-candidates {
+    margin-top: 8px;
+    width: 92%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 6;
+}
+
+.game34-cand-btn {
+    padding: 10px 8px;
+    background: linear-gradient(135deg, hsla(45, 30%, 90%, 1) 0%, hsla(40, 25%, 82%, 1) 100%);
+    color: hsl(0, 0%, 10%);
+    border: 2px solid hsl(30, 40%, 50%);
+    border-radius: 8px;
+    font-family: 'KaiTi', '標楷體', serif;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    text-align: center;
+}
+
+.game34-cand-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 0 12px hsl(45, 90%, 65%);
+    background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 78%, 1) 100%);
+}
+
+.game34-cand-btn:active {
+    transform: scale(0.98);
+}
+
+/* 答對 */
+.game34-cand-btn.correct {
+    background: hsl(140, 70%, 50%) !important;
+    color: white !important;
+    border-color: hsl(140, 70%, 30%) !important;
+    animation: correctPop 0.5s ease;
+}
+
+.game34-cand-btn.correct::after {
+    content: ' ✓';
+    color: white;
+}
+
+@keyframes correctPop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.2); }
+    100% { transform: scale(1.08); }
+}
+
+/* 答錯 */
+.game34-cand-btn.wrong {
+    background: hsl(0, 90%, 60%) !important;
+    color: white !important;
+    border-color: hsl(0, 90%, 40%) !important;
+    animation: wrongShake 0.4s ease;
+    opacity: 0.85;
+}
+
+.game34-cand-btn.wrong::after {
+    content: ' ✗';
+    color: white;
+}
+
+@keyframes wrongShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+}
+
+/* 正確標題卡閃光（答錯時提示） */
+.game34-cand-btn.flash-correct {
+    animation: flashCorrect 1s ease infinite;
+    border-color: hsl(45, 90%, 65%) !important;
+}
+
+@keyframes flashCorrect {
+    0%, 100% {
+        box-shadow: 0 0 6px hsl(45, 90%, 65%);
+        background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 80%, 1) 100%);
+    }
+    50% {
+        box-shadow: 0 0 24px hsl(45, 100%, 70%), 0 0 40px hsl(45, 100%, 60%);
+        background: linear-gradient(135deg, hsla(45, 100%, 82%, 1) 0%, hsla(40, 100%, 72%, 1) 100%);
+    }
+}
+
+/* ---- 答錯小提示（揭示選錯標題的首句） ---- */
+.game34-feedback {
+    margin-top: 10px;
+    padding: 8px 14px;
+    background: hsla(0, 50%, 20%, 0.85);
+    color: hsl(45, 80%, 80%);
+    border: 1px solid hsl(45, 60%, 40%);
+    border-radius: 6px;
+    font-size: 17px;
+    text-align: center;
+    z-index: 6;
+    max-width: 440px;
+    width: 92%;
+    box-sizing: border-box;
+    animation: feedbackFade 0.4s ease;
+}
+
+.game34-feedback b {
+    color: hsl(45, 100%, 75%);
+    letter-spacing: 2px;
+    font-family: 'KaiTi', '標楷體', serif;
+}
+
+.game34-feedback.hidden {
+    display: none;
+}
+
+@keyframes feedbackFade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}

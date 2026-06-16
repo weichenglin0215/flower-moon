@@ -36,6 +36,18 @@
         { page: 'game21', label: '橫批成詩', image: 'images/Menu/橫批成詩_Menu256.jpg' },
         { page: 'game22', label: '詩詞拼圖', image: 'images/Menu/詩詞拼圖_Menu256.jpg' },
         { page: 'game23', label: '縱橫集句', image: 'images/Menu/縱橫集句_Menu256.jpg' },
+        { page: 'game24', label: '三字成珠', image: 'images/Menu/三字成珠_Menu256.jpg' },
+        { page: 'game25', label: '連珠拾字', image: 'images/Menu/連珠拾字_Menu256.jpg' },
+        { page: 'game26', label: '投珠破句', image: 'images/Menu/投珠破句_Menu256.jpg' },
+        { page: 'game27', label: '詩磚壘塔', image: 'images/Menu/詩磚壘塔_Menu256.jpg' },
+        { page: 'game28', label: '兩心相印', image: 'images/Menu/兩心相印_Menu256.jpg' },
+        { page: 'game29', label: '字龍盤環', image: 'images/Menu/字龍盤環_Menu256.jpg' },
+        { page: 'game30', label: '層巒疊翠', image: 'images/Menu/層巒疊翠_Menu256.jpg' },
+        { page: 'game31', label: '詩眼覓蹤', image: 'images/Menu/詩眼覓蹤_Menu256.jpg' },
+        { page: 'game32', label: '詩句尋寶圖', image: 'images/Menu/詩句尋寶圖_Menu256.jpg' },
+        { page: 'game33', label: '作者連連看', image: 'images/Menu/作者連連看_Menu256.jpg' },
+        { page: 'game34', label: '詩題猜猜看', image: 'images/Menu/詩題猜猜看_Menu256.jpg' },
+        { page: 'game35', label: '詩人的一天', image: 'images/Menu/詩人的一天_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
@@ -223,7 +235,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -443,6 +455,54 @@
                     case 'game23':
                         if (window.Game23) window.Game23.show();
                         else window.location.href = 'index.html?game=23';
+                        break;
+                    case 'game24':
+                        if (window.Game24) window.Game24.show();
+                        else window.location.href = 'index.html?game=24';
+                        break;
+                    case 'game25':
+                        if (window.Game25) window.Game25.show();
+                        else window.location.href = 'index.html?game=25';
+                        break;
+                    case 'game26':
+                        if (window.Game26) window.Game26.show();
+                        else window.location.href = 'index.html?game=26';
+                        break;
+                    case 'game27':
+                        if (window.Game27) window.Game27.show();
+                        else window.location.href = 'index.html?game=27';
+                        break;
+                    case 'game28':
+                        if (window.Game28) window.Game28.show();
+                        else window.location.href = 'index.html?game=28';
+                        break;
+                    case 'game29':
+                        if (window.Game29) window.Game29.show();
+                        else window.location.href = 'index.html?game=29';
+                        break;
+                    case 'game30':
+                        if (window.Game30) window.Game30.show();
+                        else window.location.href = 'index.html?game=30';
+                        break;
+                    case 'game31':
+                        if (window.Game31) window.Game31.show();
+                        else window.location.href = 'index.html?game=31';
+                        break;
+                    case 'game32':
+                        if (window.Game32) window.Game32.show();
+                        else window.location.href = 'index.html?game=32';
+                        break;
+                    case 'game33':
+                        if (window.Game33) window.Game33.show();
+                        else window.location.href = 'index.html?game=33';
+                        break;
+                    case 'game34':
+                        if (window.Game34) window.Game34.show();
+                        else window.location.href = 'index.html?game=34';
+                        break;
+                    case 'game35':
+                        if (window.Game35) window.Game35.show();
+                        else window.location.href = 'index.html?game=35';
                         break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();

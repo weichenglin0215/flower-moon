@@ -1,0 +1,1070 @@
+/* =========================================
+   Game30《層巒疊翠》(Mountain-Verse Mahjong)
+   ----------------------------------------
+   花月版 A7 麻將疊疊版 ── 偽 3D 立體字牌山。
+   單擊「最上層、左右未遮擋」的字牌 → 飛入暫存槽；
+   暫存槽集滿 3 張同字自動消除；
+   順序加成：消除字序符合詩句字序時觸發 ×N。
+   ----------------------------------------
+   依《花月開發常見錯誤與解法.md §4》規範：
+   - class 全前綴 game30-
+   - loadCSS() 動態防護（id=game30-css）
+   - overlay 掛載 document.body 並套 registerOverlayResize
+   - stopGame() 必須隱藏 container
+   - 完整支援關卡挑戰模式（callback 接 (selectedLevel, levelIndex)）
+   - 時限 = targetChars.length × timeLimitRate（取詩後計算）
+   - 詩透過 getSharedRandomPoem 抽取
+   ========================================= */
+
+(function () {
+    const Game30 = {
+        // ── 共用狀態 ──
+        isActive: false,
+        difficulty: '小學',
+        currentLevelIndex: 1,
+        isLevelMode: false,
+        score: 0,
+
+        // ── 詩詞與目標 ──
+        currentPoem: null,
+        poemLines: [],
+        targetChars: [],          // 全詩去標點後的字陣列（含順序）
+        collectProgress: {},      // { 字: 已收集次數（每字最終目標 = 出現次數） }
+
+        // ── 牌山 ──
+        tiles: [],                // 牌山所有字牌 { id, char, layer, x, y, w, h, el, removed }
+        TILE_W: 50,
+        TILE_H: 60,
+        // 牌山內邏輯區寬 / 高（CSS 中 wrapper height=460, 我們留邊距）
+        TOWER_W: 460,
+        TOWER_H: 440,
+        LAYER_OFFSET_X: 4,
+        LAYER_OFFSET_Y: 5,
+
+        // ── 暫存槽 ──
+        buffer: [],               // 槽中字陣列（保持插入順序，渲染時依字排序集群）
+        bufferCapacity: 7,
+
+        // ── 順序加成 ──
+        orderIdx: 0,              // 已順序消除到第幾字（targetChars 的索引）
+        orderStreak: 0,           // 連續符合字序的「組」數
+
+        // ── 計時 ──
+        timer: 0,
+        maxTimer: 0,
+        timerInterval: null,
+        startTime: 0,
+        gameStartTime: null,
+
+        animLocked: false,
+
+        /*
+         * 難度設定（依企劃書 §7）
+         * totalTiles    ：牌山總牌數
+         * layers        ：牌山層數
+         * decoyRatio    ：干擾字佔比
+         * bufferCapacity：暫存槽容量
+         * orderBonus    ：順序加成倍率
+         * timeLimitRate ：每字時間倍率（× targetChars.length 為總秒數）
+         */
+        difficultySettings: {
+            '小學':   { totalTiles: 30, layers: 3, decoyRatio: 0.10, bufferCapacity: 7, orderBonus: 2, timeLimitRate: 12, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 16 },
+            '中學':   { totalTiles: 36, layers: 3, decoyRatio: 0.20, bufferCapacity: 7, orderBonus: 2, timeLimitRate: 10, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 20 },
+            '高中':   { totalTiles: 45, layers: 4, decoyRatio: 0.30, bufferCapacity: 7, orderBonus: 3, timeLimitRate: 9,  poemMinRating: 4, minLines: 2, maxLines: 4, minChars: 12, maxChars: 24 },
+            '大學':   { totalTiles: 54, layers: 4, decoyRatio: 0.40, bufferCapacity: 6, orderBonus: 3, timeLimitRate: 8,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 16, maxChars: 28 },
+            '研究所': { totalTiles: 60, layers: 5, decoyRatio: 0.50, bufferCapacity: 5, orderBonus: 5, timeLimitRate: 7,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 18, maxChars: 32 }
+        },
+
+        // 干擾字備援池
+        decoyPool: '山水雲月風花雪夜春秋江湖天地人心夢酒詩書情思路愁影歸客孤舟鴻雁柳松青白紅黃綠寒暖暮朝晨窗門簾燈樓臺亭閣岸渡橋池塘草木林泉石玉珠香韻聲鐘鼓笛簫琴瑟絲竹翠嶺峰巒嵐霧露',
+
+        // ── CSS 載入防護 ──
+        loadCSS: function () {
+            if (!document.getElementById('game30-css')) {
+                const link = document.createElement('link');
+                link.id = 'game30-css';
+                link.rel = 'stylesheet';
+                link.href = 'game30.css';
+                document.head.appendChild(link);
+            }
+        },
+
+        init: function () {
+            this.loadCSS();
+            if (!document.getElementById('game30-container')) {
+                this.createDOM();
+            }
+            this.container = document.getElementById('game30-container');
+        },
+
+        // ── 建立 overlay DOM（掛 document.body） ──
+        createDOM: function () {
+            const div = document.createElement('div');
+            div.id = 'game30-container';
+            div.className = 'game30-overlay hidden';
+            div.innerHTML = `
+                <div class="game30-header">
+                    <div class="game30-score-board">分數: <span id="game30-score">0</span></div>
+                    <div class="game30-controls">
+                        <button class="game30-difficulty-tag" id="game30-diff-tag">小學</button>
+                        <button id="game30-retryGame-btn" class="nav-btn">重來</button>
+                        <button id="game30-newGame-btn" class="nav-btn">開新局</button>
+                    </div>
+                </div>
+                <div class="game30-sub-header">
+                    <div id="game30-poem-info" class="poem-info"></div>
+                </div>
+                <div class="game30-area">
+                    <div class="game30-info">
+                        <div id="game30-progress-text" class="game30-progress-text">剩餘牌：0</div>
+                        <div id="game30-bonus-text" class="game30-bonus-text">順序加成 ×1</div>
+                    </div>
+                    <div id="game30-tracker" class="game30-tracker"></div>
+                    <div class="game30-tower-wrapper" id="game30-tower-wrapper">
+                        <svg id="game30-timer-ring">
+                            <rect id="game30-timer-path" x="3" y="3"></rect>
+                        </svg>
+                        <div id="game30-tower" class="game30-tower"></div>
+                    </div>
+                    <div id="game30-buffer" class="game30-buffer"></div>
+                    <div class="game30-bottom-bar">
+                        <button id="game30-hint-btn" class="game30-action-btn">💡提示 (-10)</button>
+                        <button id="game30-undo-btn" class="game30-action-btn">↩ 撤回 (-15)</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(div);
+
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
+                    div.style.height = 850 + 'px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
+
+            document.getElementById('game30-retryGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.retryGame();
+            };
+            document.getElementById('game30-newGame-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.startNewGame();
+            };
+            document.getElementById('game30-diff-tag').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.showDifficultySelector();
+            };
+            document.getElementById('game30-hint-btn').onclick = () => { this.useHint(); };
+            document.getElementById('game30-undo-btn').onclick = () => { this.useUndo(); };
+        },
+
+        show: function () {
+            this.init();
+            this.showDifficultySelector();
+        },
+        hide: function () { this.stopGame(); },
+
+        showDifficultySelector: function () {
+            this.isActive = false;
+            clearInterval(this.timerInterval);
+            if (window.GameMessage) window.GameMessage.hide();
+            this.hideOtherContents();
+
+            if (window.DifficultySelector) {
+                window.DifficultySelector.show('層巒疊翠', (selectedLevel, levelIndex) => {
+                    this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+
+                    this.updateUIForMode();
+
+                    this.container.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    document.body.classList.add('overlay-active');
+                    if (window.SoundManager) window.SoundManager.init();
+                    this.startNewGame();
+                });
+            }
+        },
+
+        updateUIForMode: function () {
+            const diffTag = document.getElementById('game30-diff-tag');
+            const retryBtn = document.getElementById('game30-retryGame-btn');
+            const newBtn = document.getElementById('game30-newGame-btn');
+            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            if (this.isLevelMode) {
+                if (diffTag) {
+                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'none';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            } else {
+                if (diffTag) {
+                    diffTag.textContent = this.difficulty;
+                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
+                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
+                }
+                if (newBtn) newBtn.style.display = 'inline-block';
+                if (retryBtn) retryBtn.style.display = 'inline-block';
+            }
+        },
+
+        hideOtherContents: function () {
+            const el = document.getElementById('cardContainer');
+            if (el) el.style.display = 'none';
+        },
+
+        // ⚠️ menu.js 全域清理只呼叫 stopGame()，因此本函式必須隱藏 overlay
+        stopGame: function () {
+            this.isActive = false;
+            clearInterval(this.timerInterval);
+            if (this.container) this.container.classList.add('hidden');
+            document.body.style.overflow = '';
+            document.body.classList.remove('overlay-active');
+            const el = document.getElementById('cardContainer');
+            if (el) el.style.display = '';
+        },
+
+        retryGame: function () {
+            if (!this.currentPoem) return;
+            this.startGameProcess(true);
+        },
+
+        startNewGame: function (levelIndex) {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
+            }
+            if (this.selectRandomPoem()) {
+                this.startGameProcess(false);
+            } else {
+                alert('載入詩詞失敗。');
+                this.stopGame();
+            }
+        },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
+        // ── 啟動局內流程 ──
+        startGameProcess: function (isRetry) {
+            this.isActive = true;
+            this.gameStartTime = Date.now();
+            this.updateUIForMode();
+            this.score = 0;
+            this.orderIdx = 0;
+            this.orderStreak = 0;
+            this.buffer = [];
+            this.animLocked = false;
+
+            const settings = this.difficultySettings[this.difficulty];
+            this.bufferCapacity = settings.bufferCapacity;
+
+            document.getElementById('game30-score').textContent = this.score;
+            if (window.GameMessage) window.GameMessage.hide();
+
+            // 初始化收集進度：每個詩字目標 = 出現次數
+            this.collectProgress = {};
+            this.targetChars.forEach(ch => {
+                this.collectProgress[ch] = this.collectProgress[ch] || { need: 0, have: 0 };
+                this.collectProgress[ch].need++;
+            });
+            // 重置 have
+            Object.keys(this.collectProgress).forEach(k => this.collectProgress[k].have = 0);
+
+            // 重新生成牌山（重來也重生）
+            this.generateTower();
+            this.renderTower();
+            this.renderBuffer();
+            this.renderTracker();
+            this.updateProgressText();
+            this.updateBonusText();
+            this.updateVisibility();
+
+            document.getElementById('game30-retryGame-btn').disabled = false;
+            document.getElementById('game30-newGame-btn').disabled = false;
+
+            // 時限 = targetChars.length × timeLimitRate
+            if (settings.timeLimitRate > 0 && this.targetChars.length > 0) {
+                this.maxTimer = Math.ceil(this.targetChars.length * settings.timeLimitRate);
+                this.timer = this.maxTimer;
+                document.getElementById('game30-timer-ring').style.display = 'block';
+                this.startTimer();
+            } else {
+                document.getElementById('game30-timer-ring').style.display = 'none';
+            }
+        },
+
+        // ── 抽詩 ──
+        selectRandomPoem: function () {
+            if (typeof getSharedRandomPoem !== 'function') {
+                console.error('需要 script.js 的 getSharedRandomPoem');
+                return false;
+            }
+            const settings = this.difficultySettings[this.difficulty];
+            const result = getSharedRandomPoem(
+                settings.poemMinRating,
+                settings.minLines,
+                settings.maxLines,
+                settings.minChars,
+                settings.maxChars,
+                '',
+                this.isLevelMode ? this.currentLevelIndex : null,
+                'game30'
+            );
+            if (!result) return false;
+
+            this.currentPoem = result.poem;
+            this.poemLines = result.lines;
+            this.targetChars = this.poemLines.join('').split('');
+
+            let title = this.currentPoem.title;
+            if (title.length > 12) title = title.substring(0, 10) + '...';
+            const infoText = `${title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const infoEl = document.getElementById('game30-poem-info');
+            infoEl.textContent = infoText;
+            infoEl.dataset.poemId = this.currentPoem.id;
+            infoEl.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
+            };
+            return true;
+        },
+
+        // ── 牌山生成 ──
+        // 1) 字袋（charBag）：每字 3 的倍數張
+        //    詩字佔 (1 - decoyRatio)，干擾佔 decoyRatio
+        //    詩字數量 ∝ 字頻
+        // 2) 多層分布：上層較少張、下層較多張（金字塔型）
+        // 3) 各層位置採梅花樁式錯位（layer 偶/奇 半格偏移）
+        generateTower: function () {
+            const settings = this.difficultySettings[this.difficulty];
+            const total = settings.totalTiles;
+            const layers = settings.layers;
+
+            // ── (A) 計算「3 的倍數」總張數 ──
+            // total 不一定是 3 的倍數，調整：取最接近且 ≤ total 的 3 倍數
+            const totalAdj = Math.floor(total / 3) * 3;
+
+            // ── (B) 詩字 / 干擾字數量分配（皆為 3 的倍數） ──
+            let decoyTriples = Math.floor((totalAdj * settings.decoyRatio) / 3);
+            let poemTriples = totalAdj / 3 - decoyTriples;
+            if (poemTriples < 1) { poemTriples = 1; decoyTriples = totalAdj / 3 - 1; }
+
+            // ── (C) 詩字選哪些？依字頻加權，每字配 N 個 triple ──
+            // 統計詩字字頻
+            const freq = {};
+            this.targetChars.forEach(ch => { freq[ch] = (freq[ch] || 0) + 1; });
+            const uniqPoemChars = Object.keys(freq);
+
+            // 為了「保證每個詩字至少 3 張」，先給每個詩字 1 個 triple
+            const tripleAlloc = {};   // char -> triple 個數
+            uniqPoemChars.forEach(ch => { tripleAlloc[ch] = 0; });
+
+            let remainingPoemTriples = poemTriples;
+            // 每個詩字至少 1 triple（若 triple 不夠則優先給字頻高者）
+            const orderedByFreq = uniqPoemChars.slice().sort((a, b) => freq[b] - freq[a]);
+            for (const ch of orderedByFreq) {
+                if (remainingPoemTriples <= 0) break;
+                tripleAlloc[ch] = 1;
+                remainingPoemTriples--;
+            }
+            // 剩餘 triple 依字頻權重輪流分配
+            let safety = 0;
+            while (remainingPoemTriples > 0 && safety < 500) {
+                for (const ch of orderedByFreq) {
+                    if (remainingPoemTriples <= 0) break;
+                    tripleAlloc[ch]++;
+                    remainingPoemTriples--;
+                }
+                safety++;
+            }
+
+            // ── (D) 干擾字三連 ──
+            const decoyAvailable = this.decoyPool.split('').filter(c => !uniqPoemChars.includes(c));
+            // 洗牌
+            for (let i = decoyAvailable.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [decoyAvailable[i], decoyAvailable[j]] = [decoyAvailable[j], decoyAvailable[i]];
+            }
+            const decoyChars = [];
+            for (let i = 0; i < decoyTriples; i++) {
+                decoyChars.push(decoyAvailable[i % decoyAvailable.length]);
+            }
+
+            // ── (E) 組裝完整字袋（每字 3 張） ──
+            const charBag = [];
+            Object.keys(tripleAlloc).forEach(ch => {
+                for (let i = 0; i < tripleAlloc[ch] * 3; i++) charBag.push(ch);
+            });
+            decoyChars.forEach(ch => {
+                for (let i = 0; i < 3; i++) charBag.push(ch);
+            });
+            // 若實際數量不足 totalAdj，補干擾字
+            while (charBag.length < totalAdj) {
+                const ch = decoyAvailable[Math.floor(Math.random() * decoyAvailable.length)] || '山';
+                charBag.push(ch, ch, ch);
+            }
+            // 洗牌字袋
+            for (let i = charBag.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [charBag[i], charBag[j]] = [charBag[j], charBag[i]];
+            }
+
+            // ── (F) 各層牌數：金字塔（上少下多） ──
+            // 平均分配後將「上層」減量、下層補回
+            const perLayer = new Array(layers).fill(0);
+            const baseEach = Math.floor(totalAdj / layers);
+            for (let i = 0; i < layers; i++) perLayer[i] = baseEach;
+            let leftover = totalAdj - baseEach * layers;
+            // 金字塔調整：頂層減 / 底層加（每層差 2~3）
+            for (let i = 0; i < layers; i++) {
+                const delta = Math.round((i - (layers - 1) / 2) * 2); // 底大頂小
+                perLayer[i] += delta;
+            }
+            // 修正以確保總和 = totalAdj 且每層 ≥ 1
+            let sum = perLayer.reduce((a, b) => a + b, 0);
+            let diff = totalAdj - sum;
+            perLayer[layers - 1] += diff;
+            for (let i = 0; i < layers; i++) {
+                if (perLayer[i] < 1) {
+                    const need = 1 - perLayer[i];
+                    perLayer[i] = 1;
+                    perLayer[layers - 1] -= need;
+                }
+            }
+
+            // ── (G) 位置生成：每層產生 perLayer[i] 個不重疊位置 ──
+            // 採半格錯位網格：基礎格 (TILE_W * 0.55, TILE_H * 0.55)
+            // layer 越高 → 範圍越窄、位置往中央集中（金字塔形）
+            this.tiles = [];
+            let tileIdCounter = 0;
+            let bagIdx = 0;
+
+            const slotW = this.TILE_W * 0.55;
+            const slotH = this.TILE_H * 0.55;
+
+            for (let l = 0; l < layers; l++) {
+                const count = perLayer[l];
+
+                // 該層中央區域：層越高 → 寬高越小
+                const shrinkFactor = 1 - l * 0.12;
+                const usableW = this.TOWER_W * shrinkFactor - this.TILE_W;
+                const usableH = this.TOWER_H * shrinkFactor - this.TILE_H;
+                const baseX = (this.TOWER_W - usableW - this.TILE_W) / 2;
+                const baseY = (this.TOWER_H - usableH - this.TILE_H) / 2;
+
+                // 該層格數
+                const cols = Math.max(3, Math.floor(usableW / slotW));
+                const rows = Math.max(3, Math.floor(usableH / slotH));
+
+                // 生成候選格子（含 0.5 偏移以實現梅花樁交錯）
+                const candidates = [];
+                for (let rr = 0; rr < rows; rr++) {
+                    for (let cc = 0; cc < cols; cc++) {
+                        // 奇數列向右偏移 0.5
+                        const offsetX = (rr % 2 === 1) ? slotW * 0.5 : 0;
+                        const x = baseX + cc * slotW + offsetX + l * this.LAYER_OFFSET_X;
+                        const y = baseY + rr * slotH + l * this.LAYER_OFFSET_Y;
+                        // 確認不超出 wrapper
+                        if (x + this.TILE_W > this.TOWER_W) continue;
+                        if (y + this.TILE_H > this.TOWER_H) continue;
+                        candidates.push({ x, y });
+                    }
+                }
+                // 洗牌候選
+                for (let i = candidates.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+                }
+
+                // 取 count 個候選位置（若不夠則所有候選都用）
+                const used = candidates.slice(0, Math.min(count, candidates.length));
+
+                used.forEach(pos => {
+                    if (bagIdx >= charBag.length) return;
+                    this.tiles.push({
+                        id: tileIdCounter++,
+                        char: charBag[bagIdx++],
+                        layer: l,
+                        x: pos.x,
+                        y: pos.y,
+                        w: this.TILE_W,
+                        h: this.TILE_H,
+                        el: null,
+                        removed: false
+                    });
+                });
+            }
+        },
+
+        // ── 渲染牌山 ──
+        renderTower: function () {
+            const tower = document.getElementById('game30-tower');
+            tower.innerHTML = '';
+
+            // 依 layer 排序（低層先繪 → 高層後繪 → 視覺上覆蓋）
+            const sorted = this.tiles.slice().sort((a, b) => a.layer - b.layer);
+            sorted.forEach(t => {
+                const el = document.createElement('div');
+                el.className = 'game30-tile';
+                el.textContent = t.char;
+                el.style.left = t.x + 'px';
+                el.style.top = t.y + 'px';
+                el.style.zIndex = 10 + t.layer * 10;
+                el.dataset.tid = t.id;
+                el.onclick = () => this.onTileClick(t.id);
+                tower.appendChild(el);
+                t.el = el;
+            });
+        },
+
+        // ── 可見性判定 ──
+        // 規則：
+        //  (1) 上層遮擋：任何 layer 更高的牌，若 bounding box 與本牌重疊 → 本牌不可點
+        //  (2) 左右遮擋：同層的另一張牌，若其位置與本牌大幅重疊本牌的左半或右半 → 本牌不可點
+        updateVisibility: function () {
+            const alive = this.tiles.filter(t => !t.removed);
+            alive.forEach(t => {
+                let blocked = false;
+                for (const o of alive) {
+                    if (o.id === t.id) continue;
+                    // (1) 上層覆蓋
+                    if (o.layer > t.layer && this.rectsOverlap(t, o)) {
+                        blocked = true;
+                        break;
+                    }
+                }
+                if (!blocked) {
+                    // (2) 同層左右遮擋（覆蓋本牌一半以上）
+                    let leftBlocked = false, rightBlocked = false;
+                    for (const o of alive) {
+                        if (o.id === t.id) continue;
+                        if (o.layer !== t.layer) continue;
+                        // 垂直重疊才算
+                        const vOverlap = Math.min(t.y + t.h, o.y + o.h) - Math.max(t.y, o.y);
+                        if (vOverlap < t.h * 0.4) continue;
+                        // 左側遮擋：o 在 t 左邊且水平重疊 > t.w * 0.3
+                        const hOverlap = Math.min(t.x + t.w, o.x + o.w) - Math.max(t.x, o.x);
+                        if (hOverlap < t.w * 0.3) continue;
+                        if (o.x < t.x) leftBlocked = true;
+                        else if (o.x > t.x) rightBlocked = true;
+                    }
+                    blocked = leftBlocked && rightBlocked;
+                }
+                t.accessible = !blocked;
+                if (!t.el) return;
+                if (blocked) {
+                    t.el.classList.remove('accessible');
+                    t.el.classList.add('blocked');
+                } else {
+                    t.el.classList.add('accessible');
+                    t.el.classList.remove('blocked');
+                }
+            });
+        },
+
+        rectsOverlap: function (a, b) {
+            // 嚴格 bounding-box 交集（>0 視為重疊）
+            return !(a.x + a.w <= b.x || b.x + b.w <= a.x ||
+                     a.y + a.h <= b.y || b.y + b.h <= a.y);
+        },
+
+        // ── 點擊字牌 ──
+        onTileClick: function (tileId) {
+            if (!this.isActive || this.animLocked) return;
+            const t = this.tiles.find(x => x.id === tileId);
+            if (!t || t.removed) return;
+            if (!t.accessible) {
+                // 抖動提示
+                t.el.classList.add('shake');
+                if (window.SoundManager) window.SoundManager.playFailure();
+                setTimeout(() => t.el && t.el.classList.remove('shake'), 320);
+                return;
+            }
+            // 暫存槽滿
+            if (this.buffer.length >= this.bufferCapacity) {
+                if (window.SoundManager) window.SoundManager.playFailure();
+                return;
+            }
+            if (window.SoundManager) window.SoundManager.playOpenItem();
+            this.flyTileToBuffer(t);
+        },
+
+        // ── 字牌飛入暫存槽 ──
+        flyTileToBuffer: function (t) {
+            this.animLocked = true;
+            t.removed = true;
+
+            // 預先 push 到 buffer 並排序，計算字牌應飛抵之 slot 位置
+            this.buffer.push({ char: t.char, tileId: t.id });
+            this.sortBuffer();
+            this.renderBuffer();
+
+            // 找到該字在 buffer 中的目標 slot DOM 位置
+            const slotIdx = this.buffer.findIndex(b => b.tileId === t.id);
+            const slots = document.querySelectorAll('#game30-buffer .game30-slot');
+            const targetSlot = slots[slotIdx];
+
+            const tower = document.getElementById('game30-tower');
+            const towerRect = tower.getBoundingClientRect();
+            const slotRect = targetSlot ? targetSlot.getBoundingClientRect() : null;
+
+            // 計算 buffer slot 在 tower 座標系中的 x/y（不考慮 stage scale，因兩者在同一縮放容器內）
+            // 改採：以 wrapper 為相對基準
+            const wrapper = document.getElementById('game30-tower-wrapper');
+            const wRect = wrapper.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            let targetX = t.x;
+            let targetY = t.y + 200;
+            if (slotRect) {
+                targetX = (slotRect.left - wRect.left) / scale;
+                targetY = (slotRect.top - wRect.top) / scale;
+            }
+
+            t.el.classList.add('flying');
+            t.el.classList.remove('accessible');
+            // 觸發 transition：先抬一下
+            requestAnimationFrame(() => {
+                t.el.style.left = targetX + 'px';
+                t.el.style.top = targetY + 'px';
+                t.el.style.transform = 'scale(0.95)';
+            });
+
+            setTimeout(() => {
+                // 移除原字牌 DOM
+                if (t.el && t.el.parentNode) t.el.parentNode.removeChild(t.el);
+                t.el = null;
+
+                // 重新計算可見性
+                this.updateVisibility();
+                this.updateProgressText();
+
+                // 檢查三連消除
+                this.checkAndMerge();
+
+                // 死局 / 失敗檢查
+                if (this.buffer.length >= this.bufferCapacity && !this.canMergeAfter()) {
+                    // 暫存槽塞滿且無法再湊三連
+                    this.animLocked = false;
+                    this.gameOver(false, '暫存槽塞滿！');
+                    return;
+                }
+
+                // 警示狀態
+                this.updateBufferWarning();
+
+                this.animLocked = false;
+            }, 560);
+        },
+
+        // 槽內字按字排序，使同字靠攏
+        sortBuffer: function () {
+            this.buffer.sort((a, b) => {
+                if (a.char < b.char) return -1;
+                if (a.char > b.char) return 1;
+                return a.tileId - b.tileId;
+            });
+        },
+
+        // ── 渲染暫存槽 ──
+        renderBuffer: function () {
+            const container = document.getElementById('game30-buffer');
+            container.innerHTML = '';
+            for (let i = 0; i < this.bufferCapacity; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'game30-slot';
+                if (i < this.buffer.length) {
+                    slot.classList.add('filled');
+                    slot.textContent = this.buffer[i].char;
+                    slot.dataset.tid = this.buffer[i].tileId;
+                }
+                container.appendChild(slot);
+            }
+        },
+
+        updateBufferWarning: function () {
+            const el = document.getElementById('game30-buffer');
+            const remain = this.bufferCapacity - this.buffer.length;
+            if (remain <= 1 && this.buffer.length > 0) {
+                el.classList.add('warning');
+                if (window.SoundManager && window.SoundManager.playWarning) window.SoundManager.playWarning();
+            } else {
+                el.classList.remove('warning');
+            }
+        },
+
+        // ── 三連消除偵測 ──
+        checkAndMerge: function () {
+            // 統計字數
+            const countByChar = {};
+            this.buffer.forEach(b => {
+                if (!countByChar[b.char]) countByChar[b.char] = [];
+                countByChar[b.char].push(b);
+            });
+            const toMerge = Object.keys(countByChar).filter(c => countByChar[c].length >= 3);
+            if (toMerge.length === 0) {
+                this.updateBufferWarning();
+                return;
+            }
+            // 一次處理一個字（若同時湊滿多字則依序）
+            toMerge.forEach(ch => {
+                this.mergeOneChar(ch);
+            });
+        },
+
+        // 消除三張同字
+        mergeOneChar: function (ch) {
+            const settings = this.difficultySettings[this.difficulty];
+
+            // 找出 buffer 中該字前 3 張
+            const indices = [];
+            this.buffer.forEach((b, i) => {
+                if (b.char === ch && indices.length < 3) indices.push(i);
+            });
+
+            // 播放消除動畫
+            const slots = document.querySelectorAll('#game30-buffer .game30-slot');
+            indices.forEach(i => {
+                if (slots[i]) slots[i].classList.add('merging');
+            });
+
+            // 順序加成判定
+            let bonus = 1;
+            const isPoemChar = this.collectProgress[ch] !== undefined;
+            if (isPoemChar) {
+                if (this.orderIdx < this.targetChars.length &&
+                    this.targetChars[this.orderIdx] === ch) {
+                    // 完美命中順序
+                    this.orderIdx++;
+                    this.orderStreak++;
+                    if (this.orderStreak >= 2) bonus = settings.orderBonus;
+                } else {
+                    this.orderStreak = 0;
+                }
+                // 收集進度
+                this.collectProgress[ch].have = Math.min(
+                    this.collectProgress[ch].need,
+                    this.collectProgress[ch].have + 3
+                );
+            } else {
+                // 干擾字消除不計入順序
+                this.orderStreak = 0;
+            }
+
+            // 分數
+            const baseGain = (window.ScoreManager && window.ScoreManager.gameSettings.game30)
+                ? window.ScoreManager.gameSettings.game30.getPointA : 30;
+            const gain = baseGain * bonus * (isPoemChar ? 1 : 0.5);
+            const gainInt = Math.round(gain);
+            this.score += gainInt;
+            document.getElementById('game30-score').textContent = this.score;
+
+            this.spawnFloatScore(gainInt, bonus);
+
+            if (window.SoundManager) {
+                if (bonus > 1 && window.SoundManager.playJoyfulTriple) window.SoundManager.playJoyfulTriple();
+                else if (window.SoundManager.playSuccessShort) window.SoundManager.playSuccessShort();
+                else if (window.SoundManager.playSuccess) window.SoundManager.playSuccess();
+            }
+
+            // 動畫結束後從 buffer 中移除
+            setTimeout(() => {
+                // 從尾端開始 splice 避免索引錯位
+                indices.slice().reverse().forEach(i => this.buffer.splice(i, 1));
+                this.renderBuffer();
+                this.renderTracker();
+                this.updateBonusText();
+                this.updateBufferWarning();
+                this.updateProgressText();
+
+                // 勝利判定：所有詩字都已收集足夠
+                if (this.isWinCondition()) {
+                    this.gameOver(true, '');
+                }
+            }, 400);
+        },
+
+        // 勝利條件：所有詩字 have >= need
+        isWinCondition: function () {
+            return Object.keys(this.collectProgress).every(
+                ch => this.collectProgress[ch].have >= this.collectProgress[ch].need
+            );
+        },
+
+        // 失敗檢查輔助：在 buffer 滿且當前牌山可點牌中無同字湊三連時失敗
+        canMergeAfter: function () {
+            // 暫存槽內各字計數
+            const cnt = {};
+            this.buffer.forEach(b => { cnt[b.char] = (cnt[b.char] || 0) + 1; });
+            // 加上牌山中目前可點之牌
+            const accessible = this.tiles.filter(t => !t.removed && t.accessible);
+            accessible.forEach(t => { cnt[t.char] = (cnt[t.char] || 0) + 1; });
+            // 任一字 ≥ 3 → 還有救
+            return Object.values(cnt).some(v => v >= 3);
+        },
+
+        // ── 進度燈渲染 ──
+        renderTracker: function () {
+            const el = document.getElementById('game30-tracker');
+            if (!el) return;
+            el.innerHTML = '';
+            // 按 targetChars 順序去重後顯示
+            const seen = new Set();
+            this.targetChars.forEach(ch => {
+                if (seen.has(ch)) return;
+                seen.add(ch);
+                const item = document.createElement('span');
+                item.className = 'game30-tracker-item';
+                const p = this.collectProgress[ch];
+                item.textContent = `${ch}${p.have}/${p.need}`;
+                if (p.have >= p.need) item.classList.add('done');
+                el.appendChild(item);
+            });
+        },
+
+        updateProgressText: function () {
+            const alive = this.tiles.filter(t => !t.removed).length;
+            const el = document.getElementById('game30-progress-text');
+            if (el) el.textContent = `剩餘牌：${alive}`;
+        },
+
+        updateBonusText: function () {
+            const settings = this.difficultySettings[this.difficulty];
+            const el = document.getElementById('game30-bonus-text');
+            if (!el) return;
+            const mult = this.orderStreak >= 2 ? settings.orderBonus : 1;
+            el.textContent = `順序加成 ×${mult}（連 ${this.orderStreak}）`;
+        },
+
+        // ── 飛分動畫 ──
+        spawnFloatScore: function (gain, bonus) {
+            const buf = document.getElementById('game30-buffer');
+            if (!buf) return;
+            const span = document.createElement('div');
+            span.className = 'game30-float-score';
+            span.textContent = (bonus > 1 ? `+${gain} ×${bonus}` : `+${gain}`);
+            span.style.left = (buf.offsetLeft + buf.offsetWidth / 2) + 'px';
+            span.style.top = (buf.offsetTop - 8) + 'px';
+            buf.parentElement.appendChild(span);
+            setTimeout(() => { if (span.parentNode) span.parentNode.removeChild(span); }, 900);
+        },
+
+        // ── 提示：隨機高亮一張「詩字順序最前」的可點牌 ──
+        useHint: function () {
+            if (!this.isActive || this.animLocked) return;
+            const accessible = this.tiles.filter(t => !t.removed && t.accessible);
+            if (accessible.length === 0) return;
+
+            // 找順序最前的詩字
+            let target = null;
+            for (let i = this.orderIdx; i < this.targetChars.length; i++) {
+                const ch = this.targetChars[i];
+                const candidate = accessible.find(t => t.char === ch);
+                if (candidate) { target = candidate; break; }
+            }
+            if (!target) target = accessible[Math.floor(Math.random() * accessible.length)];
+
+            this.score = Math.max(0, this.score - 10);
+            document.getElementById('game30-score').textContent = this.score;
+            if (window.SoundManager) window.SoundManager.playOpenItem();
+
+            const el = target.el;
+            if (el) {
+                el.style.boxShadow = '0 0 20px 6px hsla(45, 100%, 65%, 0.95)';
+                setTimeout(() => { if (el) el.style.boxShadow = ''; }, 1500);
+            }
+        },
+
+        // ── 撤回：把暫存槽最後一張變回牌山頂層（簡化版） ──
+        useUndo: function () {
+            if (!this.isActive || this.animLocked) return;
+            if (this.buffer.length === 0) return;
+            this.score = Math.max(0, this.score - 15);
+            document.getElementById('game30-score').textContent = this.score;
+            // 取最後加入者：依 tileId 最大者
+            let lastIdx = 0;
+            for (let i = 1; i < this.buffer.length; i++) {
+                if (this.buffer[i].tileId > this.buffer[lastIdx].tileId) lastIdx = i;
+            }
+            const item = this.buffer[lastIdx];
+            // 找回原 tile
+            const t = this.tiles.find(x => x.id === item.tileId);
+            if (t) {
+                t.removed = false;
+                // 重建 DOM
+                const tower = document.getElementById('game30-tower');
+                const el = document.createElement('div');
+                el.className = 'game30-tile';
+                el.textContent = t.char;
+                el.style.left = t.x + 'px';
+                el.style.top = t.y + 'px';
+                el.style.zIndex = 10 + t.layer * 10;
+                el.dataset.tid = t.id;
+                el.onclick = () => this.onTileClick(t.id);
+                tower.appendChild(el);
+                t.el = el;
+            }
+            this.buffer.splice(lastIdx, 1);
+            this.renderBuffer();
+            this.updateVisibility();
+            this.updateProgressText();
+            this.updateBufferWarning();
+            if (window.SoundManager) window.SoundManager.playOpenItem();
+        },
+
+        // ── 計時 ──
+        startTimer: function () {
+            clearInterval(this.timerInterval);
+            this.startTime = Date.now();
+            const duration = this.maxTimer * 1000;
+            this.timerInterval = setInterval(() => {
+                if (!this.isActive) return;
+                const elapsed = Date.now() - this.startTime;
+                const ratio = 1 - (elapsed / duration);
+                if (ratio <= 0) {
+                    this.updateTimerRing(0);
+                    this.gameOver(false, '時間到！');
+                } else {
+                    this.updateTimerRing(ratio);
+                }
+            }, 50);
+        },
+
+        updateTimerRing: function (ratio, mode) {
+            const rect = document.getElementById('game30-timer-path');
+            const wrapper = document.getElementById('game30-tower-wrapper');
+            const svg = document.getElementById('game30-timer-ring');
+            if (!rect || !wrapper || !svg) return;
+            let w = wrapper.offsetWidth, h = wrapper.offsetHeight;
+            if (w === 0 || h === 0) {
+                const rb = wrapper.getBoundingClientRect();
+                w = rb.width; h = rb.height;
+            }
+            if (w === 0) return;
+            svg.setAttribute('width', w);
+            svg.setAttribute('height', h);
+            svg.style.display = 'block';
+            rect.setAttribute('width', w - 6);
+            rect.setAttribute('height', h - 6);
+            const perimeter = (w - 6 + h - 6) * 2;
+            rect.style.strokeDasharray = perimeter;
+            if (mode === 'win') {
+                const clamped = Math.max(0, Math.min(1, ratio));
+                rect.style.transition = 'stroke 0.3s ease';
+                rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
+                rect.style.strokeDashoffset = clamped * perimeter;
+                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
+            } else {
+                rect.style.transition = '';
+                rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
+                const elapsed = 1 - Math.max(0, Math.min(1, ratio));
+                rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+            }
+        },
+
+        // ── 結束 ──
+        gameOver: function (win, reason) {
+            this.isActive = false;
+            this.isWin = win;
+            clearInterval(this.timerInterval);
+
+            if (!win && window.SupabaseClient) {
+                const durationS = this.gameStartTime
+                    ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
+                window.SupabaseClient.logGame({
+                    gameNo: 30,
+                    difficulty: this.difficulty || '',
+                    score: 0,
+                    isWin: false,
+                    durationS: durationS
+                });
+            }
+
+            if (win) {
+                document.getElementById('game30-retryGame-btn').disabled = true;
+                document.getElementById('game30-newGame-btn').disabled = true;
+                if (window.SoundManager && window.SoundManager.melodyPlayer
+                    && window.SoundManager.melodyPlayer.playFullMelody) {
+                    try { window.SoundManager.melodyPlayer.playFullMelody('望春風'); } catch (e) {}
+                }
+            } else {
+                document.getElementById('game30-retryGame-btn').disabled = false;
+                document.getElementById('game30-newGame-btn').disabled = false;
+                if (window.SoundManager && window.SoundManager.playSadTriple) {
+                    window.SoundManager.playSadTriple();
+                }
+            }
+
+            const onConfirm = () => {
+                if (win) {
+                    if (this.isLevelMode) this.startNextLevel();
+                    else this.startNewGame();
+                } else {
+                    this.retryGame();
+                }
+            };
+
+            const showMessage = (finalScore) => {
+                if (window.GameMessage) {
+                    window.GameMessage.show({
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? '' : (typeof reason === 'string' ? reason : '層巒崩塌！'),
+                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
+                        onConfirm: onConfirm
+                    });
+                }
+            };
+
+            const checkAchievementsAndShow = (finalScore) => {
+                if (win && this.isLevelMode && window.ScoreManager) {
+                    const achId = window.ScoreManager.completeLevel('game30', this.difficulty, this.currentLevelIndex);
+                    if (achId && window.AchievementDialog) {
+                        window.AchievementDialog.showInstantAchievementPop(achId, 'game30', this.currentLevelIndex, () => showMessage(finalScore));
+                    } else {
+                        showMessage(finalScore);
+                    }
+                } else {
+                    showMessage(finalScore);
+                }
+            };
+
+            if (win && window.ScoreManager) {
+                window.ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game30',
+                    timerContainerId: 'game30-tower-wrapper',
+                    scoreElementId: 'game30-score',
+                    heartsSelector: null,
+                    onComplete: (finalScore) => {
+                        this.score = finalScore;
+                        checkAchievementsAndShow(finalScore);
+                    }
+                });
+            } else {
+                checkAchievementsAndShow();
+            }
+        }
+    };
+
+    window.Game30 = Game30;
+
+    if (new URLSearchParams(window.location.search).get('game') === '30') {
+        setTimeout(() => {
+            if (window.Game30) window.Game30.show();
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }, 50);
+    }
+})();

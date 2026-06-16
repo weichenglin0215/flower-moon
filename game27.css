@@ -1,0 +1,368 @@
+/* =========================================
+   遊戲二十七：詩磚壘塔 (Verse-Brick Tower) 樣式
+   俄羅斯方塊風格詩詞落塊遊戲
+   ========================================= */
+
+.game27-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    background: radial-gradient(circle at center, hsl(220, 35%, 22%) 0%, hsl(0, 0%, 8%) 100%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    color: hsl(40, 50%, 80%);
+    font-family: 'Noto Serif TC', serif;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ---------- 頂部資訊列 ---------- */
+.game27-header {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    width: 100%;
+    height: 50px;
+}
+
+.game27-score-board {
+    color: hsl(50, 70%, 60%);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 30px;
+}
+
+.game27-controls .nav-btn {
+    padding: 0 10px;
+    background: hsl(0, 60%, 25%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
+    color: hsl(45, 80%, 70%);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.game27-controls .nav-btn:hover {
+    background: hsl(0, 60%, 50%);
+    color: hsl(45, 80%, 90%);
+}
+
+.game27-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 50%);
+    color: hsl(45, 0%, 90%);
+}
+
+.game27-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
+    color: hsl(45, 30%, 85%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
+    z-index: 100;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.game27-difficulty-tag:hover {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+    filter: brightness(1.5);
+}
+
+/* ---------- 副標 (生命) ---------- */
+.game27-sub-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    height: 40px;
+}
+
+.hearts {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 28px;
+}
+
+.heart.empty {
+    opacity: 0.4;
+}
+
+/* ---------- 主遊戲區 ---------- */
+.game27-area {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    position: relative;
+    padding: 4px;
+    width: 100%;
+    align-items: center;
+}
+
+/* 詩名 + 收集進度 */
+.game27-info {
+    text-align: center;
+    width: 100%;
+    padding: 2px;
+    color: hsl(40, 50%, 80%);
+    min-height: 40px;
+}
+
+.poem-info {
+    font-size: 16px;
+    color: hsl(40, 50%, 80%);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.game27-progress-text {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: hsl(36, 80%, 55%);
+    margin-top: 2px;
+}
+
+/* 收集狀態列：每個目標字 + 已收集數量 */
+.game27-collect-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 6px;
+    font-size: 14px;
+    margin-top: 2px;
+    color: hsl(45, 40%, 75%);
+}
+
+.game27-collect-bar .collect-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.game27-collect-bar .collect-item.done {
+    background: hsla(120, 60%, 35%, 0.5);
+    color: hsl(60, 90%, 80%);
+}
+
+/* ---------- 遊戲版面：左棋盤 + 右預覽 ---------- */
+.game27-play-area {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 4px;
+    width: 100%;
+}
+
+.game27-board-wrapper {
+    position: relative;
+    width: 312px;   /* 6 欄 × 52px */
+    height: 624px;  /* 12 列 × 52px（高中尺寸；其他難度由 JS 動態調整）*/
+    background: hsl(40, 20%, 5%);
+    touch-action: none;
+    border: 2px solid hsla(40, 60%, 50%, 0.3);
+    box-sizing: content-box;
+}
+
+.game27-board {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    /* grid-template 由 JS 依難度設定 */
+    z-index: 3;
+}
+
+.game27-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 30px;
+    font-weight: bold;
+    color: hsl(20, 20%, 15%);
+    border: 1px solid hsla(40, 30%, 25%, 0.25);
+    box-sizing: border-box;
+    user-select: none;
+    transition: background 0.15s, transform 0.15s;
+}
+
+/* 落下中的當前磚塊 */
+.game27-cell.falling {
+    background: hsla(45, 50%, 88%, 1);
+    box-shadow: inset 0 0 0 1px hsla(35, 40%, 55%, 0.8);
+}
+
+/* 已落定的堆疊磚塊 */
+.game27-cell.stacked {
+    background: hsla(45, 35%, 82%, 1);
+}
+
+/* 即將消除高亮 */
+.game27-cell.clearing {
+    background: hsl(45, 95%, 65%) !important;
+    animation: game27-pulse 0.3s ease-in-out 2;
+}
+
+/* 消除飛升動畫 */
+.game27-cell.dissolving {
+    animation: game27-dissolve 0.4s ease-out forwards;
+}
+
+@keyframes game27-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); box-shadow: 0 0 20px hsl(45, 95%, 65%); }
+}
+
+@keyframes game27-dissolve {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-30px) scale(0.5); opacity: 0; }
+}
+
+/* 觸頂預警紅條 */
+.game27-board-wrapper.warning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: hsl(0, 90%, 60%);
+    box-shadow: 0 0 12px hsl(0, 90%, 60%);
+    z-index: 6;
+    animation: game27-warn-blink 0.5s infinite;
+}
+
+@keyframes game27-warn-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* ---------- 右側預覽區 ---------- */
+.game27-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: hsl(40, 50%, 80%);
+}
+
+.game27-preview-box {
+    width: 110px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid hsla(40, 60%, 50%, 0.25);
+    border-radius: 6px;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.game27-preview-box .preview-label {
+    font-size: 14px;
+    text-align: center;
+    color: hsl(36, 70%, 60%);
+    margin-bottom: 2px;
+}
+
+.game27-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 24px);
+    grid-template-rows: repeat(4, 24px);
+    justify-content: center;
+    gap: 1px;
+}
+
+.game27-preview-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: hsl(20, 20%, 15%);
+}
+
+.game27-preview-cell.filled {
+    background: hsla(45, 35%, 82%, 1);
+    border-radius: 2px;
+}
+
+/* ---------- 連鎖倍率彈出 ---------- */
+.game27-chain-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 60px;
+    font-weight: bold;
+    color: hsl(0, 90%, 60%);
+    text-shadow: 0 0 20px hsl(45, 100%, 70%), 0 0 40px hsl(45, 100%, 50%);
+    pointer-events: none;
+    z-index: 50;
+    animation: game27-chain-pop 0.8s ease-out forwards;
+}
+
+@keyframes game27-chain-pop {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    30% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+/* ---------- 計時器矩形邊框（依花月規範要求保留） ---------- */
+#game27-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    display: block;
+}
+
+#game27-timer-path {
+    fill: none;
+    stroke: hsl(0, 50%, 22%);
+    stroke-width: 6px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 10000;
+    stroke-dashoffset: 10000;
+}
+
+/* ---------- 操作提示底部列 ---------- */
+.game27-hint-bar {
+    width: 100%;
+    text-align: center;
+    font-size: 14px;
+    color: hsl(40, 40%, 70%);
+    padding: 4px 0;
+    background: rgba(0, 0, 0, 0.25);
+}

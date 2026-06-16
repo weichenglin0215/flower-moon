@@ -42,7 +42,19 @@ const ScoreManager = {
         'game20': { base: 100, heart: 50, time: 3, getPointA: 0 }, //丟三落一（單題決勝，無連續得分）
         'game21': { base: 100, heart: 0, time: 1, getPointA: 0 }, //橫批成詩（單題決勝，時限長故每秒分數較低）
         'game22': { base: 100, heart: 0, time: 1, getPointA: 0 }, //詩詞拼圖（單題決勝，時限長故每秒分數較低）
-        'game23': { base: 100, heart: 0, time: 1, getPointA: 0 } //縱橫集句（單題決勝，時限長故每秒分數較低）
+        'game23': { base: 100, heart: 0, time: 1, getPointA: 0 }, //縱橫集句（單題決勝，時限長故每秒分數較低）
+        'game24': { base: 100, heart: 10, time: 3, getPointA: 1 }, //三字成珠（三消連線）
+        'game25': { base: 100, heart: 10, time: 3, getPointA: 10 }, //連珠拾字（路徑連消）
+        'game26': { base: 100, heart: 10, time: 3, getPointA: 10 }, //投珠破句（泡泡龍）
+        'game27': { base: 100, heart: 10, time: 3, getPointA: 10 }, //詩磚壘塔（俄羅斯方塊）
+        'game28': { base: 100, heart: 10, time: 2, getPointA: 10 }, //兩心相印（連連看）
+        'game29': { base: 100, heart: 10, time: 3, getPointA: 10 }, //字龍盤環（滾球收集）
+        'game30': { base: 100, heart: 10, time: 3, getPointA: 10 }, //層巒疊翠（麻將疊疊）
+        'game31': { base: 100, heart: 10, time: 3, getPointA: 10 }, //詩眼覓蹤（字詞替換）
+        'game32': { base: 100, heart: 10, time: 2, getPointA: 10 }, //詩句尋寶圖（地圖故事）
+        'game33': { base: 100, heart: 10, time: 3, getPointA: 10 }, //作者連連看（風格辨識）
+        'game34': { base: 100, heart: 10, time: 3, getPointA: 10 }, //詩題猜猜看（標題配對）
+        'game35': { base: 100, heart: 10, time: 2, getPointA: 10 } //詩人的一天（情境推理）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
