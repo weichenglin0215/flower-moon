@@ -1,5 +1,5 @@
 /* =========================================
-   遊戲三十二：詩句尋寶圖 (Verse-Treasure Atlas)
+   遊戲三十二：尋詩地圖 (Verse-Treasure Atlas)
    兩階段單擊：
      階段一 — 在簡化中國古地圖上選擇發光地點
      階段二 — 閱讀故事卡，點擊詩中發光關鍵字將其飛回地圖對應位置
@@ -268,7 +268,7 @@
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('詩句尋寶圖', (selectedLevel, levelIndex) => {
+                window.DifficultySelector.show('尋詩地圖', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;

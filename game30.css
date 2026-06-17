@@ -9,7 +9,8 @@
     top: 0;
     left: 0;
     margin: 0;
-    background: radial-gradient(circle at center, hsl(180, 25%, 18%) 0%, hsl(190, 30%, 8%) 100%);
+    /* 對齊 game24/game4 的三停藍黑徑向漸層 */
+    background: radial-gradient(ellipse at center, hsl(210, 30%, 25%) 0%, hsl(220, 40%, 10%) 70%, hsl(0, 0%, 3%) 100%);
     z-index: 2000;
     display: flex;
     flex-direction: column;
@@ -29,7 +30,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.4);
     z-index: 10;
     width: 100%;
     height: 50px;
@@ -39,29 +40,44 @@
     color: hsl(50, 70%, 60%);
     font-size: 24px;
     font-weight: bold;
-    padding-left: 16px;
+    padding-left: 50px;
+    text-shadow: 0 0 6px hsla(45, 90%, 55%, 0.5);
 }
 
 .game30-controls { display: flex; gap: 6px; align-items: center; }
 
 .game30-controls .nav-btn {
-    padding: 2px 10px;
-    background: hsl(200, 40%, 25%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
-    color: hsl(45, 80%, 70%);
+    padding: 0px 10px;
+    background: linear-gradient(180deg, hsl(0, 55%, 32%) 0%, hsl(0, 60%, 22%) 100%);
+    border: 0.6px solid hsla(40, 100%, 80%, 0.35);
+    color: hsl(45, 80%, 75%);
     border-radius: 12px;
-    font-size: 18px;
+    font-size: 20px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 0 hsla(45, 80%, 70%, 0.25);
 }
-.game30-controls .nav-btn:hover { background: hsl(200, 50%, 40%); color: hsl(45, 80%, 90%); }
-.game30-controls .nav-btn:disabled { background: hsl(0, 0%, 50%); color: hsl(45, 0%, 90%); }
+.game30-controls .nav-btn:hover {
+    background: linear-gradient(180deg, hsl(0, 60%, 50%) 0%, hsl(0, 65%, 38%) 100%);
+    color: hsl(45, 80%, 92%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+.game30-controls .nav-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.game30-controls .nav-btn:disabled {
+    background: hsl(0, 0%, 35%);
+    color: hsl(45, 0%, 80%);
+    cursor: not-allowed;
+}
 
 .game30-difficulty-tag {
     padding: 2px 6px;
     border-radius: 6px;
-    font-size: 18px;
-    color: #fff;
+    font-size: 20px;
+    color: hsl(45, 30%, 90%);
     border: 0.6px solid hsla(40, 100%, 80%, 0.2);
     cursor: pointer;
     transition: all 0.2s;
@@ -164,30 +180,47 @@
     height: 100%;
 }
 
-/* ── 字牌 ── */
+/* ── 字牌（同字同色 HUE：--g30-h 由 JS 設定；line-height:1 + padding-bottom 修中文基線視覺） ── */
 .game30-tile {
+    --g30-h: 40;
+    --g30-s: 60%;
+    --g30-l: 75%;
+    --g30-text: hsl(220, 30%, 14%);
     position: absolute;
     width: 50px;
     height: 60px;
     border-radius: 6px;
-    background: linear-gradient(135deg, hsl(42, 45%, 92%) 0%, hsl(40, 35%, 82%) 100%);
-    color: hsl(20, 30%, 18%);
+    background: linear-gradient(135deg,
+        hsl(var(--g30-h), var(--g30-s), calc(var(--g30-l) + 10%)) 0%,
+        hsl(var(--g30-h), var(--g30-s), var(--g30-l)) 50%,
+        hsl(var(--g30-h), var(--g30-s), calc(var(--g30-l) - 15%)) 100%);
+    color: var(--g30-text);
     font-family: 'Noto Serif TC', serif;
     font-size: 32px;
-    font-weight: bold;
+    font-weight: 800;
     display: flex;
     justify-content: center;
     align-items: center;
+    line-height: 1;
+    padding-bottom: 0.05em;
     cursor: pointer;
     user-select: none;
-    /* 偽 3D 厚度效果：右下投影 + 邊框雙重立體感 */
+    /* 偽 3D 厚度效果：依字色相略偏暗的疊層投影 + 邊框雙重立體感 */
     box-shadow:
-        2px 2px 0 hsl(35, 25%, 65%),
-        3px 3px 0 hsl(35, 25%, 55%),
-        4px 5px 6px rgba(0, 0, 0, 0.6);
-    border: 1px solid hsl(35, 25%, 70%);
+        2px 2px 0 hsla(var(--g30-h), 40%, 35%, 0.6),
+        3px 3px 0 hsla(var(--g30-h), 40%, 25%, 0.6),
+        4px 5px 6px rgba(0, 0, 0, 0.55);
+    border: 1px solid hsla(var(--g30-h), 50%, 30%, 0.7);
     transition: transform 0.15s ease, filter 0.2s ease, opacity 0.2s ease;
     z-index: 1;
+}
+
+/* 干擾字（不在詩中）— 低彩度灰調退後 */
+.game30-tile.decoy {
+    --g30-s: 12%;
+    --g30-l: 62%;
+    --g30-text: hsl(220, 18%, 25%);
+    opacity: 0.85;
 }
 
 /* 可點擊的牌：微光暈 */
@@ -324,28 +357,140 @@
 .game30-action-btn:hover { background: hsl(200, 60%, 45%); }
 .game30-action-btn:disabled { background: hsl(0, 0%, 35%); color: hsl(0, 0%, 70%); cursor: default; }
 
-/* ── 進度燈：顯示詩句字頻進度 ── */
+/* ── 進度燈：多卡橫排（仿 game24） — 每張卡 = 上方彩色字塊（同牌色 HUE）+ 下方 have/need ── */
 .game30-tracker {
     width: 96%;
     max-width: 480px;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    flex-direction: row;
     justify-content: center;
-    gap: 4px;
-    padding: 4px 2px;
-    font-size: 14px;
-    color: hsl(40, 40%, 75%);
-    min-height: 24px;
+    align-items: stretch;
+    gap: 3px;
+    padding: 2px 4px;
+    box-sizing: border-box;
+    overflow: hidden;
+    min-height: 36px;
 }
+
 .game30-tracker-item {
-    background: hsla(0, 0%, 0%, 0.3);
-    border: 1px solid hsla(45, 40%, 60%, 0.2);
-    border-radius: 4px;
-    padding: 1px 4px;
-    font-size: 13px;
+    --g30-h: 40;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 48px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px 0;
+    border-radius: 6px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+
+.game30-tracker-tile {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 26px;
+    max-height: 26px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 1;
+    padding-bottom: 0.05em;
+    font-size: clamp(11px, 3.4vw, 18px);
+    font-weight: 900;
+    color: hsl(220, 30%, 14%);
+    border-radius: 5px;
+    background: linear-gradient(135deg,
+        hsl(var(--g30-h), 60%, 87%) 0%,
+        hsl(var(--g30-h), 60%, 72%) 50%,
+        hsl(var(--g30-h), 60%, 55%) 100%);
+    border: 1px solid hsla(var(--g30-h), 50%, 25%, 0.7);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), inset 0 1px 1px hsla(0, 0%, 100%, 0.55);
+    text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);
+}
+
+.game30-tracker-count {
+    font-size: 10px;
+    color: hsl(40, 55%, 82%);
+    letter-spacing: 0.5px;
+}
+
 .game30-tracker-item.done {
-    background: hsla(45, 80%, 40%, 0.5);
-    color: #fff;
-    border-color: hsl(45, 90%, 60%);
+    animation: game30-done-pulse 1.4s ease-in-out infinite;
+}
+.game30-tracker-item.done .game30-tracker-tile {
+    background: linear-gradient(135deg, hsl(50, 100%, 80%) 0%, hsl(45, 100%, 65%) 50%, hsl(40, 100%, 50%) 100%);
+    border-color: hsl(40, 100%, 35%);
+    color: hsl(20, 80%, 18%);
+    box-shadow: 0 0 8px hsla(45, 100%, 65%, 0.7), inset 0 1px 1px hsla(0, 0%, 100%, 0.7);
+}
+.game30-tracker-item.done .game30-tracker-count {
+    color: hsl(45, 100%, 75%);
+    font-weight: bold;
+    text-shadow: 0 0 6px hsla(45, 100%, 60%, 0.7);
+}
+.game30-tracker-item.just-lit {
+    animation: game30-trackerItem-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes game30-trackerItem-pop {
+    0%   { transform: scale(0.9); }
+    50%  { transform: scale(1.35); }
+    100% { transform: scale(1); }
+}
+@keyframes game30-done-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsla(45, 100%, 65%, 0.5); }
+    50%      { box-shadow: 0 0 14px 4px hsla(45, 100%, 65%, 0.9); }
+}
+
+/* 過關過場：進度卡逐一發金光 */
+.game30-tracker-item.stage-flash .game30-tracker-tile {
+    animation: game30-stage-flash 0.6s ease-out;
+}
+@keyframes game30-stage-flash {
+    0%   { transform: scale(1);   box-shadow: 0 0 0 0 hsla(45, 100%, 70%, 0); }
+    40%  { transform: scale(1.4); box-shadow: 0 0 26px 10px hsla(45, 100%, 70%, 1); filter: brightness(1.6) saturate(1.3); }
+    100% { transform: scale(1);   box-shadow: 0 0 0 0 hsla(45, 100%, 70%, 0); filter: brightness(1); }
+}
+
+/* 同色系粒子（合三消除時噴灑） */
+.game30-particle {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        hsl(var(--g30-ph, 45), 100%, 82%) 0%,
+        hsl(var(--g30-ph, 45), 100%, 55%) 60%,
+        transparent 100%);
+    box-shadow: 0 0 8px hsl(var(--g30-ph, 45), 100%, 65%);
+    pointer-events: none;
+    z-index: 9;
+    transform: translate(-50%, -50%);
+    animation: game30-particle-fly 0.62s cubic-bezier(0.2, 0.6, 0.4, 1) forwards;
+}
+@keyframes game30-particle-fly {
+    0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    70%  { opacity: 0.9; }
+    100% {
+        transform: translate(calc(-50% + var(--g30-dx, 0px)), calc(-50% + var(--g30-dy, 0px))) scale(0.2);
+        opacity: 0;
+    }
+}
+
+/* 字魂（飛入頂端進度卡） */
+.game30-soul {
+    position: absolute;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 26px;
+    font-weight: 900;
+    color: hsl(45, 100%, 70%);
+    text-shadow:
+        0 0 6px hsl(45, 100%, 60%),
+        0 0 14px hsl(40, 100%, 55%),
+        1px 1px 0 hsl(20, 80%, 15%);
+    pointer-events: none;
+    z-index: 30;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
 }

@@ -1,5 +1,5 @@
 /* =========================================
-   遊戲34：詩題猜猜看 (Verse-Title Guess)
+   遊戲34：猜猜詩題 (Verse-Title Guess)
    題眼鑑賞訓練 — 螢幕顯示整首詩，標題以〈？？？〉遮蔽
    玩家在 4 張候選標題卡中單擊正確標題
    ========================================= */
@@ -141,7 +141,7 @@
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('詩題猜猜看', (selectedLevel, levelIndex) => {
+                window.DifficultySelector.show('猜猜詩題', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;

@@ -73,15 +73,39 @@
          * refillBias    ：加權補位強度（0~1）
          */
         difficultySettings: {
-            '小學':   { timeLimitRate: 0,   moveLimit: 20, poemMinRating: 6, rowsCfg: 7, colsCfg: 6, dragLimitMs: 8000, sameHint: 'all',  verseMult: 3, refillBias: 0.80, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '中學':   { timeLimitRate: 0,   moveLimit: 18, poemMinRating: 5, rowsCfg: 7, colsCfg: 7, dragLimitMs: 6000, sameHint: 'all',  verseMult: 3, refillBias: 0.60, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '高中':   { timeLimitRate: 0,   moveLimit: 15, poemMinRating: 4, rowsCfg: 8, colsCfg: 7, dragLimitMs: 5000, sameHint: 'half', verseMult: 3, refillBias: 0.50, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '大學':   { timeLimitRate: 3,   moveLimit: 0,  poemMinRating: 3, rowsCfg: 8, colsCfg: 8, dragLimitMs: 5000, sameHint: 'none', verseMult: 5, refillBias: 0.30, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '研究所': { timeLimitRate: 2,   moveLimit: 0,  poemMinRating: 3, rowsCfg: 9, colsCfg: 8, dragLimitMs: 3000, sameHint: 'none', verseMult: 5, refillBias: 0.00, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 }
+            '小學':   { timeLimitRate: 0,   moveLimit: 20, poemMinRating: 6, rowsCfg: 7, colsCfg: 6, dragLimitMs: 8000, sameHint: 'all',  verseMult: 3, refillBias: 0.80, hintDelay: 3, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '中學':   { timeLimitRate: 0,   moveLimit: 18, poemMinRating: 5, rowsCfg: 7, colsCfg: 7, dragLimitMs: 6000, sameHint: 'all',  verseMult: 3, refillBias: 0.60, hintDelay: 3, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '高中':   { timeLimitRate: 0,   moveLimit: 15, poemMinRating: 4, rowsCfg: 8, colsCfg: 7, dragLimitMs: 5000, sameHint: 'half', verseMult: 3, refillBias: 0.50, hintDelay: 5, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '大學':   { timeLimitRate: 3,   moveLimit: 0,  poemMinRating: 3, rowsCfg: 8, colsCfg: 8, dragLimitMs: 5000, sameHint: 'none', verseMult: 5, refillBias: 0.30, hintDelay: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '研究所': { timeLimitRate: 2,   moveLimit: 0,  poemMinRating: 3, rowsCfg: 9, colsCfg: 8, dragLimitMs: 3000, sameHint: 'none', verseMult: 5, refillBias: 0.00, hintDelay: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 }
         },
 
         // 連鎖讚辭詞庫
         chainPraises: ['妙手', '神來', '絕唱', '生花', '驚鴻', '繞樑', '吟絕', '入聖'],
+
+        // 全詩去重後字陣列（依首次出現順序）— 用作 360° HUE 等分基準
+        // 同字必同色：相同字在 uniquePoemChars 的索引相同 → 計算出同樣的色相
+        uniquePoemChars: [],
+        // 本局起始步數（仿 game24，用於紅白倒數框分段）
+        maxMoves: 0,
+        // 閒置提示計時器與當前發光格
+        hintTimer: null,
+        hintedCells: [],
+
+        // 依字塊字元計算色相：以 uniquePoemChars 索引 × (360 / 字種數) + 12° 偏移
+        // 同字永遠同色；干擾字（不在 unique 中）退化為灰調
+        getHueForChar: function (ch) {
+            if (!ch) return 40;
+            const idx = this.uniquePoemChars.indexOf(ch);
+            if (idx >= 0) {
+                const n = this.uniquePoemChars.length || 1;
+                return Math.round((360 / n) * idx + 12) % 360;
+            }
+            // 干擾字：穩定 hash → 一律走灰調（renderBoard 會額外套低彩度）
+            let h = 0;
+            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
+            return h % 360;
+        },
 
         // ── CSS 載入防護（避免重複載入造成全域污染） ──
         loadCSS: function () {
@@ -130,6 +154,8 @@
                     <div id="game25-grid-wrapper" class="game25-grid-wrapper">
                         <svg id="game25-timer-ring">
                             <rect id="game25-timer-path" x="3" y="3"></rect>
+                            <rect id="game25-moves-path-white" x="3" y="3"></rect>
+                            <rect id="game25-moves-path-red" x="3" y="3"></rect>
                         </svg>
                         <svg class="game25-svg-layer">
                             <path id="game25-current-path" class="game25-path"></path>
@@ -309,9 +335,18 @@
             this.poemLines = result.lines;
             // 全詩字陣列（不含標點）── 用於計算時限與字序索引
             this.targetChars = this.poemLines.join('').split('');
+            // 全詩去重後字陣列（依首次出現順序）— 同字同色的 HUE 索引基準
+            const seen = {};
+            this.uniquePoemChars = [];
+            for (const ch of this.targetChars) {
+                if (!seen[ch]) { seen[ch] = true; this.uniquePoemChars.push(ch); }
+            }
 
             const poemInfo = document.getElementById('game25-poem-info');
-            poemInfo.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const fullName = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            // 截到 16 字內避免換行 / 與其他資訊重疊；全名放 title 屬性
+            poemInfo.textContent = fullName.length > 16 ? (fullName.slice(0, 15) + '…') : fullName;
+            poemInfo.title = fullName;
             poemInfo.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -334,6 +369,7 @@
             this.rows = settings.rowsCfg;
             this.cols = settings.colsCfg;
             this.movesLeft = settings.moveLimit;
+            this.maxMoves = settings.moveLimit;
             this.dragLimitMs = settings.dragLimitMs;
 
             // 計算每字目標次數（=該字在全詩中的出現次數）
@@ -356,25 +392,48 @@
             this.setDragBar(0);
 
             // ⚠️ 時限必須在抽詩之後、用實際 targetChars.length 計算（§1.1 規範）
+            const timerSvg = document.getElementById('game25-timer-ring');
+            const timerPath = document.getElementById('game25-timer-path');
+            const movesPathRed = document.getElementById('game25-moves-path-red');
+            const movesPathWhite = document.getElementById('game25-moves-path-white');
             if (settings.timeLimitRate > 0) {
                 this.maxTimer = Math.ceil(this.targetChars.length * settings.timeLimitRate);
                 this.timer = this.maxTimer;
-                document.getElementById('game25-timer-ring').style.display = 'block';
+                timerSvg.style.display = 'block';
+                if (timerPath) timerPath.style.display = 'block';
+                if (movesPathRed) movesPathRed.style.display = 'none';
+                if (movesPathWhite) movesPathWhite.style.display = 'none';
                 this.startTimer();
             } else {
                 this.maxTimer = 0;
-                document.getElementById('game25-timer-ring').style.display = 'none';
+                if (timerPath) timerPath.style.display = 'none';
                 clearInterval(this.timerInterval);
+            }
+
+            // 步數模式 → 啟用紅白雙框；時限模式 → 隱藏紅白框
+            if (settings.moveLimit > 0) {
+                timerSvg.style.display = 'block';
+                if (movesPathRed) movesPathRed.style.display = 'block';
+                if (movesPathWhite) movesPathWhite.style.display = 'block';
+            } else {
+                if (movesPathRed) movesPathRed.style.display = 'none';
+                if (movesPathWhite) movesPathWhite.style.display = 'none';
             }
 
             // 渲染紅心 = 顯示剩餘步數（步數模式）
             this.renderHeartsAsMoves();
+
+            // 依 rows/cols 設定 grid-wrapper 高度（每格正方形）
+            this._resizeBoardWrapper();
 
             // 生成棋盤
             this.generateBoard();
             this.renderBoard();
             this.updateProgressText();
             this.updateFreqLine();
+            // 等 DOM 佈局完成後計算紅白框 dash 段落 + 啟動 hint 倒數
+            requestAnimationFrame(() => this.updateMovesRing());
+            this.scheduleHint();
         },
 
         // ── 渲染紅心列（步數模式：以紅心數顯示剩餘步數） ──
@@ -479,12 +538,21 @@
         },
 
         // 渲染棋盤 DOM
-        renderBoard: function () {
+        // animateNew：是否對「新生」字塊（自上方掉落補位）加 spawn 動畫
+        renderBoard: function (animateNew) {
             const boardEl = document.getElementById('game25-grid');
             boardEl.innerHTML = '';
             boardEl.style.gridTemplateColumns = `repeat(${this.cols}, 1fr)`;
             boardEl.style.gridTemplateRows = `repeat(${this.rows}, 1fr)`;
             this.cellElements = [];
+            // 動態計算 cell 邊長 → 字體 = 80% 方框（不同難度仍維持比例）
+            let bw = boardEl.offsetWidth, bh = boardEl.offsetHeight;
+            if (!bw || !bh) { const rb = boardEl.getBoundingClientRect(); bw = rb.width; bh = rb.height; }
+            const cellSize = Math.min((bw - this.cols * 4) / this.cols, (bh - this.rows * 4) / this.rows);
+            const cellFontPx = Math.max(12, Math.floor(cellSize * 0.8));
+            // 用於同字同色：把 uniquePoemChars 中的字當作目標字
+            const targetSet = {};
+            this.uniquePoemChars.forEach(ch => { targetSet[ch] = true; });
             for (let r = 0; r < this.rows; r++) {
                 const rowEls = [];
                 for (let c = 0; c < this.cols; c++) {
@@ -492,9 +560,35 @@
                     div.className = 'game25-cell';
                     div.dataset.r = r;
                     div.dataset.c = c;
+                    div.style.fontSize = cellFontPx + 'px';
                     const t = this.board[r][c];
                     if (t) {
                         div.textContent = t.char;
+                        // 套用色相（依字在 uniquePoemChars 的索引等分 360°；相同字必為相同底色）
+                        const hue = this.getHueForChar(t.char);
+                        div.style.setProperty('--g25-h', hue);
+                        if (targetSet[t.char]) {
+                            // 目標字：高亮度 + 中彩度 + 深色字（與 game24 同款）
+                            div.style.setProperty('--g25-s', '65%');
+                            div.style.setProperty('--g25-l', '75%');
+                            div.style.setProperty('--g25-text', 'hsl(220, 30%, 16%)');
+                        } else {
+                            div.classList.add('decoy');
+                        }
+                        // 階梯式 spawn / fall 動畫（仿 game24 重力感）
+                        if (animateNew && t._isNew) {
+                            div.classList.add('spawn');
+                            const delay = t._spawnDelay || 0;
+                            if (delay > 0) div.style.setProperty('--g25-delay', delay + 'ms');
+                            setTimeout(() => { div.classList.remove('spawn'); div.style.removeProperty('--g25-delay'); }, 460 + delay);
+                            delete t._isNew; delete t._spawnDelay;
+                        } else if (animateNew && t._isFalling) {
+                            div.classList.add('fall');
+                            const delay = t._fallDelay || 0;
+                            if (delay > 0) div.style.setProperty('--g25-delay', delay + 'ms');
+                            setTimeout(() => { div.classList.remove('fall'); div.style.removeProperty('--g25-delay'); }, 360 + delay);
+                            delete t._isFalling; delete t._fallDelay;
+                        }
                     } else {
                         div.classList.add('empty');
                     }
@@ -504,6 +598,18 @@
                 this.cellElements.push(rowEls);
             }
             requestAnimationFrame(() => this.updateTimerRing(this.maxTimer ? this.timer / this.maxTimer : 1));
+        },
+
+        // 依 rows/cols 計算 grid-wrapper 高度，保證 cell = 正方形
+        // wrapper width 已透過 CSS 96%/max-width 設定 → 內部 grid 等比例分格 →
+        // 設 wrapperHeight = wrapperWidth × (rows/cols) 即可
+        _resizeBoardWrapper: function () {
+            const wrapper = document.getElementById('game25-grid-wrapper');
+            if (!wrapper || !this.rows || !this.cols) return;
+            let w = wrapper.offsetWidth;
+            if (!w) w = wrapper.getBoundingClientRect().width;
+            if (!w) return;
+            wrapper.style.height = Math.round(w * this.rows / this.cols) + 'px';
         },
 
         // ── 拖曳輸入 ──
@@ -630,12 +736,15 @@
                 return;
             }
 
-            // 有效路徑：扣步數（步數模式）
+            // 有效路徑：扣步數（步數模式）→ 同步更新紅白外框
             const settings = this.difficultySettings[this.difficulty];
             if (settings.moveLimit > 0) {
                 this.movesLeft--;
                 this.updateHeartsAsMoves();
+                this.updateMovesRing();
             }
+            // 玩家動了 → 清除閒置提示
+            this.clearHint();
 
             // 收集字頻
             const collectTimes = path.length;
@@ -658,33 +767,42 @@
             this.score += points;
             document.getElementById('game25-score').textContent = this.score;
 
-            // 套用消除動畫
+            // 套用消除動畫 + 同色粒子 + 字魂飛向對應進度卡
             path.forEach(p => {
                 const el = this.cellElements[p.r] && this.cellElements[p.r][p.c];
-                if (el) el.classList.add('clearing');
+                if (el) {
+                    el.classList.add('clearing');
+                    const ch = this.board[p.r] && this.board[p.r][p.c] && this.board[p.r][p.c].char;
+                    const hue = this.getHueForChar(ch);
+                    this.spawnParticles(el, 7, hue);
+                    // 字魂只對「真實目標字」飛升（不在 uniquePoemChars 內的字不飛）
+                    if (ch && this.uniquePoemChars.indexOf(ch) >= 0) {
+                        this.spawnSoul(el, ch);
+                    }
+                }
             });
 
-            this.updateFreqLine();
+            this.updateFreqLine(true); // animateNewlyLit
             this.updateProgressText();
 
-            // 動畫結束後重力下落 + 補位 + 連鎖偵測
+            // 動畫結束後重力下落 + 補位 + 連鎖偵測（renderBoard(true) → 套階梯動畫）
             this.isAnimating = true;
             setTimeout(() => {
                 path.forEach(p => { this.board[p.r][p.c] = null; });
                 this.applyGravity();
                 this.refillBoard();
-                this.renderBoard();
+                this.renderBoard(true);
 
-                // 勝利條件：全字頻達標
+                // 勝利條件：全字頻達標 → 走過關動畫
                 if (this.isAllCollected()) {
                     this.isAnimating = false;
-                    this.gameOver(true, '');
+                    this.playWinSequence();
                     return;
                 }
 
                 // 連鎖偵測（自然三連）
                 this.resolveMatchesChain(1);
-            }, 350);
+            }, 500);
         },
 
         // ── 順序成詩判定 ──
@@ -848,23 +966,45 @@
         },
 
         // ── 重力與補位 ──
+        // 重力：每欄非 null 字塊往下沉；移動的 tile 標記 _isFalling + _fallDelay
+        //   （越上方的 tile 越晚下落 → 「一層一層依序滑落」的視覺節奏，每層 40ms 階梯）
         applyGravity: function () {
             for (let c = 0; c < this.cols; c++) {
-                const stack = [];
+                const stack = []; // { tile, originRow }
                 for (let r = this.rows - 1; r >= 0; r--) {
-                    if (this.board[r][c] !== null && this.board[r][c] !== undefined) stack.push(this.board[r][c]);
+                    if (this.board[r][c] !== null && this.board[r][c] !== undefined) {
+                        stack.push({ tile: this.board[r][c], originRow: r });
+                    }
                 }
+                let stagger = 0;
                 for (let r = this.rows - 1; r >= 0; r--) {
-                    this.board[r][c] = stack.shift() || null;
+                    const item = stack.shift();
+                    if (item) {
+                        if (item.originRow !== r) {
+                            item.tile._isFalling = true;
+                            item.tile._fallDelay = stagger * 40;
+                            stagger++;
+                        }
+                        this.board[r][c] = item.tile;
+                    } else {
+                        this.board[r][c] = null;
+                    }
                 }
             }
         },
 
+        // 補位：所有 null 格生成新字塊；_spawnDelay 依欄內由下往上遞增，
+        //   下方新格先進、上方新格後進 → 「由上滑落」的層次感
         refillBoard: function () {
-            for (let r = 0; r < this.rows; r++) {
-                for (let c = 0; c < this.cols; c++) {
+            for (let c = 0; c < this.cols; c++) {
+                let spawnIdx = 0;
+                for (let r = this.rows - 1; r >= 0; r--) {
                     if (this.board[r][c] === null || this.board[r][c] === undefined) {
-                        this.board[r][c] = this.makeNewTile(false);
+                        const t = this.makeNewTile(false);
+                        t._isNew = true;
+                        t._spawnDelay = 80 + spawnIdx * 60;
+                        spawnIdx++;
+                        this.board[r][c] = t;
                     }
                 }
             }
@@ -943,13 +1083,18 @@
 
             Object.keys(toRemove).forEach(k => {
                 const [r, c] = k.split(',').map(Number);
-                if (this.cellElements[r] && this.cellElements[r][c]) {
-                    this.cellElements[r][c].classList.add('clearing');
+                const el = this.cellElements[r] && this.cellElements[r][c];
+                if (el) {
+                    el.classList.add('clearing');
+                    const ch = this.board[r] && this.board[r][c] && this.board[r][c].char;
+                    const hue = this.getHueForChar(ch);
+                    this.spawnParticles(el, 6, hue);
+                    if (ch && this.uniquePoemChars.indexOf(ch) >= 0) this.spawnSoul(el, ch);
                 }
             });
 
             document.getElementById('game25-score').textContent = this.score;
-            this.updateFreqLine();
+            this.updateFreqLine(true);
             this.updateProgressText();
 
             setTimeout(() => {
@@ -959,11 +1104,11 @@
                 });
                 this.applyGravity();
                 this.refillBoard();
-                this.renderBoard();
+                this.renderBoard(true);
 
                 if (this.isAllCollected()) {
                     this.isAnimating = false;
-                    this.gameOver(true, '');
+                    this.playWinSequence();
                     return;
                 }
                 setTimeout(() => this.resolveMatchesChain(chainCount + 1), 200);
@@ -1049,23 +1194,27 @@
             txt.textContent = `收集進度：${done} / ${chars.length} 字`;
         },
 
-        updateFreqLine: function () {
+        // 多卡橫排進度（仿 game24）：每張卡 = 上方彩色字塊（同棋盤色）+ 下方 X/Y
+        // animateNewlyLit：若 true，對「本次新達標」的卡片加 just-lit 彈跳
+        updateFreqLine: function (animateNewlyLit) {
             const line = document.getElementById('game25-freq-line');
             if (!line) return;
-            // 按詩中首次出現順序排序顯示
-            const seen = {};
-            const ordered = [];
-            for (const ch of this.targetChars) {
-                if (!seen[ch]) { seen[ch] = true; ordered.push(ch); }
-            }
+            const prevGot = this._prevFreqSnap || {};
             let html = '';
-            ordered.forEach(ch => {
+            this.uniquePoemChars.forEach(ch => {
                 const target = this.charFreqTarget[ch] || 0;
                 const got = Math.min(target, this.charFreqGot[ch] || 0);
-                const done = got >= target;
-                html += `<span class="game25-freq-char ${done ? 'done' : ''}">${ch}${target > 1 ? `(${got}/${target})` : ''}</span>`;
+                const prev = Math.min(target, prevGot[ch] || 0);
+                const done = target > 0 && got >= target;
+                const justDone = animateNewlyLit && done && prev < target;
+                const hue = this.getHueForChar(ch);
+                html += `<span class="game25-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g25-h:${hue}">`
+                    + `<span class="game25-char-tile">${ch}</span>`
+                    + `<span class="game25-char-count"><span class="game25-char-num">${got}</span>/<span class="game25-char-den">${target}</span></span>`
+                    + `</span>`;
             });
             line.innerHTML = html;
+            this._prevFreqSnap = Object.assign({}, this.charFreqGot);
         },
 
         // ── 計時器 ──
@@ -1118,12 +1267,201 @@
             }
         },
 
+        // ── 紅白步數倒數框（仿 game9 / game24） ──
+        //   依 maxMoves 將外框等分成 N 段；奇紅偶白交替；每走一步從尾段開始扣除
+        updateMovesRing: function () {
+            const rectRed = document.getElementById('game25-moves-path-red');
+            const rectWhite = document.getElementById('game25-moves-path-white');
+            const wrapper = document.getElementById('game25-grid-wrapper');
+            const svg = document.getElementById('game25-timer-ring');
+            if (!rectRed || !rectWhite || !wrapper || !svg) return;
+            if (!this.maxMoves || this.maxMoves <= 0) return;
+            let w = wrapper.offsetWidth, h = wrapper.offsetHeight;
+            if (w === 0 || h === 0) {
+                const rb = wrapper.getBoundingClientRect();
+                w = rb.width; h = rb.height;
+            }
+            if (w === 0) return;
+            svg.setAttribute('width', w);
+            svg.setAttribute('height', h);
+            rectRed.setAttribute('width', w - 6); rectRed.setAttribute('height', h - 6);
+            rectWhite.setAttribute('width', w - 6); rectWhite.setAttribute('height', h - 6);
+            const totalLength = (w - 6 + h - 6) * 2;
+            const segment = totalLength / this.maxMoves;
+            const dashArrayRed = [], dashArrayWhite = [];
+            for (let i = 1; i <= this.maxMoves; i++) {
+                const isVisible = i <= this.movesLeft;
+                const isRedSlot = (i % 2 === 0);
+                if (isVisible) {
+                    if (isRedSlot) { dashArrayWhite.push(0, segment); dashArrayRed.push(segment, 0); }
+                    else { dashArrayWhite.push(segment, 0); dashArrayRed.push(0, segment); }
+                } else { dashArrayWhite.push(0, segment); dashArrayRed.push(0, segment); }
+            }
+            rectRed.style.strokeDasharray = dashArrayRed.join(' ');
+            rectWhite.style.strokeDasharray = dashArrayWhite.join(' ');
+        },
+
+        // ── 閒置提示（hintDelay 秒未操作 → 為可形成最長路徑的同字塊發光） ──
+        scheduleHint: function () {
+            this.clearHint();
+            const settings = this.difficultySettings[this.difficulty];
+            const delay = settings && settings.hintDelay;
+            if (!delay || delay <= 0) return;
+            this.hintTimer = setTimeout(() => this.showHint(), delay * 1000);
+        },
+        clearHint: function () {
+            if (this.hintTimer) { clearTimeout(this.hintTimer); this.hintTimer = null; }
+            if (this.hintedCells && this.hintedCells.length) {
+                this.hintedCells.forEach(el => { if (el) el.classList.remove('hint'); });
+                this.hintedCells = [];
+            }
+        },
+        // 尋找棋盤上「最大同字相鄰群」其中一格（DFS 連通分量），對群內所有格發光
+        showHint: function () {
+            if (!this.isActive || this.isAnimating || this.isDragging) return;
+            const visited = {};
+            let best = null; // { cells: [{r,c}], size }
+            const dirs8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+            for (let r = 0; r < this.rows; r++) {
+                for (let c = 0; c < this.cols; c++) {
+                    const key = r + ',' + c;
+                    if (visited[key]) continue;
+                    const t = this.board[r][c];
+                    if (!t || this.uniquePoemChars.indexOf(t.char) < 0) { visited[key] = true; continue; }
+                    // DFS 同字連通分量（八方向）
+                    const stack = [{ r, c }];
+                    const cluster = [];
+                    while (stack.length) {
+                        const cur = stack.pop();
+                        const ck = cur.r + ',' + cur.c;
+                        if (visited[ck]) continue;
+                        visited[ck] = true;
+                        const ct = this.board[cur.r][cur.c];
+                        if (!ct || ct.char !== t.char) continue;
+                        cluster.push(cur);
+                        for (const [dr, dc] of dirs8) {
+                            const nr = cur.r + dr, nc = cur.c + dc;
+                            if (nr < 0 || nr >= this.rows || nc < 0 || nc >= this.cols) continue;
+                            stack.push({ r: nr, c: nc });
+                        }
+                    }
+                    if (cluster.length >= 3 && (!best || cluster.length > best.size)) {
+                        best = { cells: cluster, size: cluster.length };
+                    }
+                }
+            }
+            if (best) {
+                best.cells.forEach(p => {
+                    const el = this.cellElements[p.r] && this.cellElements[p.r][p.c];
+                    if (el) { el.classList.add('hint'); this.hintedCells.push(el); }
+                });
+            }
+        },
+
+        // ── FX 輔助：座標已除以 stageScale，避免 transform: scale 雙重縮放偏移 ──
+        getFxLayer: function () {
+            return document.getElementById('game25-grid-wrapper');
+        },
+        getCellCenter: function (cellEl) {
+            const wrapper = this.getFxLayer();
+            if (!cellEl || !wrapper) return { x: 0, y: 0 };
+            const cr = cellEl.getBoundingClientRect();
+            const wr = wrapper.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            return {
+                x: ((cr.left - wr.left) + cr.width / 2) / scale,
+                y: ((cr.top - wr.top) + cr.height / 2) / scale,
+                w: cr.width / scale, h: cr.height / scale
+            };
+        },
+        // 粒子：從消除字塊向外拋灑 N 個亮點；hue 為字塊同色相
+        spawnParticles: function (cellEl, count, hue) {
+            const wrapper = this.getFxLayer();
+            if (!wrapper) return;
+            const c = this.getCellCenter(cellEl);
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'game25-particle';
+                const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+                const dist = 35 + Math.random() * 35;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist - 8;
+                p.style.left = c.x + 'px';
+                p.style.top = c.y + 'px';
+                p.style.setProperty('--g25-dx', dx + 'px');
+                p.style.setProperty('--g25-dy', dy + 'px');
+                if (typeof hue === 'number') p.style.setProperty('--g25-ph', hue);
+                const scale = 0.8 + Math.random() * 0.6;
+                p.style.width = (8 * scale) + 'px';
+                p.style.height = (8 * scale) + 'px';
+                wrapper.appendChild(p);
+                setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 620);
+            }
+        },
+        // 字魂：消除字塊飛向頂端對應進度卡（.game25-char-group[data-char="X"]）
+        spawnSoul: function (cellEl, ch) {
+            const wrapper = this.getFxLayer();
+            if (!wrapper) return;
+            const start = this.getCellCenter(cellEl);
+            const groupEl = document.querySelector(`.game25-char-group[data-char="${ch}"]`);
+            let endX, endY;
+            if (groupEl) {
+                const gr = groupEl.getBoundingClientRect();
+                const wr = wrapper.getBoundingClientRect();
+                const scale = window.stageScale || 1;
+                endX = ((gr.left - wr.left) + gr.width / 2) / scale;
+                endY = ((gr.top - wr.top) + gr.height / 2) / scale;
+            } else { endX = start.x; endY = -20; }
+            const soul = document.createElement('div');
+            soul.className = 'game25-soul';
+            soul.textContent = ch;
+            soul.style.left = start.x + 'px';
+            soul.style.top = start.y + 'px';
+            wrapper.appendChild(soul);
+            requestAnimationFrame(() => {
+                soul.style.opacity = '0.95';
+                soul.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                soul.style.transition = 'top 0.2s ease-out, opacity 0.15s ease, transform 0.2s ease';
+                soul.style.top = (start.y - 30) + 'px';
+            });
+            setTimeout(() => {
+                soul.style.transition = 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.4s ease';
+                soul.style.left = endX + 'px';
+                soul.style.top = endY + 'px';
+                soul.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            }, 210);
+            setTimeout(() => {
+                soul.style.opacity = '0';
+                if (groupEl) {
+                    groupEl.style.transform = 'scale(1.25)';
+                    groupEl.style.transition = 'transform 0.2s ease';
+                    setTimeout(() => { groupEl.style.transform = ''; }, 220);
+                }
+            }, 720);
+            setTimeout(() => { if (soul.parentNode) soul.parentNode.removeChild(soul); }, 900);
+        },
+
+        // ── 過關動畫：進度卡逐一發金光 → 呼叫 gameOver(true) → ScoreManager 加分 + 星星 → MessageBox ──
+        playWinSequence: function () {
+            this.isAnimating = true;
+            this.clearHint();
+            const cards = Array.from(document.querySelectorAll('#game25-freq-line .game25-char-group'));
+            const GAP = 180;
+            cards.forEach((g, i) => setTimeout(() => g.classList.add('stage-flash'), i * GAP));
+            const total = cards.length * GAP + 500;
+            setTimeout(() => {
+                this.isAnimating = false;
+                this.gameOver(true, '');
+            }, total);
+        },
+
         // ── 遊戲結束（勝/敗）統一處理 ──
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
             clearInterval(this.timerInterval);
             this.stopDragTimer();
+            this.clearHint();
 
             // 失敗時寫入 game_logs；勝利由 ScoreManager.saveScore 寫入
             if (!win && window.SupabaseClient) {

@@ -51,10 +51,10 @@ const ScoreManager = {
         'game29': { base: 100, heart: 10, time: 3, getPointA: 10 }, //字龍盤環（滾球收集）
         'game30': { base: 100, heart: 10, time: 3, getPointA: 10 }, //層巒疊翠（麻將疊疊）
         'game31': { base: 100, heart: 10, time: 3, getPointA: 10 }, //詩眼覓蹤（字詞替換）
-        'game32': { base: 100, heart: 10, time: 2, getPointA: 10 }, //詩句尋寶圖（地圖故事）
-        'game33': { base: 100, heart: 10, time: 3, getPointA: 10 }, //作者連連看（風格辨識）
-        'game34': { base: 100, heart: 10, time: 3, getPointA: 10 }, //詩題猜猜看（標題配對）
-        'game35': { base: 100, heart: 10, time: 2, getPointA: 10 } //詩人的一天（情境推理）
+        'game32': { base: 100, heart: 10, time: 2, getPointA: 10 }, //尋詩地圖（地圖故事）
+        'game33': { base: 100, heart: 10, time: 3, getPointA: 10 }, //作者是誰（風格辨識）
+        'game34': { base: 100, heart: 10, time: 3, getPointA: 10 }, //猜猜詩題（標題配對）
+        'game35': { base: 100, heart: 10, time: 2, getPointA: 10 } //詩人心情（情境推理）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別

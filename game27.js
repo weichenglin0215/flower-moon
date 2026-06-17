@@ -72,6 +72,23 @@
         startTime: 0,
         gameStartTime: null,
 
+        // 同字必同色：依字在 currentLineChars 索引等分 360°
+        // 目標字（當前句）→ 高彩度高亮度；干擾字 → 低彩度灰調
+        getHueForChar: function (ch) {
+            if (!ch) return 40;
+            const idx = this.currentLineChars.indexOf(ch);
+            if (idx >= 0) {
+                const n = this.currentLineChars.length || 1;
+                return Math.round((360 / n) * idx + 12) % 360;
+            }
+            let h = 0;
+            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
+            return h % 360;
+        },
+        isTargetChar: function (ch) {
+            return this.currentLineChars.indexOf(ch) >= 0;
+        },
+
         // ── canvas ──
         canvasWidth: 312,         // 6 欄 × 52
         canvasHeight: 624,        // 12 列 × 52
@@ -347,7 +364,9 @@
             this.targetChars = this.poemLines.join('').split('');
 
             const poemInfo = document.getElementById('game27-poem-info');
-            poemInfo.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const fullName = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            poemInfo.textContent = fullName.length > 16 ? (fullName.slice(0, 15) + '…') : fullName;
+            poemInfo.title = fullName;
             poemInfo.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -434,20 +453,31 @@
             this.fallTimer = 0;
         },
 
-        // ── 進度顯示 ──
-        updateProgressDisplay: function () {
+        // ── 進度顯示：多卡橫排（仿 game24） ──
+        //   每張卡 = 上方彩色字塊（與磚塊同色 HUE）+ 下方 X/Y 計數
+        //   達標卡片整體變金色 + 金光脈動；剛達標套 just-lit 彈跳
+        //   字魂 spawnSoul 終點 = .game27-char-group[data-char="X"]
+        updateProgressDisplay: function (animateNewlyLit) {
             const txt = document.getElementById('game27-progress-text');
             const line = this.poemLines[this.currentLineIndex] || '';
             txt.innerHTML = `〈第 ${this.currentLineIndex + 1}/${this.poemLines.length} 句〉<span style="color:hsl(45,80%,75%); letter-spacing:4px; margin-left:6px;">${line}</span>`;
 
             const bar = document.getElementById('game27-collect-bar');
+            const prevGot = this._prevCollectSnap || {};
             let html = '';
             this.currentLineChars.forEach(ch => {
-                const got = this.collectProgress[ch] || 0;
+                const got = Math.min(this.collectTarget, this.collectProgress[ch] || 0);
+                const prev = Math.min(this.collectTarget, prevGot[ch] || 0);
                 const done = got >= this.collectTarget;
-                html += `<span class="collect-item ${done ? 'done' : ''}">${ch} ${done ? '✓' : '○'}</span>`;
+                const justDone = animateNewlyLit && done && prev < this.collectTarget;
+                const hue = this.getHueForChar(ch);
+                html += `<span class="game27-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g27-h:${hue}">`
+                    + `<span class="game27-char-tile">${ch}</span>`
+                    + `<span class="game27-char-count"><span class="game27-char-num">${got}</span>/<span class="game27-char-den">${this.collectTarget}</span></span>`
+                    + `</span>`;
             });
             bar.innerHTML = html;
+            this._prevCollectSnap = Object.assign({}, this.collectProgress);
         },
 
         // ── 磚塊產生：依形狀庫隨機抽選並填入加權字 ──
@@ -719,15 +749,23 @@
                     window.SoundManager.playSuccessShort();
                 }
 
-                // 動畫先閃 0.25s 再清除 + 下落
+                // 動畫先閃 0.25s 再清除 + 下落；同步噴出同色粒子 + 字魂飛入進度卡
                 this.render(toClear);
+                const S = this.cellSize;
+                toClear.forEach(({ r, c, char }) => {
+                    const cx = c * S + S / 2;
+                    const cy = r * S + S / 2;
+                    const hue = this.getHueForChar(char);
+                    this.spawnParticles(cx, cy, 6, hue);
+                    if (char && this.isTargetChar(char)) this.spawnSoul(cx, cy, char);
+                });
                 setTimeout(() => {
                     toClear.forEach(({ r, c }) => { this.grid[r][c] = null; });
                     this.applyGravity();
-                    this.updateProgressDisplay();
+                    this.updateProgressDisplay(true); // animateNewlyLit
                     this.render();
                     setTimeout(step, 120);
-                }, 250);
+                }, 350);
             };
             step();
         },
@@ -751,11 +789,108 @@
             return true;
         },
 
+        // ── FX 輔助 ──
+        // canvas 內部固定 312×624 座標 → wrapper 本地未縮放座標
+        // 修正舞台 transform: scale + canvas DOM scale 雙重套用造成的偏移
+        canvasToWrapperCoords: function (cx, cy) {
+            const canvas = document.getElementById('game27-canvas');
+            const wrapper = document.getElementById('game27-board-wrapper');
+            if (!canvas || !wrapper) return { x: 0, y: 0 };
+            const cRect = canvas.getBoundingClientRect();
+            const wRect = wrapper.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            const cw = cRect.width / scale;
+            const ch = cRect.height / scale;
+            const ratioX = cw / this.canvasWidth;
+            const ratioY = ch / this.canvasHeight;
+            const offX = (cRect.left - wRect.left) / scale;
+            const offY = (cRect.top - wRect.top) / scale;
+            return { x: offX + cx * ratioX, y: offY + cy * ratioY };
+        },
+
+        // 同色系粒子：消除字塊時噴灑
+        spawnParticles: function (cx, cy, count, hue) {
+            const wrapper = document.getElementById('game27-board-wrapper');
+            if (!wrapper) return;
+            const c = this.canvasToWrapperCoords(cx, cy);
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'game27-particle';
+                const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+                const dist = 32 + Math.random() * 36;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist - 8;
+                p.style.left = c.x + 'px';
+                p.style.top = c.y + 'px';
+                p.style.setProperty('--g27-dx', dx + 'px');
+                p.style.setProperty('--g27-dy', dy + 'px');
+                if (typeof hue === 'number') p.style.setProperty('--g27-ph', hue);
+                const scl = 0.8 + Math.random() * 0.6;
+                p.style.width = (8 * scl) + 'px';
+                p.style.height = (8 * scl) + 'px';
+                wrapper.appendChild(p);
+                setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 620);
+            }
+        },
+
+        // 字魂：消除字塊飛入頂端對應進度卡
+        spawnSoul: function (cx, cy, ch) {
+            const wrapper = document.getElementById('game27-board-wrapper');
+            if (!wrapper) return;
+            const start = this.canvasToWrapperCoords(cx, cy);
+            const groupEl = document.querySelector(`.game27-char-group[data-char="${ch}"]`);
+            let endX, endY;
+            if (groupEl) {
+                const gr = groupEl.getBoundingClientRect();
+                const wr = wrapper.getBoundingClientRect();
+                const scale = window.stageScale || 1;
+                endX = ((gr.left - wr.left) + gr.width / 2) / scale;
+                endY = ((gr.top - wr.top) + gr.height / 2) / scale;
+            } else { endX = start.x; endY = -20; }
+            const soul = document.createElement('div');
+            soul.className = 'game27-soul';
+            soul.textContent = ch;
+            soul.style.left = start.x + 'px';
+            soul.style.top = start.y + 'px';
+            wrapper.appendChild(soul);
+            requestAnimationFrame(() => {
+                soul.style.opacity = '0.95';
+                soul.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                soul.style.transition = 'top 0.2s ease-out, opacity 0.15s ease, transform 0.2s ease';
+                soul.style.top = (start.y - 24) + 'px';
+            });
+            setTimeout(() => {
+                soul.style.transition = 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.4s ease';
+                soul.style.left = endX + 'px';
+                soul.style.top = endY + 'px';
+                soul.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            }, 210);
+            setTimeout(() => {
+                soul.style.opacity = '0';
+                if (groupEl) {
+                    groupEl.style.transform = 'scale(1.25)';
+                    groupEl.style.transition = 'transform 0.2s ease';
+                    setTimeout(() => { groupEl.style.transform = ''; }, 220);
+                }
+            }, 720);
+            setTimeout(() => { if (soul.parentNode) soul.parentNode.removeChild(soul); }, 900);
+        },
+
+        // 過關動畫：進度卡逐一發金光 → 呼叫 handleGameOver(true) → ScoreManager → MessageBox
+        playWinSequence: function () {
+            const cards = Array.from(document.querySelectorAll('#game27-collect-bar .game27-char-group'));
+            const GAP = 180;
+            cards.forEach((g, i) => setTimeout(() => g.classList.add('stage-flash'), i * GAP));
+            const total = cards.length * GAP + 500;
+            setTimeout(() => this.handleGameOver(true, ''), total);
+        },
+
         advanceLine: function () {
             if (window.SoundManager && window.SoundManager.playJoyfulTriple) window.SoundManager.playJoyfulTriple();
             this.currentLineIndex++;
             if (this.currentLineIndex >= this.poemLines.length) {
-                this.handleGameOver(true, '');
+                // 最後一句完成 → 走過關動畫（進度卡逐一發光 → ScoreManager → MessageBox）
+                this.playWinSequence();
                 return;
             }
             // 進下一句：清空棋盤上半部、保留下半，並重置目標
@@ -861,26 +996,49 @@
             }
         },
 
-        // 繪製單一格子
+        // 繪製單一格子：同字必同色（HUE 依字在 currentLineChars 等分 360°）
+        //   state = 'stacked' | 'falling' | 'clearing'
+        //   目標字：彩度 60% / 亮度 75% + 漸層立體 + 高光
+        //   干擾字：彩度 12% / 灰調 → 視覺退後
+        //   'falling' 略亮、'clearing' 全白閃光（消除瞬間）
         drawCell: function (ctx, r, c, ch, state) {
             const S = this.cellSize;
             const x = c * S, y = r * S;
-            let bg = 'hsla(45, 35%, 82%, 1)';
-            if (state === 'falling')  bg = 'hsla(45, 55%, 88%, 1)';
-            if (state === 'clearing') bg = 'hsl(45, 95%, 65%)';
-            ctx.fillStyle = bg;
-            ctx.fillRect(x + 1, y + 1, S - 2, S - 2);
-            // 邊框
-            ctx.strokeStyle = 'hsla(35, 40%, 35%, 0.55)';
-            ctx.lineWidth = 1.5;
+            const isTarget = this.isTargetChar(ch);
+            const hue = this.getHueForChar(ch);
+            // 狀態調整
+            let sat = isTarget ? 60 : 12;
+            let baseL = isTarget ? 72 : 60;
+            if (state === 'falling') baseL = Math.min(88, baseL + 8);
+            // 漸層底（135° 對角光）
+            if (state === 'clearing') {
+                // 消除瞬間：金白閃光
+                ctx.fillStyle = 'hsl(50, 100%, 78%)';
+                ctx.fillRect(x + 1, y + 1, S - 2, S - 2);
+            } else {
+                const grad = ctx.createLinearGradient(x + 1, y + 1, x + S - 1, y + S - 1);
+                grad.addColorStop(0, `hsl(${hue}, ${sat}%, ${Math.min(95, baseL + 12)}%)`);
+                grad.addColorStop(0.5, `hsl(${hue}, ${sat}%, ${baseL}%)`);
+                grad.addColorStop(1, `hsl(${hue}, ${sat}%, ${Math.max(25, baseL - 18)}%)`);
+                ctx.fillStyle = grad;
+                ctx.fillRect(x + 1, y + 1, S - 2, S - 2);
+            }
+            // 上方白色高光（左上 ~30%）
+            ctx.fillStyle = 'hsla(0, 0%, 100%, 0.35)';
+            ctx.fillRect(x + 2, y + 2, S - 4, Math.floor(S * 0.22));
+            // 邊框：用同色相深色，描繪磚塊邊緣
+            ctx.strokeStyle = state === 'clearing'
+                ? 'hsl(45, 100%, 50%)'
+                : `hsla(${hue}, ${Math.max(40, sat)}%, 25%, 0.7)`;
+            ctx.lineWidth = state === 'clearing' ? 2 : 1.5;
             ctx.strokeRect(x + 1, y + 1, S - 2, S - 2);
-            // 字
-            ctx.fillStyle = 'hsl(20, 70%, 12%)';
+            // 字（line-height 修正：y 微下偏 0.03S 補中文基線視覺）
+            ctx.fillStyle = isTarget ? 'hsl(220, 30%, 14%)' : 'hsl(220, 18%, 28%)';
             const fontSize = Math.floor(S * 0.6);
-            ctx.font = `bold ${fontSize}px "Noto Serif TC", serif`;
+            ctx.font = `900 ${fontSize}px "Noto Serif TC", serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(ch || '', x + S / 2, y + S / 2 + 2);
+            ctx.fillText(ch || '', x + S / 2, y + S / 2 + S * 0.03);
         },
 
         // ── 預覽：將下一塊、下下塊畫進 4×4 mini grid ──
@@ -1121,7 +1279,7 @@
                     gameKey: 'game27',
                     timerContainerId: 'game27-board-wrapper',
                     scoreElementId: 'game27-score',
-                    heartsSelector: '',
+                    heartsSelector: '.game27-no-hearts',  // 本作無紅心 — 永不命中但語法合法，避免 querySelectorAll('') 拋例外
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);

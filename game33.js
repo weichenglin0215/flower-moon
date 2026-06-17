@@ -1,5 +1,5 @@
 /* =========================================
-   遊戲33：作者連連看 (Author-Verse Match)
+   遊戲33：作者是誰 (Author-Verse Match)
    風格辨識訓練 — 螢幕中央顯示一句詩，玩家點擊正確詩人姓名
    ========================================= */
 (function () {
@@ -159,7 +159,7 @@
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('作者連連看', (selectedLevel, levelIndex) => {
+                window.DifficultySelector.show('作者是誰', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;

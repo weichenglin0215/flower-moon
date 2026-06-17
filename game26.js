@@ -74,6 +74,30 @@
         startTime: 0,
         gameStartTime: null,
 
+        // ── 視覺增強：同字同色 + 進度卡片 ──
+        // currentLineChars 已存在；新增 uniquePoemChars（全詩去重，HUE 等分基準）
+        uniquePoemChars: [],
+
+        // 依字塊字元計算色相：以 currentLineChars 索引等分 360°（同字必同色，且為當前句目標亮色）
+        // 干擾字（不在 currentLineChars 內）用 hash → 灰調呈現
+        getHueForChar: function (ch) {
+            if (!ch) return 40;
+            const idx = this.currentLineChars.indexOf(ch);
+            if (idx >= 0) {
+                const n = this.currentLineChars.length || 1;
+                return Math.round((360 / n) * idx + 12) % 360;
+            }
+            // 干擾字（其他句或不在當前詩中的字）
+            let h = 0;
+            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
+            return h % 360;
+        },
+
+        // 是否為當前句目標字（控制 drawBubble 飽和度）
+        isTargetChar: function (ch) {
+            return this.currentLineChars.indexOf(ch) >= 0;
+        },
+
         /*
          * 難度設定（嚴格依企劃書 §7）
          * pushInterval ：泡泡牆推進間隔（毫秒）
@@ -309,7 +333,10 @@
             this.targetChars = this.poemLines.join('').split('');
 
             const poemInfo = document.getElementById('game26-poem-info');
-            poemInfo.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const fullName = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            // 截到 16 字內避免換行 / 與相鄰 UI 重疊；全名放 title 屬性供 hover 顯示
+            poemInfo.textContent = fullName.length > 16 ? (fullName.slice(0, 15) + '…') : fullName;
+            poemInfo.title = fullName;
             poemInfo.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -396,19 +423,30 @@
             this.lastTickTime = performance.now();
         },
 
-        // 字頻顯示
-        updateLineDisplay: function () {
+        // 字頻顯示：多卡橫排（仿 game24）
+        //   每張卡 = 上方彩色字塊（與泡泡同色）+ 下方 X/Y 計數
+        //   達標卡片整體變金色 + 金光脈動；剛達標加 just-lit 彈跳
+        //   字魂 spawnSoul 終點 = .game26-char-group[data-char="X"]
+        updateLineDisplay: function (animateNewlyLit) {
             const lineEl = document.getElementById('game26-line-text');
             const progEl = document.getElementById('game26-progress');
             const line = this.poemLines[this.currentLineIndex] || '';
             lineEl.innerHTML = `〈第 ${this.currentLineIndex + 1}/${this.poemLines.length} 句〉<span class="game26-line-poem">${line}</span>`;
+            const prevGot = this._prevProgressSnap || {};
             let html = '';
             this.currentLineChars.forEach(ch => {
-                const got = this.collectProgress[ch] || 0;
+                const got = Math.min(this.collectTarget, this.collectProgress[ch] || 0);
+                const prev = Math.min(this.collectTarget, prevGot[ch] || 0);
                 const done = got >= this.collectTarget;
-                html += `<span class="game26-char-group ${done ? 'done' : ''}">${ch}${done ? '✓' : '○'}</span>`;
+                const justDone = animateNewlyLit && done && prev < this.collectTarget;
+                const hue = this.getHueForChar(ch);
+                html += `<span class="game26-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g26-h:${hue}">`
+                    + `<span class="game26-char-tile">${ch}</span>`
+                    + `<span class="game26-char-count"><span class="game26-char-num">${got}</span>/<span class="game26-char-den">${this.collectTarget}</span></span>`
+                    + `</span>`;
             });
             progEl.innerHTML = html;
+            this._prevProgressSnap = Object.assign({}, this.collectProgress);
         },
 
         updateNextPreview: function () {
@@ -711,24 +749,40 @@
             // 從吸附點 flood-fill 同字
             const group = this.findSameCharGroup(snap.r, snap.c);
             if (group.length >= 3) {
-                // 消除這群
+                // 消除這群 — 先收集每顆泡泡的「canvas 內部中心座標」+ HUE，再清除資料
+                const popHue = this.getHueForChar(b.char);
+                const popPositions = [];
                 group.forEach(g => {
+                    const ctr = this.getCellCenter(g.r, g.c);
+                    popPositions.push({ x: ctr.x, y: ctr.y, ch: this.cellsByRow[g.r][g.c] && this.cellsByRow[g.r][g.c].char });
                     this.cellsByRow[g.r][g.c].alive = false;
                     this.cellsByRow[g.r][g.c] = null;
                 });
                 this.collectChar(b.char, 1);
                 this.score += this.getPointA() * group.length;
+                // 粒子 + 字魂（同色系；字魂飛入頂端進度卡）
+                popPositions.forEach(pos => {
+                    this.spawnParticles(pos.x, pos.y, 6, popHue);
+                    if (pos.ch && this.isTargetChar(pos.ch)) this.spawnSoul(pos.x, pos.y, pos.ch);
+                });
 
-                // 墜落判定
+                // 墜落判定 — 同樣先記座標 + HUE 再清除
                 const dropped = this.gravityCheck();
                 if (dropped.length > 0) {
-                    // 對每個墜落字 +1 收集（若屬於當前句）
+                    const dropPositions = [];
                     dropped.forEach(d => {
                         const ch = this.cellsByRow[d.r] && this.cellsByRow[d.r][d.c] ? this.cellsByRow[d.r][d.c].char : null;
+                        const ctr = this.getCellCenter(d.r, d.c);
+                        dropPositions.push({ x: ctr.x, y: ctr.y, ch, hue: ch ? this.getHueForChar(ch) : 45 });
                         if (ch) this.collectChar(ch, 1);
                         this.cellsByRow[d.r][d.c] = null;
                     });
                     this.score += this.getPointA() * dropped.length * 2;
+                    // 墜落字也噴粒子 + 字魂
+                    dropPositions.forEach(pos => {
+                        this.spawnParticles(pos.x, pos.y, 5, pos.hue);
+                        if (pos.ch && this.isTargetChar(pos.ch)) this.spawnSoul(pos.x, pos.y, pos.ch);
+                    });
 
                     // 碎句成詩偵測（×3 加成）
                     if (this.detectVerseInDrop(dropped)) {
@@ -740,7 +794,7 @@
                 }
 
                 document.getElementById('game26-score').textContent = this.score;
-                this.updateLineDisplay();
+                this.updateLineDisplay(true); // animateNewlyLit
 
                 if (this.isLineComplete()) {
                     this.completeLine();
@@ -916,15 +970,116 @@
                 ? window.ScoreManager.gameSettings.game26.getPointA : 30;
         },
 
+        // ── FX 輔助：canvas 內部座標 → wrapper 本地座標（避免 scale 雙重縮放） ──
+        // canvas 內部座標系為固定 480×720（this.canvasWidth/Height）；
+        // 但實際 DOM canvas 被 wrapper 縮放、且 overlay 整體又被舞台 transform: scale。
+        // 將「canvas 內部 (cx, cy)」轉換為「wrapper 本地未縮放 (x, y)」供粒子 DOM 元素定位使用。
+        canvasToWrapperCoords: function (cx, cy) {
+            const canvas = document.getElementById('game26-canvas');
+            const wrapper = document.getElementById('game26-board-wrapper');
+            if (!canvas || !wrapper) return { x: 0, y: 0 };
+            const cRect = canvas.getBoundingClientRect();
+            const wRect = wrapper.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            // canvas 與 wrapper 的 rect 都是被舞台 scale 後的 viewport 像素
+            // → 除以 scale 還原為「wrapper 本地未縮放」尺度
+            const cw = cRect.width / scale;
+            const ch = cRect.height / scale;
+            const ratioX = cw / this.canvasWidth;
+            const ratioY = ch / this.canvasHeight;
+            const offX = (cRect.left - wRect.left) / scale;
+            const offY = (cRect.top - wRect.top) / scale;
+            return { x: offX + cx * ratioX, y: offY + cy * ratioY };
+        },
+
+        // 同色系粒子：消除字泡泡時從 canvas 內部位置噴灑（DOM 元素疊在 wrapper 上）
+        spawnParticles: function (cx, cy, count, hue) {
+            const wrapper = document.getElementById('game26-board-wrapper');
+            if (!wrapper) return;
+            const c = this.canvasToWrapperCoords(cx, cy);
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'game26-particle';
+                const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+                const dist = 32 + Math.random() * 36;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist - 8;
+                p.style.left = c.x + 'px';
+                p.style.top = c.y + 'px';
+                p.style.setProperty('--g26-dx', dx + 'px');
+                p.style.setProperty('--g26-dy', dy + 'px');
+                if (typeof hue === 'number') p.style.setProperty('--g26-ph', hue);
+                const scl = 0.8 + Math.random() * 0.6;
+                p.style.width = (8 * scl) + 'px';
+                p.style.height = (8 * scl) + 'px';
+                wrapper.appendChild(p);
+                setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 640);
+            }
+        },
+
+        // 字魂：消除字泡泡時飛入頂端對應進度卡（強化「剛剛收集了哪個字」的視覺反饋）
+        spawnSoul: function (cx, cy, ch) {
+            const wrapper = document.getElementById('game26-board-wrapper');
+            if (!wrapper) return;
+            const start = this.canvasToWrapperCoords(cx, cy);
+            const groupEl = document.querySelector(`.game26-char-group[data-char="${ch}"]`);
+            let endX, endY;
+            if (groupEl) {
+                const gr = groupEl.getBoundingClientRect();
+                const wr = wrapper.getBoundingClientRect();
+                const scale = window.stageScale || 1;
+                endX = ((gr.left - wr.left) + gr.width / 2) / scale;
+                endY = ((gr.top - wr.top) + gr.height / 2) / scale;
+            } else { endX = start.x; endY = -20; }
+            const soul = document.createElement('div');
+            soul.className = 'game26-soul';
+            soul.textContent = ch;
+            soul.style.left = start.x + 'px';
+            soul.style.top = start.y + 'px';
+            wrapper.appendChild(soul);
+            requestAnimationFrame(() => {
+                soul.style.opacity = '0.95';
+                soul.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                soul.style.transition = 'top 0.2s ease-out, opacity 0.15s ease, transform 0.2s ease';
+                soul.style.top = (start.y - 24) + 'px';
+            });
+            setTimeout(() => {
+                soul.style.transition = 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.4s ease';
+                soul.style.left = endX + 'px';
+                soul.style.top = endY + 'px';
+                soul.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            }, 210);
+            setTimeout(() => {
+                soul.style.opacity = '0';
+                if (groupEl) {
+                    groupEl.style.transform = 'scale(1.25)';
+                    groupEl.style.transition = 'transform 0.2s ease';
+                    setTimeout(() => { groupEl.style.transform = ''; }, 220);
+                }
+            }, 720);
+            setTimeout(() => { if (soul.parentNode) soul.parentNode.removeChild(soul); }, 900);
+        },
+
+        // 過關動畫：所有進度卡逐一發金光 → 再進 gameOver(true) → ScoreManager → MessageBox
+        playWinSequence: function () {
+            const cards = Array.from(document.querySelectorAll('#game26-progress .game26-char-group'));
+            const GAP = 180;
+            cards.forEach((g, i) => setTimeout(() => g.classList.add('stage-flash'), i * GAP));
+            const total = cards.length * GAP + 500;
+            setTimeout(() => this.gameOver(true, ''), total);
+        },
+
         // 進入下一句
         completeLine: function () {
             if (window.SoundManager && window.SoundManager.playJoyfulTriple) window.SoundManager.playJoyfulTriple();
-            this.currentLineIndex++;
-            if (this.currentLineIndex >= this.poemLines.length) {
-                this.gameOver(true, '');
+            // 最後一句 → 走過關動畫（進度卡逐一發光 → ScoreManager.playWinAnimation → MessageBox）
+            if (this.currentLineIndex + 1 >= this.poemLines.length) {
+                this.currentLineIndex++;
+                this.playWinSequence();
                 return;
             }
-            // 進下一句：刷新牆面
+            // 非最後一句：刷新牆面進下一句
+            this.currentLineIndex++;
             setTimeout(() => this.startCurrentLine(), 600);
         },
 
@@ -976,20 +1131,42 @@
         },
 
         // 繪製單顆字泡泡
+        // 繪製字泡泡：同字必同色（HUE 依字在 currentLineChars 等分 360°）
+        //   目標字：中彩度（55%）+ 高亮度（70%）→ 立體感漸層 + 深色字
+        //   干擾字：低彩度灰調 → 視覺退後
+        //   isFlying：發射中的泡泡 → 略亮 + 金色描邊強調
         drawBubble: function (ctx, x, y, ch, isFlying) {
+            const isTarget = this.isTargetChar(ch);
+            const hue = this.getHueForChar(ch);
+            const sat = isTarget ? 60 : 12;
+            const baseL = isTarget ? 75 : 62;
+            // 徑向漸層：中央亮、邊緣暗 → 圓珠立體感
+            const r = this.bubbleR - 1;
+            const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+            grad.addColorStop(0, `hsl(${hue}, ${sat}%, ${Math.min(98, baseL + 18)}%)`);
+            grad.addColorStop(0.55, `hsl(${hue}, ${sat}%, ${baseL}%)`);
+            grad.addColorStop(1, `hsl(${hue}, ${sat}%, ${Math.max(20, baseL - 25)}%)`);
             ctx.beginPath();
-            ctx.arc(x, y, this.bubbleR - 1, 0, Math.PI * 2);
-            ctx.fillStyle = isFlying ? 'hsla(45, 90%, 70%, 1)' : 'hsla(45, 30%, 90%, 1)';
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
             ctx.fill();
-            ctx.strokeStyle = 'hsla(20, 50%, 30%, 0.9)';
-            ctx.lineWidth = 1.5;
+            // 描邊：發射中泡泡用金色強調，否則用深色
+            ctx.strokeStyle = isFlying
+                ? `hsla(45, 100%, 60%, 0.95)`
+                : `hsla(${hue}, ${Math.max(40, sat)}%, 22%, 0.85)`;
+            ctx.lineWidth = isFlying ? 2.5 : 1.5;
             ctx.stroke();
-            // 字
-            ctx.fillStyle = 'hsl(20, 70%, 15%)';
-            ctx.font = `bold ${Math.floor(this.bubbleR * 1.1)}px "Noto Serif TC", serif`;
+            // 上方白色高光
+            ctx.beginPath();
+            ctx.arc(x - r * 0.35, y - r * 0.4, r * 0.32, 0, Math.PI * 2);
+            ctx.fillStyle = 'hsla(0, 0%, 100%, 0.55)';
+            ctx.fill();
+            // 字（line-height 修正：textBaseline 'middle' + 微下偏 0.04r 補中文字基線視覺）
+            ctx.fillStyle = isTarget ? 'hsl(220, 30%, 14%)' : 'hsl(220, 20%, 28%)';
+            ctx.font = `900 ${Math.floor(this.bubbleR * 1.05)}px "Noto Serif TC", serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(ch || '', x, y);
+            ctx.fillText(ch || '', x, y + r * 0.04);
         },
 
         // 繪製瞄準虛線：含反彈預判（依難度）
@@ -1179,7 +1356,7 @@
                     gameKey: 'game26',
                     timerContainerId: 'game26-board-wrapper',
                     scoreElementId: 'game26-score',
-                    heartsSelector: '',
+                    heartsSelector: '.game26-no-hearts',  // 本作無紅心 — 永不命中但語法合法，避免 querySelectorAll('') 拋例外
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);

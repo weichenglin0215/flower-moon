@@ -53,6 +53,26 @@
         startTime: 0,
         gameStartTime: null,
 
+        // 全詩去重後字陣列（首次出現順序）— 同字同色的 HUE 索引基準
+        uniquePoemChars: [],
+
+        // 依字塊字元計算色相：在 uniquePoemChars 內的「詩字」採等分色相、高彩度高亮度
+        // 干擾字（不在詩中）→ 灰調退後（彩度 12%）
+        getHueForChar: function (ch) {
+            if (!ch) return 40;
+            const idx = this.uniquePoemChars.indexOf(ch);
+            if (idx >= 0) {
+                const n = this.uniquePoemChars.length || 1;
+                return Math.round((360 / n) * idx + 12) % 360;
+            }
+            let h = 0;
+            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
+            return h % 360;
+        },
+        isPoemChar: function (ch) {
+            return this.uniquePoemChars.indexOf(ch) >= 0;
+        },
+
         /*
          * 難度設定（依企劃書 §7）
          * boardRows / boardCols：盤面尺寸
@@ -113,6 +133,7 @@
                         <div id="game28-progress-text" class="game28-progress-text">剩餘：0 對</div>
                         <div id="game28-bonus-text" class="game28-bonus-text">順序加成 ×1</div>
                     </div>
+                    <div id="game28-char-bar" class="game28-char-bar"></div>
                     <div class="game28-board-wrapper" id="game28-board-wrapper">
                         <svg id="game28-timer-ring">
                             <rect id="game28-timer-path" x="3" y="3"></rect>
@@ -298,6 +319,7 @@
             this.updateProgressText();
             this.updateBonusText();
             this.updateHintBtn();
+            this.updateCharBar(false);
 
             document.getElementById('game28-retryGame-btn').disabled = false;
             document.getElementById('game28-newGame-btn').disabled = false;
@@ -335,13 +357,19 @@
             this.currentPoem = result.poem;
             this.poemLines = result.lines;
             this.targetChars = this.poemLines.join('').split('');
+            // 全詩去重後字（首次出現順序）— 同字同色 HUE 索引基準
+            const seen = {};
+            this.uniquePoemChars = [];
+            for (const ch of this.targetChars) {
+                if (!seen[ch]) { seen[ch] = true; this.uniquePoemChars.push(ch); }
+            }
 
-            // 顯示詩名（限制 12 字）
-            let title = this.currentPoem.title;
-            if (title.length > 12) title = title.substring(0, 10) + '...';
-            const infoText = `${title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            // 顯示詩名 — 全名截 16 字 + 全名放 title 屬性供 hover 顯示
+            const fullName = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const infoText = fullName.length > 16 ? (fullName.slice(0, 15) + '…') : fullName;
             const infoEl = document.getElementById('game28-poem-info');
             infoEl.textContent = infoText;
+            infoEl.title = fullName;
             infoEl.dataset.poemId = this.currentPoem.id;
             infoEl.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -434,6 +462,19 @@
             }
             this.tilesLeft = this.rows * this.cols;
 
+            // 計算每字總張數（用於進度卡片上的剩餘計數；只統計詩字、不含干擾字）
+            this.charCountTotal = {};
+            this.charCountLeft = {};
+            for (let r = 0; r < this.rows; r++) {
+                for (let c = 0; c < this.cols; c++) {
+                    const ch = this.board[r][c].char;
+                    if (this.isPoemChar(ch)) {
+                        this.charCountTotal[ch] = (this.charCountTotal[ch] || 0) + 1;
+                        this.charCountLeft[ch] = (this.charCountLeft[ch] || 0) + 1;
+                    }
+                }
+            }
+
             // 5) 若起始即死局，自動重排
             let safety = 0;
             while (!this.hasAnyMatch() && safety < 10) {
@@ -498,6 +539,16 @@
                     const data = this.board[r][c];
                     if (data) {
                         div.textContent = data.char;
+                        // 同字同色：依字在 uniquePoemChars 索引等分 360°
+                        const hue = this.getHueForChar(data.char);
+                        div.style.setProperty('--g28-h', hue);
+                        if (this.isPoemChar(data.char)) {
+                            div.style.setProperty('--g28-s', '60%');
+                            div.style.setProperty('--g28-l', '75%');
+                            div.style.setProperty('--g28-text', 'hsl(220, 30%, 14%)');
+                        } else {
+                            div.classList.add('decoy');
+                        }
                     } else {
                         div.classList.add('empty');
                     }
@@ -565,6 +616,119 @@
             }
         },
 
+        // ── 進度字卡列（仿 game24 — 每張卡 = 上方彩色字塊 + 下方 剩餘/總計） ──
+        //   每張卡顯示「該字剩餘張數 / 該字總張數」；歸零（全消除完）→ 金光達標狀態
+        updateCharBar: function (animateNewlyLit) {
+            const el = document.getElementById('game28-char-bar');
+            if (!el) return;
+            const prev = this._prevCharCountLeft || {};
+            let html = '';
+            this.uniquePoemChars.forEach(ch => {
+                const total = this.charCountTotal[ch] || 0;
+                if (total === 0) return; // 該字未出現在牌堆 → 不顯示
+                const left = this.charCountLeft[ch] || 0;
+                const got = total - left;
+                const done = left === 0;
+                const justDone = animateNewlyLit && done && (prev[ch] === undefined ? total : prev[ch]) > 0;
+                const hue = this.getHueForChar(ch);
+                html += `<span class="game28-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g28-h:${hue}">`
+                    + `<span class="game28-char-tile">${ch}</span>`
+                    + `<span class="game28-char-count"><span class="game28-char-num">${got}</span>/<span class="game28-char-den">${total}</span></span>`
+                    + `</span>`;
+            });
+            el.innerHTML = html;
+            this._prevCharCountLeft = Object.assign({}, this.charCountLeft);
+        },
+
+        // ── FX：DOM cell → wrapper 本地座標（修正舞台 scale 雙重縮放） ──
+        getCellCenter: function (cellEl) {
+            const wrapper = document.getElementById('game28-board-wrapper');
+            if (!cellEl || !wrapper) return { x: 0, y: 0 };
+            const cr = cellEl.getBoundingClientRect();
+            const wr = wrapper.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            return {
+                x: ((cr.left - wr.left) + cr.width / 2) / scale,
+                y: ((cr.top - wr.top) + cr.height / 2) / scale,
+                w: cr.width / scale, h: cr.height / scale
+            };
+        },
+        spawnParticles: function (cellEl, count, hue) {
+            const wrapper = document.getElementById('game28-board-wrapper');
+            if (!wrapper) return;
+            const c = this.getCellCenter(cellEl);
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'game28-particle';
+                const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+                const dist = 32 + Math.random() * 36;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist - 8;
+                p.style.left = c.x + 'px';
+                p.style.top = c.y + 'px';
+                p.style.setProperty('--g28-dx', dx + 'px');
+                p.style.setProperty('--g28-dy', dy + 'px');
+                if (typeof hue === 'number') p.style.setProperty('--g28-ph', hue);
+                const scl = 0.8 + Math.random() * 0.6;
+                p.style.width = (8 * scl) + 'px';
+                p.style.height = (8 * scl) + 'px';
+                wrapper.appendChild(p);
+                setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 620);
+            }
+        },
+        spawnSoul: function (cellEl, ch) {
+            const wrapper = document.getElementById('game28-board-wrapper');
+            if (!wrapper) return;
+            const start = this.getCellCenter(cellEl);
+            // 飛入對應 char-bar 的進度卡（外部 DOM；座標需要重新換算 viewport→wrapper local）
+            const groupEl = document.querySelector(`#game28-char-bar .game28-char-group[data-char="${ch}"]`);
+            let endX, endY;
+            if (groupEl) {
+                const gr = groupEl.getBoundingClientRect();
+                const wr = wrapper.getBoundingClientRect();
+                const scale = window.stageScale || 1;
+                endX = ((gr.left - wr.left) + gr.width / 2) / scale;
+                endY = ((gr.top - wr.top) + gr.height / 2) / scale;
+            } else { endX = start.x; endY = -20; }
+            const soul = document.createElement('div');
+            soul.className = 'game28-soul';
+            soul.textContent = ch;
+            soul.style.left = start.x + 'px';
+            soul.style.top = start.y + 'px';
+            wrapper.appendChild(soul);
+            requestAnimationFrame(() => {
+                soul.style.opacity = '0.95';
+                soul.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                soul.style.transition = 'top 0.2s ease-out, opacity 0.15s ease, transform 0.2s ease';
+                soul.style.top = (start.y - 24) + 'px';
+            });
+            setTimeout(() => {
+                soul.style.transition = 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.4s ease';
+                soul.style.left = endX + 'px';
+                soul.style.top = endY + 'px';
+                soul.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            }, 210);
+            setTimeout(() => {
+                soul.style.opacity = '0';
+                if (groupEl) {
+                    groupEl.style.transform = 'scale(1.25)';
+                    groupEl.style.transition = 'transform 0.2s ease';
+                    setTimeout(() => { groupEl.style.transform = ''; }, 220);
+                }
+            }, 720);
+            setTimeout(() => { if (soul.parentNode) soul.parentNode.removeChild(soul); }, 900);
+        },
+
+        // 過關動畫：進度字卡逐一發金光 → 呼叫 gameOver(true) → ScoreManager → MessageBox
+        playWinSequence: function () {
+            this.animLocked = true;
+            const cards = Array.from(document.querySelectorAll('#game28-char-bar .game28-char-group'));
+            const GAP = 160;
+            cards.forEach((g, i) => setTimeout(() => g.classList.add('stage-flash'), i * GAP));
+            const total = cards.length * GAP + 500;
+            setTimeout(() => this.gameOver(true, ''), total);
+        },
+
         // ── 配對成功處理 ──
         handleMatchSuccess: function (a, b, path) {
             this.animLocked = true;
@@ -609,10 +773,21 @@
             elB.classList.remove('selected');
 
             setTimeout(() => {
-                // 真正清除
+                // 真正清除 — 在資料清除前先觸發粒子/字魂（同色系 + 飛入進度卡）
+                const hue = this.getHueForChar(charMatched);
+                this.spawnParticles(elA, 6, hue);
+                this.spawnParticles(elB, 6, hue);
+                if (this.isPoemChar(charMatched)) {
+                    this.spawnSoul(elA, charMatched);
+                    this.spawnSoul(elB, charMatched);
+                }
                 this.board[a.r][a.c] = null;
                 this.board[b.r][b.c] = null;
                 this.tilesLeft -= 2;
+                // 更新該字剩餘張數
+                if (this.charCountLeft[charMatched] !== undefined) {
+                    this.charCountLeft[charMatched] = Math.max(0, this.charCountLeft[charMatched] - 2);
+                }
                 elA.textContent = '';
                 elB.textContent = '';
                 elA.classList.add('empty');
@@ -624,11 +799,11 @@
                 this.firstPick = null;
                 this.updateProgressText();
                 this.updateBonusText();
+                this.updateCharBar(true); // animateNewlyLit
 
-                // 勝利
+                // 勝利 → 走過關動畫（進度卡逐一發金光 → ScoreManager → MessageBox）
                 if (this.tilesLeft === 0) {
-                    this.animLocked = false;
-                    this.gameOver(true, '');
+                    this.playWinSequence();
                     return;
                 }
 
@@ -1016,7 +1191,7 @@
                     gameKey: 'game28',
                     timerContainerId: 'game28-board-wrapper',
                     scoreElementId: 'game28-score',
-                    heartsSelector: null,
+                    heartsSelector: '.game28-no-hearts',  // 本作無紅心 — 永不命中但語法合法，避免 querySelectorAll 例外
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);

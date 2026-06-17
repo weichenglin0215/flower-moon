@@ -58,6 +58,25 @@
 
         animLocked: false,
 
+        // 全詩去重後字陣列（首次出現順序）— 同字同色 HUE 索引基準
+        uniquePoemChars: [],
+
+        // 同字必同色：依字在 uniquePoemChars 索引等分 360°
+        getHueForChar: function (ch) {
+            if (!ch) return 40;
+            const idx = this.uniquePoemChars.indexOf(ch);
+            if (idx >= 0) {
+                const n = this.uniquePoemChars.length || 1;
+                return Math.round((360 / n) * idx + 12) % 360;
+            }
+            let h = 0;
+            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
+            return h % 360;
+        },
+        isPoemChar: function (ch) {
+            return this.uniquePoemChars.indexOf(ch) >= 0;
+        },
+
         /*
          * 難度設定（依企劃書 §7）
          * totalTiles    ：牌山總牌數
@@ -327,12 +346,20 @@
             this.poemLines = result.lines;
             this.targetChars = this.poemLines.join('').split('');
 
-            let title = this.currentPoem.title;
-            if (title.length > 12) title = title.substring(0, 10) + '...';
-            const infoText = `${title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            // 詩名截斷 16 字 + 全名 title（與 game24/game28 統一規則）
+            const fullName = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const infoText = fullName.length > 16 ? (fullName.slice(0, 15) + '…') : fullName;
             const infoEl = document.getElementById('game30-poem-info');
             infoEl.textContent = infoText;
+            infoEl.title = fullName;
             infoEl.dataset.poemId = this.currentPoem.id;
+
+            // 全詩去重後字（首次出現順序）— 同字同色 HUE 索引基準
+            const seen = {};
+            this.uniquePoemChars = [];
+            for (const ch of this.targetChars) {
+                if (!seen[ch]) { seen[ch] = true; this.uniquePoemChars.push(ch); }
+            }
             infoEl.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -523,6 +550,16 @@
                 el.style.zIndex = 10 + t.layer * 10;
                 el.dataset.tid = t.id;
                 el.onclick = () => this.onTileClick(t.id);
+                // 同字必同色（HUE 依字在 uniquePoemChars 等分 360°）
+                const hue = this.getHueForChar(t.char);
+                el.style.setProperty('--g30-h', hue);
+                if (this.isPoemChar(t.char)) {
+                    el.style.setProperty('--g30-s', '60%');
+                    el.style.setProperty('--g30-l', '75%');
+                    el.style.setProperty('--g30-text', 'hsl(220, 30%, 14%)');
+                } else {
+                    el.classList.add('decoy');
+                }
                 tower.appendChild(el);
                 t.el = el;
             });
@@ -777,21 +814,114 @@
                 else if (window.SoundManager.playSuccess) window.SoundManager.playSuccess();
             }
 
-            // 動畫結束後從 buffer 中移除
+            // 動畫結束後從 buffer 中移除 — 同步噴粒子 + 字魂飛入頂端進度卡
             setTimeout(() => {
+                const hue = this.getHueForChar(ch);
+                // 對 buffer 中將被消除的 3 個 slot 噴粒子 + 字魂
+                indices.forEach(i => {
+                    const slotEl = slots[i];
+                    if (slotEl) {
+                        this.spawnSlotParticles(slotEl, 6, hue);
+                        if (this.isPoemChar(ch)) this.spawnSoulFromSlot(slotEl, ch);
+                    }
+                });
                 // 從尾端開始 splice 避免索引錯位
                 indices.slice().reverse().forEach(i => this.buffer.splice(i, 1));
                 this.renderBuffer();
-                this.renderTracker();
+                this.renderTracker(true); // animateNewlyLit
                 this.updateBonusText();
                 this.updateBufferWarning();
                 this.updateProgressText();
 
-                // 勝利判定：所有詩字都已收集足夠
+                // 勝利判定：所有詩字都已收集足夠 → 走過關動畫
                 if (this.isWinCondition()) {
-                    this.gameOver(true, '');
+                    this.playWinSequence();
                 }
             }, 400);
+        },
+
+        // ── FX 輔助 ──
+        // slot DOM → overlay 本地座標（slot 位於 game30-buffer 內，FX 元素掛 game30-container）
+        // 兩者都被舞台 transform: scale 縮放 → 除 stageScale 還原本地座標
+        spawnSlotParticles: function (slotEl, count, hue) {
+            const overlay = this.container;
+            if (!overlay || !slotEl) return;
+            const sr = slotEl.getBoundingClientRect();
+            const orect = overlay.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            const cx = ((sr.left - orect.left) + sr.width / 2) / scale;
+            const cy = ((sr.top - orect.top) + sr.height / 2) / scale;
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'game30-particle';
+                const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+                const dist = 32 + Math.random() * 36;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist - 8;
+                p.style.left = cx + 'px';
+                p.style.top = cy + 'px';
+                p.style.setProperty('--g30-dx', dx + 'px');
+                p.style.setProperty('--g30-dy', dy + 'px');
+                if (typeof hue === 'number') p.style.setProperty('--g30-ph', hue);
+                const scl = 0.8 + Math.random() * 0.6;
+                p.style.width = (8 * scl) + 'px';
+                p.style.height = (8 * scl) + 'px';
+                overlay.appendChild(p);
+                setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 620);
+            }
+        },
+        spawnSoulFromSlot: function (slotEl, ch) {
+            const overlay = this.container;
+            if (!overlay || !slotEl) return;
+            const sr = slotEl.getBoundingClientRect();
+            const orect = overlay.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            const sx = ((sr.left - orect.left) + sr.width / 2) / scale;
+            const sy = ((sr.top - orect.top) + sr.height / 2) / scale;
+            const groupEl = document.querySelector(`#game30-tracker .game30-tracker-item[data-char="${ch}"]`);
+            let endX, endY;
+            if (groupEl) {
+                const gr = groupEl.getBoundingClientRect();
+                endX = ((gr.left - orect.left) + gr.width / 2) / scale;
+                endY = ((gr.top - orect.top) + gr.height / 2) / scale;
+            } else { endX = sx; endY = -20; }
+            const soul = document.createElement('div');
+            soul.className = 'game30-soul';
+            soul.textContent = ch;
+            soul.style.left = sx + 'px';
+            soul.style.top = sy + 'px';
+            overlay.appendChild(soul);
+            requestAnimationFrame(() => {
+                soul.style.opacity = '0.95';
+                soul.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                soul.style.transition = 'top 0.2s ease-out, opacity 0.15s ease, transform 0.2s ease';
+                soul.style.top = (sy - 24) + 'px';
+            });
+            setTimeout(() => {
+                soul.style.transition = 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.4s ease';
+                soul.style.left = endX + 'px';
+                soul.style.top = endY + 'px';
+                soul.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            }, 210);
+            setTimeout(() => {
+                soul.style.opacity = '0';
+                if (groupEl) {
+                    groupEl.style.transform = 'scale(1.25)';
+                    groupEl.style.transition = 'transform 0.2s ease';
+                    setTimeout(() => { groupEl.style.transform = ''; }, 220);
+                }
+            }, 720);
+            setTimeout(() => { if (soul.parentNode) soul.parentNode.removeChild(soul); }, 900);
+        },
+
+        // 過關動畫：進度卡逐一發金光 → gameOver(true) → ScoreManager → MessageBox
+        playWinSequence: function () {
+            this.animLocked = true;
+            const cards = Array.from(document.querySelectorAll('#game30-tracker .game30-tracker-item'));
+            const GAP = 180;
+            cards.forEach((g, i) => setTimeout(() => g.classList.add('stage-flash'), i * GAP));
+            const total = cards.length * GAP + 500;
+            setTimeout(() => this.gameOver(true, ''), total);
         },
 
         // 勝利條件：所有詩字 have >= need
@@ -814,21 +944,30 @@
         },
 
         // ── 進度燈渲染 ──
-        renderTracker: function () {
+        // 多卡橫排進度（仿 game24）：每張卡 = 上方彩色字塊（與牌同色）+ 下方 have/need
+        renderTracker: function (animateNewlyLit) {
             const el = document.getElementById('game30-tracker');
             if (!el) return;
-            el.innerHTML = '';
-            // 按 targetChars 順序去重後顯示
-            const seen = new Set();
-            this.targetChars.forEach(ch => {
-                if (seen.has(ch)) return;
-                seen.add(ch);
-                const item = document.createElement('span');
-                item.className = 'game30-tracker-item';
+            const prev = this._prevTrackerSnap || {};
+            let html = '';
+            this.uniquePoemChars.forEach(ch => {
                 const p = this.collectProgress[ch];
-                item.textContent = `${ch}${p.have}/${p.need}`;
-                if (p.have >= p.need) item.classList.add('done');
-                el.appendChild(item);
+                if (!p) return;
+                const have = Math.min(p.need, p.have);
+                const prevHave = Math.min(p.need, prev[ch] || 0);
+                const done = have >= p.need;
+                const justDone = animateNewlyLit && done && prevHave < p.need;
+                const hue = this.getHueForChar(ch);
+                html += `<span class="game30-tracker-item ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g30-h:${hue}">`
+                    + `<span class="game30-tracker-tile">${ch}</span>`
+                    + `<span class="game30-tracker-count"><span class="game30-tracker-num">${have}</span>/<span class="game30-tracker-den">${p.need}</span></span>`
+                    + `</span>`;
+            });
+            el.innerHTML = html;
+            // 快照本次的 have 數，供下次判斷 just-lit
+            this._prevTrackerSnap = {};
+            this.uniquePoemChars.forEach(ch => {
+                if (this.collectProgress[ch]) this._prevTrackerSnap[ch] = this.collectProgress[ch].have;
             });
         },
 
@@ -911,6 +1050,16 @@
                 el.style.zIndex = 10 + t.layer * 10;
                 el.dataset.tid = t.id;
                 el.onclick = () => this.onTileClick(t.id);
+                // 同字同色（與 renderTower 同樣套用 HUE）
+                const hue = this.getHueForChar(t.char);
+                el.style.setProperty('--g30-h', hue);
+                if (this.isPoemChar(t.char)) {
+                    el.style.setProperty('--g30-s', '60%');
+                    el.style.setProperty('--g30-l', '75%');
+                    el.style.setProperty('--g30-text', 'hsl(220, 30%, 14%)');
+                } else {
+                    el.classList.add('decoy');
+                }
                 tower.appendChild(el);
                 t.el = el;
             }
@@ -1046,7 +1195,7 @@
                     gameKey: 'game30',
                     timerContainerId: 'game30-tower-wrapper',
                     scoreElementId: 'game30-score',
-                    heartsSelector: null,
+                    heartsSelector: '.game30-no-hearts',  // 本作無紅心 — 永不命中但語法合法，避免 querySelectorAll(null) 例外
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);

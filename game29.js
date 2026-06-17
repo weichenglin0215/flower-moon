@@ -71,6 +71,23 @@
         startTime: 0,
         gameStartTime: null,
 
+        // 同字必同色：依字在 currentLineChars 索引等分 360°
+        // 目標字 → 在 drawBall 中採高彩度高亮度；干擾字（不在 currentLineChars） → 低彩度灰調
+        getHueForChar: function (ch) {
+            if (!ch) return 40;
+            const idx = this.currentLineChars.indexOf(ch);
+            if (idx >= 0) {
+                const n = this.currentLineChars.length || 1;
+                return Math.round((360 / n) * idx + 12) % 360;
+            }
+            let h = 0;
+            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
+            return h % 360;
+        },
+        isTargetChar: function (ch) {
+            return this.currentLineChars.indexOf(ch) >= 0;
+        },
+
         /*
          * 難度設定（嚴格依企劃書 §7）
          * flowSpeed     ：長龍流動速度（px/ms）
@@ -306,7 +323,9 @@
             this.targetChars = this.poemLines.join('').split('');
 
             const poemInfo = document.getElementById('game29-poem-info');
-            poemInfo.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            const fullName = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            poemInfo.textContent = fullName.length > 16 ? (fullName.slice(0, 15) + '…') : fullName;
+            poemInfo.title = fullName;
             poemInfo.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -464,19 +483,27 @@
             this.lastTickTime = performance.now();
         },
 
-        // 字頻顯示
-        updateLineDisplay: function () {
+        // 字頻顯示：多卡橫排（仿 game24） — 每張卡 = 上方彩色字球（同字龍同色 HUE）+ 下方 X/Y
+        updateLineDisplay: function (animateNewlyLit) {
             const lineEl = document.getElementById('game29-line-text');
             const progEl = document.getElementById('game29-progress');
             const line = this.poemLines[this.currentLineIndex] || '';
             lineEl.innerHTML = `〈第 ${this.currentLineIndex + 1}/${this.poemLines.length} 句〉<span class="game29-line-poem">${line}</span>`;
+            const prevGot = this._prevProgressSnap || {};
             let html = '';
             this.currentLineChars.forEach(ch => {
-                const got = this.collectProgress[ch] || 0;
+                const got = Math.min(this.collectTarget, this.collectProgress[ch] || 0);
+                const prev = Math.min(this.collectTarget, prevGot[ch] || 0);
                 const done = got >= this.collectTarget;
-                html += `<span class="game29-char-group ${done ? 'done' : ''}">${ch}${done ? '✓' : '○'}</span>`;
+                const justDone = animateNewlyLit && done && prev < this.collectTarget;
+                const hue = this.getHueForChar(ch);
+                html += `<span class="game29-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g29-h:${hue}">`
+                    + `<span class="game29-char-tile">${ch}</span>`
+                    + `<span class="game29-char-count"><span class="game29-char-num">${got}</span>/<span class="game29-char-den">${this.collectTarget}</span></span>`
+                    + `</span>`;
             });
             progEl.innerHTML = html;
+            this._prevProgressSnap = Object.assign({}, this.collectProgress);
         },
 
         updateNextPreview: function () {
@@ -817,6 +844,9 @@
 
                 const removed = this.dragon.slice(bestRun.start, bestRun.end);
                 const removedChar = removed[0].char;
+                // 在 splice 前收集被消除球的座標 + HUE，供粒子/字魂使用
+                const removedHue = this.getHueForChar(removedChar);
+                const removedPositions = removed.map(b => this.getTrackPos(b.s));
                 this.dragon.splice(bestRun.start, bestRun.end - bestRun.start);
                 chainLevel++;
 
@@ -827,11 +857,15 @@
                 }
                 this.resolveDragonOverlap();
 
-                // 收集字
+                // 收集字 + FX（同色粒子噴灑 + 字魂飛入進度卡）
                 this.collectChar(removedChar, 1);
+                removedPositions.forEach(pos => {
+                    this.spawnParticles(pos.x, pos.y, 6, removedHue);
+                    if (this.isTargetChar(removedChar)) this.spawnSoul(pos.x, pos.y, removedChar);
+                });
                 this.score += this.getPointA() * removed.length * chainLevel;
                 document.getElementById('game29-score').textContent = this.score;
-                this.updateLineDisplay();
+                this.updateLineDisplay(true); // animateNewlyLit
 
                 // 連鎖暫停 0.5 秒（依企劃 §D 矛盾三）
                 this.chainPause = 500;
@@ -886,15 +920,109 @@
         // 進入下一句
         completeLine: function () {
             if (window.SoundManager && window.SoundManager.playJoyfulTriple) window.SoundManager.playJoyfulTriple();
-            this.currentLineIndex++;
-            if (this.currentLineIndex >= this.poemLines.length) {
-                this.gameOver(true, '');
+            // 最後一句 → 走過關動畫（進度卡逐一發金光 → ScoreManager → MessageBox）
+            if (this.currentLineIndex + 1 >= this.poemLines.length) {
+                this.currentLineIndex++;
+                this.playWinSequence();
                 return;
             }
+            this.currentLineIndex++;
             this.chainPause = 600;
             setTimeout(() => {
                 if (this.isActive) this.startCurrentLine();
             }, 600);
+        },
+
+        // ── FX：canvas 內部固定 480×600 座標 → wrapper 本地未縮放座標 ──
+        canvasToWrapperCoords: function (cx, cy) {
+            const canvas = document.getElementById('game29-canvas');
+            const wrapper = document.getElementById('game29-board-wrapper');
+            if (!canvas || !wrapper) return { x: 0, y: 0 };
+            const cRect = canvas.getBoundingClientRect();
+            const wRect = wrapper.getBoundingClientRect();
+            const scale = window.stageScale || 1;
+            const cw = cRect.width / scale;
+            const ch = cRect.height / scale;
+            // canvas 內部固定 480×600（見 createDOM 中 <canvas width="480" height="600">）
+            const ratioX = cw / 480;
+            const ratioY = ch / 600;
+            const offX = (cRect.left - wRect.left) / scale;
+            const offY = (cRect.top - wRect.top) / scale;
+            return { x: offX + cx * ratioX, y: offY + cy * ratioY };
+        },
+        // 同色系粒子（消除字球時噴灑）
+        spawnParticles: function (cx, cy, count, hue) {
+            const wrapper = document.getElementById('game29-board-wrapper');
+            if (!wrapper) return;
+            const c = this.canvasToWrapperCoords(cx, cy);
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'game29-particle';
+                const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+                const dist = 32 + Math.random() * 36;
+                const dx = Math.cos(angle) * dist;
+                const dy = Math.sin(angle) * dist - 8;
+                p.style.left = c.x + 'px';
+                p.style.top = c.y + 'px';
+                p.style.setProperty('--g29-dx', dx + 'px');
+                p.style.setProperty('--g29-dy', dy + 'px');
+                if (typeof hue === 'number') p.style.setProperty('--g29-ph', hue);
+                const scl = 0.8 + Math.random() * 0.6;
+                p.style.width = (8 * scl) + 'px';
+                p.style.height = (8 * scl) + 'px';
+                wrapper.appendChild(p);
+                setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 620);
+            }
+        },
+        // 字魂：飛入頂端對應進度卡
+        spawnSoul: function (cx, cy, ch) {
+            const wrapper = document.getElementById('game29-board-wrapper');
+            if (!wrapper) return;
+            const start = this.canvasToWrapperCoords(cx, cy);
+            const groupEl = document.querySelector(`#game29-progress .game29-char-group[data-char="${ch}"]`);
+            let endX, endY;
+            if (groupEl) {
+                const gr = groupEl.getBoundingClientRect();
+                const wr = wrapper.getBoundingClientRect();
+                const scale = window.stageScale || 1;
+                endX = ((gr.left - wr.left) + gr.width / 2) / scale;
+                endY = ((gr.top - wr.top) + gr.height / 2) / scale;
+            } else { endX = start.x; endY = -20; }
+            const soul = document.createElement('div');
+            soul.className = 'game29-soul';
+            soul.textContent = ch;
+            soul.style.left = start.x + 'px';
+            soul.style.top = start.y + 'px';
+            wrapper.appendChild(soul);
+            requestAnimationFrame(() => {
+                soul.style.opacity = '0.95';
+                soul.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                soul.style.transition = 'top 0.2s ease-out, opacity 0.15s ease, transform 0.2s ease';
+                soul.style.top = (start.y - 24) + 'px';
+            });
+            setTimeout(() => {
+                soul.style.transition = 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.4s ease';
+                soul.style.left = endX + 'px';
+                soul.style.top = endY + 'px';
+                soul.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            }, 210);
+            setTimeout(() => {
+                soul.style.opacity = '0';
+                if (groupEl) {
+                    groupEl.style.transform = 'scale(1.25)';
+                    groupEl.style.transition = 'transform 0.2s ease';
+                    setTimeout(() => { groupEl.style.transform = ''; }, 220);
+                }
+            }, 720);
+            setTimeout(() => { if (soul.parentNode) soul.parentNode.removeChild(soul); }, 900);
+        },
+        // 過關動畫
+        playWinSequence: function () {
+            const cards = Array.from(document.querySelectorAll('#game29-progress .game29-char-group'));
+            const GAP = 180;
+            cards.forEach((g, i) => setTimeout(() => g.classList.add('stage-flash'), i * GAP));
+            const total = cards.length * GAP + 500;
+            setTimeout(() => this.gameOver(true, ''), total);
         },
 
         // ── 渲染：canvas 2D 全繪（偽 3D） ──
@@ -1002,48 +1130,53 @@
             for (let i = 0; i < this.dragon.length; i++) {
                 const b = this.dragon[i];
                 const pos = this.getTrackPos(b.s);
-                // 字球漸層色（隨位置由藍→紅一致）
-                const u = b.s / this.trackTotalLen;
-                const hue = 210 - u * 210;
-                this.drawBall(ctx, pos.x, pos.y, b.char, hue);
+                // 同字必同色（HUE 依字在 currentLineChars 等分 360°）；目標字傳 isTarget=true 強化彩度
+                const hue = this.getHueForChar(b.char);
+                this.drawBall(ctx, pos.x, pos.y, b.char, hue, this.isTargetChar(b.char));
             }
         },
 
-        drawBall: function (ctx, x, y, ch, hue) {
+        // 繪製字球：以 char 決定 hue，target/decoy 不同彩度
+        drawBall: function (ctx, x, y, ch, hue, isTarget) {
             const R = this.ballR;
+            const target = (isTarget === undefined) ? this.isTargetChar(ch) : isTarget;
+            const sat = target ? 60 : 12;
+            const baseL = target ? 72 : 60;
             // 陰影（偽 3D）
             ctx.beginPath();
             ctx.arc(x + 2, y + 3, R, 0, Math.PI * 2);
             ctx.fillStyle = 'hsla(0, 0%, 0%, 0.35)';
             ctx.fill();
-            // 球體漸層
+            // 球體漸層（中央亮 → 外圈以 char hue 深色收尾）
+            const h = (hue !== undefined) ? hue : 45;
             const grad = ctx.createRadialGradient(x - R * 0.3, y - R * 0.3, R * 0.2, x, y, R);
-            grad.addColorStop(0, `hsl(45, 50%, 95%)`);
-            grad.addColorStop(0.7, `hsl(45, 40%, 85%)`);
-            grad.addColorStop(1, `hsl(${hue !== undefined ? hue : 45}, 50%, 55%)`);
+            grad.addColorStop(0, `hsl(${h}, ${sat}%, ${Math.min(98, baseL + 22)}%)`);
+            grad.addColorStop(0.55, `hsl(${h}, ${sat}%, ${baseL}%)`);
+            grad.addColorStop(1, `hsl(${h}, ${sat}%, ${Math.max(20, baseL - 25)}%)`);
             ctx.beginPath();
             ctx.arc(x, y, R, 0, Math.PI * 2);
             ctx.fillStyle = grad;
             ctx.fill();
-            ctx.strokeStyle = `hsla(${hue !== undefined ? hue : 30}, 40%, 30%, 0.9)`;
+            ctx.strokeStyle = `hsla(${h}, ${Math.max(40, sat)}%, 22%, 0.85)`;
             ctx.lineWidth = 1.5;
             ctx.stroke();
             // 高光
             ctx.beginPath();
-            ctx.arc(x - R * 0.35, y - R * 0.35, R * 0.25, 0, Math.PI * 2);
+            ctx.arc(x - R * 0.35, y - R * 0.35, R * 0.28, 0, Math.PI * 2);
             ctx.fillStyle = 'hsla(0, 0%, 100%, 0.55)';
             ctx.fill();
-            // 字
-            ctx.fillStyle = 'hsl(20, 70%, 12%)';
-            ctx.font = `bold ${Math.floor(R * 1.15)}px "Noto Serif TC", serif`;
+            // 字（中文基線視覺修正：y 微下偏 0.04R）
+            ctx.fillStyle = target ? 'hsl(220, 30%, 14%)' : 'hsl(220, 18%, 28%)';
+            ctx.font = `900 ${Math.floor(R * 1.1)}px "Noto Serif TC", serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(ch || '', x, y);
+            ctx.fillText(ch || '', x, y + R * 0.04);
         },
 
         drawFlyingBall: function (ctx) {
             const b = this.flyingBall;
-            // 尾焰
+            const flyHue = this.getHueForChar(b.char);
+            // 尾焰（同色系）
             const tailLen = 5;
             for (let i = tailLen; i >= 1; i--) {
                 const ratio = i / tailLen;
@@ -1051,10 +1184,10 @@
                 const ty = b.y - b.vy * i * 0.8;
                 ctx.beginPath();
                 ctx.arc(tx, ty, this.ballR * (1 - ratio * 0.7), 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(45, 90%, 75%, ${0.5 * (1 - ratio)})`;
+                ctx.fillStyle = `hsla(${flyHue}, 90%, 75%, ${0.5 * (1 - ratio)})`;
                 ctx.fill();
             }
-            this.drawBall(ctx, b.x, b.y, b.char, 45);
+            this.drawBall(ctx, b.x, b.y, b.char, flyHue, this.isTargetChar(b.char));
         },
 
         drawLauncher: function (ctx) {
@@ -1091,8 +1224,9 @@
             ctx.fill();
             ctx.restore();
 
-            // 中心待發射的字球
-            this.drawBall(ctx, cx, cy, this.nextChar, 45);
+            // 中心待發射的字球（HUE 同 char）
+            const nextHue = this.getHueForChar(this.nextChar);
+            this.drawBall(ctx, cx, cy, this.nextChar, nextHue, this.isTargetChar(this.nextChar));
         },
 
         // ── 計時器 ──
@@ -1214,7 +1348,7 @@
                     gameKey: 'game29',
                     timerContainerId: 'game29-board-wrapper',
                     scoreElementId: 'game29-score',
-                    heartsSelector: '',
+                    heartsSelector: '.game29-no-hearts',  // 本作無紅心 — 永不命中但語法合法，避免 querySelectorAll('') 拋例外
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);

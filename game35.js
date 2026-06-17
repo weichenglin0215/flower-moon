@@ -1,5 +1,5 @@
 /* =========================================
-   遊戲35：詩人的一天 (A Day with the Poet) — B5 情境推理
+   遊戲35：詩人心情 (A Day with the Poet) — B5 情境推理
    螢幕上半部顯示詩人某日的故事卡（可滑動瀏覽），
    下方顯示「此刻他寫下哪首詩？」與 4 句候選首句。
    玩家單擊正確首句 → 整首詩飛升 + 情境動畫 + Web Speech 朗誦。
@@ -229,7 +229,7 @@
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('詩人的一天', (selectedLevel, levelIndex) => {
+                window.DifficultySelector.show('詩人心情', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
