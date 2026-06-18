@@ -49,6 +49,8 @@
         { page: 'game34', label: '猜猜詩題', image: 'images/Menu/詩題猜猜看_Menu256.jpg' },
         { page: 'game35', label: '詩人心情', image: 'images/Menu/詩人的一天_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
+        { page: 'leaderboard', label: '群英榜', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
+        { page: 'collection', label: '江南書院', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
@@ -511,6 +513,14 @@
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();
                         else window.location.href = 'index.html?page=achievements';
+                        break;
+                    case 'leaderboard':
+                        if (window.LeaderboardDialog) window.LeaderboardDialog.show();
+                        else console.warn('[Menu] LeaderboardDialog 未載入');
+                        break;
+                    case 'collection':
+                        if (window.CollectionDialog) window.CollectionDialog.show();
+                        else console.warn('[Menu] CollectionDialog 未載入');
                         break;
                     case 'about':
                         if (window.IntroCard) window.IntroCard.show();
