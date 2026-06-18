@@ -55,6 +55,8 @@
 
         show: function () {
             this.init();
+            this.closePeerDialogs();
+            document.body.classList.add('overlay-active');
             this.overlay.classList.remove('hidden');
             // 預設打開「綜合 → 總分排行 → 總榜」
             this.switchTab('lb-panel-overall');
@@ -65,6 +67,7 @@
 
         hide: function () {
             if (this.overlay) this.overlay.classList.add('hidden');
+            document.body.classList.remove('overlay-active');
         },
 
         createDOM: function () {
@@ -74,6 +77,7 @@
                 <div class="lb-container" id="lbContainer" role="dialog" aria-modal="true">
                     <div class="lb-header">
                         <div class="lb-title">群英榜</div>
+                        <div class="lb-close-btn" id="lbCloseBtn">✕</div>
                     </div>
                     <div class="lb-tabs">
                         <div class="lb-tab active" data-target="lb-panel-overall">綜合</div>
@@ -99,7 +103,7 @@
                                 </div>
                                 <label class="lb-stealth"><input type="checkbox" id="lbStealth"> 我隱身</label>
                             </div>
-                            <div id="lbOverallContent"></div>
+                            <div class="lb-content" id="lbOverallContent"></div>
                         </div>
                         <!-- 單遊戲 -->
                         <div class="lb-panel" id="lb-panel-game">
@@ -112,7 +116,7 @@
                                     <option value="playCount">累計通關</option>
                                 </select>
                             </div>
-                            <div id="lbGameContent"></div>
+                            <div class="lb-content" id="lbGameContent"></div>
                         </div>
                         <!-- 難度 -->
                         <div class="lb-panel" id="lb-panel-diff">
@@ -122,7 +126,7 @@
                                     <option value="fullDiff">滿級分制霸榜</option>
                                 </select>
                             </div>
-                            <div id="lbDiffContent"></div>
+                            <div class="lb-content" id="lbDiffContent"></div>
                         </div>
                         <!-- 詩詞 -->
                         <div class="lb-panel" id="lb-panel-poem">
@@ -132,7 +136,7 @@
                                     <option value="author">詩仙詩聖榜</option>
                                 </select>
                             </div>
-                            <div id="lbPoemContent"></div>
+                            <div class="lb-content" id="lbPoemContent"></div>
                         </div>
                         <!-- 時長 -->
                         <div class="lb-panel" id="lb-panel-time">
@@ -142,7 +146,7 @@
                                     <option value="streak">日日臨池（連續登入）</option>
                                 </select>
                             </div>
-                            <div id="lbTimeContent"></div>
+                            <div class="lb-content" id="lbTimeContent"></div>
                         </div>
                         <!-- 短期 -->
                         <div class="lb-panel" id="lb-panel-short">
@@ -153,7 +157,7 @@
                                     <option value="month">本月榜</option>
                                 </select>
                             </div>
-                            <div id="lbShortContent"></div>
+                            <div class="lb-content" id="lbShortContent"></div>
                         </div>
                     </div>
                 </div>`;
@@ -196,8 +200,98 @@
             }
         },
 
+        /**
+         * 為任意 overflow:auto 容器加上「拖曳捲動 + 慣性滑行」效果。
+         * 邏輯完全抄自 achievement.js 「遊戲紀錄」面板的捲動，包括摩擦係數與權重。
+         */
+        attachDragScroll: function (el) {
+            if (!el || el._fmDragScrollAttached) return;
+            el._fmDragScrollAttached = true;
+
+            let isDown = false, startY = 0, scrollTop = 0;
+            let velocity = 0, lastY = 0, lastTime = 0;
+            let momentumID = null;
+
+            const startInertia = () => {
+                const friction = 0.97;
+                const step = () => {
+                    if (Math.abs(velocity) < 0.1) { cancelAnimationFrame(momentumID); return; }
+                    el.scrollTop -= velocity;
+                    velocity *= friction;
+                    momentumID = requestAnimationFrame(step);
+                };
+                momentumID = requestAnimationFrame(step);
+            };
+
+            el.addEventListener('mousedown', (e) => {
+                if (e.target.tagName.toLowerCase() === 'button') return;
+                isDown = true;
+                el.classList.add('grabbing');
+                startY = e.pageY - el.offsetTop;
+                scrollTop = el.scrollTop;
+                velocity = 0;
+                cancelAnimationFrame(momentumID);
+                lastY = e.pageY; lastTime = Date.now();
+            });
+            el.addEventListener('mouseleave', () => {
+                if (!isDown) return;
+                isDown = false; el.classList.remove('grabbing'); startInertia();
+            });
+            el.addEventListener('mouseup', () => {
+                if (!isDown) return;
+                isDown = false; el.classList.remove('grabbing'); startInertia();
+            });
+            el.addEventListener('mousemove', (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const y = e.pageY - el.offsetTop;
+                const walk = (y - startY) * 1.5;
+                el.scrollTop = scrollTop - walk;
+                const now = Date.now(), dt = now - lastTime;
+                if (dt > 0) {
+                    const dy = e.pageY - lastY;
+                    velocity = dy * 0.8;
+                    lastTime = now; lastY = e.pageY;
+                }
+            });
+
+            el.addEventListener('touchstart', (e) => {
+                if (e.target.tagName.toLowerCase() === 'button') return;
+                isDown = true;
+                startY = e.touches[0].pageY - el.offsetTop;
+                scrollTop = el.scrollTop;
+                velocity = 0;
+                cancelAnimationFrame(momentumID);
+                lastY = e.touches[0].pageY; lastTime = Date.now();
+            }, { passive: false });
+            el.addEventListener('touchmove', (e) => {
+                if (!isDown) return;
+                const y = e.touches[0].pageY - el.offsetTop;
+                const walk = (y - startY) * 1.5;
+                el.scrollTop = scrollTop - walk;
+                const now = Date.now(), dt = now - lastTime;
+                if (dt > 0) {
+                    const dy = e.touches[0].pageY - lastY;
+                    velocity = dy * 0.8;
+                    lastTime = now; lastY = e.touches[0].pageY;
+                }
+            }, { passive: true });
+            el.addEventListener('touchend', () => {
+                if (!isDown) return;
+                isDown = false; startInertia();
+            });
+        },
+
         bindEvents: function () {
             const self = this;
+            // 關閉按鈕
+            const closeBtn = this.overlay.querySelector('#lbCloseBtn');
+            if (closeBtn) closeBtn.addEventListener('click', () => self.hide());
+
+            // 內容區拖曳捲動 + 慣性滑行（抄成就紀錄）
+            // 只綁每個分頁裡的 .lb-content，不綁工具列；工具列固定在頂端
+            this.overlay.querySelectorAll('.lb-content').forEach(el => self.attachDragScroll(el));
+
             const tabs = this.overlay.querySelectorAll('.lb-tab');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -243,10 +337,25 @@
                 });
             }
 
-            // 點背景關閉
-            this.overlay.addEventListener('click', e => {
-                if (e.target === this.overlay) self.hide();
-            });
+            // 僅右上 X 可關閉；不再支援點背景關閉
+        },
+
+        /** 開啟前關掉其他三個對話框（成就、收集、名人列傳） */
+        closePeerDialogs: function () {
+            try {
+                if (window.AchievementDialog && window.AchievementDialog.overlay &&
+                    !window.AchievementDialog.overlay.classList.contains('hidden')) {
+                    window.AchievementDialog.hide();
+                }
+                if (window.CollectionDialog && window.CollectionDialog.overlay &&
+                    !window.CollectionDialog.overlay.classList.contains('hidden')) {
+                    window.CollectionDialog.hide();
+                }
+                const ab = document.getElementById('authorBioPage');
+                if (window.AuthorBio && ab && !ab.classList.contains('hidden')) {
+                    window.AuthorBio.hide();
+                }
+            } catch (e) { /* ignore */ }
         },
 
         switchTab: function (targetId) {

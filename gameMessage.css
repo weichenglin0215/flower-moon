@@ -15,8 +15,11 @@
     text-align: center;
     color: hsl(0, 0%, 30%);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
-    z-index: 3000;
-    /* 低於 PoemDialog (3001) */
+    /* ⚠ 此處刻意「不」設定 z-index。
+       因為本元素是被 #common-game-message-wrapper 包住的 container，
+       wrapper 才是直接 append 到 document.body 的根容器，stacking 是由 wrapper 的
+       inline z-index 決定（gameMessage.js 設為 2050，低於 4 個覆蓋層的 2100）。
+       在此額外設 z-index 沒效果且會讓人誤以為這裡可以調整層級。 */
     display: flex;
     flex-direction: column;
     justify-content: center;

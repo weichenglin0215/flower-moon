@@ -1,5 +1,5 @@
 /**
- * 江南書院收集系統 — 存檔層（SaveManager）
+ * 江南小院收集系統 — 存檔層（SaveManager）
  * 依專案規範：模組外禁止直呼 localStorage，請統一透過 window.FMCollectionSave
  *
  * 存檔結構（v1）：
@@ -24,22 +24,26 @@
     const FMCollectionSave = {
         defaultData: function () {
             return {
-                version: 1,
+                version: 2,
                 silver: 200,  // 初始給少量盤纏
                 ranks: { passed: [] },
                 plots:  [ this.emptyPlot(), this.emptyPlot(), this.emptyPlot(), this.emptyPlot() ],
                 teas:   [ this.emptyTea(), this.emptyTea() ],
+                teaHouses: [ this.emptyTeaHouse(), this.emptyTeaHouse() ],
                 wines:  [ this.emptyWine(), this.emptyWine(), this.emptyWine() ],
                 scribe: { books: [], deskCap: 1, lastClaimTs: 0 },
-                inventory: {},
+                inventory: {},      // 一般收成
+                seedBag: {},        // 從商店買的種子/米/古玩存放處（key='品種_品級'）
                 examLog: [],
+                wellTimerEndTs: 0,  // 井倒數到期時間；只在玩家點井澆水時才重置
                 timestamps: { lastSeen: Date.now(), lastSaved: Date.now() }
             };
         },
 
-        emptyPlot: function () { return { kind: null, seedTier: null, plantedTs: 0, lastWaterTs: 0, missedWater: 0, harvestedAtTier: null, harvestable: false, stage: 'empty' }; },
-        emptyTea:  function () { return { kind: null, seedTier: null, plantedTs: 0, lastWaterTs: 0, missedWater: 0, stage: 'empty', dryStartTs: 0, dryOverdue: false }; },
-        emptyWine: function () { return { kind: null, riceTier: null, startTs: 0, stage: 'empty', overdue: false }; },
+        emptyPlot:     function () { return { kind: null, seedTier: null, plantedTs: 0, lastWaterTs: 0, missedWater: 0, stage: 'empty' }; },
+        emptyTea:      function () { return { kind: null, seedTier: null, plantedTs: 0, lastWaterTs: 0, missedWater: 0, stage: 'empty' }; },
+        emptyTeaHouse: function () { return { kind: null, seedTier: null, bakeStartTs: 0, stage: 'empty' }; },
+        emptyWine:     function () { return { kind: null, riceTier: null, startTs: 0, stage: 'empty' }; },
 
         load: function () {
             let raw = null;
@@ -83,21 +87,23 @@
         migrate: function (data) {
             const def = this.defaultData();
             if (!data || typeof data !== 'object') return def;
-            data.version = 1;
+            data.version = 2;
             data.silver = (typeof data.silver === 'number') ? data.silver : def.silver;
             data.ranks = data.ranks || def.ranks;
             if (!Array.isArray(data.ranks.passed)) data.ranks.passed = [];
-            // 結構檢查 / 補齊
-            ['plots','teas','wines'].forEach(k => { if (!Array.isArray(data[k])) data[k] = def[k]; });
+            ['plots','teas','wines','teaHouses'].forEach(k => { if (!Array.isArray(data[k])) data[k] = def[k]; });
             while (data.plots.length < 4) data.plots.push(this.emptyPlot());
             while (data.teas.length  < 2) data.teas.push(this.emptyTea());
+            while (data.teaHouses.length < 2) data.teaHouses.push(this.emptyTeaHouse());
             while (data.wines.length < 3) data.wines.push(this.emptyWine());
             data.scribe = data.scribe || def.scribe;
             if (!Array.isArray(data.scribe.books)) data.scribe.books = [];
             if (typeof data.scribe.deskCap !== 'number') data.scribe.deskCap = 1;
             if (typeof data.scribe.lastClaimTs !== 'number') data.scribe.lastClaimTs = 0;
             data.inventory = data.inventory || {};
+            data.seedBag   = data.seedBag   || {};
             data.examLog = Array.isArray(data.examLog) ? data.examLog : [];
+            if (typeof data.wellTimerEndTs !== 'number') data.wellTimerEndTs = 0;
             data.timestamps = data.timestamps || { lastSeen: Date.now(), lastSaved: Date.now() };
             return data;
         },

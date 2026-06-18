@@ -110,7 +110,10 @@ const GameMessage = {
             this.wrapper.id = 'common-game-message-wrapper';
             this.wrapper.className = 'hidden';
             this.wrapper.style.position = 'fixed';
-            this.wrapper.style.zIndex = '3000';
+            // ⚠ 此 wrapper 直接 append 到 document.body，z-index 在 body 層級計算。
+            //    遊戲 overlay 在 2000；成就/群英榜/江南小院/名人列傳 4 個覆蓋層在 2100。
+            //    GameMessage 必須高於遊戲（讓玩家看見訊息），低於 4 個覆蓋層（dialog 開啟時要遮住訊息）。
+            this.wrapper.style.zIndex = '2050';
             this.wrapper.style.display = 'flex';
             this.wrapper.style.justifyContent = 'center';
             this.wrapper.style.alignItems = 'center';

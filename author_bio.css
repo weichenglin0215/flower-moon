@@ -7,7 +7,8 @@
     position: fixed;
     margin: 0;
     background-color: var(--bg-color);
-    z-index: 2000;
+    z-index: 2100;
+    /* 高於遊戲 overlay (2000) 與 GameMessage (2050)；4 個覆蓋層統一 2100 */
     display: none;
     /* 預設隱藏 */
     flex-direction: column;

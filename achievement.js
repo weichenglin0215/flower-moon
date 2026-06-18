@@ -104,6 +104,7 @@
                 <div class="ach-container" id="achContainer" role="dialog" aria-modal="true">
                     <div class="ach-header">
                         <div class="ach-title">成就與紀錄</div>
+                        <div class="ach-close-btn" id="achCloseBtn">✕</div>
                     </div>
                     <div class="ach-tabs">
                         <div class="ach-tab active" data-target="ach-panel-overview">總覽</div>
@@ -189,6 +190,10 @@
 
 
         bindEvents: function () {
+
+            // 關閉按鈕
+            const closeBtn = this.overlay.querySelector('#achCloseBtn');
+            if (closeBtn) closeBtn.addEventListener('click', () => this.hide());
 
             // 頁籤切換
 
@@ -1821,6 +1826,22 @@
         show: function () {
 
             this.init();
+
+            // 開啟前關掉其他三個對話框（群英榜、江南小院、名人列傳）
+            try {
+                if (window.LeaderboardDialog && window.LeaderboardDialog.overlay &&
+                    !window.LeaderboardDialog.overlay.classList.contains('hidden')) {
+                    window.LeaderboardDialog.hide();
+                }
+                if (window.CollectionDialog && window.CollectionDialog.overlay &&
+                    !window.CollectionDialog.overlay.classList.contains('hidden')) {
+                    window.CollectionDialog.hide();
+                }
+                const ab = document.getElementById('authorBioPage');
+                if (window.AuthorBio && ab && !ab.classList.contains('hidden')) {
+                    window.AuthorBio.hide();
+                }
+            } catch (e) { /* ignore */ }
 
             this.renderData();
 

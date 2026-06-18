@@ -11,7 +11,7 @@
     margin: 0;
     /* 對齊 game4：冷暗藍漸層舞台背景 */
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
-    z-index: 2000;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -109,9 +109,18 @@
 }
 
 @keyframes game35ComboPop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.6); color: hsl(45, 100%, 60%); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.6);
+        color: hsl(45, 100%, 60%);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .game35-combo.combo-pop {
@@ -218,26 +227,32 @@
     background: linear-gradient(135deg, hsla(220, 35%, 88%, 1) 0%, hsla(230, 30%, 78%, 1) 100%);
     border-color: hsl(220, 40%, 35%);
 }
+
 .game35-story-card[data-scene="snow"] {
     background: linear-gradient(135deg, hsla(200, 20%, 96%, 1) 0%, hsla(210, 15%, 88%, 1) 100%);
     border-color: hsl(210, 25%, 55%);
 }
+
 .game35-story-card[data-scene="tavern"] {
     background: linear-gradient(135deg, hsla(30, 70%, 88%, 1) 0%, hsla(20, 60%, 78%, 1) 100%);
     border-color: hsl(20, 60%, 40%);
 }
+
 .game35-story-card[data-scene="boat"] {
     background: linear-gradient(135deg, hsla(180, 30%, 88%, 1) 0%, hsla(190, 25%, 78%, 1) 100%);
     border-color: hsl(195, 45%, 35%);
 }
+
 .game35-story-card[data-scene="spring"] {
     background: linear-gradient(135deg, hsla(100, 35%, 90%, 1) 0%, hsla(90, 30%, 80%, 1) 100%);
     border-color: hsl(110, 35%, 35%);
 }
+
 .game35-story-card[data-scene="mountain"] {
     background: linear-gradient(135deg, hsla(80, 25%, 88%, 1) 0%, hsla(60, 20%, 78%, 1) 100%);
     border-color: hsl(80, 30%, 30%);
 }
+
 .game35-story-card[data-scene="farewell"] {
     background: linear-gradient(135deg, hsla(40, 30%, 88%, 1) 0%, hsla(30, 25%, 78%, 1) 100%);
     border-color: hsl(30, 40%, 35%);
@@ -283,9 +298,19 @@
 }
 
 @keyframes game35ShakeHint {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-8px); }
-    75% { transform: translateX(8px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-8px);
+    }
+
+    75% {
+        transform: translateX(8px);
+    }
 }
 
 .game35-scroll-hint.shake {
@@ -360,9 +385,17 @@
 }
 
 @keyframes game35CorrectPop {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.18); }
-    100% { transform: scale(1.06); }
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.18);
+    }
+
+    100% {
+        transform: scale(1.06);
+    }
 }
 
 /* 答錯 */
@@ -380,9 +413,19 @@
 }
 
 @keyframes game35WrongShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-6px); }
-    75% { transform: translateX(6px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-6px);
+    }
+
+    75% {
+        transform: translateX(6px);
+    }
 }
 
 /* 正解卡閃光（答錯時提示） */
@@ -392,10 +435,13 @@
 }
 
 @keyframes game35FlashCorrect {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 6px hsl(45, 90%, 65%);
         background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 80%, 1) 100%);
     }
+
     50% {
         box-shadow: 0 0 24px hsl(45, 100%, 70%), 0 0 40px hsl(45, 100%, 60%);
         background: linear-gradient(135deg, hsla(45, 100%, 82%, 1) 0%, hsla(40, 100%, 72%, 1) 100%);
@@ -426,8 +472,15 @@
 }
 
 @keyframes game35HintFade {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ---- 情境動畫疊層 ---- */
@@ -450,14 +503,21 @@
 }
 
 @keyframes game35SceneFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .game35-scene-bg {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: linear-gradient(180deg, hsl(220, 40%, 18%) 0%, hsl(230, 50%, 8%) 100%);
     opacity: 0.92;
     overflow: hidden;
@@ -467,21 +527,27 @@
 .game35-scene-bg[data-scene="night"] {
     background: linear-gradient(180deg, hsl(220, 50%, 18%) 0%, hsl(230, 60%, 6%) 100%);
 }
+
 .game35-scene-bg[data-scene="snow"] {
     background: linear-gradient(180deg, hsl(210, 25%, 78%) 0%, hsl(220, 30%, 60%) 100%);
 }
+
 .game35-scene-bg[data-scene="tavern"] {
     background: radial-gradient(circle at 50% 60%, hsl(30, 90%, 45%) 0%, hsl(20, 80%, 20%) 70%, hsl(15, 70%, 10%) 100%);
 }
+
 .game35-scene-bg[data-scene="boat"] {
     background: linear-gradient(180deg, hsl(195, 50%, 35%) 0%, hsl(205, 60%, 18%) 100%);
 }
+
 .game35-scene-bg[data-scene="spring"] {
     background: linear-gradient(180deg, hsl(100, 45%, 40%) 0%, hsl(80, 50%, 22%) 100%);
 }
+
 .game35-scene-bg[data-scene="mountain"] {
     background: linear-gradient(180deg, hsl(80, 30%, 30%) 0%, hsl(40, 25%, 18%) 100%);
 }
+
 .game35-scene-bg[data-scene="farewell"] {
     background: linear-gradient(180deg, hsl(30, 40%, 40%) 0%, hsl(20, 50%, 20%) 100%);
 }
@@ -497,8 +563,15 @@
 }
 
 @keyframes game35IconFloat {
-    0%, 100% { transform: translateY(0) rotate(-3deg); }
-    50% { transform: translateY(-8px) rotate(3deg); }
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(-3deg);
+    }
+
+    50% {
+        transform: translateY(-8px) rotate(3deg);
+    }
 }
 
 /* 整首詩 — 飛升至中央 */
@@ -515,9 +588,20 @@
 }
 
 @keyframes game35PoemRise {
-    0% { opacity: 0; transform: translateY(40px) scale(0.92); }
-    60% { opacity: 1; transform: translateY(-6px) scale(1.04); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+    0% {
+        opacity: 0;
+        transform: translateY(40px) scale(0.92);
+    }
+
+    60% {
+        opacity: 1;
+        transform: translateY(-6px) scale(1.04);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .game35-scene-title {

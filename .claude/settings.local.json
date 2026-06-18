@@ -14,7 +14,10 @@
       "Bash(node -c \"C:/3D_prj/VS_2022_prj/FlowerMoon_web/game24.js\")",
       "PowerShell($ErrorActionPreference='Stop'; & node --check 'C:\\\\3D_prj\\\\VS_2022_prj\\\\FlowerMoon_web\\\\game24.js' 2>&1; \"exit=$LASTEXITCODE\")",
       "Bash(node --check game24.js)",
-      "PowerShell(node --check game24.js 2>&1)"
+      "PowerShell(node --check game24.js 2>&1)",
+      "Bash(node -c leaderboard.js)",
+      "Bash(git add *)",
+      "Bash(grep -v \"/\\\\*\")"
     ]
   }
 }

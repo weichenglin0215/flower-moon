@@ -7,7 +7,7 @@
     margin: 0;
     /*background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);*/
     background: radial-gradient(circle at center, hsl(210, 30%, 5%) 0%, hsl(0, 0%, 0%) 100%);
-    z-index: 2000;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
     align-items: center;

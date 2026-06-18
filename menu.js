@@ -50,7 +50,7 @@
         { page: 'game35', label: '詩人心情', image: 'images/Menu/詩人的一天_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'leaderboard', label: '群英榜', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
-        { page: 'collection', label: '江南書院', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
+        { page: 'collection', label: '江南小院', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
@@ -339,7 +339,10 @@
             console.log(`[Menu] 嘗試切換頁面: ${pageName}`);
             closeMenu();
 
-            if (pageName !== 'about' && pageName !== 'poem-data' && pageName !== 'fullscreen' && pageName !== 'qrcode') {
+            // 這些頁面只是覆蓋在現有遊戲/日曆/卡片上，不可摧毀底下狀態
+            const SKIP_CLEANUP_PAGES = ['about', 'poem-data', 'fullscreen', 'qrcode',
+                'achievements', 'leaderboard', 'collection', 'author-biography'];
+            if (!SKIP_CLEANUP_PAGES.includes(pageName)) {
                 closeAllActiveOverlays();
             }
 

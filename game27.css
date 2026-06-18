@@ -10,7 +10,7 @@
     margin: 0;
     /* 對齊 game24/game4 的三停藍黑徑向漸層 */
     background: radial-gradient(ellipse at center, hsl(210, 30%, 25%) 0%, hsl(220, 40%, 10%) 70%, hsl(0, 0%, 3%) 100%);
-    z-index: 2000;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -211,9 +211,9 @@
     color: hsl(220, 30%, 14%);
     border-radius: 6px;
     background: linear-gradient(135deg,
-        hsl(var(--g27-h), 60%, 87%) 0%,
-        hsl(var(--g27-h), 60%, 72%) 50%,
-        hsl(var(--g27-h), 60%, 55%) 100%);
+            hsl(var(--g27-h), 60%, 87%) 0%,
+            hsl(var(--g27-h), 60%, 72%) 50%,
+            hsl(var(--g27-h), 60%, 55%) 100%);
     border: 1px solid hsla(var(--g27-h), 50%, 25%, 0.7);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 2px hsla(0, 0%, 100%, 0.55);
     text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);
@@ -229,58 +229,101 @@
 .game27-char-group.done {
     animation: game27-done-pulse 1.4s ease-in-out infinite;
 }
+
 .game27-char-group.done .game27-char-tile {
     background: linear-gradient(135deg, hsl(50, 100%, 80%) 0%, hsl(45, 100%, 65%) 50%, hsl(40, 100%, 50%) 100%);
     border-color: hsl(40, 100%, 35%);
     color: hsl(20, 80%, 18%);
     box-shadow: 0 0 10px hsla(45, 100%, 65%, 0.8), inset 0 1px 2px hsla(0, 0%, 100%, 0.7);
 }
+
 .game27-char-group.done .game27-char-count {
     color: hsl(45, 100%, 75%);
     font-weight: bold;
     text-shadow: 0 0 6px hsla(45, 100%, 60%, 0.7);
 }
+
 .game27-char-group.just-lit {
     animation: game27-charGroup-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 @keyframes game27-charGroup-pop {
-    0%   { transform: scale(0.9); }
-    50%  { transform: scale(1.35); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(0.9);
+    }
+
+    50% {
+        transform: scale(1.35);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
+
 @keyframes game27-done-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 hsla(45, 100%, 65%, 0.5); }
-    50%      { box-shadow: 0 0 14px 4px hsla(45, 100%, 65%, 0.9); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 hsla(45, 100%, 65%, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 14px 4px hsla(45, 100%, 65%, 0.9);
+    }
 }
 
 /* 過關過場：進度卡逐一發金光（playWinSequence 觸發） */
 .game27-char-group.stage-flash .game27-char-tile {
     animation: game27-stage-flash 0.6s ease-out;
 }
+
 @keyframes game27-stage-flash {
-    0%   { transform: scale(1);   box-shadow: 0 0 0 0 hsla(45, 100%, 70%, 0); }
-    40%  { transform: scale(1.4); box-shadow: 0 0 26px 10px hsla(45, 100%, 70%, 1); filter: brightness(1.6) saturate(1.3); }
-    100% { transform: scale(1);   box-shadow: 0 0 0 0 hsla(45, 100%, 70%, 0); filter: brightness(1); }
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 hsla(45, 100%, 70%, 0);
+    }
+
+    40% {
+        transform: scale(1.4);
+        box-shadow: 0 0 26px 10px hsla(45, 100%, 70%, 1);
+        filter: brightness(1.6) saturate(1.3);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 hsla(45, 100%, 70%, 0);
+        filter: brightness(1);
+    }
 }
 
 /* 同色系粒子 */
 .game27-particle {
     position: absolute;
-    width: 8px; height: 8px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: radial-gradient(circle,
-        hsl(var(--g27-ph, 45), 100%, 82%) 0%,
-        hsl(var(--g27-ph, 45), 100%, 55%) 60%,
-        transparent 100%);
+            hsl(var(--g27-ph, 45), 100%, 82%) 0%,
+            hsl(var(--g27-ph, 45), 100%, 55%) 60%,
+            transparent 100%);
     box-shadow: 0 0 8px hsl(var(--g27-ph, 45), 100%, 65%);
     pointer-events: none;
     z-index: 9;
     transform: translate(-50%, -50%);
     animation: game27-particle-fly 0.62s cubic-bezier(0.2, 0.6, 0.4, 1) forwards;
 }
+
 @keyframes game27-particle-fly {
-    0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-    70%  { opacity: 0.9; }
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 0.9;
+    }
+
     100% {
         transform: translate(calc(-50% + var(--g27-dx, 0px)), calc(-50% + var(--g27-dy, 0px))) scale(0.2);
         opacity: 0;
@@ -317,8 +360,10 @@
 
 .game27-board-wrapper {
     position: relative;
-    width: 312px;   /* 6 欄 × 52px */
-    height: 624px;  /* 12 列 × 52px（高中尺寸；其他難度由 JS 動態調整）*/
+    width: 312px;
+    /* 6 欄 × 52px */
+    height: 624px;
+    /* 12 列 × 52px（高中尺寸；其他難度由 JS 動態調整）*/
     background: hsl(40, 20%, 5%);
     touch-action: none;
     border: 2px solid hsla(40, 60%, 50%, 0.3);
@@ -372,13 +417,28 @@
 }
 
 @keyframes game27-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); box-shadow: 0 0 20px hsl(45, 95%, 65%); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+        box-shadow: 0 0 20px hsl(45, 95%, 65%);
+    }
 }
 
 @keyframes game27-dissolve {
-    0% { transform: translateY(0); opacity: 1; }
-    100% { transform: translateY(-30px) scale(0.5); opacity: 0; }
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-30px) scale(0.5);
+        opacity: 0;
+    }
 }
 
 /* 觸頂預警紅條 */
@@ -396,8 +456,15 @@
 }
 
 @keyframes game27-warn-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
 }
 
 /* ---------- 右側預覽區 ---------- */
@@ -462,9 +529,20 @@
 }
 
 @keyframes game27-chain-pop {
-    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-    30% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
-    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0;
+    }
+
+    30% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0;
+    }
 }
 
 /* ---------- 計時器矩形邊框（依花月規範要求保留） ---------- */

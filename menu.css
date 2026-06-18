@@ -199,10 +199,13 @@
 
 /* 文字標籤（固定在下方） */
 .menu-item-label {
-    font-family: 'Noto Serif TC', serif;
+    font-family: 'Noto Sans TC';
+    /*思源黑體*/
+    /*font-family: monospace;*/
+    /*標楷體*/
     font-size: 24px;
     /* 24px → 24px */
-    font-weight: 500;
+    font-weight: 300;
     letter-spacing: 0.05em;
     text-align: center;
     color: #f4e4a0;

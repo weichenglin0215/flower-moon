@@ -754,7 +754,7 @@ const ScoreManager = {
             style.textContent = `
                 .flying-star {
                     position: fixed;
-                    z-index: 3000;
+                    z-index: 1100;
                     font-size: 2rem;
                     color: hsl(60, 100%, 50%);
                     pointer-events: none;

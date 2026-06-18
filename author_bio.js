@@ -672,6 +672,22 @@ window.AuthorBio = (function () {
 
         }
 
+        // 開啟前關掉其他三個對話框（成就、群英榜、江南小院）
+        try {
+            if (window.AchievementDialog && window.AchievementDialog.overlay &&
+                !window.AchievementDialog.overlay.classList.contains('hidden')) {
+                window.AchievementDialog.hide();
+            }
+            if (window.LeaderboardDialog && window.LeaderboardDialog.overlay &&
+                !window.LeaderboardDialog.overlay.classList.contains('hidden')) {
+                window.LeaderboardDialog.hide();
+            }
+            if (window.CollectionDialog && window.CollectionDialog.overlay &&
+                !window.CollectionDialog.overlay.classList.contains('hidden')) {
+                window.CollectionDialog.hide();
+            }
+        } catch (e) { /* ignore */ }
+
         if (page) {
 
             page.classList.remove('hidden');
@@ -738,13 +754,9 @@ window.AuthorBio = (function () {
 
             document.body.classList.remove('overlay-active');
 
-
-
-            // 恢復主頁顯示
-
-            const container = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
-
-            if (container) container.style.display = '';
+            // 不再強制顯示卡片/日曆容器：
+            // 名人列傳只是覆蓋層，關閉後底下原本是甚麼狀態就保持甚麼狀態
+            // （遊戲進行中就繼續遊戲，主頁就回主頁，不可強迫切回日曆）
 
         }
 

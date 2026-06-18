@@ -11,7 +11,9 @@
     width: 100vw;
     height: 100vh;
     background-color: hsla(0, 0%, 0%, 0.85);
-    z-index: 2500;
+    z-index: 2100;
+    /* 高於遊戲 overlay (2000) 與 GameMessage (2050)；
+       4 個覆蓋層（成就/群英榜/江南小院/名人列傳）統一 2100 */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -49,9 +51,30 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
     /* 2px → 2px */
 }
+
+/* 標題右側 X 關閉按鈕（4 dialog 唯一關閉方式） */
+.ach-close-btn {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: bold;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.2);
+    color: hsl(34, 64%, 98%);
+    cursor: pointer;
+}
+.ach-close-btn:hover { opacity: 0.85; }
 
 /*標題文字*/
 .ach-title {

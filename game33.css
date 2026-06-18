@@ -9,7 +9,7 @@
     margin: 0;
     /* 對齊 game4：冷暗藍漸層舞台背景 */
     background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
-    z-index: 2000;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -121,9 +121,18 @@
 }
 
 @keyframes comboPop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.6); color: hsl(45, 100%, 60%); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.6);
+        color: hsl(45, 100%, 60%);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .game33-combo.combo-pop {
@@ -301,9 +310,17 @@
 }
 
 @keyframes correctPop {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.25); }
-    100% { transform: scale(1.1); }
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.25);
+    }
+
+    100% {
+        transform: scale(1.1);
+    }
 }
 
 /* 答錯：紅色 + ✗ */
@@ -320,9 +337,19 @@
 }
 
 @keyframes wrongShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-6px); }
-    75% { transform: translateX(6px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-6px);
+    }
+
+    75% {
+        transform: translateX(6px);
+    }
 }
 
 /* 正確答案閃光（答錯時提示） */
@@ -332,10 +359,13 @@
 }
 
 @keyframes flashCorrect {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 6px hsl(45, 90%, 65%);
         background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 80%, 1) 100%);
     }
+
     50% {
         box-shadow: 0 0 24px hsl(45, 100%, 70%), 0 0 40px hsl(45, 100%, 60%);
         background: linear-gradient(135deg, hsla(45, 100%, 80%, 1) 0%, hsla(40, 100%, 70%, 1) 100%);

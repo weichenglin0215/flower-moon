@@ -11,12 +11,14 @@
     width: 100vw;
     height: 100vh;
     background-color: hsla(0, 0%, 0%, 0.85);
-    z-index: 2500;
+    z-index: 2100;
+    /* 高於遊戲 overlay (2000) 與 GameMessage (2050)；4 個覆蓋層統一 2100 */
     display: flex;
     justify-content: center;
     align-items: center;
     transition: opacity 0.3s ease;
     backdrop-filter: blur(2px);
+    font-family: 'Noto Sans TC';
 }
 
 .lb-overlay.hidden {
@@ -33,7 +35,7 @@
     flex-direction: column;
     overflow: hidden;
     color: hsl(34, 64%, 98%);
-    font-family: 'Noto Serif TC', serif;
+    font-family: 'Noto Sans TC';
     position: absolute;
 }
 
@@ -45,8 +47,30 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    font-family: 'Noto Serif TC', serif;
 }
+
+/* 標題右側 X 關閉按鈕（4 dialog 唯一關閉方式） */
+.lb-close-btn {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: bold;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.2);
+    color: hsl(34, 64%, 98%);
+    cursor: pointer;
+}
+.lb-close-btn:hover { opacity: 0.85; }
 
 .lb-title {
     font-size: 30px;
@@ -67,9 +91,9 @@
     text-align: center;
     padding: 5px 0;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 22px;
     font-weight: bold;
-    color: hsl(0, 0%, 73%);
+    color: hsl(0, 0%, 80%);
     transition: background 0.2s, color 0.2s;
     border-right: 1px solid hsla(0, 0%, 100%, 0.2);
     border-bottom: 2px solid hsla(0, 0%, 100%, 0.2);
@@ -81,41 +105,64 @@
 
 .lb-tab.active {
     background: hsl(0, 60%, 48%);
-    color: #fdfaf6;
+    color: hsl(34, 64%, 98%);
     border-bottom: 2px solid hsl(48, 89%, 50%);
 }
 
-/* 內容區 */
+/* 主內容容器：本身不捲動，只負責放分頁 */
 .lb-body {
     flex: 1;
-    overflow-y: auto;
-    padding: 15px;
+    overflow: hidden;
+    padding: 0;
     position: relative;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.8) transparent;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
-.lb-body::-webkit-scrollbar {
-    width: 4px;
-}
-
-.lb-body::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 2px;
-}
-
+/* 每個分頁：flex 直排，工具列固定，內容區自捲 */
 .lb-panel {
     display: none;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding: 10px;
+    box-sizing: border-box;
     animation: fadeIn 0.3s ease-in-out;
 }
 
 .lb-panel.active {
-    display: block;
+    display: flex;
 }
 
+/* 工具列固定在分頁頂端，不參與捲動 */
+.lb-toolbar {
+    flex: 0 0 auto;
+}
+
+/* 分頁內容區：唯一允許上下手指拖曳捲動的容器，不顯示捲動條 */
+.lb-content {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    cursor: grab;
+    user-select: none;
+}
+.lb-content::-webkit-scrollbar { display: none; }
+.lb-content.grabbing { cursor: grabbing; }
+
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* 子排行類型 + 時間切片 工具列 */
@@ -123,21 +170,21 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     align-items: center;
 }
 
+/*內容區的下拉選單*/
 .lb-select {
     background: hsla(0, 50%, 30%, 1);
     color: hsl(34, 64%, 98%);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 16px;
-    font-family: 'Noto Serif TC', serif;
+    padding: 4px 10px;
+    font-size: 18px;
 }
 
-/* 時間切片 pill */
+/* 時間切片 按鈕 pill */
 .lb-time-switch {
     display: flex;
     gap: 4px;
@@ -147,9 +194,9 @@
     background: hsla(0, 50%, 30%, 1);
     color: hsl(0, 0%, 80%);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 999px;
-    padding: 4px 12px;
-    font-size: 14px;
+    border-radius: 8px;
+    padding: 2px 8px;
+    font-size: 18px;
     cursor: pointer;
     user-select: none;
 }
@@ -158,11 +205,14 @@
     background: hsl(0, 60%, 48%);
     color: #fdfaf6;
     border-color: hsl(48, 89%, 50%);
+    border-bottom: 3px solid hsl(48, 89%, 50%);
 }
 
+/*隱身按鈕*/
 .lb-stealth {
     margin-left: auto;
-    font-size: 14px;
+    font-size: 18px;
+    font-weight: normal;
     color: hsl(0, 0%, 80%);
     user-select: none;
     cursor: pointer;
@@ -176,30 +226,31 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background: linear-gradient(135deg, hsla(48, 89%, 50%, 0.25), hsla(48, 89%, 40%, 0.15));
+    background: linear-gradient(135deg, hsla(48, 89%, 50%, 0.3), hsla(48, 89%, 40%, 0.00));
     border: 1px solid hsl(48, 89%, 50%);
     border-radius: 10px;
     padding: 8px 12px;
     margin-bottom: 10px;
     color: hsl(34, 64%, 98%);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    border-bottom: 3px solid hsl(48, 89%, 50%);
 }
 
 .lb-mybox-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 18px;
+    font-size: 22px;
     font-weight: bold;
 }
 
 .lb-mybox-rank {
     color: hsl(48, 100%, 70%);
-    font-size: 22px;
+    font-size: 24px;
 }
 
 .lb-mybox-hint {
-    font-size: 13px;
+    font-size: 16px;
     color: hsl(0, 0%, 85%);
     margin-top: 4px;
 }
@@ -220,16 +271,25 @@
     align-items: center;
     gap: 10px;
     color: hsl(34, 64%, 98%);
-    font-size: 16px;
+    font-size: 22px;
 }
 
-.lb-item.top1, .lb-item.top2, .lb-item.top3 {
+.lb-item.top1,
+.lb-item.top2,
+.lb-item.top3 {
     animation: pulse-gold 2s infinite;
 }
 
 @keyframes pulse-gold {
-    0%, 100% { box-shadow: 0 0 0 0 hsla(48, 89%, 50%, 0.6); }
-    50%      { box-shadow: 0 0 14px 2px hsla(48, 89%, 50%, 0.7); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 hsla(48, 89%, 50%, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 14px 2px hsla(48, 89%, 50%, 0.7);
+    }
 }
 
 .lb-item.me {
@@ -240,7 +300,7 @@
 .lb-rank {
     min-width: 38px;
     font-weight: bold;
-    font-size: 18px;
+    font-size: 20px;
     color: hsl(48, 100%, 65%);
     text-align: center;
 }
@@ -257,7 +317,7 @@
 }
 
 .lb-rank-tag {
-    font-size: 13px;
+    font-size: 16px;
     color: hsl(0, 0%, 80%);
     margin-left: 4px;
 }
@@ -270,7 +330,7 @@
 }
 
 .lb-sub {
-    font-size: 12px;
+    font-size: 18px;
     color: hsl(0, 0%, 75%);
     margin-top: 2px;
 }
@@ -290,7 +350,7 @@
     padding: 6px 4px;
     text-align: center;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 18px;
     color: hsl(34, 64%, 98%);
 }
 
@@ -300,11 +360,12 @@
 }
 
 /* 空狀態 / 載入中 */
-.lb-empty, .lb-loading {
+.lb-empty,
+.lb-loading {
     text-align: center;
     color: hsl(0, 0%, 75%);
     padding: 30px 10px;
-    font-size: 16px;
+    font-size: 18px;
 }
 
 /* 歷代月冠軍堂 */
@@ -330,5 +391,5 @@
     background: hsla(0, 50%, 30%, 0.8);
     border-radius: 6px;
     padding: 6px 10px;
-    font-size: 14px;
+    font-size: 18px;
 }
