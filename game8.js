@@ -92,10 +92,10 @@
                         <svg id="game8-timer-ring">
                             <rect id="game8-timer-path" x="3" y="3"></rect>
                         </svg>
-                        <svg class="game8-svg-layer">
+                        <svg class="game8-svg-layer" viewBox="0 0 700 900" preserveAspectRatio="xMidYMid meet">
                             <path id="game8-current-path" class="game8-path"></path>
                         </svg>
-                        <svg class="game8-svg-layer">
+                        <svg class="game8-svg-layer" viewBox="0 0 700 900" preserveAspectRatio="xMidYMid meet">
                             <path id="game8-completed-path" class="game8-path"></path>
                         </svg>
                         <div id="game8-grid" class="game8-grid"></div>
@@ -935,9 +935,13 @@
                     }
 
                     const rect = preview.parentNode.getBoundingClientRect();
-                    // 根據使用者要求：左上角左110px、上110px
-                    preview.style.left = (clientX - rect.left - 110) + 'px';
-                    preview.style.top = (clientY - rect.top - 110) + 'px';
+                    // overlay 經過 transform: scale() 縮放，必須把視覺座標換算回邏輯座標
+                    const scale = window.stageScale || 1;
+                    const localX = (clientX - rect.left) / scale;
+                    const localY = (clientY - rect.top) / scale;
+                    // 預覽位置：手指左上方約 1.5 個字（~100 邏輯 px），再扣半個預覽寬高(36)讓中心對齊
+                    preview.style.left = (localX - 80) + 'px';
+                    preview.style.top = (localY - 80) + 'px';
                     return;
                 }
             }
@@ -1143,13 +1147,14 @@
 
             // Save this stroke
             this.successfulStrokes.push([...this.currentPath]);
-            /*分數計算*/
-            let points = window.ScoreManager.gameSettings['game8'].getPointA * this.currentPath.length;
+            /*分數計算：透過 getPointA(gameKey, difficulty) 取得已套用難度倍率的單格分數，
+              內部以浮點累加避免每次 round 造成偏差，顯示時才 Math.floor */
+            let points = window.ScoreManager.getPointA('game8', this.difficulty) * this.currentPath.length;
             if (phasesCompletedCount >= 2) {
-                points *= 2; // user request: 一筆完成兩句以上(splitPath = true)把這筆成績乘以2
+                points *= 2; // 一筆完成兩句以上(splitPath = true)把這筆成績乘以2
             }
             this.score += points;
-            document.getElementById('game8-score').textContent = this.score;
+            document.getElementById('game8-score').textContent = Math.floor(this.score);
 
             this.currentPhase += phasesCompletedCount;
             this.updateCompletedPath();
@@ -1263,11 +1268,10 @@
 
         generateSvgPathString: function (pathArray) {
             if (pathArray.length === 0) return '';
-            const gridWrapper = document.getElementById("game8-grid-wrapper");
-            const w = gridWrapper.offsetWidth;
-            const h = gridWrapper.offsetHeight;
-            const cellW = w / 7;  // 7 欄
-            const cellH = h / 9;  // 9 列
+            // 改用 SVG viewBox 內的固定座標系（0 0 700 900，每格 100×100）
+            // 不再依賴 offsetWidth/offsetHeight，避免 aspect-ratio 容器小數高度導致中間列 Y 偏差
+            const cellW = 100;
+            const cellH = 100;
 
             let d = '';
             pathArray.forEach((p, idx) => {

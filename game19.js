@@ -86,24 +86,24 @@
         // goldBorderHint：小/中學在最底排顯示可攻擊提示線
         difficultySettings: {
             '小學': {
-                timeLimitRate: 10, maxLives: 6, descentSpeed: 16, bombInterval: 5, driftMin: 20, driftMax: 30,
-                arcRaiderInterval: 20, poemMinRating: 6, lineCount: 2, goldBorderHint: true
+                timeLimitRate: 10, maxLives: 6, descentSpeed: 20, bombInterval: 5, driftMin: 20, driftMax: 30,
+                arcRaiderInterval: 20, poemMinRating: 6, lineCount: 4, goldBorderHint: true
             },
             '中學': {
-                timeLimitRate: 8, maxLives: 5, descentSpeed: 18, bombInterval: 4, driftMin: 40, driftMax: 60,
+                timeLimitRate: 8, maxLives: 5, descentSpeed: 20, bombInterval: 4, driftMin: 40, driftMax: 60,
                 arcRaiderInterval: 15, poemMinRating: 5, lineCount: 4, goldBorderHint: true
             },
             '高中': {
                 timeLimitRate: 6, maxLives: 4, descentSpeed: 20, bombInterval: 3, driftMin: 60, driftMax: 80,
-                arcRaiderInterval: 10, poemMinRating: 4, lineCount: 6, goldBorderHint: false
+                arcRaiderInterval: 12, poemMinRating: 4, lineCount: 6, goldBorderHint: false
             },
             '大學': {
-                timeLimitRate: 4, maxLives: 3, descentSpeed: 22, bombInterval: 2, driftMin: 80, driftMax: 100,
-                arcRaiderInterval: 8, poemMinRating: 3, lineCount: 8, goldBorderHint: false
+                timeLimitRate: 4, maxLives: 3, descentSpeed: 20, bombInterval: 2, driftMin: 80, driftMax: 100,
+                arcRaiderInterval: 10, poemMinRating: 3, lineCount: 8, goldBorderHint: false
             },
             '研究所': {
-                timeLimitRate: 3, maxLives: 2, descentSpeed: 24, bombInterval: 1, driftMin: 80, driftMax: 100,
-                arcRaiderInterval: 5, poemMinRating: 3, lineCount: 10, goldBorderHint: false
+                timeLimitRate: 3, maxLives: 2, descentSpeed: 20, bombInterval: 1, driftMin: 80, driftMax: 100,
+                arcRaiderInterval: 8, poemMinRating: 3, lineCount: 10, goldBorderHint: false
             }
         },
 
@@ -927,7 +927,10 @@
             for (let i = 0; i < 3; i++) {
                 const bx = startX + i * (boxW + gap);
                 if (cx >= bx && cx <= bx + boxW && cy >= y && cy <= y + boxH) {
-                    this.applyPowerUp(this.powerUpChoices[i]);
+                    const choice = this.powerUpChoices[i];
+                    // 雙管齊發已達上限（3 發砲管）→ 視為灰色牌，禁止點擊
+                    if (choice === '雙管齊發' && this.player.multiLevel >= 3) return;
+                    this.applyPowerUp(choice);
                     this.powerUpChoices = [];
                     this.isPausedForPowerUp = false;
                     this.lastTime = performance.now(); // 修正時間差，避免 dt 過大
@@ -1202,8 +1205,11 @@
 
             this.powerUpChoices.forEach((choice, i) => {
                 const bx = startX + i * (boxW + gap);
-                ctx.fillStyle = 'hsl(220, 30%, 22%)';
-                ctx.strokeStyle = 'hsl(45, 70%, 55%)';
+                // 雙管齊發已達 3 發上限 → 牌子灰色不可點，文字改為「砲管/數量/達上限」
+                const isDisabled = (choice === '雙管齊發' && this.player.multiLevel >= 3);
+
+                ctx.fillStyle = isDisabled ? 'hsl(220, 5%, 22%)' : 'hsl(220, 30%, 22%)';
+                ctx.strokeStyle = isDisabled ? 'hsl(0, 0%, 45%)' : 'hsl(45, 70%, 55%)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 if (ctx.roundRect) ctx.roundRect(bx, y, boxW, boxH, 10);
@@ -1211,14 +1217,16 @@
                 ctx.fill();
                 ctx.stroke();
 
-                const d = info[choice] || { row1: choice, row2: '', note: '' };
-                ctx.fillStyle = 'hsl(50, 90%, 85%)';
+                const d = isDisabled
+                    ? { row1: '砲管', row2: '數量', note: '達上限' }
+                    : (info[choice] || { row1: choice, row2: '', note: '' });
+                ctx.fillStyle = isDisabled ? 'hsl(0, 0%, 55%)' : 'hsl(50, 90%, 85%)';
                 ctx.font = "bold 24px 'Noto Serif TC'";
                 ctx.textAlign = 'center';
                 ctx.fillText(d.row1, bx + boxW / 2, y + 50);
                 ctx.fillText(d.row2, bx + boxW / 2, y + 80);
                 ctx.font = "15px 'Noto Serif TC'";
-                ctx.fillStyle = 'hsl(50, 60%, 68%)';
+                ctx.fillStyle = isDisabled ? 'hsl(0, 0%, 50%)' : 'hsl(50, 60%, 68%)';
                 ctx.fillText(d.note, bx + boxW / 2, y + 120);
             });
         },

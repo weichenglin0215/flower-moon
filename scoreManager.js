@@ -27,22 +27,36 @@ const ScoreManager = {
         'game4': { base: 100, heart: 10, time: 2, getPointA: 10 }, //眾裡尋他千百度
         'game5': { base: 100, heart: 10, time: 1, getPointA: 25 }, //詩詞小精靈
         'game6': { base: 100, heart: 10, time: 1, getPointA: 3 }, //詩陣侵略
-        'game7': { base: 100, heart: 10, time: 2, getPointA: 5 }, //青鳥雲梯
-        'game8': { base: 100, heart: 10, time: 1, getPointA: 2 }, //一筆裁詩
+        'game7': { base: 100, heart: 10, time: 1, getPointA: 10 }, //青鳥雲梯
+        'game8': {
+            base: 100, heart: 10, time: 1, getPointA: 2,
+            // 一筆裁詩：研究所無提示且必須一筆到底，但答案字數與低難度差不多；
+            // 用 getPointAMul 提高高難度的過程得分以反映實際挑戰
+            getPointAMul: { '小學': 1.0, '中學': 1.2, '高中': 1.5, '大學': 2.5, '研究所': 4.0 }
+        }, //一筆裁詩
         'game9': { base: 100, heart: 10, time: 5, getPointA: 0.5 }, //詩韻鎖扣
         'game10': { base: 100, heart: 10, time: 0, getPointA: 1, getPointB: 20 }, //擊石鳴詩，無時間限制
         'game11': { base: 100, heart: 10, time: 0, getPointA: 5, getPointB: 30 }, //翻墨識蹤，無時間限制
         'game12': { base: 100, heart: 10, time: 2, getPointA: 20 }, //疏影橫斜
         'game13': { base: 100, heart: 10, time: 2, getPointA: 20 }, //人事時地
-        'game14': { base: 100, heart: 10, time: 3, getPointA: 10 }, //步步驚心
+        'game14': { base: 100, heart: 10, time: 3, getPointA: 5 }, //步步驚心
         'game15': { base: 100, heart: 10, time: 2, getPointA: 15 }, //墨韻游龍
-        'game16': { base: 100, heart: 10, time: 0, getPointA: 5 }, //打地詩，無時間限制 
-        'game17': { base: 100, heart: 10, time: 2, getPointA: 10 }, //青蛙過河
+        'game16': { base: 100, heart: 5, time: 0, getPointA: 5 }, //打地詩，無時間限制 
+        'game17': { base: 100, heart: 10, time: 2, getPointA: 5 }, //青蛙過河
         'game19': { base: 100, heart: 10, time: 0, getPointA: 5 }, //詩碟狂襲，無時間限制
         'game20': { base: 100, heart: 50, time: 3, getPointA: 0 }, //丟三落一（單題決勝，無連續得分）
-        'game21': { base: 100, heart: 0, time: 1, getPointA: 0 }, //橫批成詩（單題決勝，時限長故每秒分數較低）
-        'game22': { base: 100, heart: 0, time: 1, getPointA: 0 }, //詩詞拼圖（單題決勝，時限長故每秒分數較低）
-        'game23': { base: 100, heart: 0, time: 1, getPointA: 0 }, //縱橫集句（單題決勝，時限長故每秒分數較低）
+        'game21': {
+            base: 100, heart: 0, time: 1, getPointA: 20,
+            getPointAMul: { '小學': 1.0, '中學': 1.5, '高中': 2.0, '大學': 3.0, '研究所': 4.0 }
+        }, //橫批成詩（單題決勝，時限長故每秒分數較低）
+        'game22': {
+            base: 100, heart: 0, time: 1, getPointA: 20,
+            getPointAMul: { '小學': 1.0, '中學': 1.5, '高中': 2.0, '大學': 3.0, '研究所': 4.0 }
+        }, //詩詞拼圖（單題決勝，時限長故每秒分數較低）
+        'game23': {
+            base: 100, heart: 0, time: 1, getPointA: 20,
+            getPointAMul: { '小學': 1.0, '中學': 1.5, '高中': 2.0, '大學': 3.0, '研究所': 4.0 }
+        }, //縱橫集句（單題決勝，時限長故每秒分數較低）
         'game24': { base: 100, heart: 10, time: 3, getPointA: 1 }, //三字成珠（三消連線）
         'game25': { base: 100, heart: 10, time: 3, getPointA: 10 }, //連珠拾字（路徑連消）
         'game26': { base: 100, heart: 10, time: 3, getPointA: 10 }, //投珠破句（泡泡龍）
@@ -95,6 +109,29 @@ const ScoreManager = {
      */
     getTimeScore: function (gameKey) {
         return this.gameSettings[gameKey]?.time || 5;
+    },
+
+    /**
+     * 取得遊戲中 A 類即時得分（已套用該難度的可選倍率 getPointAMul）
+     * 各遊戲應透過此函式取得 getPointA，而不要直接讀取 gameSettings[gameKey].getPointA，
+     * 否則難度倍率不會生效。回傳值可能為小數，呼叫端請保留浮點累計、顯示時再 Math.floor。
+     */
+    getPointA: function (gameKey, difficulty) {
+        const s = this.gameSettings[gameKey];
+        if (!s) return 0;
+        const mul = (s.getPointAMul && s.getPointAMul[difficulty]) || 1;
+        return (s.getPointA || 0) * mul;
+    },
+
+    /**
+     * 取得遊戲中 B 類即時得分（已套用該難度的可選倍率 getPointBMul）
+     * 設計同 getPointA，預設無倍率時 mul=1，回傳原始 getPointB。
+     */
+    getPointB: function (gameKey, difficulty) {
+        const s = this.gameSettings[gameKey];
+        if (!s) return 0;
+        const mul = (s.getPointBMul && s.getPointBMul[difficulty]) || 1;
+        return (s.getPointB || 0) * mul;
     },
 
     /**
@@ -562,10 +599,10 @@ const ScoreManager = {
                 return;
             }
 
-            // 動態調整計時器跳動速度
-            let tickDelay = Math.floor(1500 / remainingSeconds);
-            if (tickDelay > 100) tickDelay = 100;
-            if (tickDelay < 30) tickDelay = 30;
+            // 動態調整計時器跳動速度（節奏加倍：原 1500/100/30 改為 750/50/15）
+            let tickDelay = Math.floor(750 / remainingSeconds);
+            if (tickDelay > 50) tickDelay = 50;
+            if (tickDelay < 15) tickDelay = 15;
 
             // 勝利動畫開始：立即切換計時框為「黃色剩餘時間」模式
             // 傳入 'win' mode，讓各遊戲的 updateTimerRing 用舊公式（剩餘時間顯示）
@@ -654,14 +691,15 @@ const ScoreManager = {
         const perimeter = 2 * (rw + rh);
         let dist = perimeter * (1 - ratio);
 
-        // 沿著矩形邊框模擬順時針軌跡
-        if (dist <= rh) return { x: 3, y: 3 + dist };
-        dist -= rh;
-        if (dist <= rw) return { x: 3 + dist, y: 3 + rh };
+        // 沿矩形邊框「順時針」軌跡：從左上 → 上邊往右 → 右邊往下 → 下邊往左 → 左邊往上回到左上
+        // 與 SVG 倒數框的繪製方向（順時針，終點在左上角）一致
+        if (dist <= rw) return { x: 3 + dist, y: 3 };
         dist -= rw;
-        if (dist <= rh) return { x: 3 + rw, y: 3 + rh - dist };
+        if (dist <= rh) return { x: 3 + rw, y: 3 + dist };
         dist -= rh;
-        return { x: 3 + rw - dist, y: 3 };
+        if (dist <= rw) return { x: 3 + rw - dist, y: 3 + rh };
+        dist -= rw;
+        return { x: 3, y: 3 + rh - dist };
     },
 
     /**
@@ -707,9 +745,15 @@ const ScoreManager = {
         star.textContent = '★';
         star.style.left = pxToRem(p0.x);
         star.style.top = pxToRem(p0.y);
+        // 每顆星星隨機微變：色相 ±15%(基準60→51~69)、飽和度 ±15%(基準100→85~100)、尺寸 ±30%(基準2rem→1.4~2.6rem)
+        const hueJitter = 60 + (Math.random() - 0.5) * 20;          // 41 ~ 79
+        const lumJitter = Math.max(50, 50 + Math.random() * 30);  // 85 ~ 100
+        const sizeJitter = 1.5 * (1 + (Math.random() - 0.5) * 0.6);   // 1.4 ~ 2.6 rem
+        star.style.color = `hsl(${hueJitter}, 100%, ${lumJitter}%)`;
+        star.style.fontSize = sizeJitter.toFixed(2) + 'rem';
         document.body.appendChild(star);
 
-        const duration = 1000; // 動態時長 1 秒
+        const duration = 500; // 飛星動畫時長（節奏加倍：原 1000ms 改為 500ms）
         const startTime = Date.now();
 
         const animate = () => {

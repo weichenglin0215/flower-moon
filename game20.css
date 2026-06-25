@@ -166,6 +166,12 @@
     padding: 0 1px;
 }
 
+/* 過關後揭曉的遮蔽字：沿用 .hidden-char 原本的咖啡色（hsl 36,80%,55%），
+   不加粗、不發光，純粹用顏色與一般可見字（白色）做區別 */
+.game20-poem-line .hidden-char.game20-revealed-char {
+    color: hsl(36, 80%, 55%);
+}
+
 /* 隱藏句佔位欄：灰色虛線框 + 提示文字 */
 .game20-hidden-slot {
     display: flex;

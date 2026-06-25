@@ -268,8 +268,10 @@
     width: 100%;
     height: 100%;
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: repeat(9, 1fr);
+    /* 必須用 minmax(0, 1fr) 強制等分，否則 target-hint/start-hint 的 50px 大字會撐大該列，
+       造成各列高度不均、SVG 線條與字體中心錯位（提示越多錯位越嚴重） */
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: repeat(9, minmax(0, 1fr));
     z-index: 3;
 }
 

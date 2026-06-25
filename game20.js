@@ -380,26 +380,70 @@
             chars.forEach((c, i) => {
                 if (!/[，。？！、：；]/.test(c)) validIndices.push(i);
             });
-            if (maxCount <= 0 || validIndices.length === 0) {
-                // 不遮罩 — 原樣顯示
+            const poemLen = validIndices.length;
+            if (maxCount <= 0 || poemLen === 0) {
                 return chars.join('');
             }
-            // ⚠️ 保底：每句至少留 1 個字不遮蔽，避免整句被掩蓋無線索
-            const maxPossible = Math.max(0, validIndices.length - 1);
+            // 保底：每句至少留 1 字不遮蔽
+            const maxPossible = Math.max(0, poemLen - 1);
             const actualMin = Math.min(maxPossible, Math.max(0, minCount));
             const actualMax = Math.min(maxPossible, Math.max(actualMin, maxCount));
             const maskCount = Math.floor(Math.random() * (actualMax - actualMin + 1)) + actualMin;
             if (maskCount <= 0) return chars.join('');
 
-            const maskedSet = new Set();
-            const pool = validIndices.slice();
-            while (maskedSet.size < maskCount && pool.length) {
-                const idx = Math.floor(Math.random() * pool.length);
-                maskedSet.add(pool[idx]);
-                pool.splice(idx, 1);
+            // ── 遮蔽位置規格（依詩句字數與遮蔽字數決定可用樣式，再隨機挑一） ──
+            // 樣式以「字位索引 0..poemLen-1」表示，最後透過 validIndices 還原為原字串索引。
+            const range = (s, e) => { const a = []; for (let i = s; i < e; i++) a.push(i); return a; };
+            const patterns = [];
+
+            switch (maskCount) {
+                case 1:
+                    patterns.push([0]);
+                    patterns.push([poemLen - 1]);
+                    break;
+                case 2:
+                    if (poemLen === 5) { patterns.push([0, 1]); patterns.push([3, 4]); }
+                    else if (poemLen === 7) { patterns.push([0, 1]); patterns.push([2, 3]); }
+                    else { patterns.push(range(0, 2)); patterns.push(range(poemLen - 2, poemLen)); }
+                    break;
+                case 3:
+                    if (poemLen === 5) { patterns.push([0, 1, 2]); patterns.push([2, 3, 4]); }
+                    else if (poemLen === 7) { patterns.push([4, 5, 6]); }
+                    else { patterns.push(range(0, 3)); patterns.push(range(poemLen - 3, poemLen)); }
+                    break;
+                case 4:
+                    if (poemLen === 5) { patterns.push([0, 1, 2, 3]); patterns.push([1, 2, 3, 4]); }
+                    else if (poemLen === 7) { patterns.push([0, 1, 2, 3]); }
+                    else { patterns.push(range(0, 4)); patterns.push(range(poemLen - 4, poemLen)); }
+                    break;
+                case 5:
+                    // 五言只有 5 字，最多遮 4（至少留 1）
+                    if (poemLen === 5) { patterns.push([0, 1, 2, 3]); patterns.push([1, 2, 3, 4]); }
+                    else if (poemLen === 7) { patterns.push([0, 1, 2, 3]); patterns.push([2, 3, 4, 5, 6]); }
+                    else { patterns.push(range(0, 5)); patterns.push(range(poemLen - 5, poemLen)); }
+                    break;
+                case 6:
+                    if (poemLen === 5) { patterns.push([0, 1, 2, 3]); patterns.push([1, 2, 3, 4]); }
+                    else if (poemLen === 7) { patterns.push([0, 1, 2, 3, 4, 5]); patterns.push([1, 2, 3, 4, 5, 6]); }
+                    else { patterns.push(range(0, 6)); patterns.push(range(poemLen - 6, poemLen)); }
+                    break;
+                default:
+                    // 規格外（>6）：fallback 為前 N 或後 N
+                    patterns.push(range(0, Math.min(maskCount, maxPossible)));
+                    patterns.push(range(Math.max(0, poemLen - maskCount), poemLen));
             }
+
+            // 過濾：避免越界、避免遮到整句（須留 1 字以上）
+            const valid = patterns
+                .map(p => p.filter(i => i >= 0 && i < poemLen))
+                .filter(p => p.length > 0 && p.length <= maxPossible);
+            if (valid.length === 0) return chars.join('');
+
+            const pick = valid[Math.floor(Math.random() * valid.length)];
+            const maskedSet = new Set(pick.map(pi => validIndices[pi]));
+            // data-char 保留原字，供勝利時 revealMaskedChars() 一鍵揭曉
             return chars.map((c, i) =>
-                maskedSet.has(i) ? `<span class="hidden-char">◎</span>` : c
+                maskedSet.has(i) ? `<span class="hidden-char" data-char="${c}">－</span>` : c
             ).join('');
         },
 
@@ -666,6 +710,14 @@
                 if (slot) {
                     slot.innerHTML = `<span class="game20-slot-correct">${this.hiddenLine}</span>`;
                 }
+                // 揭曉題目中被遮蔽的字（用不同顏色與原本顯示的字區別）
+                document.querySelectorAll('#game20-question-lines .hidden-char').forEach(el => {
+                    const ch = el.getAttribute('data-char');
+                    if (ch) {
+                        el.textContent = ch;
+                        el.classList.add('game20-revealed-char');
+                    }
+                });
                 // 通關前先禁用按鈕，防止連點刷分
                 document.getElementById('game20-retryGame-btn').disabled = true;
                 document.getElementById('game20-newGame-btn').disabled = true;

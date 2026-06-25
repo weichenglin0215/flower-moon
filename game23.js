@@ -522,6 +522,9 @@
             info.onclick = () => {
                 if (window.PoemDialog) window.PoemDialog.openById(this.currentPoem.id);
             };
+            // 開局先隱藏詩名（避免直接看作者推題目作弊）
+            // 解鎖時機：① 上方提示字完全顯示  ② 玩家過關
+            info.style.visibility = 'hidden';
             // 方向指示
             const orient = document.getElementById('game23-orient-icon');
             if (orient) orient.textContent = (this.mainOrientation === 'H') ? '↔' : '↕';
@@ -984,6 +987,11 @@
                 }
             }
             this.hintEl.innerHTML = html.join('');
+            // 提示字全部顯示後解鎖詩名
+            if (this.hintCharRevealed >= len) {
+                const info = document.getElementById('game23-poem-info');
+                if (info) info.style.visibility = '';
+            }
         },
 
         // ------------------------------------------------------------
@@ -1224,6 +1232,15 @@
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.hintTimer) clearInterval(this.hintTimer);
+
+            // 過關加分：每片拼圖 × getPointA（已套用難度倍率）
+            const perPiece = window.ScoreManager.getPointA('game23', this.difficulty);
+            this.score += perPiece * this.pieces.length;
+            document.getElementById('game23-score').textContent = Math.floor(this.score);
+
+            // 過關解鎖詩名顯示
+            const info = document.getElementById('game23-poem-info');
+            if (info) info.style.visibility = '';
 
             const cells = [];
             for (let r = 0; r < GRID_SIZE; r++) {

@@ -66,10 +66,10 @@
         // maxChars:最多字數,
         // stopOnLand:是否停留,
         difficultySettings: {
-            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 8.0, width: 90, maxDist: 300, heightVar: 200, move: false, speed: 100, minChars: 10, maxChars: 14, stopOnLand: true },
-            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 10, width: 80, maxDist: 275, heightVar: 300, move: false, speed: 120, minChars: 14, maxChars: 20, stopOnLand: true },
-            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 250, heightVar: 400, move: false, speed: 140, minChars: 20, maxChars: 28, stopOnLand: false },
-            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 225, heightVar: 500, move: true, speed: 160, minChars: 20, maxChars: 56, stopOnLand: false },
+            '小學': { timeLimitRate: 3, poemMinRating: 6, maxMistakeCount: 5, g: 0.4, jump: 10, width: 90, maxDist: 240, heightVar: 200, move: false, speed: 140, minChars: 10, maxChars: 14, stopOnLand: true },
+            '中學': { timeLimitRate: 3, poemMinRating: 5, maxMistakeCount: 4, g: 0.45, jump: 11, width: 80, maxDist: 230, heightVar: 300, move: false, speed: 150, minChars: 14, maxChars: 20, stopOnLand: true },
+            '高中': { timeLimitRate: 2, poemMinRating: 4, maxMistakeCount: 3, g: 0.5, jump: 12.0, width: 70, maxDist: 220, heightVar: 400, move: false, speed: 160, minChars: 20, maxChars: 28, stopOnLand: false },
+            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 2, g: 0.65, jump: 14.0, width: 60, maxDist: 210, heightVar: 500, move: true, speed: 170, minChars: 20, maxChars: 56, stopOnLand: false },
             '研究所': { timeLimitRate: 2, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 28, maxChars: 70, stopOnLand: false }
         },
 

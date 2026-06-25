@@ -17,7 +17,8 @@
       "PowerShell(node --check game24.js 2>&1)",
       "Bash(node -c leaderboard.js)",
       "Bash(git add *)",
-      "Bash(grep -v \"/\\\\*\")"
+      "Bash(grep -v \"/\\\\*\")",
+      "WebSearch"
     ]
   }
 }

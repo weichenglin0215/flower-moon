@@ -58,10 +58,10 @@
         // ballSpeed: 球初始速度，
         // ballMaxSpeed: 球最大速度
         difficultySettings: {
-            '小學': { poemMinRating: 6, growRate: 0.2, dropInterval: 3, dropStep: 0.6, paddleBase: 8, balls: 5, blackHP: 1, lineHeight: 2.0, minLines: 2, minChars: 10, maxChars: 20, maxCharsInLine: 5, ballSpeed: 20, ballMaxSpeed: 30 },
-            '中學': { poemMinRating: 5, growRate: 0.15, dropInterval: 3, dropStep: 0.5, paddleBase: 7, balls: 5, blackHP: 2, lineHeight: 1.5, minLines: 4, minChars: 14, maxChars: 21, maxCharsInLine: 7, ballSpeed: 22, ballMaxSpeed: 33 },
-            '高中': { poemMinRating: 4, growRate: 0.1, dropInterval: 3, dropStep: 0.4, paddleBase: 6, balls: 5, blackHP: 3, lineHeight: 1.2, minLines: 4, minChars: 20, maxChars: 28, maxCharsInLine: 9, ballSpeed: 24, ballMaxSpeed: 36 },
-            '大學': { poemMinRating: 3, growRate: 0.1, dropInterval: 3, dropStep: 0.3, paddleBase: 5, balls: 5, blackHP: 3, lineHeight: 1.0, minLines: 6, minChars: 25, maxChars: 35, maxCharsInLine: 10, ballSpeed: 26, ballMaxSpeed: 39 },
+            '小學': { poemMinRating: 5, growRate: 0.2, dropInterval: 3, dropStep: 0.6, paddleBase: 8, balls: 10, blackHP: 1, lineHeight: 2.0, minLines: 2, minChars: 10, maxChars: 20, maxCharsInLine: 7, ballSpeed: 20, ballMaxSpeed: 30 },
+            '中學': { poemMinRating: 4, growRate: 0.15, dropInterval: 3, dropStep: 0.5, paddleBase: 7, balls: 8, blackHP: 2, lineHeight: 1.5, minLines: 4, minChars: 14, maxChars: 21, maxCharsInLine: 7, ballSpeed: 22, ballMaxSpeed: 33 },
+            '高中': { poemMinRating: 3, growRate: 0.1, dropInterval: 3, dropStep: 0.4, paddleBase: 6, balls: 7, blackHP: 3, lineHeight: 1.2, minLines: 4, minChars: 20, maxChars: 28, maxCharsInLine: 7, ballSpeed: 24, ballMaxSpeed: 36 },
+            '大學': { poemMinRating: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.3, paddleBase: 5, balls: 6, blackHP: 3, lineHeight: 1.0, minLines: 6, minChars: 25, maxChars: 35, maxCharsInLine: 9, ballSpeed: 26, ballMaxSpeed: 39 },
             '研究所': { poemMinRating: 2, growRate: 0.1, dropInterval: 3, dropStep: 0.2, paddleBase: 4, balls: 5, blackHP: 3, lineHeight: 1, minLines: 6, minChars: 30, maxChars: 42, maxCharsInLine: 11, ballSpeed: 28, ballMaxSpeed: 42 }
         },
 

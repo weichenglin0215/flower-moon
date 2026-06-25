@@ -68,31 +68,31 @@
         difficultySettings: {
             '小學': {
                 cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 2500, minDecoys: 1, maxDecoys: 2,
-                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
+                maxMissPerTarget: 0, maxHearts: 7, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 6, minLines: 4, maxLines: 4, maxChars: 28, maxTargetCount: 1,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '中學': {
                 cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 5, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
+                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 5, minLines: 4, maxLines: 6, maxChars: 42, maxTargetCount: 2,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '高中': {
                 cols: 4, rows: 4, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 4, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
+                maxMissPerTarget: 0, maxHearts: 5, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 4, minLines: 4, maxLines: 8, maxChars: 56, maxTargetCount: 3,
                 targetCharPreview: true  // 正確字一律金色，玩家須自行判斷順序
             },
             '大學': {
                 cols: 5, rows: 4, minStayDuration: 2500, maxStayDuration: 3500, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 3, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
+                maxMissPerTarget: 0, maxHearts: 4, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 3, minLines: 8, maxLines: 12, maxChars: 56, maxTargetCount: 3,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             },
             '研究所': {
                 cols: 5, rows: 5, minStayDuration: 3000, maxStayDuration: 5000, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 2, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 1,
+                maxMissPerTarget: 0, maxHearts: 3, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 3, minLines: 8, maxLines: 20, maxChars: 80, maxTargetCount: 4,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             }
@@ -667,6 +667,18 @@
             void hole.bubbleEl.offsetWidth;  // 強制 reflow，確保動畫重新觸發
             hole.bubbleEl.className = `game16-char-bubble ${colorClass} game16-${animClass || 'sink'}`;
 
+            // ⚡ 節奏修正：若本批還有未擊中的正確字、且場上已無「活著」的字
+            // （hit-wrong 是玩家點錯後的退場動畫，不算活），就立刻收尾並排下一批，
+            // 避免空畫面靜止 1~2 秒（原本要等到 cycleDuration 計時器到期才觸發）。
+            if (this.isActive && this.currentBatchRemaining > 0 && this.targetTimeout) {
+                const anyAlive = this.holes.some(h => h.state !== 'idle' && h.state !== 'hit-wrong');
+                if (!anyAlive) {
+                    clearTimeout(this.targetTimeout);
+                    this.targetTimeout = null;
+                    this.handleCycleMiss();
+                }
+            }
+
             // 動畫結束後清空泡泡（fast-sink 動畫較短，提早清除）
             const clearDelay = animClass === 'fast-sink' ? 100 : 200;
             setTimeout(() => {
@@ -868,8 +880,8 @@
                 this.updateHint();
             }
 
-            // G. 重複進入下一個 A–F 週期
-            this.nextTargetTimer = setTimeout(() => this.scheduleNextTarget(), 350);
+            // G. 重複進入下一個 A–F 週期（縮短為 150ms 維持節奏感）
+            this.nextTargetTimer = setTimeout(() => this.scheduleNextTarget(), 150);
         },
 
         // ── 更新連擊倍率顯示 ─────────────────────────────────────

@@ -422,6 +422,9 @@
             info.onclick = () => {
                 if (window.PoemDialog) window.PoemDialog.openById(poem.id);
             };
+            // 開局先隱藏詩名（避免直接看作者推題目作弊）
+            // 解鎖時機：① 上方提示字完全顯示  ② 玩家過關
+            info.style.visibility = 'hidden';
 
             this.renderGrid();
         },
@@ -504,6 +507,11 @@
             if (assignFixed) {
                 const puzzleBars = this.bars.filter(b => !b.isDecoy);
                 this.shuffleInPlace(puzzleBars);
+                // 若本局有單一字的答案棒，優先鎖定它（給玩家明確錨點）；其餘隨機。
+                // 穩定排序：charString.length === 1 排前面，同組內維持上面隨機洗牌的順序
+                puzzleBars.sort((a, b) =>
+                    (a.charString.length === 1 ? 0 : 1) - (b.charString.length === 1 ? 0 : 1)
+                );
                 // 隨機決定本局實際 fix 棒數量
                 // ⚠️ 規則：maxFixBarCount > 0 時，至少保證 1 根（避免低難度
                 //    某些局完全沒有預置棒，玩家少了「分步學習」的引導）
@@ -801,6 +809,15 @@
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.hintTimer) clearInterval(this.hintTimer);
 
+            // 過關加分：每個答案字 × getPointA（套用難度倍率）
+            const perChar = window.ScoreManager.getPointA('game21', this.difficulty);
+            this.score += perChar * this.puzzleText.length;
+            document.getElementById('game21-score').textContent = Math.floor(this.score);
+
+            // 過關解鎖詩名顯示
+            const info = document.getElementById('game21-poem-info');
+            if (info) info.style.visibility = '';
+
             // 黃框字逐欄亮起
             const cells = [];
             for (let col = 0; col < this.puzzleLength; col++) {
@@ -912,6 +929,11 @@
                     : `<span class="game21-hint-char hidden">_</span>`
             ).join('');
             this.hintEl.innerHTML = html;
+            // 提示字全部顯示後解鎖詩名（已過關時 handleWin 也會解鎖，雙保險）
+            if (this.revealedHintChars >= this.puzzleText.length) {
+                const info = document.getElementById('game21-poem-info');
+                if (info) info.style.visibility = '';
+            }
         },
 
         // ------------------------------------------------------------

@@ -647,14 +647,6 @@
                     this.updateProgressText();
                     this.renderLevel();
 
-                    if (this.movesLeft <= 0) {
-                        setTimeout(() => {
-                            if (!this.isActive) return; // In case game already won/stopped
-                            this.gameOver(false, "步數已用盡！");
-                        }, 500);
-                        return;
-                    }
-
                     if (this.checkBoltCompleted(targetBolt)) {
                         this.playNote('complete');
                         if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
@@ -683,7 +675,18 @@
                         this.newlyCompletedBoltIdx = -1;
                     }, 600);
 
+                    // ⚠️ 順序很重要：先檢查是否勝利，再判定步數是否用盡
+                    // 否則「最後一步剛好解謎完成」會被誤判為失敗。
                     this.checkGameEnd();
+
+                    // 勝利時 gameOver 會把 isActive 設為 false，這裡就不會再觸發失敗
+                    if (this.isActive && this.movesLeft <= 0) {
+                        setTimeout(() => {
+                            if (this.isActive && this.movesLeft <= 0) {
+                                this.gameOver(false, "步數已用盡！");
+                            }
+                        }, 500);
+                    }
                 } else {
                     this.playNote('error');
                     if (window.SoundManager) window.SoundManager.playFailure();
