@@ -118,18 +118,27 @@
                             <div class="ach-overview">
                                 <div class="ach-rank-title" id="achRankTitle">當前文位</div>
                                 <div class="ach-rank-display" id="achRankView">書僮</div>
+                                <!-- 考試 / 領獎狀 CTA（移到文位下方） -->
+                                <div id="achNextRankInfo" style="min-height:0;"></div>
                                 <div class="ach-overview-stats">
                                     <div class="ach-stat-box">
                                         <div class="ach-stat-val" id="achTotalScore">0</div>
                                         <div class="ach-stat-lbl">累積總分</div>
-                                        <div class="ach-next-stat" id="achNextRankInfo">
-                                            <div class="ach-next-val" id="achNextScore">10,000</div>
-                                            <div class="ach-next-lbl" id="achNextRank">蒙童合格成績</div>
-                                        </div>
                                     </div>
                                     <div class="ach-stat-box">
                                         <div class="ach-stat-val" id="achPlayDays">0</div>
                                         <div class="ach-stat-lbl">登入天數</div>
+                                    </div>
+                                </div>
+                                <!-- 進階橫欄：從目前文位積分推進至下一文位積分的比例 -->
+                                <div class="ach-rank-progress-row" id="achRankProgressRow">
+                                    <div class="ach-rank-progress-labels">
+                                        <span id="achRankProgFrom">書僮</span>
+                                        <span id="achRankProgScore">0 / 10,000</span>
+                                        <span id="achRankProgTo">蒙童</span>
+                                    </div>
+                                    <div class="ach-rank-progress-track">
+                                        <div class="ach-rank-progress-fill" id="achRankProgFill" style="width:0%"></div>
                                     </div>
                                 </div>
                                 <div class="ach-cloud-id-section">
@@ -216,6 +225,11 @@
                     const targetId = tab.getAttribute('data-target');
 
                     document.getElementById(targetId).classList.add('active');
+
+                    // 點擊「成就殿堂」時，自動捲動到第一顆「領取獎狀」按鈕，方便玩家領取
+                    if (targetId === 'ach-panel-badges') {
+                        setTimeout(() => this.scrollToFirstPending(), 60);
+                    }
 
                 });
 
@@ -581,7 +595,10 @@
 
             const totalScore = Math.floor(data.totalScore || 0);
 
-            const currentRankName = data.globalRank || '書僮';
+            // 文位改用 getEffectiveRank：未通過考試 + 未領獎狀時，即使積分達縣案首亦顯示童生
+            const currentRankName = (window.ScoreManager && window.ScoreManager.getEffectiveRank)
+                ? window.ScoreManager.getEffectiveRank(data)
+                : (data.globalRank || '書僮');
 
             const claimed = data.achievements?.claimed || [];
 
@@ -661,21 +678,11 @@
 
 
 
-            const nextInfoEl = document.getElementById('achNextRankInfo');
+            // ── 渲染「考試」相關 CTA（縣案首以上依規則顯示）── 移到文位下方
+            this.renderExamCTAs(data, totalScore, nextRank);
 
-            if (nextRank) {
-
-                nextInfoEl.style.display = 'block';
-
-                document.getElementById('achNextScore').textContent = nextRank.minScore.toLocaleString();
-
-                document.getElementById('achNextRank').textContent = `進階 ${nextRank.name} 合格成績`;
-
-            } else {
-
-                nextInfoEl.style.display = 'none';
-
-            }
+            // ── 渲染文位進度橫欄（僅依積分推算，不考慮考試通過） ──
+            this.renderRankProgressBar(totalScore);
 
 
 
@@ -837,7 +844,7 @@
 
                     const btn = document.createElement('button');
 
-                    btn.className = 'ach-btn-claim';
+                    btn.className = 'ach-btn-claim claim-pending';
 
                     btn.textContent = '領取獎狀';
 
@@ -961,7 +968,7 @@
 
                     const btn = document.createElement('button');
 
-                    btn.className = 'ach-btn-claim';
+                    btn.className = 'ach-btn-claim claim-pending';
 
                     btn.textContent = '領取獎狀';
 
@@ -1105,7 +1112,7 @@
 
                             const btn = document.createElement('button');
 
-                            btn.className = 'ach-btn-claim';
+                            btn.className = 'ach-btn-claim claim-pending';
 
                             btn.textContent = '領取獎狀';
 
@@ -1139,21 +1146,32 @@
 
 
 
-            if (lastUnlockedItem) {
-
-                setTimeout(() => {
-
-                    lastUnlockedItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                }, 300);
-
-            }
+            // 註：不再於此處自動捲動；捲動改由「頁籤點擊」與「領取獎狀之後」統一由
+            //     scrollToFirstPending() 處理，避免 renderData 每次重繪就跳到最後一項。
+            void lastUnlockedItem;
 
 
 
             // 渲染詩詞寶盒面板
 
             this.renderPoemsPanel(data);
+
+            // 更新「成就殿堂」頁籤右上角未領獎狀提示
+            const badgeTab = this.overlay.querySelector('.ach-tab[data-target="ach-panel-badges"]');
+            if (badgeTab) {
+                const pendingCount = badgesContainer.querySelectorAll('.ach-btn-claim.claim-pending').length;
+                badgeTab.classList.toggle('has-unclaimed', pendingCount > 0);
+            }
+            // 更新「總覽」頁籤右上角提示：有考試 CTA 或領獎狀 CTA 就亮紅點
+            const overviewTab = this.overlay.querySelector('.ach-tab[data-target="ach-panel-overview"]');
+            if (overviewTab) {
+                const hasCta = !!this.overlay.querySelector('#achExamCtaWrap .claim-pending');
+                overviewTab.classList.toggle('has-unclaimed', hasCta);
+            }
+            // 同步刷新選單漢堡「成就紀錄」圖示提示
+            if (typeof window.MenuAchievementBadgeUpdate === 'function') {
+                window.MenuAchievementBadgeUpdate();
+            }
 
             // --- 核心修正：將所有成就狀態「數據化」，確保本地與雲端完全一致 ---
 
@@ -1180,6 +1198,161 @@
             // 此函式保留為空，設計上不再推算 unlocked/progress
 
             // 雲端只需同步 totalScore, games, levelProgress, claimed
+
+        },
+
+        // 「參加考試」與「領取獎狀」CTA — 掛在總覽 #achNextRankInfo（文位下方）
+        renderExamCTAs: function (data, totalScore, nextRank) {
+
+            const host = document.getElementById('achNextRankInfo');
+            if (!host) return;
+            host.innerHTML = '';    // 完全重畫
+
+            const claimed = (data.achievements && data.achievements.claimed) || [];
+            const examRankNames = (window.ScoreManager && window.ScoreManager.EXAM_RANK_NAMES) || [];
+            const coll = (window.FMCollectionSave && window.FMCollectionSave.load()) || {};
+            const passed = (coll.ranks && coll.ranks.passed) || [];
+            const stats = coll.examStats || {};
+
+            // 1) 找「已通過考試但未領獎狀」的最低文位（優先領獎狀）
+            let toClaim = null;
+            for (const name of examRankNames) {
+                if (passed.indexOf(name) >= 0 && claimed.indexOf('rank_' + name) < 0) {
+                    toClaim = name; break;
+                }
+            }
+
+            // 2) 找「積分達標但尚未通過考試」的最低文位（催促去考試）
+            let toExam = null;
+            if (!toClaim) {
+                for (const name of examRankNames) {
+                    const r = window.ScoreManager.ranks.find(x => x.name === name);
+                    if (!r) continue;
+                    if (totalScore >= r.minScore && passed.indexOf(name) < 0) {
+                        toExam = { name: r.name, minScore: r.minScore };
+                        break;
+                    }
+                }
+            }
+
+            if (!toClaim && !toExam) return;
+
+            const wrap = document.createElement('div');
+            wrap.id = 'achExamCtaWrap';
+            wrap.style.cssText = 'margin-top:10px;display:flex;flex-direction:column;align-items:center;gap:6px;';
+
+            if (toClaim) {
+                // 已通過考試 → 領獎狀
+                const rankIdx = window.ScoreManager.ranks.findIndex(x => x.name === toClaim);
+                const certImg = this.certImages[Math.min(rankIdx, this.certImages.length - 1)];
+                const certText = this.rankCertTexts[toClaim] || '恭喜榮升！';
+                const btn = document.createElement('button');
+                btn.className = 'ach-btn-small claim-pending';
+                btn.style.background = 'linear-gradient(135deg, hsl(48, 85%, 60%), hsl(36, 85%, 40%))';
+                btn.textContent = `領取「${toClaim}」文位獎狀`;
+                btn.onclick = () => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    this.claimAchievementReward('rank_' + toClaim, certImg, certText);
+                };
+                wrap.appendChild(btn);
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:14px;color:hsl(45,80%,70%);';
+                hint.textContent = '已通過考試，請領取獎狀正式冊封';
+                wrap.appendChild(hint);
+            } else if (toExam) {
+                // 積分達標但未考 → 引導到江南小院考棚
+                const st = stats[toExam.name] || { passCount: 0, failCount: 0 };
+                const attemptNo = (st.passCount || 0) + (st.failCount || 0) + 1;
+                const btn = document.createElement('button');
+                btn.className = 'ach-btn-medium claim-pending';
+                btn.style.background = 'linear-gradient(135deg, hsl(0, 65%, 50%), hsl(0, 65%, 35%))';
+                btn.innerHTML = `參加「${toExam.name}」考試 <span style="opacity:.85;font-weight:normal;">（第 ${attemptNo} 次挑戰）</span>`;
+                btn.onclick = () => {
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    this.hide();
+                    if (window.CollectionDialog && window.CollectionDialog.show) {
+                        window.CollectionDialog.show();
+                    }
+                    setTimeout(() => {
+                        if (window.CollectionDialog && typeof window.CollectionDialog.openExam === 'function') {
+                            window.CollectionDialog.openExam();
+                        }
+                    }, 350);
+                };
+                wrap.appendChild(btn);
+                if (st.failCount > 0) {
+                    const hint = document.createElement('div');
+                    hint.style.cssText = 'font-size:14px;color:hsl(45,60%,68%);';
+                    hint.textContent = `歷次紀錄：通過 ${st.passCount} 次 / 挑戰失敗 ${st.failCount} 次`;
+                    wrap.appendChild(hint);
+                }
+            }
+
+            host.appendChild(wrap);
+        },
+
+        // 依「積分」推算目前與下一階級，繪製進度橫欄
+        renderRankProgressBar: function (totalScore) {
+            const ranks = window.ScoreManager ? window.ScoreManager.ranks : null;
+            if (!ranks) return;
+            const row = document.getElementById('achRankProgressRow');
+            const fromEl = document.getElementById('achRankProgFrom');
+            const toEl = document.getElementById('achRankProgTo');
+            const scoreEl = document.getElementById('achRankProgScore');
+            const fillEl = document.getElementById('achRankProgFill');
+            if (!row || !fromEl || !toEl || !scoreEl || !fillEl) return;
+
+            let currRank = ranks[0], nextRank = null;
+            for (let i = 0; i < ranks.length; i++) {
+                if (totalScore >= ranks[i].minScore) currRank = ranks[i];
+                else { nextRank = ranks[i]; break; }
+            }
+
+            fromEl.textContent = currRank.name;
+            if (nextRank) {
+                toEl.textContent = nextRank.name;
+                const span = Math.max(1, nextRank.minScore - currRank.minScore);
+                const gained = Math.max(0, totalScore - currRank.minScore);
+                const pct = Math.min(100, Math.max(0, (gained / span) * 100));
+                scoreEl.textContent = `${totalScore.toLocaleString()} / ${nextRank.minScore.toLocaleString()}`;
+                fillEl.style.width = pct.toFixed(1) + '%';
+            } else {
+                toEl.textContent = '極位';
+                scoreEl.textContent = `${totalScore.toLocaleString()}`;
+                fillEl.style.width = '100%';
+            }
+        },
+
+        // 手動計算並捲動到第一個「領取獎狀」按鈕；
+        // scrollIntoView 在 transform: scale() 縮放的祖先下不可靠，
+        // 因此改用 getBoundingClientRect 反算再直接設定 .ach-body 的 scrollTop。
+        scrollToFirstPending: function () {
+
+            if (!this.overlay) return;
+
+            const body = this.overlay.querySelector('.ach-body');
+
+            if (!body) return;
+
+            const btn = this.overlay.querySelector('#ach-panel-badges .ach-btn-claim.claim-pending');
+
+            if (!btn) {
+                // 沒有待領項目 → 捲回頂端
+                body.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+
+            const item = btn.closest('.ach-badge-item') || btn;
+            const scale = (window.stageRect && window.stageRect.scale) || 1;
+            const bodyRect = body.getBoundingClientRect();
+            const itemRect = item.getBoundingClientRect();
+
+            // 螢幕上的距離換算為 body 內部（未縮放）座標
+            const itemInternalTop = body.scrollTop + (itemRect.top - bodyRect.top) / scale;
+            const centerOffset = (body.clientHeight - item.clientHeight) / 2;
+            const target = Math.max(0, itemInternalTop - centerOffset);
+
+            body.scrollTo({ top: target, behavior: 'smooth' });
 
         },
 
@@ -1485,7 +1658,7 @@
 
         //顯示獎狀
 
-        showCert: function (imgUrl, text, isNewClaim = false) {
+        showCert: function (imgUrl, text, isNewClaim = false, scoreReward = 10000, silverReward = 0) {
 
             let overlay = document.getElementById('certOverlay');
 
@@ -1612,8 +1785,6 @@
 
 
 
-                let count = 10000;
-
                 const duration = 3000;
 
                 const startTime = Date.now();
@@ -1650,9 +1821,18 @@
 
                     const progress = Math.min(1, elapsed / duration);
 
-                    const current = Math.floor(10000 * progress);
+                    const curScore = Math.floor(scoreReward * progress);
 
-                    rewardMsg.textContent = `獲贈 ${current.toLocaleString()} 積分`;
+                    const curSilver = Math.floor(silverReward * progress);
+
+                    // 同時顯示 +積分 與 +文錢
+                    if (silverReward > 0) {
+                        rewardMsg.innerHTML =
+                            `獲贈 ${curScore.toLocaleString()} 積分` +
+                            `<br>獲贈 ${curSilver.toLocaleString()} 文錢`;
+                    } else {
+                        rewardMsg.textContent = `獲贈 ${curScore.toLocaleString()} 積分`;
+                    }
 
                     if (progress < 1) {
 
@@ -1708,7 +1888,13 @@
 
             data.achievements.claimed.push(achId);
 
-            data.totalScore += 10000;
+            // ── 獎勵：積分 10,000 + 對應文錢 ──
+            //    官方比例（收集系統企畫書六版）：100 積分 = 1 文錢
+            //    10,000 積分 → 100 文錢
+            const scoreReward = 10000;
+            const silverReward = Math.floor(scoreReward / 100);
+
+            data.totalScore += scoreReward;
 
             // 修正：使用 ScoreManager 統一的階級計算方法
 
@@ -1730,11 +1916,28 @@
 
             }
 
-
+            // ── 給予銀兩：寫入江南小院收集系統存檔 ──
+            if (window.FMCollectionSave) {
+                try {
+                    const collData = window.FMCollectionSave.load();
+                    collData.silver = (collData.silver || 0) + silverReward;
+                    window.FMCollectionSave.save(collData);
+                    // 若收集系統畫面正開著，即時刷新 HUD 上的銀兩數字
+                    if (window.Collection && typeof window.Collection.refreshHud === 'function') {
+                        window.Collection.refreshHud();
+                    }
+                } catch (e) {
+                    console.warn('[Achievement] 發放銀兩失敗:', e);
+                }
+            }
 
             this.renderData();
 
-            this.showCert(imgUrl, text, true);
+            // 領完後自動捲到「下一個」領取獎狀按鈕；若全數領完則捲回頂端。
+            // 用小延遲等 renderData 的 DOM 更新完成。
+            setTimeout(() => this.scrollToFirstPending(), 120);
+
+            this.showCert(imgUrl, text, true, scoreReward, silverReward);
 
         },
 

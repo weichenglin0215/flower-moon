@@ -48,8 +48,11 @@ const GameMessage = {
         // 2. 決定副標題文字 (p)
         let contentText = "";
         if (isWin) {
-            // 勝利時，副標題只顯示得分，不顯示情緒文字
-            contentText = `，得分 ${score}。`;
+            // 勝利時，副標題顯示 "XXXX分 + XX文錢"（100 分 = 1 文錢）
+            const silver = Math.floor((score || 0) / 100);
+            contentText = silver > 0
+                ? `，${score}分，${silver}文錢。`
+                : `，${score}分。`;
         } else {
             if (reason) {
                 // 失敗時，副標題顯示失敗原因
@@ -133,10 +136,10 @@ const GameMessage = {
                 <div class="extra-content hidden"></div>
                 <button class="nav-btn"></button>
             `;
-            
+
             this.wrapper.appendChild(this.container);
             document.body.appendChild(this.wrapper);
-            
+
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
                     this.wrapper.style.left = r.left + 'px';

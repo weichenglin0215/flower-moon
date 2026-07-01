@@ -22,9 +22,20 @@
     const KEY = 'flowerMoon_collection_v1';
 
     const FMCollectionSave = {
+        // 考試文位清單（依《參加考試_企畫書 v2》）
+        _EXAM_RANK_NAMES: ['縣案首','府案首','文童','秀才','舉人','貢士','進士','探花','榜眼','狀元','大儒'],
+
+        emptyExamStats: function () {
+            const s = {};
+            for (const name of this._EXAM_RANK_NAMES) {
+                s[name] = { passCount: 0, failCount: 0, lastAttemptTs: 0 };
+            }
+            return s;
+        },
+
         defaultData: function () {
             return {
-                version: 2,
+                version: 3,
                 silver: 200,  // 初始給少量盤纏
                 ranks: { passed: [] },
                 plots:  [ this.emptyPlot(), this.emptyPlot(), this.emptyPlot(), this.emptyPlot() ],
@@ -35,6 +46,7 @@
                 inventory: {},      // 一般收成
                 seedBag: {},        // 從商店買的種子/米/古玩存放處（key='品種_品級'）
                 examLog: [],
+                examStats: this.emptyExamStats(),  // 各文位參加/通過/失敗次數
                 wellTimerEndTs: 0,  // 井倒數到期時間；只在玩家點井澆水時才重置
                 timestamps: { lastSeen: Date.now(), lastSaved: Date.now() }
             };
@@ -87,7 +99,7 @@
         migrate: function (data) {
             const def = this.defaultData();
             if (!data || typeof data !== 'object') return def;
-            data.version = 2;
+            data.version = 3;
             data.silver = (typeof data.silver === 'number') ? data.silver : def.silver;
             data.ranks = data.ranks || def.ranks;
             if (!Array.isArray(data.ranks.passed)) data.ranks.passed = [];
@@ -103,6 +115,18 @@
             data.inventory = data.inventory || {};
             data.seedBag   = data.seedBag   || {};
             data.examLog = Array.isArray(data.examLog) ? data.examLog : [];
+
+            // v3 補上 examStats（各文位參加/通過/失敗次數）
+            if (!data.examStats || typeof data.examStats !== 'object') {
+                data.examStats = this.emptyExamStats();
+            } else {
+                // 補全缺漏的文位鍵
+                const template = this.emptyExamStats();
+                for (const name in template) {
+                    if (!data.examStats[name]) data.examStats[name] = template[name];
+                }
+            }
+
             if (typeof data.wellTimerEndTs !== 'number') data.wellTimerEndTs = 0;
             data.timestamps = data.timestamps || { lastSeen: Date.now(), lastSaved: Date.now() };
             return data;

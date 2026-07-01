@@ -135,7 +135,7 @@ const ScoreManager = {
     },
 
     /**
-     * 根據總分計算目前的玩家階級
+     * 根據總分計算目前的玩家階級（供「積分是否達到門檻」判定用）
      */
     getCurrentRank: function (score) {
         let currentRank = this.ranks[0].name;
@@ -145,6 +145,37 @@ const ScoreManager = {
             } else {
                 break;
             }
+        }
+        return currentRank;
+    },
+
+    // 縣案首起的文位（必須通過考試 + 領取獎狀才生效）
+    EXAM_RANK_NAMES: ['縣案首','府案首','文童','秀才','舉人','貢士','進士','探花','榜眼','狀元','大儒'],
+
+    /**
+     * 依「積分」+「已領獎狀」交叉判定實際文位（供 UI 顯示用）。
+     *  - 書僮 ~ 童生：仍以積分推算
+     *  - 縣案首以上：僅回傳 achievements.claimed 中已領取的最高文位
+     *    未領取者，即便通過考試（ranks.passed）或積分達標，仍顯示上一個已領文位（預設『童生』）
+     */
+    getEffectiveRank: function (playerData) {
+        if (!playerData) return this.ranks[0].name;
+        const score = Math.floor(playerData.totalScore || 0);
+        const claimed = (playerData.achievements && playerData.achievements.claimed) || [];
+
+        // 由高到低找出已領獎狀的最高文位
+        for (let i = this.EXAM_RANK_NAMES.length - 1; i >= 0; i--) {
+            const name = this.EXAM_RANK_NAMES[i];
+            if (claimed.includes('rank_' + name)) return name;
+        }
+
+        // 尚未領任何考試文位獎狀：以積分推算，但封頂在「童生」
+        let currentRank = this.ranks[0].name;
+        for (let i = 0; i < this.ranks.length; i++) {
+            const r = this.ranks[i];
+            if (this.EXAM_RANK_NAMES.indexOf(r.name) >= 0) break;  // 遇到考試階級即停
+            if (score >= r.minScore) currentRank = r.name;
+            else break;
         }
         return currentRank;
     },
@@ -215,6 +246,24 @@ const ScoreManager = {
         // 寫入 localStorage 並更新 UI
         localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
         this.updateProfileUI(data);
+
+        // ── 增加文錢（收集系統企畫書：100 分 = 1 文錢）──
+        if (finalScore > 0 && window.FMCollectionSave) {
+            try {
+                const silverGained = Math.floor(finalScore / 100);
+                if (silverGained > 0) {
+                    const collData = window.FMCollectionSave.load();
+                    collData.silver = (collData.silver || 0) + silverGained;
+                    window.FMCollectionSave.save(collData);
+                    // 若「江南小院」畫面正開著，即時刷新 HUD
+                    if (window.Collection && typeof window.Collection.refreshHud === 'function') {
+                        window.Collection.refreshHud();
+                    }
+                }
+            } catch (e) {
+                console.warn('[ScoreManager] 發放文錢失敗:', e);
+            }
+        }
 
         // 同步存檔至雲端並寫入 LOG
         if (window.SupabaseClient && gameKey) {

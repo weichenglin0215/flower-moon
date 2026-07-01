@@ -35,39 +35,39 @@
     const DAY = 24 * HOUR;
 
     const POT_KINDS = {
-        '蘭': { period: 1 * DAY, harvestWindow: 12 * HOUR, prices: { '下品':[20,80],   '中品':[40,160],  '上品':[80,320],  '極品':[160,640] } },
-        '菊': { period: 1 * DAY, harvestWindow: 12 * HOUR, prices: { '下品':[20,80],   '中品':[40,160],  '上品':[80,320],  '極品':[160,640] } },
-        '竹': { period: 3 * DAY, harvestWindow: 18 * HOUR, prices: { '下品':[60,240],  '中品':[120,480], '上品':[240,960], '極品':[480,1920] } },
-        '梅': { period: 7 * DAY, harvestWindow: 24 * HOUR, prices: { '下品':[140,560], '中品':[280,1120],'上品':[560,2240],'極品':[1120,4480] } }
+        '蘭': { period: 1 * DAY, harvestWindow: 12 * HOUR, prices: { '下品': [20, 80], '中品': [40, 160], '上品': [80, 320], '極品': [160, 640] } },
+        '菊': { period: 1 * DAY, harvestWindow: 12 * HOUR, prices: { '下品': [20, 80], '中品': [40, 160], '上品': [80, 320], '極品': [160, 640] } },
+        '竹': { period: 3 * DAY, harvestWindow: 18 * HOUR, prices: { '下品': [60, 240], '中品': [120, 480], '上品': [240, 960], '極品': [480, 1920] } },
+        '梅': { period: 7 * DAY, harvestWindow: 24 * HOUR, prices: { '下品': [140, 560], '中品': [280, 1120], '上品': [560, 2240], '極品': [1120, 4480] } }
     };
 
     const TEA_KINDS = {
-        '龍井': { period: 1 * DAY, dryWindow: 6 * HOUR,  prices: { '下品':[8,30],  '中品':[15,60],  '上品':[30,120],  '極品':[60,240] } },
-        '烏龍': { period: 3 * DAY, dryWindow: 12 * HOUR, prices: { '下品':[25,100],'中品':[50,200], '上品':[100,400], '極品':[200,800] } },
-        '紅茶': { period: 7 * DAY, dryWindow: 18 * HOUR, prices: { '下品':[60,240],'中品':[120,480],'上品':[240,960], '極品':[480,1920] } }
+        '龍井': { period: 1 * DAY, dryWindow: 6 * HOUR, prices: { '下品': [8, 30], '中品': [15, 60], '上品': [30, 120], '極品': [60, 240] } },
+        '烏龍': { period: 3 * DAY, dryWindow: 12 * HOUR, prices: { '下品': [25, 100], '中品': [50, 200], '上品': [100, 400], '極品': [200, 800] } },
+        '紅茶': { period: 7 * DAY, dryWindow: 18 * HOUR, prices: { '下品': [60, 240], '中品': [120, 480], '上品': [240, 960], '極品': [480, 1920] } }
     };
 
     const WINE_KINDS = {
-        '米酒':   { period: 3 * DAY, openWindow: 24 * HOUR, prices: { '下品':[13,50], '中品':[25,100],'上品':[50,200], '極品':[100,400] } },
-        '黃酒':   { period: 5 * DAY, openWindow: 24 * HOUR, prices: { '下品':[25,100],'中品':[50,200],'上品':[100,400],'極品':[200,800] } },
-        '女兒紅': { period: 7 * DAY, openWindow: 24 * HOUR, prices: { '下品':[50,200],'中品':[100,400],'上品':[200,800],'極品':[400,1600] } }
+        '米酒': { period: 3 * DAY, openWindow: 24 * HOUR, prices: { '下品': [13, 50], '中品': [25, 100], '上品': [50, 200], '極品': [100, 400] } },
+        '黃酒': { period: 5 * DAY, openWindow: 24 * HOUR, prices: { '下品': [25, 100], '中品': [50, 200], '上品': [100, 400], '極品': [200, 800] } },
+        '女兒紅': { period: 7 * DAY, openWindow: 24 * HOUR, prices: { '下品': [50, 200], '中品': [100, 400], '上品': [200, 800], '極品': [400, 1600] } }
     };
 
     const SCRIBE_KINDS = {
-        '四書': { period: 1 * HOUR, claimWindow: 6 * HOUR, prices: { '下品':[2,6], '中品':[3,12], '上品':[6,24], '極品':[12,48] } },
-        '五經': { period: 1 * HOUR, claimWindow: 6 * HOUR, prices: { '下品':[3,10],'中品':[5,20], '上品':[10,40],'極品':[20,80] } }
+        '四書': { period: 1 * HOUR, claimWindow: 6 * HOUR, prices: { '下品': [2, 6], '中品': [3, 12], '上品': [6, 24], '極品': [12, 48] } },
+        '五經': { period: 1 * HOUR, claimWindow: 6 * HOUR, prices: { '下品': [3, 10], '中品': [5, 20], '上品': [10, 40], '極品': [20, 80] } }
     };
 
     /* 古玩：buy=展示價，sell=同價（收藏品，無投機獲利） */
     const CURIO_KINDS = {
-        '筆':   { prices: { '下品':[10,10],  '中品':[25,25],  '上品':[60,60],  '極品':[140,140] } },
-        '墨':   { prices: { '下品':[12,12],  '中品':[30,30],  '上品':[70,70],  '極品':[160,160] } },
-        '紙':   { prices: { '下品':[8,8],    '中品':[20,20],  '上品':[50,50],  '極品':[120,120] } },
-        '硯':   { prices: { '下品':[15,15],  '中品':[40,40],  '上品':[90,90],  '極品':[220,220] } },
-        '印章': { prices: { '下品':[20,20],  '中品':[55,55],  '上品':[130,130],'極品':[300,300] } },
-        '茶壺': { prices: { '下品':[25,25],  '中品':[70,70],  '上品':[170,170],'極品':[400,400] } },
-        '茶杯': { prices: { '下品':[8,8],    '中品':[18,18],  '上品':[45,45],  '極品':[110,110] } },
-        '香爐': { prices: { '下品':[30,30],  '中品':[80,80],  '上品':[200,200],'極品':[480,480] } }
+        '筆': { prices: { '下品': [10, 10], '中品': [25, 25], '上品': [60, 60], '極品': [140, 140] } },
+        '墨': { prices: { '下品': [12, 12], '中品': [30, 30], '上品': [70, 70], '極品': [160, 160] } },
+        '紙': { prices: { '下品': [8, 8], '中品': [20, 20], '上品': [50, 50], '極品': [120, 120] } },
+        '硯': { prices: { '下品': [15, 15], '中品': [40, 40], '上品': [90, 90], '極品': [220, 220] } },
+        '印章': { prices: { '下品': [20, 20], '中品': [55, 55], '上品': [130, 130], '極品': [300, 300] } },
+        '茶壺': { prices: { '下品': [25, 25], '中品': [70, 70], '上品': [170, 170], '極品': [400, 400] } },
+        '茶杯': { prices: { '下品': [8, 8], '中品': [18, 18], '上品': [45, 45], '極品': [110, 110] } },
+        '香爐': { prices: { '下品': [30, 30], '中品': [80, 80], '上品': [200, 200], '極品': [480, 480] } }
     };
 
     const PLANT_COLORS = { '蘭': 'hsl(50, 70%, 60%)', '菊': 'hsl(40, 80%, 55%)', '竹': 'hsl(110, 50%, 40%)', '梅': 'hsl(0, 70%, 55%)' };
@@ -76,11 +76,11 @@
     const NIGHT_START_H = 22, NIGHT_END_H = 6;
 
     const EXAM_FEES = {
-        '縣案首':  300, '府案首': 600, '文童': 1200, '秀才': 2400,
+        '縣案首': 300, '府案首': 600, '文童': 1200, '秀才': 2400,
         '舉人': 4800, '貢士': 9600,
         '進士': 10000, '探花': 10000, '榜眼': 10000, '狀元': 10000
     };
-    const EXAM_RANKS_ORDER = ['縣案首','府案首','文童','秀才','舉人','貢士','進士','探花','榜眼','狀元'];
+    const EXAM_RANKS_ORDER = ['縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元'];
 
     const PLOT_PRICES = {
         '茶寮': { rank: '童生', price: 500 },
@@ -102,31 +102,31 @@
        想調整任何物件位置，改下方 gx/gy 即可（X→東南、Y→西南，等角投影）。 */
     const LAYOUT = [
         // ── 北：考棚（單獨一列，最遠處） ──
-        { type: 'exam', gx:  0, gy: -5, rect: [-36, -36, 72, 44] },
+        { type: 'exam', gx: 0, gy: -5, rect: [-36, -36, 72, 44] },
 
         // ── 北中：4 個花盆，橫向 spread by 3 grid ──
-        { type: 'pot',  idx: 0, gx: -5, gy: -3, rect: [-26, -40, 52, 58] },
-        { type: 'pot',  idx: 1, gx: -2, gy: -3, rect: [-26, -40, 52, 58] },
-        { type: 'pot',  idx: 2, gx:  1, gy: -3, rect: [-26, -40, 52, 58] },
-        { type: 'pot',  idx: 3, gx:  4, gy: -3, rect: [-26, -40, 52, 58] },
+        { type: 'pot', idx: 0, gx: -5, gy: -3, rect: [-26, -40, 52, 58] },
+        { type: 'pot', idx: 1, gx: -2, gy: -3, rect: [-26, -40, 52, 58] },
+        { type: 'pot', idx: 2, gx: 1, gy: -3, rect: [-26, -40, 52, 58] },
+        { type: 'pot', idx: 3, gx: 4, gy: -3, rect: [-26, -40, 52, 58] },
 
         // ── 中央：井（西） + 商店（東） + 書生在 (0,0) ──
-        { type: 'well', gx: -6, gy:  0, rect: [-18, -26, 36, 44] },
-        { type: 'shop', gx:  6, gy:  0, rect: [-22, -38, 44, 46] },
+        { type: 'well', gx: -6, gy: 0, rect: [-18, -26, 36, 44] },
+        { type: 'shop', gx: 6, gy: 0, rect: [-22, -38, 44, 46] },
 
         // ── 中南：釀酒 3 甕 ──
-        { type: 'wine', idx: 0, gx: -4, gy:  2, rect: [-18, -32, 36, 44] },
-        { type: 'wine', idx: 1, gx: -1, gy:  2, rect: [-18, -32, 36, 44] },
-        { type: 'wine', idx: 2, gx:  2, gy:  2, rect: [-18, -32, 36, 44] },
+        { type: 'wine', idx: 0, gx: -4, gy: 2, rect: [-18, -32, 36, 44] },
+        { type: 'wine', idx: 1, gx: -1, gy: 2, rect: [-18, -32, 36, 44] },
+        { type: 'wine', idx: 2, gx: 2, gy: 2, rect: [-18, -32, 36, 44] },
 
         // ── 南區：茶圃 + 茶寮 ──
-        { type: 'tea', idx: 0, gx: -5, gy:  4, rect: [-22, -22, 44, 36] },
-        { type: 'tea', idx: 1, gx: -2, gy:  4, rect: [-22, -22, 44, 36] },
+        { type: 'tea', idx: 0, gx: -5, gy: 4, rect: [-22, -22, 44, 36] },
+        { type: 'tea', idx: 1, gx: -2, gy: 4, rect: [-22, -22, 44, 36] },
         { type: 'teaHouse', idx: 0, gx: 1, gy: 4, rect: [-22, -36, 44, 50] },
         { type: 'teaHouse', idx: 1, gx: 4, gy: 4, rect: [-22, -36, 44, 50] },
 
         // ── 最南：書桌 ──
-        { type: 'scribe', gx: 0, gy:  6, rect: [-26, -34, 52, 44] }
+        { type: 'scribe', gx: 0, gy: 6, rect: [-26, -34, 52, 44] }
     ];
 
     /* =====================================================
@@ -356,7 +356,7 @@
                 p.overdueLevel = this.overdueLevel(age - def.period, def.harvestWindow);
             } else {
                 p.stage = (age < def.period * 0.3) ? 'seedling'
-                       : (age < def.period * 0.7) ? 'budding' : 'flowering';
+                    : (age < def.period * 0.7) ? 'budding' : 'flowering';
             }
         },
 
@@ -407,7 +407,7 @@
 
         overdueLevel: function (overdueMs, fullWindow) {
             if (overdueMs <= 0) return 0;
-            if (overdueMs <= fullWindow)     return 0;
+            if (overdueMs <= fullWindow) return 0;
             if (overdueMs <= 2 * fullWindow) return 1;
             if (overdueMs <= 4 * fullWindow) return 2;
             return 3;
@@ -419,18 +419,18 @@
         refreshHUD: function () {
             if (!this.data || !this.overlay) return;
             const silverEl = this.overlay.querySelector('#fmHudSilver');
-            const rankEl   = this.overlay.querySelector('#fmHudRank');
-            const timeEl   = this.overlay.querySelector('#fmHudTime');
+            const rankEl = this.overlay.querySelector('#fmHudRank');
+            const timeEl = this.overlay.querySelector('#fmHudTime');
             if (silverEl) silverEl.textContent = this.fmtSilver(this.data.silver);
-            if (rankEl)   rankEl.textContent   = this.currentRank();
-            if (timeEl)   timeEl.textContent   = this.currentShichen();
+            if (rankEl) rankEl.textContent = this.currentRank();
+            if (timeEl) timeEl.textContent = this.currentShichen();
         },
 
         currentRank: function () {
             const passed = (this.data.ranks && this.data.ranks.passed) || [];
             if (passed.length === 0) {
                 try { if (window.ScoreManager) return window.ScoreManager.loadPlayerData().globalRank || '書僮'; }
-                catch (e) {}
+                catch (e) { }
                 return '書僮';
             }
             return passed[passed.length - 1];
@@ -438,7 +438,7 @@
 
         currentShichen: function () {
             const h = new Date().getHours();
-            const map = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+            const map = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
             return map[Math.floor(((h + 1) % 24) / 2)] + '時';
         },
 
@@ -456,8 +456,8 @@
             const m = Math.floor((total % 3600) / 60);
             const s = total % 60;
             return String(h).padStart(2, '0') + ':' +
-                   String(m).padStart(2, '0') + ':' +
-                   String(s).padStart(2, '0');
+                String(m).padStart(2, '0') + ':' +
+                String(s).padStart(2, '0');
         },
 
         /**
@@ -470,11 +470,11 @@
         wellNextDue: function () {
             const now = Date.now();
             const hasGrowing = this.data.plots.some(p => p.kind && p.stage !== 'empty' && p.stage !== 'ripe')
-                            || this.data.teas.some(t => t.kind && t.stage === 'growing');
+                || this.data.teas.some(t => t.kind && t.stage === 'growing');
             if (!hasGrowing) return { overdue: false, msUntilDue: null };
             const end = this.data.wellTimerEndTs || 0;
-            if (end <= 0)   return { overdue: true,  msUntilDue: null };   // 從未澆過 / 倒數未啟動
-            if (end <= now) return { overdue: true,  msUntilDue: null };   // 已逾期，停在「請澆水」
+            if (end <= 0) return { overdue: true, msUntilDue: null };   // 從未澆過 / 倒數未啟動
+            if (end <= now) return { overdue: true, msUntilDue: null };   // 已逾期，停在「請澆水」
             return { overdue: false, msUntilDue: end - now };
         },
 
@@ -506,8 +506,8 @@
             for (let gy = -R; gy <= R; gy++) {
                 for (let gx = -R; gx <= R; gx++) {
                     const p = this.isoWorld(gx, gy);
-                    minX = Math.min(minX, p.x - TILE_W/2);
-                    maxX = Math.max(maxX, p.x + TILE_W/2);
+                    minX = Math.min(minX, p.x - TILE_W / 2);
+                    maxX = Math.max(maxX, p.x + TILE_W / 2);
                     minY = Math.min(minY, p.y);
                     maxY = Math.max(maxY, p.y + TILE_H);
                 }
@@ -523,10 +523,10 @@
                 for (let gx = -R; gx <= R; gx++) {
                     const p = this.isoWorld(gx, gy);
                     cx.beginPath();
-                    cx.moveTo(p.x,            p.y);
-                    cx.lineTo(p.x + TILE_W/2, p.y + TILE_H/2);
-                    cx.lineTo(p.x,            p.y + TILE_H);
-                    cx.lineTo(p.x - TILE_W/2, p.y + TILE_H/2);
+                    cx.moveTo(p.x, p.y);
+                    cx.lineTo(p.x + TILE_W / 2, p.y + TILE_H / 2);
+                    cx.lineTo(p.x, p.y + TILE_H);
+                    cx.lineTo(p.x - TILE_W / 2, p.y + TILE_H / 2);
                     cx.closePath();
                     cx.fillStyle = ((gx + gy) & 1) ? 'hsl(95, 30%, 78%)' : 'hsl(95, 30%, 82%)';
                     cx.fill();
@@ -569,10 +569,10 @@
                     const rad = isRipe ? 16 : (p.stage === 'flowering' ? 12 : 7);
                     if (isRipe) {
                         cx.fillStyle = 'hsla(48, 100%, 60%, 0.5)';
-                        cx.beginPath(); cx.arc(0, -rad/2, rad + 4, 0, Math.PI*2); cx.fill();
+                        cx.beginPath(); cx.arc(0, -rad / 2, rad + 4, 0, Math.PI * 2); cx.fill();
                     }
                     cx.fillStyle = PLANT_COLORS[p.kind] || 'hsl(110, 50%, 40%)';
-                    cx.beginPath(); cx.arc(0, -rad/2, rad, 0, Math.PI*2); cx.fill();
+                    cx.beginPath(); cx.arc(0, -rad / 2, rad, 0, Math.PI * 2); cx.fill();
                     cx.fillStyle = 'hsl(0, 60%, 26%)';
                     cx.font = 'bold 13px "Noto Serif TC", serif';
                     cx.fillText(p.kind, 0, -rad - 4);
@@ -591,7 +591,7 @@
                 cx.fillRect(-18, -4, 36, 14);
                 if (t.kind && t.stage !== 'empty') {
                     cx.fillStyle = 'hsl(110, 60%, 35%)';
-                    for (let i = 0; i < 3; i++) { cx.beginPath(); cx.arc(-12 + i*12, -2, 6, 0, Math.PI*2); cx.fill(); }
+                    for (let i = 0; i < 3; i++) { cx.beginPath(); cx.arc(-12 + i * 12, -2, 6, 0, Math.PI * 2); cx.fill(); }
                     cx.fillStyle = 'hsl(0, 60%, 26%)';
                     cx.font = 'bold 13px "Noto Serif TC", serif';
                     cx.fillText(t.kind + (t.stage === 'pickable' ? '★' : ''), 0, -14);
@@ -636,7 +636,7 @@
             const key = (w.kind && w.stage !== 'empty') ? ('wine_' + w.kind + '_' + w.stage) : 'wine_empty';
             return this.getSprite(key, cx => {
                 cx.fillStyle = 'hsl(25, 35%, 28%)';
-                cx.beginPath(); cx.ellipse(0, -8, 14, 18, 0, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.ellipse(0, -8, 14, 18, 0, 0, Math.PI * 2); cx.fill();
                 cx.strokeStyle = 'hsl(25, 40%, 18%)'; cx.stroke();
                 cx.font = 'bold 13px "Noto Serif TC", serif';
                 if (w.kind && w.stage !== 'empty') {
@@ -652,7 +652,7 @@
         wellSprite: function () {
             return this.getSprite('well', cx => {
                 cx.fillStyle = 'hsl(210, 50%, 45%)';
-                cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI * 2); cx.fill();
                 cx.strokeStyle = 'hsl(0, 0%, 30%)'; cx.lineWidth = 2; cx.stroke();
                 cx.fillStyle = 'hsl(0, 60%, 26%)';
                 cx.font = 'bold 13px "Noto Serif TC", serif';
@@ -699,7 +699,7 @@
                 cx.moveTo(-10, -8); cx.lineTo(10, -8); cx.lineTo(14, 18); cx.lineTo(-14, 18);
                 cx.closePath(); cx.fill();
                 cx.fillStyle = 'hsl(36, 40%, 88%)';
-                cx.beginPath(); cx.arc(0, -22, 16, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(0, -22, 16, 0, Math.PI * 2); cx.fill();
                 cx.strokeStyle = 'hsl(0, 0%, 25%)'; cx.stroke();
                 cx.fillStyle = 'hsl(0, 0%, 10%)';
                 cx.font = 'bold 22px "Noto Serif TC", serif';
@@ -772,7 +772,7 @@
 
                 let sprite;
                 if (it.scholar) sprite = this.scholarSprite();
-                else            sprite = this.spriteForObject(it.o);
+                else sprite = this.spriteForObject(it.o);
                 // 以 CSS 邏輯尺寸 ATLAS_W × ATLAS_H 繪製（sprite 內部已 DPR×2 倍率）
                 ctx.drawImage(sprite, wpos.x - AX, wpos.y - AY, ATLAS_W, ATLAS_H);
 
@@ -784,16 +784,16 @@
 
         spriteForObject: function (o) {
             switch (o.type) {
-                case 'pot':      return this.potSprite(this.data.plots[o.idx]);
-                case 'tea':      return this.teaSprite(this.data.teas[o.idx]);
+                case 'pot': return this.potSprite(this.data.plots[o.idx]);
+                case 'tea': return this.teaSprite(this.data.teas[o.idx]);
                 case 'teaHouse': return this.teaHouseSprite(this.data.teaHouses[o.idx]);
-                case 'wine':     return this.wineSprite(this.data.wines[o.idx]);
-                case 'well':     return this.wellSprite();
-                case 'shop':     return this.shopSprite();
-                case 'exam':     return this.examSprite();
-                case 'scribe':   return this.deskSprite();
+                case 'wine': return this.wineSprite(this.data.wines[o.idx]);
+                case 'well': return this.wellSprite();
+                case 'shop': return this.shopSprite();
+                case 'exam': return this.examSprite();
+                case 'scribe': return this.deskSprite();
             }
-            return this.getSprite('blank', () => {});
+            return this.getSprite('blank', () => { });
         },
 
         /** 疊加：進度條、警告符號、書桌計數與筆/書圖示 */
@@ -823,7 +823,7 @@
                 ctx.strokeStyle = 'hsl(0, 0%, 15%)';
                 ctx.lineWidth = 1.5;
                 const cx = wpos.x + 18, cy = wpos.y - 38;
-                ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2);
+                ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2);
                 ctx.fill(); ctx.stroke();
                 ctx.fillStyle = 'hsl(0, 0%, 15%)';
                 ctx.font = 'bold 14px "Noto Serif TC", serif';
@@ -985,7 +985,7 @@
                 } else if (touches.length === 2) {
                     this.gestures.mode = 'pinch';
                     const dx = touches[1].x - touches[0].x, dy = touches[1].y - touches[0].y;
-                    this.gestures.startDist = Math.sqrt(dx*dx + dy*dy);
+                    this.gestures.startDist = Math.sqrt(dx * dx + dy * dy);
                     this.gestures.startScale = this.camera.scale;
                 }
             };
@@ -998,7 +998,7 @@
                     this.dirty = true;
                 } else if (this.gestures.mode === 'pinch' && touches.length === 2) {
                     const dx = touches[1].x - touches[0].x, dy = touches[1].y - touches[0].y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
                     if (this.gestures.startDist > 0) {
                         const ns = Math.max(this.camera.minScale, Math.min(this.camera.maxScale,
                             this.gestures.startScale * dist / this.gestures.startDist));
@@ -1020,9 +1020,9 @@
                 this.gestures.mode = 'idle';
             };
 
-            c.addEventListener('mousedown', e => { onStart([ toLocal(e.clientX, e.clientY) ]); e.preventDefault(); });
+            c.addEventListener('mousedown', e => { onStart([toLocal(e.clientX, e.clientY)]); e.preventDefault(); });
             window.addEventListener('mousemove', e => {
-                if (this.gestures.mode === 'pan') onMove([ toLocal(e.clientX, e.clientY) ]);
+                if (this.gestures.mode === 'pan') onMove([toLocal(e.clientX, e.clientY)]);
                 // Hover：偵測游標下的物件以切換 cursor
                 if (this.overlay && !this.overlay.classList.contains('hidden') && this.gestures.mode !== 'pan') {
                     const p = toLocal(e.clientX, e.clientY);
@@ -1120,10 +1120,10 @@
                     this.showToast('釀製中，請耐心等待');
                     return;
                 }
-                case 'well':   return this.waterAll();
+                case 'well': return this.waterAll();
                 case 'scribe': return this.toggleScribe();
-                case 'shop':   return this.openShop();
-                case 'exam':   return this.openExam();
+                case 'shop': return this.openShop();
+                case 'exam': return this.openExam();
             }
         },
 
@@ -1147,8 +1147,8 @@
             let html = '<div class="fm-collection-popup-title">' + slotName + '：選擇下種</div>';
             items.forEach((it, i) => {
                 html += '<button class="fm-collection-popup-btn" data-act="plant" data-i="' + i + '">' +
-                        it.name + ' · ' + it.tier + (cat === 'wine' ? '米' : '種') +
-                        '（擁有 ' + it.n + '）</button>';
+                    it.name + ' · ' + it.tier + (cat === 'wine' ? '米' : '種') +
+                    '（擁有 ' + it.n + '）</button>';
             });
             this.showPopup(html, e => {
                 const idxStr = e.target.getAttribute('data-i');
@@ -1240,10 +1240,10 @@
                     return this.openWineMenu(o.idx);
                 }
                 case 'teaHouse': return this.openTeaHouseMenu(o.idx);
-                case 'well':     return this.openWellMenu();
-                case 'scribe':   return this.openScribeMenu();
-                case 'shop':     return this.openShop();
-                case 'exam':     return this.openExam();
+                case 'well': return this.openWellMenu();
+                case 'scribe': return this.openScribeMenu();
+                case 'shop': return this.openShop();
+                case 'exam': return this.openExam();
             }
         },
 
@@ -1305,7 +1305,7 @@
         },
 
         potStageLabel: function (p) {
-            return ({ seedling:'萌芽', budding:'含苞', flowering:'盛開中', ripe:'可採收 ★' })[p.stage] || p.stage;
+            return ({ seedling: '萌芽', budding: '含苞', flowering: '盛開中', ripe: '可採收 ★' })[p.stage] || p.stage;
         },
 
         harvestPot: function (idx) {
@@ -1353,7 +1353,7 @@
         },
 
         teaStageLabel: function (t) {
-            return ({ growing:'生長中', pickable:'可採摘 ★' })[t.stage] || t.stage;
+            return ({ growing: '生長中', pickable: '可採摘 ★' })[t.stage] || t.stage;
         },
 
         pickTea: function (idx) {
@@ -1594,7 +1594,7 @@
                 lastY = e.pageY; lastTime = Date.now();
             });
             el.addEventListener('mouseleave', () => { if (isDown) { isDown = false; startInertia(); } });
-            el.addEventListener('mouseup',    () => { if (isDown) { isDown = false; startInertia(); } });
+            el.addEventListener('mouseup', () => { if (isDown) { isDown = false; startInertia(); } });
             el.addEventListener('mousemove', (e) => {
                 if (!isDown) return;
                 e.preventDefault();
@@ -1646,8 +1646,8 @@
 
             if (cat === 'pot' || cat === 'tea' || cat === 'wine' || cat === 'curio') {
                 const kinds = (cat === 'pot') ? POT_KINDS
-                            : (cat === 'tea') ? TEA_KINDS
-                            : (cat === 'wine') ? WINE_KINDS
+                    : (cat === 'tea') ? TEA_KINDS
+                        : (cat === 'wine') ? WINE_KINDS
                             : CURIO_KINDS;
                 const isCurio = (cat === 'curio');
                 Object.keys(kinds).forEach(name => {
@@ -1756,15 +1756,15 @@
             const ownKey = name + '_' + tier;
             if ((this.data.seedBag[ownKey] || 0) <= 0) { this.showToast('倉庫無此種子'); return; }
             let slot = -1;
-            if (cat === 'pot')  slot = this.data.plots.findIndex(p => !p.kind || p.stage === 'empty');
-            else if (cat === 'tea')  slot = this.data.teas.findIndex(t => !t.kind || t.stage === 'empty');
+            if (cat === 'pot') slot = this.data.plots.findIndex(p => !p.kind || p.stage === 'empty');
+            else if (cat === 'tea') slot = this.data.teas.findIndex(t => !t.kind || t.stage === 'empty');
             else if (cat === 'wine') slot = this.data.wines.findIndex(w => !w.kind || w.stage === 'empty');
             if (slot < 0) { this.showToast('已無空位'); return; }
             this.data.seedBag[ownKey]--;
             if (this.data.seedBag[ownKey] <= 0) delete this.data.seedBag[ownKey];
             const now = Date.now();
-            if (cat === 'pot')  this.data.plots[slot] = { kind: name, seedTier: tier, plantedTs: now, lastWaterTs: now, missedWater: 0, stage: 'seedling' };
-            else if (cat === 'tea')  this.data.teas[slot] = { kind: name, seedTier: tier, plantedTs: now, lastWaterTs: now, missedWater: 0, stage: 'growing' };
+            if (cat === 'pot') this.data.plots[slot] = { kind: name, seedTier: tier, plantedTs: now, lastWaterTs: now, missedWater: 0, stage: 'seedling' };
+            else if (cat === 'tea') this.data.teas[slot] = { kind: name, seedTier: tier, plantedTs: now, lastWaterTs: now, missedWater: 0, stage: 'growing' };
             else if (cat === 'wine') this.data.wines[slot] = { kind: name, riceTier: tier, startTs: now, stage: 'brewing' };
             // 首次有作物 → 啟動井倒數
             if ((cat === 'pot' || cat === 'tea') && (!this.data.wellTimerEndTs || this.data.wellTimerEndTs <= 0)) {
@@ -1797,7 +1797,19 @@
                 const feeCell = (silverGap >= 0)
                     ? fee + ' 文錢 <span class="fm-collection-gap-ok">(已達)</span>'
                     : fee + ' 文錢 <span class="fm-collection-gap-red">(' + silverGap.toLocaleString() + ')</span>';
-                html += '<div class="fm-collection-popup-row"><span>下一文位</span><span>' + nextRank.name + '</span></div>';
+
+                // 本次為第幾次挑戰 + 歷史通過/失敗次數
+                const stats = (this.data.examStats && this.data.examStats[nextRank.name])
+                    || { passCount: 0, failCount: 0 };
+                const attemptNo = (stats.passCount || 0) + (stats.failCount || 0) + 1;
+
+                html += '<div class="fm-collection-popup-row"><span>應試文位</span><span>' + nextRank.name + '</span></div>';
+                html += '<div class="fm-collection-popup-row"><span>應試次數</span><span>第 ' + attemptNo + ' 次</span></div>';
+                if (stats.passCount > 0 || stats.failCount > 0) {
+                    html += '<div class="fm-collection-popup-row" style="font-size:14px;opacity:.85;">'
+                        + '<span>歷次紀錄</span><span>通過 ' + stats.passCount + ' 次 / 失敗 ' + stats.failCount + ' 次</span>'
+                        + '</div>';
+                }
                 html += '<div class="fm-collection-popup-row"><span>積分門檻</span><span>' + scoreCell + '</span></div>';
                 html += '<div class="fm-collection-popup-row"><span>入場費</span><span>' + feeCell + '</span></div>';
                 const okScore = (scoreGap >= 0), okSilver = (silverGap >= 0);
@@ -1813,7 +1825,7 @@
 
         getCurrentScore: function () {
             try { if (window.ScoreManager) return window.ScoreManager.loadPlayerData().totalScore || 0; }
-            catch (e) {}
+            catch (e) { }
             return 0;
         },
 
@@ -1829,16 +1841,43 @@
         takeExam: function (rank) {
             const fee = EXAM_FEES[rank.name];
             if (this.data.silver < fee) { this.showToast('盤纏不足'); return; }
+
+            // 扣入場費並存檔
             this.data.silver -= fee;
-            const score = this.getCurrentScore();
-            const ratio = score / rank.minScore;
-            const passProb = Math.min(0.95, Math.max(0.4, 0.4 + (ratio - 1) * 0.5));
-            const pass = (Math.random() < passProb);
-            this.data.examLog.push({ rank: rank.name, ts: Date.now(), pass });
-            if (pass) { this.data.ranks.passed.push(rank.name); this.showToast('金榜題名！晉升 ' + rank.name); }
-            else this.showToast('名落孫山，扣費 ' + fee + ' 文錢，可再試。');
             window.FMCollectionSave.save(this.data);
             this.refreshHUD();
+
+            // 關閉江南小院視窗、彈窗，交由 Exam 模組接手
+            this.hidePopup();
+            const wasOpen = this.overlay && !this.overlay.classList.contains('hidden');
+            if (typeof this.hide === 'function') this.hide();
+
+            const reopenSelf = () => {
+                if (wasOpen && typeof this.show === 'function') this.show();
+            };
+
+            if (window.Exam && typeof window.Exam.start === 'function') {
+                window.Exam.start(rank, {
+                    onPass: reopenSelf,
+                    onFail: reopenSelf
+                });
+            } else {
+                // 降級：Exam 未載入時，維持舊機率機制以免無反應
+                console.warn('[Collection] Exam module not loaded; falling back to probability');
+                const score = this.getCurrentScore();
+                const ratio = score / rank.minScore;
+                const passProb = Math.min(0.95, Math.max(0.4, 0.4 + (ratio - 1) * 0.5));
+                const pass = (Math.random() < passProb);
+                this.data.examLog.push({ rank: rank.name, ts: Date.now(), pass });
+                if (pass) this.data.ranks.passed.push(rank.name);
+                if (!this.data.examStats) this.data.examStats = window.FMCollectionSave.emptyExamStats();
+                if (!this.data.examStats[rank.name]) this.data.examStats[rank.name] = { passCount: 0, failCount: 0, lastAttemptTs: 0 };
+                this.data.examStats[rank.name][pass ? 'passCount' : 'failCount']++;
+                this.data.examStats[rank.name].lastAttemptTs = Date.now();
+                window.FMCollectionSave.save(this.data);
+                this.showToast(pass ? '金榜題名！' : '名落孫山，可再試。');
+                reopenSelf();
+            }
         },
 
         /* =====================================================

@@ -232,6 +232,56 @@
     window.MenuProgressBarsUpdate = updateMenuProgressBars;
 
     // ----------------------------------------
+    // 更新「成就紀錄」圖示右上角提示
+    //  - 有未領取的獎狀 或 有資格參加考試 → 顯示黃底紅色驚嘆號
+    // ----------------------------------------
+    function updateAchievementBadge() {
+        const cell = document.querySelector('.menu-item[data-page="achievements"]');
+        if (!cell) return;
+        const wrap = cell.querySelector('.menu-item-img-wrap');
+        if (!wrap) return;
+
+        let hasAlert = false;
+        try {
+            const data = (window.ScoreManager && window.ScoreManager.loadPlayerData()) || null;
+            const coll = (window.FMCollectionSave && window.FMCollectionSave.load()) || null;
+            if (data && coll) {
+                const claimed = (data.achievements && data.achievements.claimed) || [];
+                const passed  = (coll.ranks && coll.ranks.passed) || [];
+                const totalScore = Math.floor(data.totalScore || 0);
+                const examNames = (window.ScoreManager && window.ScoreManager.EXAM_RANK_NAMES) || [];
+
+                // (a) 有通過考試但未領獎狀
+                for (const name of examNames) {
+                    if (passed.indexOf(name) >= 0 && claimed.indexOf('rank_' + name) < 0) { hasAlert = true; break; }
+                }
+                // (b) 有資格參加考試（積分達標且尚未通過）
+                if (!hasAlert && window.ScoreManager) {
+                    for (const name of examNames) {
+                        const r = window.ScoreManager.ranks.find(x => x.name === name);
+                        if (!r) continue;
+                        if (totalScore >= r.minScore && passed.indexOf(name) < 0) { hasAlert = true; break; }
+                    }
+                }
+                // (c) 其他一般成就（次數、階級）尚未領取
+                if (!hasAlert && window.ScoreManager) {
+                    const ranks = window.ScoreManager.ranks;
+                    for (const r of ranks) {
+                        if (examNames.indexOf(r.name) >= 0) continue;
+                        if (r.name === '書僮') continue;
+                        if (totalScore >= r.minScore && !claimed.includes('rank_' + r.name)) { hasAlert = true; break; }
+                    }
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        wrap.classList.toggle('menu-item-alert', hasAlert);
+    }
+    window.MenuAchievementBadgeUpdate = updateAchievementBadge;
+    // 首次計算（等 ScoreManager 初始化後）
+    setTimeout(updateAchievementBadge, 500);
+
+    // ----------------------------------------
     // 核心管理器：關閉所有活動中的覆蓋層
     // ----------------------------------------
     function closeAllActiveOverlays() {
@@ -318,8 +368,9 @@
             const isActive = menuPanel.classList.toggle('active');
             if (isActive) {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
-                // 打開選單時刷新各遊戲的過關次數進度條
+                // 打開選單時刷新各遊戲的過關次數進度條 & 成就提示
                 updateMenuProgressBars();
+                updateAchievementBadge();
             } else if (!isActive && window.SoundManager) {
                 window.SoundManager.playCloseItem();
             }

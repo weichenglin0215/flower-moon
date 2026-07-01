@@ -116,12 +116,21 @@
     width: 100%;
     height: 100%;
     cursor: default;
-    touch-action: none;  /* 確保雙指 pinch 縮放與單指拖曳不被瀏覽器手勢攔截 */
+    touch-action: none;
+    /* 確保雙指 pinch 縮放與單指拖曳不被瀏覽器手勢攔截 */
 }
 
-.fm-collection-canvas.hover-tool   { cursor: pointer; }
-.fm-collection-canvas.hover-detail { cursor: help; }
-.fm-collection-canvas.grabbing     { cursor: grabbing; }
+.fm-collection-canvas.hover-tool {
+    cursor: pointer;
+}
+
+.fm-collection-canvas.hover-detail {
+    cursor: help;
+}
+
+.fm-collection-canvas.grabbing {
+    cursor: grabbing;
+}
 
 /* 場景內右上方工具列：工具 / 詳情 切換 */
 .fm-collection-toolbar {
@@ -167,6 +176,7 @@
     color: hsl(0, 80%, 42%);
     font-weight: bold;
 }
+
 .fm-collection-gap-ok {
     color: hsl(110, 50%, 30%);
     font-weight: bold;
@@ -178,13 +188,13 @@
     background: linear-gradient(180deg, hsl(36, 60%, 96%), hsl(36, 60%, 88%));
     border: 2px solid hsl(0, 60%, 36%);
     border-radius: 8px;
-    padding: 10px 12px;
+    padding: 10px 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     font-size: 24px;
     color: hsl(0, 50%, 20%);
     z-index: 100;
-    min-width: 160px;
-    max-width: 260px;
+    min-width: 400px;
+    max-width: 450px;
 }
 
 /* 彈出選單標題*/
@@ -288,7 +298,10 @@
     overscroll-behavior: contain;
     scrollbar-width: none;
 }
-.fm-collection-shop-body::-webkit-scrollbar { display: none; }
+
+.fm-collection-shop-body::-webkit-scrollbar {
+    display: none;
+}
 
 .fm-collection-shop-row {
     display: grid;
@@ -353,7 +366,8 @@
     left: 50%;
     bottom: 60px;
     transform: translateX(-50%);
-    background: hsla(0, 60%, 26%, 0.94);
+    background: hsl(0, 60%, 26%);
+    border-bottom: 3px solid hsl(40, 60%, 60%);
     color: #fdfaf6;
     padding: 8px 16px;
     border-radius: 999px;
@@ -362,6 +376,9 @@
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s;
+    min-width: 400px;
+    max-width: 450px;
+    text-align: center;
 }
 
 .fm-collection-toast.show {

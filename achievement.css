@@ -74,7 +74,10 @@
     color: hsl(34, 64%, 98%);
     cursor: pointer;
 }
-.ach-close-btn:hover { opacity: 0.85; }
+
+.ach-close-btn:hover {
+    opacity: 0.85;
+}
 
 /*標題文字*/
 .ach-title {
@@ -119,6 +122,43 @@
     color: #fdfaf6;
     border-bottom: 2px solid hsl(48, 89%, 50%);
     /* 2px → 2px */
+}
+
+/* 成就殿堂頁籤：有未領獎狀時，右上角顯示黃底紅色驚嘆號 */
+.ach-tab {
+    position: relative;
+}
+
+.ach-tab.has-unclaimed::after {
+    content: "!";
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+    text-align: center;
+    background: hsl(50, 100%, 55%);
+    color: hsl(0, 85%, 45%);
+    font-size: 16px;
+    font-weight: 900;
+    border-radius: 50%;
+    border: 1.5px solid hsl(0, 85%, 45%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    animation: ach-pulse-badge 1.4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes ach-pulse-badge {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.18);
+    }
 }
 
 /*內容*/
@@ -200,7 +240,7 @@
 /*累積總分底*/
 .ach-stat-box {
     background: hsla(0, 50%, 30%, 1);
-    padding: 19px 31px;
+    padding: 10px 20px;
     /* 0.9375/31.25px → 19/31px */
     border-radius: 10px;
     /* 10px → 10px */
@@ -234,6 +274,47 @@
     background: rgba(0, 0, 0, 0.0);
     border-radius: 6px;
     /* 6px → 6px */
+}
+
+/* 進階橫欄：文位進度 */
+.ach-rank-progress-row {
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px 14px;
+    background: hsla(0, 50%, 25%, 0.8);
+    border: 1px solid hsla(48, 100%, 65%, 0.3);
+    border-radius: 10px;
+}
+
+.ach-rank-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 20px;
+    color: hsl(36, 100%, 92%);
+    margin-bottom: 6px;
+}
+
+.ach-rank-progress-labels span:nth-child(2) {
+    font-size: 18px;
+    color: hsl(45, 60%, 78%);
+    font-family: monospace;
+}
+
+.ach-rank-progress-track {
+    height: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ach-rank-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg,
+            hsl(30, 90%, 55%), hsl(45, 80%, 55%));
+    border-radius: 6px;
+    transition: width 0.5s ease;
 }
 
 /*下一個稱號的數字*/
@@ -369,8 +450,29 @@
     transition: transform 0.1s;
 }
 
+.ach-btn-claim {
+    position: relative;
+    /* 為右上角紅圈定位錨點 */
+}
+
 .ach-btn-claim:active {
     transform: scale(0.95);
+}
+
+/* 領取獎狀按鈕：右上角紅底圓圈提示 */
+.ach-btn-claim.claim-pending::after {
+    content: "";
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 14px;
+    height: 14px;
+    background: hsl(0, 85%, 50%);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(255, 0, 0, 0.6);
+    animation: ach-pulse-badge 1.4s ease-in-out infinite;
+    pointer-events: none;
 }
 
 /* 獎狀彈窗 */
@@ -671,7 +773,7 @@
 }
 
 .ach-cloud-id-value {
-    font-size: 40px;
+    font-size: 30px;
     /* 40px → 40px */
     font-weight: bold;
     color: hsl(48, 100%, 70%);
@@ -686,6 +788,28 @@
     /* 20px → 20px */
     margin-top: 4px;
     /* 4px → 4px */
+}
+
+.ach-btn-medium {
+    background: linear-gradient(135deg, hsl(0, 65%, 50%), hsl(0, 65%, 35%));
+    color: #fff;
+    border: 1px solid hsl(40, 100%, 66%);
+    padding: 10px 20px;
+    /* 0.1/10px → 2/10px */
+    border-radius: 16px;
+    /* 6px → 6px */
+    cursor: pointer;
+    font-size: 24px;
+    transition: all 0.2s;
+}
+
+.ach-btn-medium:hover {
+    background: linear-gradient(135deg, hsl(40, 70%, 50%), hsl(30, 70%, 40%));
+    transform: translateY(-2px);
+}
+
+.ach-btn-medium:active {
+    transform: translateY(6px);
 }
 
 .ach-btn-small {
