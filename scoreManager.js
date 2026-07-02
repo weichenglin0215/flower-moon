@@ -65,10 +65,10 @@ const ScoreManager = {
         'game29': { base: 100, heart: 10, time: 3, getPointA: 10 }, //字龍盤環（滾球收集）
         'game30': { base: 100, heart: 10, time: 3, getPointA: 10 }, //層巒疊翠（麻將疊疊）
         'game31': { base: 100, heart: 10, time: 3, getPointA: 10 }, //詩眼覓蹤（字詞替換）
-        'game32': { base: 100, heart: 10, time: 2, getPointA: 10 }, //尋詩地圖（地圖故事）
-        'game33': { base: 100, heart: 10, time: 3, getPointA: 10 }, //作者是誰（風格辨識）
-        'game34': { base: 100, heart: 10, time: 3, getPointA: 10 }, //猜猜詩題（標題配對）
-        'game35': { base: 100, heart: 10, time: 2, getPointA: 10 } //詩人心情（情境推理）
+        'game32': { base: 100, heart: 10, time: 0, getPointA: 10 }, //尋詩地圖（地圖故事）
+        'game33': { base: 100, heart: 10, time: 0, getPointA: 10 }, //作者是誰（風格辨識）
+        'game34': { base: 100, heart: 10, time: 0, getPointA: 10 }, //猜猜詩題（標題配對）
+        'game35': { base: 100, heart: 10, time: 0, getPointA: 10 } //詩人心情（情境推理）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -150,7 +150,7 @@ const ScoreManager = {
     },
 
     // 縣案首起的文位（必須通過考試 + 領取獎狀才生效）
-    EXAM_RANK_NAMES: ['縣案首','府案首','文童','秀才','舉人','貢士','進士','探花','榜眼','狀元','大儒'],
+    EXAM_RANK_NAMES: ['縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'],
 
     /**
      * 依「積分」+「已領獎狀」交叉判定實際文位（供 UI 顯示用）。

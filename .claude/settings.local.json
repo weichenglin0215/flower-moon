@@ -18,7 +18,9 @@
       "Bash(node -c leaderboard.js)",
       "Bash(git add *)",
       "Bash(grep -v \"/\\\\*\")",
-      "WebSearch"
+      "WebSearch",
+      "Bash(node -c \"data/author_biography.js\")",
+      "Bash(node --check data/author_biography.js)"
     ]
   }
 }

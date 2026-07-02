@@ -44,17 +44,17 @@
         { page: 'game29', label: '字龍盤環', image: 'images/Menu/字龍盤環_Menu256.jpg' },
         { page: 'game30', label: '層巒疊翠', image: 'images/Menu/層巒疊翠_Menu256.jpg' },
         { page: 'game31', label: '詩眼覓蹤', image: 'images/Menu/詩眼覓蹤_Menu256.jpg' },
-        { page: 'game32', label: '尋詩地圖', image: 'images/Menu/詩句尋寶圖_Menu256.jpg' },
-        { page: 'game33', label: '作者是誰', image: 'images/Menu/作者連連看_Menu256.jpg' },
-        { page: 'game34', label: '猜猜詩題', image: 'images/Menu/詩題猜猜看_Menu256.jpg' },
-        { page: 'game35', label: '詩人心情', image: 'images/Menu/詩人的一天_Menu256.jpg' },
+        { page: 'game32', label: '尋詩地圖', image: 'images/Menu/尋詩地圖_Menu256.jpg' },
+        { page: 'game33', label: '作者是誰', image: 'images/Menu/作者是誰_Menu256.jpg' },
+        { page: 'game34', label: '猜猜詩題', image: 'images/Menu/猜猜詩題_Menu256.jpg' },
+        { page: 'game35', label: '詩人心情', image: 'images/Menu/詩人心情_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
-        { page: 'leaderboard', label: '群英榜', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
-        { page: 'collection', label: '江南小院', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
+        { page: 'leaderboard', label: '群英榜', image: 'images/Menu/群英榜_Menu256.jpg' },
+        { page: 'collection', label: '江南小院', image: 'images/Menu/江南小院_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
-        { page: 'qrcode', label: 'QR Code', image: 'images/Menu/QRCode_Menu256.jpg' },
+        { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
         { page: 'fullscreen', label: '全螢幕', image: 'images/Menu/全螢幕_Menu256.jpg' },
     ];
 
@@ -247,7 +247,7 @@
             const coll = (window.FMCollectionSave && window.FMCollectionSave.load()) || null;
             if (data && coll) {
                 const claimed = (data.achievements && data.achievements.claimed) || [];
-                const passed  = (coll.ranks && coll.ranks.passed) || [];
+                const passed = (coll.ranks && coll.ranks.passed) || [];
                 const totalScore = Math.floor(data.totalScore || 0);
                 const examNames = (window.ScoreManager && window.ScoreManager.EXAM_RANK_NAMES) || [];
 

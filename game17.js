@@ -69,8 +69,8 @@
             //hint: 正確字提示，all / sentence / none
             //maxMistakeCount：最大失誤次數（即生命值，扣完即遊戲結束）
             '小學': {
-                timeLimitRate: 5, baseSpeed: 50, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 8000,
-                poemMinRating: 6, lineCount: 4, singleCharProb: 0.10, closeNeighborProb: 0.70, hint: 'all',
+                timeLimitRate: 5, baseSpeed: 50, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 10000,
+                poemMinRating: 6, lineCount: 4, singleCharProb: 0.0, closeNeighborProb: 0.70, hint: 'all',
                 maxMistakeCount: 8
             },
             '中學': {
