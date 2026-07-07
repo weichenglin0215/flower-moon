@@ -72,24 +72,25 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game12-container';
-            div.className = 'game12-overlay  hidden';
+            div.className = 'game12-overlay fm-overlay hidden';
             div.innerHTML = `
-                <div class="game12-header">
-                    <div class="game12-score-board">分數: <span id="game12-score">0</span></div>
-                    <div class="game12-controls">
-                        <button class="game12-difficulty-tag" id="game12-diff-tag">小學</button>
-                        <button id="game12-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game12-newGame-btn" class="nav-btn">開新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game12-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game12-diff-tag" data-level="小學">小學</button>
+                        <button id="game12-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game12-newGame-btn" class="fm-nav-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game12-sub-header">
-                    <div id="game12-hearts" class="hearts"></div>
+                <div class="fm-sub-header">
+                    <div id="game12-hearts" class="fm-hearts"></div>
+                    <div id="game12-info" class="fm-poem-info"></div>
                 </div>
                 <div id="game12-area" class="game12-area">
                     <div id="game12-question" class="game12-question-area">
                         <div id="game12-line1" class="game12-poem-lines"></div>
                         <div id="game12-line2" class="game12-poem-lines"></div>
-                        <div id="game12-info" class="game12-poem-info"></div>
+                        <!-- 詩名/朝代/作者：已移至 fm-sub-header 右側，見上方 -->
                     </div>
                     <div id="game12-status" class="game12-status-msg"></div>
                     <div class="game12-answer-section">
@@ -163,22 +164,14 @@
             const diffTag = document.getElementById('game12-diff-tag');
             const retryBtn = document.getElementById('game12-retryGame-btn');
             const newBtn = document.getElementById('game12-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
@@ -251,9 +244,17 @@
 
             if (this.selectRandomPoem()) {
                 this.initTurn();
+                this.updatePoemInfoVisibility(false);
             } else {
                 this.showDifficultySelector();
             }
+        },
+
+        // 小學難度維持顯示詩詞出處供提示；中學以上開局隱藏，勝利後才顯示
+        updatePoemInfoVisibility: function (revealed) {
+            const info = document.getElementById('game12-info');
+            if (!info) return;
+            info.style.display = (this.difficulty === '小學' || revealed) ? '' : 'none';
         },
 
         startNextLevel: function () {
@@ -280,6 +281,7 @@
             if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
             this.initTurn(true);
+            this.updatePoemInfoVisibility(false);
         },
 
         selectRandomPoem: function () {
@@ -434,8 +436,11 @@
                 }, settings.showDelay * 1000);
             }
 
-            const infoText = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
-            info.innerHTML = `<span>${infoText}</span>`;
+            // 詩詞名稱最多顯示 8 字（避免在 fm-sub-header 右側與左邊紅心重疊）
+            let _title12 = this.currentPoem.title;
+            if (_title12.length > 8) _title12 = _title12.substring(0, 8) + "…";
+            const infoText = `${_title12} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            info.textContent = infoText;
             this.adjustFontSize(info, infoText.length, 20, 1.0);
 
             info.onclick = () => {
@@ -741,14 +746,14 @@
             const max = this.difficultySettings[this.difficulty].maxMistakeCount;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
                 container.appendChild(span);
             }
         },
 
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game12-hearts .heart');
+            const hearts = document.querySelectorAll('#game12-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i > this.mistakeCount) {
                     h.classList.add('empty');
@@ -790,6 +795,7 @@
             clearInterval(this.timerInterval);
             this.isRevealed = true;
             this.renderQuestion();
+            if (win) this.updatePoemInfoVisibility(true);
 
             if (win) {
                 document.getElementById('game12-retryGame-btn').disabled = true;
@@ -841,7 +847,7 @@
                     gameKey: 'game12',
                     timerContainerId: 'game12-grid-container',
                     scoreElementId: 'game12-score',
-                    heartsSelector: '#game12-hearts .heart:not(.empty)',
+                    heartsSelector: '#game12-hearts .fm-heart:not(.empty)',
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);
