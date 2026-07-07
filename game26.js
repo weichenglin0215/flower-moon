@@ -78,16 +78,15 @@
         // currentLineChars 已存在；新增 uniquePoemChars（全詩去重，HUE 等分基準）
         uniquePoemChars: [],
 
-        // 依字塊字元計算色相：以 currentLineChars 索引等分 360°（同字必同色，且為當前句目標亮色）
-        // 干擾字（不在 currentLineChars 內）用 hash → 灰調呈現
+        // 依字塊字元計算色相：透過共用 TileStyleUtils 依當前句目標字位置分組配色（同字必同色）
+        // 干擾字（不在 currentLineChars 內）走灰調
         getHueForChar: function (ch) {
             if (!ch) return 40;
             const idx = this.currentLineChars.indexOf(ch);
             if (idx >= 0) {
                 const n = this.currentLineChars.length || 1;
-                return Math.round((360 / n) * idx + 12) % 360;
+                return window.TileStyleUtils.getGroupColor(idx, n).hue;
             }
-            // 干擾字（其他句或不在當前詩中的字）
             let h = 0;
             for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
             return h % 360;
@@ -151,10 +150,11 @@
                     </div>
                 </div>
                 <div class="game26-sub-header">
+                    <div id="game26-moves-label" class="game26-moves-label" style="display:none">盤面:<span id="game26-stage-text">1/1</span> 步數:<span id="game26-moves">0</span>/<span id="game26-max-moves">0</span></div>
                     <div id="game26-poem-info" class="poem-info" style="cursor:pointer; text-decoration:underline; opacity:0.85;"></div>
                 </div>
                 <div class="game26-info-bar">
-                    <div id="game26-line-text" class="game26-line-text"></div>
+                    <div id="game26-line-text" class="game26-line-text" style="display:none"></div>
                     <div id="game26-progress" class="game26-progress"></div>
                     <div id="game26-next-preview" class="game26-next-preview">即將發射：<span id="game26-next-char">－</span></div>
                 </div>

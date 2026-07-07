@@ -23,17 +23,17 @@
     //          否則切割掃描（左→右 上→下）會在錨點格留下無人認領的字元。
     //          L4 (┘) 違反此規則已移除。
     const SHAPES = {
-        '1x1':  [[0, 0]],
+        '1x1': [[0, 0]],
         '1x2H': [[0, 0], [0, 1]],
         '1x2V': [[0, 0], [1, 0]],
         '1x3H': [[0, 0], [0, 1], [0, 2]],
         '1x3V': [[0, 0], [1, 0], [2, 0]],
         '1x4H': [[0, 0], [0, 1], [0, 2], [0, 3]],
         '1x4V': [[0, 0], [1, 0], [2, 0], [3, 0]],
-        '2x2':  [[0, 0], [0, 1], [1, 0], [1, 1]],
-        'L1':   [[0, 0], [0, 1], [1, 0]],  // ┌
-        'L2':   [[0, 0], [0, 1], [1, 1]],  // ┐
-        'L3':   [[0, 0], [1, 0], [1, 1]]   // └
+        '2x2': [[0, 0], [0, 1], [1, 0], [1, 1]],
+        'L1': [[0, 0], [0, 1], [1, 0]],  // ┌
+        'L2': [[0, 0], [0, 1], [1, 1]],  // ┐
+        'L3': [[0, 0], [1, 0], [1, 1]]   // └
         // L4 = [[0,1],[1,0],[1,1]] 已移除：不含 [0,0]，會造成錨點字元缺失
     };
     const SHAPE_AREA = {
@@ -90,11 +90,11 @@
         // minPieceArea   : 切割時的最小片格數（避免過小片）
         // gridLines      : 詩句行數
         difficultySettings: {
-            '小學':   { timeLimit: 60,  poemMinRating: 6, poemType: '五言', hintLineDelay: 0,   hintCharCount: 999, showHintInGrid: true,  minPieceArea: 3, gridLines: 4 },
-            '中學':   { timeLimit: 90,  poemMinRating: 5, poemType: '五言', hintLineDelay: 5,   hintCharCount: 5,   showHintInGrid: true,  minPieceArea: 2, gridLines: 6 },
-            '高中':   { timeLimit: 120, poemMinRating: 4, poemType: '七言', hintLineDelay: 10,  hintCharCount: 3,   showHintInGrid: false, minPieceArea: 1, gridLines: 6 },
-            '大學':   { timeLimit: 150, poemMinRating: 3, poemType: '七言', hintLineDelay: 20,  hintCharCount: 2,   showHintInGrid: false, minPieceArea: 1, gridLines: 8 },
-            '研究所': { timeLimit: 180, poemMinRating: 3, poemType: '七言', hintLineDelay: 999, hintCharCount: 0,   showHintInGrid: false, minPieceArea: 1, gridLines: 8 }
+            '小學': { timeLimit: 60, poemMinRating: 6, poemType: '五言', hintLineDelay: 10, hintCharCount: 999, showHintInGrid: true, minPieceArea: 3, gridLines: 4 },
+            '中學': { timeLimit: 90, poemMinRating: 5, poemType: '五言', hintLineDelay: 20, hintCharCount: 7, showHintInGrid: true, minPieceArea: 2, gridLines: 6 },
+            '高中': { timeLimit: 130, poemMinRating: 4, poemType: '七言', hintLineDelay: 30, hintCharCount: 5, showHintInGrid: false, minPieceArea: 2, gridLines: 6 },
+            '大學': { timeLimit: 160, poemMinRating: 3, poemType: '七言', hintLineDelay: 40, hintCharCount: 3, showHintInGrid: false, minPieceArea: 2, gridLines: 8 },
+            '研究所': { timeLimit: 200, poemMinRating: 3, poemType: '七言', hintLineDelay: 999, hintCharCount: 0, showHintInGrid: false, minPieceArea: 2, gridLines: 8 }
         },
 
         // ------------------------------------------------------------

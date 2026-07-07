@@ -430,10 +430,11 @@
     display: none;
 }
 
+/* 抄襲 GAME28：stroke-width 8px */
 #game29-timer-path {
     fill: none;
     stroke: hsl(0, 50%, 22%);
-    stroke-width: 10px;
+    stroke-width: 8px;
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-dasharray: 10000;

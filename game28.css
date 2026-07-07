@@ -366,7 +366,10 @@
     width: 100%;
     height: 100%;
     display: grid;
-    gap: 2px;
+    /* 加大格線間距、字塊縮小，留出邊緣空間顯示方塊之間的連線 */
+    gap: 8px;
+    padding: 6px;
+    box-sizing: border-box;
     z-index: 2;
 }
 
@@ -591,4 +594,41 @@
     stroke-linejoin: round;
     stroke-dasharray: 10000;
     stroke-dashoffset: 10000;
+}
+/* ── 抄襲 GAME24 上方版型：sub-header 加 moves-label + info-bar 加 line-text ── */
+.game28-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+}
+.game28-sub-header #game28-moves-label { flex: 0 0 auto; }
+.game28-sub-header #game28-poem-info { flex: 1 1 auto; text-align: right; margin-right: 20px; }
+.game28-moves-label {
+    font-size: 18px;
+    color: hsl(40, 60%, 80%);
+    letter-spacing: 1px;
+}
+#game28-moves {
+    color: hsl(45, 95%, 62%);
+    font-weight: bold;
+    margin-left: 4px;
+    text-shadow: 0 0 4px hsla(45, 100%, 60%, 0.5);
+}
+.game28-info-bar {
+    width: 100%;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+}
+.game28-line-text {
+    font-size: 18px;
+    color: hsl(40, 55%, 88%);
+    text-align: center;
+    letter-spacing: 1px;
 }

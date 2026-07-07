@@ -67,7 +67,7 @@
             const idx = this.uniquePoemChars.indexOf(ch);
             if (idx >= 0) {
                 const n = this.uniquePoemChars.length || 1;
-                return Math.round((360 / n) * idx + 12) % 360;
+                return window.TileStyleUtils.getGroupColor(idx, n).hue;
             }
             let h = 0;
             for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
@@ -131,14 +131,17 @@
                     </div>
                 </div>
                 <div class="game30-sub-header">
+                    <div id="game30-moves-label" class="game30-moves-label" style="display:none">盤面:<span id="game30-stage-text">1/1</span> 步數:<span id="game30-moves">0</span>/<span id="game30-max-moves">0</span></div>
                     <div id="game30-poem-info" class="poem-info"></div>
                 </div>
-                <div class="game30-area">
-                    <div class="game30-info">
-                        <div id="game30-progress-text" class="game30-progress-text">剩餘牌：0</div>
-                        <div id="game30-bonus-text" class="game30-bonus-text">順序加成 ×1</div>
-                    </div>
+                <div class="game30-info-bar">
+                    <div id="game30-line-text" class="game30-line-text" style="display:none"></div>
+                    <div id="game30-progress-text" class="game30-progress-text">剩餘牌：0</div>
+                    <div id="game30-bonus-text" class="game30-bonus-text">順序加成 ×1</div>
                     <div id="game30-tracker" class="game30-tracker"></div>
+                </div>
+                <div class="game30-area">
+                    <div class="game30-info"></div>
                     <div class="game30-tower-wrapper" id="game30-tower-wrapper">
                         <svg id="game30-timer-ring">
                             <rect id="game30-timer-path" x="3" y="3"></rect>
@@ -557,6 +560,9 @@
                     el.style.setProperty('--g30-s', '60%');
                     el.style.setProperty('--g30-l', '75%');
                     el.style.setProperty('--g30-text', 'hsl(220, 30%, 14%)');
+                    // 同字同形：依字在 uniquePoemChars 索引套五種形狀之一
+                    const shpIdx = this.uniquePoemChars.indexOf(t.char);
+                    if (shpIdx >= 0) window.TileStyleUtils.applyShape(el, window.TileStyleUtils.getGroupShape(shpIdx));
                 } else {
                     el.classList.add('decoy');
                 }
@@ -1057,6 +1063,9 @@
                     el.style.setProperty('--g30-s', '60%');
                     el.style.setProperty('--g30-l', '75%');
                     el.style.setProperty('--g30-text', 'hsl(220, 30%, 14%)');
+                    // 同字同形：依字在 uniquePoemChars 索引套五種形狀之一
+                    const shpIdx = this.uniquePoemChars.indexOf(t.char);
+                    if (shpIdx >= 0) window.TileStyleUtils.applyShape(el, window.TileStyleUtils.getGroupShape(shpIdx));
                 } else {
                     el.classList.add('decoy');
                 }

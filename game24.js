@@ -47,6 +47,11 @@
         maxMoves: 0,             // 本局起始步數（用於紅白倒數框分段）
         hintTimer: null,         // 閒置提示計時器（hintDelay 觸發）
         hintedCells: [],         // 當前正發光的字塊 DOM 陣列（拖曳起點 + 終點）
+        // ── 5 秒閒置扣步（仿 game9 詩韻鎖扣的怠功懲罰） ──
+        //   超過 idleThreshold 毫秒無成功拖曳 → 自動扣 1 步、重置閒置起算點
+        lastActionTime: 0,
+        idleInterval: null,
+        idleThreshold: 5000,
 
         // ── 計時器 ──
         timer: 0,
@@ -70,27 +75,27 @@
          */
         difficultySettings: {
             '小學': {
-                timeLimitRate: 0, moveLimitRate: 1.3, poemMinRating: 6, rowsCfg: 7, colsCfg: 7,
+                timeLimitRate: 0, moveLimitRate: 0.8, poemMinRating: 6, rowsCfg: 8, colsCfg: 7,
                 decoyRatio: 0.00, collectTarget: 2, refillBias: 0.40, hintDelay: 2,
                 minLines: 2, maxLines: 2, minChars: 8, maxChars: 14
             },
             '中學': {
-                timeLimitRate: 0, moveLimitRate: 1.1, poemMinRating: 5, rowsCfg: 7, colsCfg: 7,
+                timeLimitRate: 0, moveLimitRate: 0.7, poemMinRating: 5, rowsCfg: 8, colsCfg: 7,
                 decoyRatio: 0.00, collectTarget: 3, refillBias: 0.30, hintDelay: 3,
                 minLines: 2, maxLines: 4, minChars: 10, maxChars: 20
             },
             '高中': {
-                timeLimitRate: 0, moveLimitRate: 0.9, poemMinRating: 4, rowsCfg: 8, colsCfg: 7,
+                timeLimitRate: 0, moveLimitRate: 0.6, poemMinRating: 4, rowsCfg: 8, colsCfg: 7,
                 decoyRatio: 0.00, collectTarget: 3, refillBias: 0.20, hintDelay: 5,
                 minLines: 4, maxLines: 4, minChars: 14, maxChars: 28
             },
             '大學': {
-                timeLimitRate: 0, moveLimitRate: 0.8, poemMinRating: 3, rowsCfg: 9, colsCfg: 7,
+                timeLimitRate: 0, moveLimitRate: 0.55, poemMinRating: 3, rowsCfg: 9, colsCfg: 7,
                 decoyRatio: 0.00, collectTarget: 4, refillBias: 0.10, hintDelay: 0,
                 minLines: 4, maxLines: 6, minChars: 20, maxChars: 42
             },
             '研究所': {
-                timeLimitRate: 0, moveLimitRate: 0.7, poemMinRating: 3, rowsCfg: 10, colsCfg: 7,
+                timeLimitRate: 0, moveLimitRate: 0.5, poemMinRating: 3, rowsCfg: 10, colsCfg: 7,
                 decoyRatio: 0.00, collectTarget: 5, refillBias: 0.00, hintDelay: 0,
                 minLines: 4, maxLines: 8, minChars: 28, maxChars: 56
             }
@@ -99,21 +104,28 @@
         // 連鎖讚辭詞庫（取代西式 Combo）
         chainPraises: ['妙手', '神來', '絕唱', '生花', '驚鴻', '繞樑', '吟絕', '入聖'],
 
-        // ── 目標字色相：依當前句目標字位置等分 360°（相同字永遠同色） ──
-        //   高亮度搭配中彩度（亮 75% / 彩 60%）→ 由 renderBoard 套用至 CSS 變數
+        // ── 目標字色相：依當前句目標字位置，透過共用 TileStyleUtils 分組配色（相同字永遠同色） ──
         //   非目標（干擾）字維持灰調，避免搶走目標字注意力
         getHueForChar: function (ch) {
             if (!ch) return 40;
             const idx = this.currentLineChars.indexOf(ch);
             if (idx >= 0) {
                 const n = this.currentLineChars.length || 1;
-                // 起始偏移 12°，避免第一個字為純紅；等分後取整
-                return Math.round((360 / n) * idx + 12) % 360;
+                return window.TileStyleUtils.getGroupColor(idx, n).hue;
             }
             // 干擾字：雜湊穩定（保證同字同色），但 renderBoard 會強制套灰調
             let h = 0;
             for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
             return h % 360;
+        },
+
+        // 取得目標字的完整分組配色（hue/sat/lum/textColor）；非目標字回傳 null（改走灰階 decoy 樣式）
+        getColorForChar: function (ch) {
+            if (!ch) return null;
+            const idx = this.currentLineChars.indexOf(ch);
+            if (idx < 0) return null;
+            const n = this.currentLineChars.length || 1;
+            return window.TileStyleUtils.getGroupColor(idx, n);
         },
 
         // ── CSS 載入防護（避免重複載入造成全域污染） ──
@@ -286,6 +298,7 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
+            this.stopIdleWatcher();
             if (this.container) this.container.classList.add('hidden');
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
@@ -365,12 +378,17 @@
             this.collectTarget = settings.collectTarget;
             // 總步數 = round(全詩字數 × moveLimitRate × collectTarget)
             //   moveLimitRate = 0 → 不使用步數限制（時間模式 / 無限制）
+            //   ⚠️ 若第一句題目為 7 字（含）以上，總步數 × 1.3（長句需要更多路徑鋪陳空間）
             const totalChars = (this.targetChars && this.targetChars.length) || 0;
+            const firstLineLen = (this.poemLines && this.poemLines[0]) ? this.poemLines[0].length : 0;
+            const longLineBonus = (firstLineLen >= 7) ? 1.3 : 1.0;
             this.maxMoves = settings.moveLimitRate > 0
-                ? Math.max(1, Math.round(totalChars * settings.moveLimitRate * this.collectTarget))
+                ? Math.max(1, Math.round(totalChars * settings.moveLimitRate * this.collectTarget * longLineBonus))
                 : 0;
             this.movesLeft = this.maxMoves;
-            console.log('[game24] 總步數計算：' + totalChars + ' 字 × ' + settings.moveLimitRate + ' × ' + this.collectTarget + ' = ' + this.maxMoves + ' 步');
+            console.log('[game24] 總步數計算：' + totalChars + ' 字 × ' + settings.moveLimitRate + ' × ' + this.collectTarget
+                + (longLineBonus > 1 ? ' × 1.3（首句 ' + firstLineLen + ' 字 ≥7）' : '')
+                + ' = ' + this.maxMoves + ' 步');
 
             document.getElementById('game24-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
@@ -455,6 +473,7 @@
             this.renderBoard();
             this._updateMovesLabel();
             this.scheduleHint();
+            this.startIdleWatcher();
         },
 
         // ── 閒置提示：difficultySettings.hintDelay 秒未拖曳則對可移動字塊發光 ──
@@ -570,9 +589,9 @@
                 const prev = Math.min(this.collectTarget, prevGot[ch] || 0);
                 const done = got >= this.collectTarget;
                 const justDone = animateNewlyLit && done && prev < this.collectTarget;
-                const hue = this.getHueForChar(ch);
+                const c = this.getColorForChar(ch);
                 // data-char 供字魂特效定位（落點為這張卡）
-                html += `<span class="game24-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g24-h:${hue}">`
+                html += `<span class="game24-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g24-h:${c.hue};--g24-s:${c.sat}%;--g24-l:${c.lum}%;--g24-text:${c.textColor}">`
                     + `<span class="game24-char-tile">${ch}</span>`
                     + `<span class="game24-char-count"><span class="game24-char-num">${got}</span>/<span class="game24-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
@@ -731,17 +750,20 @@
                     div.textContent = t.char;
                     // 字體 = 方框 80%
                     div.style.fontSize = cellFontPx + 'px';
-                    // 套用色相（依當前句字位置 360° 分配；相同字必為相同底色）
-                    const hue = this.getHueForChar(t.char);
-                    div.style.setProperty('--g24-h', hue);
                     // 干擾字（非當前句目標）使用低飽和灰調，讓玩家一眼識別「真目標」
                     if (!lineCharsSet[t.char]) {
+                        div.style.setProperty('--g24-h', this.getHueForChar(t.char));
                         div.classList.add('decoy');
                     } else {
-                        // 目標字：高亮度（75%）+ 中彩度（60%）搭配深色字提高可讀性
-                        div.style.setProperty('--g24-s', '70%');
-                        div.style.setProperty('--g24-l', '60%');
-                        div.style.setProperty('--g24-text', `hsl(${hue}, 90%, 25%)`);
+                        // 目標字：套用共用 TileStyleUtils 分組配色，與上方字塊(char-tile)保持一致
+                        const c = this.getColorForChar(t.char);
+                        div.style.setProperty('--g24-h', c.hue);
+                        div.style.setProperty('--g24-s', c.sat + '%');
+                        div.style.setProperty('--g24-l', c.lum + '%');
+                        div.style.setProperty('--g24-text', c.textColor);
+                        // 依當前句字序套用五種形狀之一（同字同形）
+                        const idx = this.currentLineChars.indexOf(t.char);
+                        if (idx >= 0) window.TileStyleUtils.applyShape(div, window.TileStyleUtils.getGroupShape(idx));
                     }
                     if (t.isPower === 'h') div.classList.add('power-h');
                     else if (t.isPower === 'v') div.classList.add('power-v');
@@ -888,7 +910,8 @@
                 if (b) { b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 310); }
                 return;
             }
-            // 有效交換：扣步數（步數模式下）
+            // 有效交換：扣步數（步數模式下）+ 重置怠功計時
+            this.resetIdleTimer();
             if (this.maxMoves > 0) {
                 this.movesLeft--;
                 this._updateMovesLabel();
@@ -1367,11 +1390,12 @@
                 this.completeLine();
                 return;
             }
-            // 死局檢查 → 自動洗牌
+            // 死局檢查 → 自動洗牌（含「重組盤面，請稍待」提示橫幅與掃出/滑入動畫）
+            //   ⚠️ reshuffleWithAnimation 內部會鎖住操作、播完動畫後自行處理步數歸零與 hint，
+            //      因此此處直接 return，不再往下重複執行。
             if (!this.hasPossibleMove()) {
-                this.shuffleBoard();
-                this.renderBoard();
-                if (window.SoundManager) window.SoundManager.playOpenItem();
+                this.reshuffleWithAnimation();
+                return;
             }
             // 檢查步數歸零
             if (this.maxMoves > 0 && this.movesLeft <= 0 && !this.isLineComplete()) {
@@ -1380,6 +1404,72 @@
             }
             // 玩家回合 → 重新啟動閒置提示倒數
             this.scheduleHint();
+        },
+
+        // ── 死局重組：顯示「重組盤面，請稍待」橫幅 + 棋盤掃出/滑入動畫 ──
+        //   STAGE 1：舊盤面由下往上逐列掃出（sweep-out）
+        //   STAGE 2：洗牌並修正初始三連（保證有解），新盤面由上逐列滑落（spawn）
+        //   STAGE 3：收起橫幅、恢復操作（並補做步數歸零判定與 hint 倒數）
+        //   全程 isAnimating=true 鎖住拖曳，避免動畫期間誤操作。
+        reshuffleWithAnimation: function () {
+            this.isAnimating = true;
+            this.isDragging = false;
+            this.dragStartCell = null;
+            this.clearHint();
+            this._cleanupStageRemnants();
+            if (window.SoundManager && window.SoundManager.playOpenItem) window.SoundManager.playOpenItem();
+
+            const ROW_GAP = 60;
+
+            // 提示橫幅（沿用句完成過場的金黃橫幅樣式）
+            const banner = document.getElementById('game24-chain-praise');
+            if (banner) {
+                banner.textContent = '重組盤面，請稍待';
+                banner.className = 'game24-chain-praise stage-banner animate';
+            }
+
+            // STAGE 1：舊盤面逐列掃出（越靠底部越先掉，與重力一致）
+            for (let r = 0; r < this.rows; r++) {
+                for (let c = 0; c < this.cols; c++) {
+                    const el = this.cellElements[r] && this.cellElements[r][c];
+                    if (!el) continue;
+                    const delay = (this.rows - 1 - r) * ROW_GAP;
+                    el.style.setProperty('--g24-delay', delay + 'ms');
+                    el.classList.add('sweep-out');
+                }
+            }
+            const sweepTotal = this.rows * ROW_GAP + 550;
+
+            setTimeout(() => {
+                // 洗牌 + 修正初始三連，最多 5 次直到出現可解盤面
+                for (let i = 0; i < 5; i++) {
+                    this.shuffleBoard();
+                    this.eliminateInitialTriples();
+                    if (this.hasPossibleMove()) break;
+                }
+                // STAGE 2：新盤面全盤由上滑落
+                for (let r = 0; r < this.rows; r++) {
+                    for (let c = 0; c < this.cols; c++) {
+                        const t = this.board[r][c];
+                        if (!t) continue;
+                        t._isNew = true;
+                        t._spawnDelay = (this.rows - 1 - r) * ROW_GAP;
+                    }
+                }
+                this.renderBoard(true);
+                const dropTotal = this.rows * ROW_GAP + 500;
+
+                setTimeout(() => {
+                    if (banner) banner.classList.add('hidden');
+                    this.isAnimating = false;
+                    // STAGE 3：恢復操作前補做步數歸零判定
+                    if (this.maxMoves > 0 && this.movesLeft <= 0 && !this.isLineComplete()) {
+                        this.gameOver(false, '步數用盡');
+                        return;
+                    }
+                    this.scheduleHint();
+                }, dropTotal);
+            }, sweepTotal);
         },
 
         // 判斷當前句是否字頻都已達標
@@ -1659,6 +1749,40 @@
             }, 50);
         },
 
+        // ── 5 秒閒置扣步：仿 GAME9 詩韻鎖扣 startTimer 內的 inactivity 檢查 ──
+        //   每 200ms 檢查一次；若 (現在 − lastActionTime) ≥ idleThreshold 且遊戲活動中／非動畫／非拖曳
+        //   → 扣 1 步、重置 lastActionTime、更新紅白框與步數標籤，步數歸零則 gameOver
+        startIdleWatcher: function () {
+            this.stopIdleWatcher();
+            if (!this.maxMoves || this.maxMoves <= 0) return; // 僅步數模式生效
+            this.lastActionTime = Date.now();
+            this.idleInterval = setInterval(() => {
+                if (!this.isActive) return;
+                if (this.isDragging || this.isAnimating) {
+                    // 動作進行中不計閒置，將閒置起算點推後
+                    this.lastActionTime = Date.now();
+                    return;
+                }
+                if (Date.now() - this.lastActionTime < this.idleThreshold) return;
+                // 觸發怠功扣步
+                this.movesLeft = Math.max(0, this.movesLeft - 1);
+                this.lastActionTime = Date.now();
+                this._updateMovesLabel();
+                this.updateMovesRing();
+                if (window.SoundManager && window.SoundManager.playFailure) window.SoundManager.playFailure();
+                if (this.movesLeft <= 0 && !this.isLineComplete()) {
+                    this.gameOver(false, '怠功！步數用盡');
+                }
+            }, 200);
+        },
+        stopIdleWatcher: function () {
+            if (this.idleInterval) { clearInterval(this.idleInterval); this.idleInterval = null; }
+        },
+        // 有效操作時呼叫：把閒置起算點推回現在
+        resetIdleTimer: function () {
+            this.lastActionTime = Date.now();
+        },
+
         // ── 紅白步數倒數框（仿 game9 詩韻鎖扣） ──
         //   依 maxMoves 將外框等分成 N 段；奇紅偶白交替；每走一步從尾段開始扣除
         updateMovesRing: function () {
@@ -1748,6 +1872,7 @@
             this.isActive = false;
             this.isWin = win;
             clearInterval(this.timerInterval);
+            this.stopIdleWatcher();
 
             // 失敗時寫入 game_logs；勝利由 ScoreManager.saveScore 寫入
             if (!win && window.SupabaseClient) {

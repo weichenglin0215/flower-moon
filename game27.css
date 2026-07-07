@@ -576,3 +576,40 @@
     padding: 4px 0;
     background: rgba(0, 0, 0, 0.25);
 }
+/* ── 抄襲 GAME24 上方版型：sub-header 加 moves-label + info-bar 加 line-text ── */
+.game27-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+}
+.game27-sub-header #game27-moves-label { flex: 0 0 auto; }
+.game27-sub-header #game27-poem-info { flex: 1 1 auto; text-align: right; margin-right: 20px; }
+.game27-moves-label {
+    font-size: 18px;
+    color: hsl(40, 60%, 80%);
+    letter-spacing: 1px;
+}
+#game27-moves {
+    color: hsl(45, 95%, 62%);
+    font-weight: bold;
+    margin-left: 4px;
+    text-shadow: 0 0 4px hsla(45, 100%, 60%, 0.5);
+}
+.game27-info-bar {
+    width: 100%;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+}
+.game27-line-text {
+    font-size: 18px;
+    color: hsl(40, 55%, 88%);
+    text-align: center;
+    letter-spacing: 1px;
+}

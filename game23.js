@@ -21,6 +21,13 @@
 
     // ⚠️ 所有形狀必須包含 [0,0]，否則切割掃描會在錨點留下無人認領的字元。
     // L4 = [[0,1],[1,0],[1,1]] 違反此規則已移除。
+    //
+    // 為了增加視覺上的變化，除了原本的 3 格 L 型（L1~L3）之外，
+    // 補上 4 格的 L / T / Z / S 彎曲型（含 [0,0]、且掃描相容）：
+    //   L4A ⌐ 縱向 L，右下轉角     L4B ¬ 橫向 L，左上轉角
+    //   L4C ⌐ 縱向 J（L 鏡射）    L4D ¬ 橫向 J（L 鏡射）
+    //   T4H ┴ 橫 T（腳在正下）     T4V ├ 縱 T（腳在正右）
+    //   Z4H  横 Z                  S4V  縱 S
     const SHAPES = {
         '1x1': [[0, 0]],
         '1x2H': [[0, 0], [0, 1]],
@@ -32,11 +39,21 @@
         '2x2': [[0, 0], [0, 1], [1, 0], [1, 1]],
         'L1': [[0, 0], [0, 1], [1, 0]],
         'L2': [[0, 0], [0, 1], [1, 1]],
-        'L3': [[0, 0], [1, 0], [1, 1]]
+        'L3': [[0, 0], [1, 0], [1, 1]],
+        'L4A': [[0, 0], [1, 0], [2, 0], [2, 1]],
+        'L4B': [[0, 0], [0, 1], [0, 2], [1, 0]],
+        'L4C': [[0, 0], [0, 1], [1, 1], [2, 1]],
+        'L4D': [[0, 0], [0, 1], [0, 2], [1, 2]],
+        'T4H': [[0, 0], [0, 1], [0, 2], [1, 1]],
+        'T4V': [[0, 0], [1, 0], [1, 1], [2, 0]],
+        'Z4H': [[0, 0], [0, 1], [1, 1], [1, 2]],
+        'S4V': [[0, 0], [1, 0], [1, 1], [2, 1]]
     };
     const SHAPE_AREA = {
         '1x1': 1, '1x2H': 2, '1x2V': 2, '1x3H': 3, '1x3V': 3,
-        '1x4H': 4, '1x4V': 4, '2x2': 4, 'L1': 3, 'L2': 3, 'L3': 3
+        '1x4H': 4, '1x4V': 4, '2x2': 4, 'L1': 3, 'L2': 3, 'L3': 3,
+        'L4A': 4, 'L4B': 4, 'L4C': 4, 'L4D': 4,
+        'T4H': 4, 'T4V': 4, 'Z4H': 4, 'S4V': 4
     };
 
     const Game23 = {
@@ -87,31 +104,34 @@
         // showHintInGrid : 主句行/欄底色 + 交叉格鑽石標記
         // minPieceArea   : 切割最小片格數
         // showEmptyDelay : N秒後在空白格顯示25%灰色提示（0=不顯示）
+        // linkMainRate   : 切割前先為此比率的主句字附加 1~2 個垂直（H）或水平（V）
+        //                 相鄰副句字，讓題目字不容易在整欄只剩下自己一格。
+        //                 1.0 = 每個主句字都盡量預先連上，0 = 完全依機率自由切割。
         difficultySettings: {
             '小學': {
-                timeLimit: 120, poemMinRating: 6, poemType: '五言', mainOrient: 'H',
+                timeLimit: 90, poemMinRating: 6, poemType: '五言', mainOrient: 'H',
                 subMinRating: 5, hintLineDelay: 0, hintCharCount: 999, showHintInGrid: true,
-                decoyCharCount: 0, minPieceArea: 4, showEmptyDelay: 10
+                decoyCharCount: 0, minPieceArea: 4, showEmptyDelay: 10, linkMainRate: 1.0
             },
             '中學': {
-                timeLimit: 150, poemMinRating: 5, poemType: '五言', mainOrient: 'H',
+                timeLimit: 120, poemMinRating: 5, poemType: '五言', mainOrient: 'H',
                 subMinRating: 4, hintLineDelay: 10, hintCharCount: 5, showHintInGrid: true,
-                decoyCharCount: 5, minPieceArea: 3, showEmptyDelay: 30
+                decoyCharCount: 0, minPieceArea: 3, showEmptyDelay: 20, linkMainRate: 0.8
             },
             '高中': {
-                timeLimit: 200, poemMinRating: 4, poemType: '七言', mainOrient: 'random',
-                subMinRating: 3, hintLineDelay: 20, hintCharCount: 4, showHintInGrid: true,
-                decoyCharCount: 7, minPieceArea: 2, showEmptyDelay: 60
+                timeLimit: 150, poemMinRating: 4, poemType: '七言', mainOrient: 'H',
+                subMinRating: 3, hintLineDelay: 20, hintCharCount: 3, showHintInGrid: true,
+                decoyCharCount: 0, minPieceArea: 2, showEmptyDelay: 30, linkMainRate: 0.6
             },
             '大學': {
-                timeLimit: 250, poemMinRating: 3, poemType: '七言', mainOrient: 'random',
-                subMinRating: 2, hintLineDelay: 30, hintCharCount: 2, showHintInGrid: false,
-                decoyCharCount: 10, minPieceArea: 1, showEmptyDelay: 120
+                timeLimit: 180, poemMinRating: 3, poemType: '七言', mainOrient: 'random',
+                subMinRating: 2, hintLineDelay: 30, hintCharCount: 2, showHintInGrid: true,
+                decoyCharCount: 0, minPieceArea: 2, showEmptyDelay: 60, linkMainRate: 0.4
             },
             '研究所': {
-                timeLimit: 300, poemMinRating: 3, poemType: '七言', mainOrient: 'random',
-                subMinRating: 1, hintLineDelay: 999, hintCharCount: 0, showHintInGrid: false,
-                decoyCharCount: 14, minPieceArea: 1, showEmptyDelay: 0
+                timeLimit: 210, poemMinRating: 3, poemType: '七言', mainOrient: 'random',
+                subMinRating: 2, hintLineDelay: 40, hintCharCount: 1, showHintInGrid: true,
+                decoyCharCount: 0, minPieceArea: 2, showEmptyDelay: 90, linkMainRate: 0.2
             }
         },
 
@@ -353,6 +373,9 @@
             this.history = [];
             this.scramblePieces();
             this.renderAll();
+            // ⚠️ Bug 修正：重來時也要重新啟動「空白格灰色提示」的計時器，
+            //   否則點「重來」或失敗後再重來就完全看不到避免放置區。
+            this._startEmptyHintTimer();
             this.startHintReveal();
             this.startTimer();
             document.getElementById('game23-retryGame-btn').disabled = false;
@@ -657,7 +680,11 @@
         },
 
         // ------------------------------------------------------------
-        // 切割（同 game22）
+        // 切割（同 game22 + 兩項降難度調整）
+        //   ① 依難度 linkMainRate 比率，先為主句字附加 1~2 個垂直（H）／
+        //      水平（V）方向的相鄰副句字，讓題目字不容易只剩一格孤立在整欄。
+        //   ② minPieceArea >= 2 時，切割完成後把落單的 1x1 拼圖合併到相鄰片，
+        //      允許最終出現 4/5/6 格不規則組合形狀。
         // ------------------------------------------------------------
         cutPieces: function () {
             const s = this.difficultySettings[this.difficulty];
@@ -670,9 +697,15 @@
             this.pieces = [];
             this._pieceIdSeq = 1;
 
+            // ── ① 主句字預連 ───────────────────────────────────────
+            this._preplaceMainAdjacent(occupied, s.linkMainRate || 0);
+
+            // ── ② 其餘格子以既有形狀庫掃描切割 ────────────────────
             const shapeKeys = Object.keys(SHAPES).filter(k => SHAPE_AREA[k] >= s.minPieceArea);
+            // 小學：minPieceArea=4，用 2x2、1x4 加上四格 L/T/Z/S 彎曲型，
+            //   讓最簡單難度也能看見彎曲片型，視覺變化較豐富。
             const usedKeys = (this.difficulty === '小學')
-                ? ['2x2', '1x4H', '1x4V']
+                ? ['2x2', '1x4H', '1x4V', 'L4A', 'L4B', 'L4C', 'L4D', 'T4H', 'T4V', 'Z4H', 'S4V']
                 : shapeKeys;
 
             for (let r = 0; r < GRID_SIZE; r++) {
@@ -698,6 +731,128 @@
                         }
                     }
                 }
+            }
+
+            // ── ③ minPieceArea >= 2：合併殘留的 1x1 到相鄰拼圖 ────
+            if (s.minPieceArea >= 2) this._mergeSingletons();
+        },
+
+        // 掃描主句字，依 rate 比率為每個主句字預先附加 1~2 個「相對主句方向的垂直方向」
+        // 相鄰副句字，形成 1x2V / 1x3V（H 主句）或 1x2H / 1x3H（V 主句）的拼圖。
+        _preplaceMainAdjacent: function (occupied, rate) {
+            if (!rate || rate <= 0) return;
+            if (!this.mainCells) return;
+            const mainCoords = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (this.mainCells[r][c]) mainCoords.push({ r, c });
+                }
+            }
+            mainCoords.sort((a, b) => a.r - b.r || a.c - b.c);
+
+            const isMainH = this.mainOrientation === 'H';
+            for (const { r, c } of mainCoords) {
+                if (occupied[r][c]) continue;
+                if (Math.random() >= rate) continue;
+
+                // 相對主句方向的「垂直」候選：H 主句 → 上下；V 主句 → 左右
+                const candidates = isMainH
+                    ? [{ r: r - 1, c }, { r: r + 1, c }]
+                    : [{ r, c: c - 1 }, { r, c: c + 1 }];
+                this.shuffleInPlace(candidates);
+
+                const cellsInPiece = [{ r, c }];
+                const want = 1 + Math.floor(Math.random() * 2); // 1 或 2
+                for (const cand of candidates) {
+                    if (cellsInPiece.length - 1 >= want) break;
+                    if (cand.r < 0 || cand.r >= GRID_SIZE || cand.c < 0 || cand.c >= GRID_SIZE) continue;
+                    if (occupied[cand.r][cand.c]) continue;
+                    if (this.expected[cand.r][cand.c] == null) continue;
+                    cellsInPiece.push(cand);
+                }
+                if (cellsInPiece.length < 2) continue; // 無可用相鄰字，該主句字放棄預連
+
+                const minR = Math.min.apply(null, cellsInPiece.map(x => x.r));
+                const minC = Math.min.apply(null, cellsInPiece.map(x => x.c));
+                const cells = cellsInPiece.map(x => [x.r - minR, x.c - minC]);
+                const chars = cellsInPiece.map(x => this.expected[x.r][x.c]);
+                this.pieces.push({
+                    id: this._pieceIdSeq++,
+                    shape: 'preM', cells, chars,
+                    anchorRow: minR, anchorCol: minC,
+                    inHold: false,
+                    originRow: minR, originCol: minC
+                });
+                cellsInPiece.forEach(x => { occupied[x.r][x.c] = true; });
+            }
+        },
+
+        shuffleInPlace: function (arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        },
+
+        // 尋找目前佔用 (r,c) 的拼圖片（不含 inHold 之類；此時期還未打亂）
+        _findPieceAt: function (r, c) {
+            for (const p of this.pieces) {
+                for (let i = 0; i < p.cells.length; i++) {
+                    const [dr, dc] = p.cells[i];
+                    if (p.anchorRow + dr === r && p.anchorCol + dc === c) return p;
+                }
+            }
+            return null;
+        },
+
+        // 把 absorbed 合併進 target；重算 target 的錨點與 cells，讓左上角回到 (0,0)。
+        // 允許形狀變成不規則多邊形，rendering 只以 cells 偏移繪製，不需要含 (0,0)。
+        _mergeInto: function (target, absorbed) {
+            const globalCells = [];
+            target.cells.forEach(([dr, dc], i) => {
+                globalCells.push({ r: target.anchorRow + dr, c: target.anchorCol + dc, ch: target.chars[i] });
+            });
+            absorbed.cells.forEach(([dr, dc], i) => {
+                globalCells.push({ r: absorbed.anchorRow + dr, c: absorbed.anchorCol + dc, ch: absorbed.chars[i] });
+            });
+            const minR = Math.min.apply(null, globalCells.map(x => x.r));
+            const minC = Math.min.apply(null, globalCells.map(x => x.c));
+            target.anchorRow = minR;
+            target.anchorCol = minC;
+            target.originRow = minR;
+            target.originCol = minC;
+            target.cells = globalCells.map(x => [x.r - minR, x.c - minC]);
+            target.chars = globalCells.map(x => x.ch);
+            target.shape = 'merged';
+            const idx = this.pieces.indexOf(absorbed);
+            if (idx >= 0) this.pieces.splice(idx, 1);
+        },
+
+        // 反覆掃描 1x1 拼圖，找相鄰片合併；若某 1x1 四周都被空白包圍則保留（合理落單）。
+        _mergeSingletons: function () {
+            for (let iter = 0; iter < 5; iter++) {
+                const singles = this.pieces.filter(p => p.cells.length === 1);
+                if (singles.length === 0) return;
+                let mergedAny = false;
+                for (const s of singles) {
+                    if (this.pieces.indexOf(s) < 0) continue; // 已被前一輪合併走
+                    const r = s.anchorRow, c = s.anchorCol;
+                    const neighbors = this.shuffleInPlace([
+                        { r: r - 1, c }, { r: r + 1, c },
+                        { r, c: c - 1 }, { r, c: c + 1 }
+                    ]);
+                    let target = null;
+                    for (const n of neighbors) {
+                        if (n.r < 0 || n.r >= GRID_SIZE || n.c < 0 || n.c >= GRID_SIZE) continue;
+                        const cand = this._findPieceAt(n.r, n.c);
+                        if (cand && cand !== s) { target = cand; break; }
+                    }
+                    if (!target) continue;
+                    this._mergeInto(target, s);
+                    mergedAny = true;
+                }
+                if (!mergedAny) return;
             }
         },
 

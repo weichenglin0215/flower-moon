@@ -78,7 +78,7 @@
             const idx = this.currentLineChars.indexOf(ch);
             if (idx >= 0) {
                 const n = this.currentLineChars.length || 1;
-                return Math.round((360 / n) * idx + 12) % 360;
+                return window.TileStyleUtils.getGroupColor(idx, n).hue;
             }
             let h = 0;
             for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
@@ -141,10 +141,11 @@
                     </div>
                 </div>
                 <div class="game29-sub-header">
+                    <div id="game29-moves-label" class="game29-moves-label" style="display:none">盤面:<span id="game29-stage-text">1/1</span> 步數:<span id="game29-moves">0</span>/<span id="game29-max-moves">0</span></div>
                     <div id="game29-poem-info" class="poem-info" style="cursor:pointer; text-decoration:underline; opacity:0.85;"></div>
                 </div>
                 <div class="game29-info-bar">
-                    <div id="game29-line-text" class="game29-line-text"></div>
+                    <div id="game29-line-text" class="game29-line-text" style="display:none"></div>
                     <div id="game29-progress" class="game29-progress"></div>
                     <div id="game29-next-preview" class="game29-next-preview">
                         下一顆：<span id="game29-next-char">－</span>

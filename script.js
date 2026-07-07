@@ -743,6 +743,92 @@ window.sharedSplitLine = function sharedSplitLine(line, singleCharProb) {
    return result;
 };
 
+// =============================================================================
+// 字塊分組配色工具 (TileStyleUtils)
+// -----------------------------------------------------------------------------
+// 適用於「多字一組必須同色、組與組之間需可辨識」的遊戲類型（如 GAME24~30 連珠/拼組玩法）。
+// hue 依組數等分 360°（避免 0° 與 360° 重複撞色）；組數 <=10 時全部固定同一種明暗，
+// 超過 10 組才切換第二種明暗，讓 hue 第二輪循環時仍可分辨（最多可組合 20 種）。
+// =============================================================================
+window.TileStyleUtils = {
+   /**
+    * 取得第 groupIndex 組（共 totalGroups 組）的分組配色。
+    * @param {number} groupIndex 該組索引（0-based）
+    * @param {number} totalGroups 總組數
+    * @param {object} [options]
+    *   @param {number} [options.sat=90] 飽和度
+    * @returns {{hue:number, sat:number, lum:number, textColor:string}}
+    */
+   getGroupColor: function (groupIndex, totalGroups, options) {
+      options = options || {};
+      const sat = typeof options.sat === 'number' ? options.sat : 90;
+      const n = Math.max(1, totalGroups);
+      const hueSlots = Math.min(n, 10);
+      const hue = Math.round((360 / hueSlots) * (groupIndex % hueSlots));
+      // 第 11 組 (index >= 10) 起切換明暗，擴充辨識度至 20 種組合
+      const useAltLum = groupIndex >= 10;
+      const lum = useAltLum ? 40 : 70;
+      const textColor = useAltLum ? 'hsl(0, 0%, 95%)' : 'hsl(0, 0%, 12%)';
+      return { hue, sat, lum, textColor };
+   },
+
+   // 五種字塊形狀（依序）：圓角方形(預設) / 八角形 / 六角形 / 圓形 / 直角方形
+   // 用於 GAME24/25/28/30：同組同色同形（相同字外型必為相同一種）
+   SHAPES: ['rounded-square', 'octagon', 'hexagon', 'circle', 'sharp-square'],
+
+   /**
+    * 取得第 groupIndex 組的形狀名稱（0-based，依 SHAPES 順序循環）。
+    * 例：「床前明月光」5 字 → 床=rounded-square、前=octagon、明=hexagon、月=circle、光=sharp-square
+    * @param {number} groupIndex 組索引（0-based，通常為字在句中的位置）
+    * @returns {string} 形狀名稱（'rounded-square' / 'octagon' / 'hexagon' / 'circle' / 'sharp-square'）
+    */
+   getGroupShape: function (groupIndex) {
+      const shapes = this.SHAPES;
+      const idx = ((groupIndex % shapes.length) + shapes.length) % shapes.length;
+      return shapes[idx];
+   },
+
+   /**
+    * 將形狀套用到 DOM 元素：
+    *   - rounded-square/sharp-square/circle → 直接改 border-radius
+    *   - octagon/hexagon → 用 clip-path 裁形（此時 box-shadow 會被裁掉；如需光暈請改用 filter:drop-shadow）
+    * 呼叫端只要在元素上再加 `.tile-shape-<name>` class 即可（可由 CSS 統一定義），此函式也直接套 inline style 作為保底。
+    * @param {HTMLElement} el 目標 DOM 元素
+    * @param {string} shape 形狀名稱
+    */
+   applyShape: function (el, shape) {
+      if (!el) return;
+      // 先清掉舊的形狀 class
+      this.SHAPES.forEach(s => el.classList.remove('tile-shape-' + s));
+      el.classList.add('tile-shape-' + shape);
+      switch (shape) {
+         case 'rounded-square':
+            el.style.borderRadius = '14px';
+            el.style.clipPath = '';
+            break;
+         case 'sharp-square':
+            el.style.borderRadius = '0';
+            el.style.clipPath = '';
+            break;
+         case 'circle':
+            el.style.borderRadius = '50%';
+            el.style.clipPath = '';
+            break;
+         case 'octagon':
+            el.style.borderRadius = '0';
+            el.style.clipPath = 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)';
+            break;
+         case 'hexagon':
+            el.style.borderRadius = '0';
+            el.style.clipPath = 'polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%)';
+            break;
+         default:
+            el.style.borderRadius = '14px';
+            el.style.clipPath = '';
+      }
+   }
+};
+
 /**
  * 全站通用的音效管理工具 (SoundManager)
  * 提供古箏五聲音階演奏、以及正確與錯誤操作的共用回饋音效。

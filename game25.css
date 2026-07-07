@@ -96,18 +96,29 @@
     filter: brightness(1.5);
 }
 
-/* 副資訊列：詩名 + 進度（垂直排列；對齊 game24/game4 字級） */
+/* 副資訊列：步數標籤（左）+ 詩名（右）── 抄襲 game24 的橫排佈局 */
 .game25-sub-header {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.45);
     z-index: 9;
     border-bottom: 1px solid hsla(45, 80%, 60%, 0.2);
     width: 100%;
-    padding: 4px 6px;
+    height: 36px;
+    padding: 0 12px;
     box-sizing: border-box;
+    gap: 8px;
+}
+
+.game25-sub-header #game25-moves-label {
+    flex: 0 0 auto;
+}
+
+.game25-sub-header #game25-poem-info {
+    flex: 1 1 auto;
+    text-align: right;
+    margin-right: 20px;
 }
 
 .game25-poem-info {
@@ -116,18 +127,49 @@
     cursor: pointer;
     text-decoration: underline;
     text-underline-offset: 4px;
-    margin-bottom: 2px;
-    text-align: center;
     white-space: nowrap;
     overflow: hidden;
 }
 
-.game25-progress-text {
+/* 步數標籤（抄襲 game24） */
+.game25-moves-label {
     font-size: 18px;
+    color: hsl(40, 60%, 80%);
+    letter-spacing: 1px;
+}
+
+#game25-moves {
+    color: hsl(45, 95%, 62%);
     font-weight: bold;
-    color: hsl(36, 85%, 60%);
-    letter-spacing: 2px;
+    margin-left: 4px;
+    text-shadow: 0 0 4px hsla(45, 100%, 60%, 0.5);
+}
+
+/* 資訊列：當前句與字頻進度卡（抄襲 game24 的 info-bar） */
+.game25-info-bar {
+    width: 100%;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+}
+
+.game25-line-text {
+    font-size: 18px;
+    color: hsl(40, 55%, 88%);
     text-align: center;
+    letter-spacing: 1px;
+}
+
+.game25-line-poem {
+    font-weight: bold;
+    color: hsl(45, 90%, 72%);
+    margin-left: 6px;
+    letter-spacing: 4px;
+    text-shadow: 0 0 6px hsla(45, 90%, 55%, 0.4);
 }
 
 /* 字頻顯示行：多卡橫排（仿 game24） — flex:1 1 0 自動依字數均分總寬，必不超出畫面 */
@@ -160,6 +202,8 @@
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+/* --g25-h/-s/-l/-text 由父層 .game25-char-group 的 inline style 提供，此處不可重複宣告，
+   否則會蓋掉繼承值（自訂屬性一旦在元素自身被宣告，即不再採用祖先繼承值） */
 .game25-char-tile {
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -172,15 +216,27 @@
     padding-bottom: 0.05em;
     font-size: clamp(13px, 3.8vw, 22px);
     font-weight: 900;
-    color: hsl(220, 30%, 14%);
+    color: var(--g25-text);
     border-radius: 6px;
-    background: linear-gradient(135deg,
-            hsl(var(--g25-h), 60%, 85%) 0%,
-            hsl(var(--g25-h), 60%, 72%) 50%,
-            hsl(var(--g25-h), 60%, 55%) 100%);
+    background: hsl(var(--g25-h), var(--g25-s), var(--g25-l));
     border: 1px solid hsla(var(--g25-h), 50%, 25%, 0.6);
     box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35), inset 0 1px 2px hsla(0, 0%, 100%, 0.55);
     text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);
+    position: relative;
+}
+
+/* 上方光澤：單色背景下維持立體感（抄襲 game24） */
+.game25-char-tile::before {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 10%;
+    right: 10%;
+    height: 30%;
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.45) 0%, hsla(0, 0%, 100%, 0) 100%);
+    border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .game25-char-count {
@@ -331,24 +387,6 @@
     box-shadow: inset 0 0 12px hsla(45, 70%, 30%, 0.3);
 }
 
-/* 拖曳秒數條 */
-.game25-drag-bar-wrapper {
-    width: 96%;
-    max-width: 480px;
-    height: 6px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 3px;
-    margin: 2px auto 4px;
-    overflow: hidden;
-}
-
-.game25-drag-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, hsl(45, 90%, 60%), hsl(20, 90%, 55%));
-    transition: width 0.05s linear;
-}
-
 /* 心心列 */
 .game25-hearts-line {
     display: flex;
@@ -466,23 +504,24 @@
     filter: drop-shadow(0 0 6px hsla(45, 90%, 60%, 0.7));
 }
 
-/* 棋盤 */
+/* 棋盤：抄襲 GAME24 —— relative + 100% 填滿 wrapper 內距空間，讓 wrapper 的 padding
+   在棋盤與 SVG 倒數框之間形成明顯留白（避免字塊貼到紅白倒數框） */
 .game25-grid {
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative;
     width: 100%;
     height: 100%;
     display: grid;
+    gap: 3px;
     z-index: 3;
+    user-select: none;
 }
 
 /* 字塊（同字同色 HSL：--g25-h 由 JS 設定；font-size 由 JS 依 cell 大小動態套用 80%） */
 .game25-cell {
     --g25-h: 40;
-    --g25-s: 65%;
-    --g25-l: 75%;
-    --g25-text: hsl(220, 30%, 16%);
+    --g25-s: 90%;
+    --g25-l: 70%;
+    --g25-text: hsl(0, 0%, 12%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -491,13 +530,9 @@
     font-size: 32px;
     font-weight: 800;
     color: var(--g25-text);
-    background: linear-gradient(135deg,
-            hsl(var(--g25-h), var(--g25-s), calc(var(--g25-l) + 10%)) 0%,
-            hsl(var(--g25-h), var(--g25-s), var(--g25-l)) 50%,
-            hsl(var(--g25-h), var(--g25-s), calc(var(--g25-l) - 15%)) 100%);
+    background: hsl(var(--g25-h), var(--g25-s), var(--g25-l));
     border: 1px solid hsla(var(--g25-h), 50%, 25%, 0.6);
     border-radius: 8px;
-    margin: 2px;
     position: relative;
     user-select: none;
     cursor: pointer;
@@ -507,6 +542,21 @@
         inset 0 1px 2px hsla(0, 0%, 100%, 0.6),
         inset 0 -2px 3px hsla(var(--g25-h), 60%, 25%, 0.3);
     transition: transform 0.12s cubic-bezier(0.4, 1.4, 0.5, 1), box-shadow 0.15s, background 0.15s;
+    overflow: hidden;
+}
+
+/* 字塊上方光澤條（頂部白光高光，抄襲 game24；字要在光澤之上） */
+.game25-cell::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 10%;
+    right: 10%;
+    height: 30%;
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.45) 0%, hsla(0, 0%, 100%, 0) 100%);
+    border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+    pointer-events: none;
+    z-index: 1;
 }
 
 /* 干擾字（不在全詩字集內）— 低彩度灰調 */
@@ -595,9 +645,13 @@
 }
 
 /* 同字提示：淡金色亮起 */
+/* 同字提示：只在原字塊外緣加粗白線，維持原本底色 */
 .game25-cell.same-hint {
-    background: hsl(45, 60%, 80%);
-    box-shadow: 0 0 8px hsla(45, 90%, 60%, 0.6);
+    border: 3px solid hsl(0, 0%, 100%);
+    box-shadow:
+        0 0 8px hsla(0, 0%, 100%, 0.8),
+        inset 0 0 4px hsla(0, 0%, 100%, 0.5);
+    z-index: 5;
 }
 
 /* 起點選中 */
@@ -687,34 +741,127 @@
     }
 }
 
-/* 連鎖倍率彈出 */
-.game25-chain-popup {
-    position: absolute;
-    top: 30%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 42px;
-    font-weight: bold;
-    color: hsl(210, 90%, 75%);
-    text-shadow: 0 0 10px hsl(210, 90%, 50%);
-    z-index: 50;
-    pointer-events: none;
-    animation: game25-chain-flash 0.9s forwards;
+
+/* ═══════════════════════════════════════════════════════════
+   逐句過場（抄襲 GAME24）：棋盤掃出、進度卡消失/出現、恭喜橫幅
+   ═══════════════════════════════════════════════════════════ */
+
+/* 完成句子過場：整盤字塊分批向下掃出（--g25-delay 階梯延遲） */
+.game25-cell.sweep-out {
+    animation: game25-sweep-out 0.5s cubic-bezier(0.4, 0, 0.7, 0.2) var(--g25-delay, 0ms) forwards;
+    z-index: 4;
 }
 
-@keyframes game25-chain-flash {
+@keyframes game25-sweep-out {
     0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.4);
+        transform: translateY(0) rotate(0) scale(1);
+        opacity: 1;
     }
 
-    40% {
+    60% {
+        transform: translateY(60px) rotate(8deg) scale(1);
         opacity: 1;
-        transform: translate(-50%, -50%) scale(1.2);
     }
 
     100% {
+        transform: translateY(420px) rotate(20deg) scale(0.85);
         opacity: 0;
-        transform: translate(-50%, -50%) scale(1.5) translateY(-40px);
+    }
+}
+
+/* 舊進度卡逐一消失 */
+.game25-char-group.stage-fade-out {
+    animation: game25-stage-fade-out 0.35s ease-in forwards;
+}
+
+@keyframes game25-stage-fade-out {
+    0% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.4) translateY(-12px);
+        opacity: 0;
+    }
+}
+
+/* 新進度卡先隱藏 */
+.game25-char-group.stage-pre-appear {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.6);
+}
+
+/* 新進度卡依序出現 */
+.game25-char-group.stage-appear {
+    animation: game25-stage-appear 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes game25-stage-appear {
+    0% {
+        opacity: 0;
+        transform: translateY(-14px) scale(0.5);
+    }
+
+    65% {
+        opacity: 1;
+        transform: translateY(0) scale(1.2);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 句完成 / 重組盤面 金黃橫幅（維持 2 秒） */
+.game25-chain-praise {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    font-size: 30px;
+    font-weight: 500;
+    color: hsl(50, 70%, 75%);
+    pointer-events: none;
+    letter-spacing: 4px;
+    white-space: nowrap;
+    -webkit-text-stroke: 1px hsla(30, 0%, 100%, 0.25);
+}
+
+.game25-chain-praise.hidden {
+    display: none !important;
+}
+
+.game25-chain-praise.stage-banner.animate {
+    animation: game25-stage-banner 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    font-size: 32px;
+}
+
+@keyframes game25-stage-banner {
+    0% {
+        transform: translate(-50%, -50%) scale(0.5) rotate(-6deg);
+        opacity: 0;
+    }
+
+    10% {
+        transform: translate(-50%, -50%) scale(1.25) rotate(2deg);
+        opacity: 1;
+    }
+
+    20% {
+        transform: translate(-50%, -50%) scale(1) rotate(0);
+        opacity: 1;
+    }
+
+    85% {
+        transform: translate(-50%, -50%) scale(1) rotate(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(0.9) rotate(0);
+        opacity: 0;
     }
 }

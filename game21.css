@@ -193,6 +193,30 @@
     border-radius: 12px;
 }
 
+/* ⚠️ 規格：非答案卡區域（col >= puzzleLength 的黃列格）— 提示開始時亮起
+   紅色邊框 + 密集斜線條紋，警示玩家此區並非答案位置。
+   pointer-events:none 確保不阻擋答案棒拖曳操作。 */
+.game21-no-drop-zone {
+    position: absolute;
+    border-radius: 12px;
+    background: hsla(0, 85%, 50%, 0.15);
+    /*
+    background: repeating-linear-gradient(135deg,
+            hsla(0, 85%, 50%, 0.15) 0 4px,
+            hsla(0, 60%, 15%, 0.15) 4px 8px);
+            */
+    border-top: 5px solid hsl(0, 85%, 30%);
+    border-bottom: 5px solid hsl(0, 85%, 30%);
+    box-shadow: 0 0 8px hsla(0, 85%, 50%, 0.3),
+        inset 0 0 6px hsla(0, 90%, 40%, 0.2);
+    pointer-events: none;
+    /* ⚠️ 位於答案棒（z-index:2）之下、grid 底之上，讓答案棒可覆蓋在紅色斜線區塊上，
+       只有無棒的空欄處會露出紅色斜線與框線（仿 game23 全欄提示做法） */
+    z-index: 1;
+    box-sizing: border-box;
+    opacity: 1;
+}
+
 /* 黃金橫批列：⚠️ 規格⑥ — 僅金黃色上下邊框，中間完全透明，不遮蔽答案棒 */
 .game21-yellow-row {
     position: absolute;
@@ -250,9 +274,53 @@
     z-index: 5;
 }
 
-/* ⚠️ 規格③：干擾棒視覺與一般答案棒完全相同，讓玩家分辨不出 */
-.game21-bar.decoy {
-    /* 不覆蓋任何視覺屬性 — 沿用 .game21-bar 預設樣式 */
+/* ⚠️ 規格：可移動棒上方的「上下左右」四向箭頭提示，鎖定棒不顯示 */
+.game21-bar-arrows {
+    position: absolute;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 44px;
+    color: hsl(45, 90%, 75%);
+    opacity: 0.9;
+    filter: drop-shadow(0 0 4px hsla(45, 90%, 55%, 0.6));
+    pointer-events: none;
+    z-index: 3;
+}
+
+.game21-bar-arrows svg {
+    width: 100%;
+    height: 100%;
+}
+
+.game21-bar.fixed .game21-bar-arrows {
+    display: none;
+}
+
+/* ⚠️ 規格③：干擾棒平時視覺與一般答案棒完全相同（原本的土黃色底），
+   勝利時不變色（.won 保持土黃）；但時間到時視為錯誤位置，允許轉紅（.wrong 覆蓋）。 */
+.game21-bar.decoy,
+.game21-bar.decoy.won {
+    background: hsla(30, 25%, 22%, 0.92);
+    border-left: 2px solid hsla(45, 60%, 70%, 0.5);
+    border-right: 2px solid hsla(45, 60%, 70%, 0.5);
+}
+
+/* ⚠️ 規格：勝利時正確答案棒改以綠色底顯示，金色字（cell.win-flash）保留 */
+.game21-bar.won {
+    background: hsla(145, 55%, 22%, 0.95);
+    border-left: 2px solid hsl(145, 70%, 55%);
+    border-right: 2px solid hsl(145, 70%, 55%);
+    box-shadow: 0 0 12px hsla(145, 80%, 50%, 0.5);
+}
+
+/* ⚠️ 規格：時間到之後，未對到正解的答案棒以紅色顯示（依難度 showWrongOnTimeout 開關） */
+.game21-bar.wrong {
+    background: hsla(0, 60%, 25%, 0.95);
+    border-left: 2px solid hsl(0, 75%, 55%);
+    border-right: 2px solid hsl(0, 75%, 55%);
+    box-shadow: 0 0 12px hsla(0, 80%, 50%, 0.4);
 }
 
 /* 字元 cell */

@@ -212,6 +212,8 @@
 }
 
 /* 卡片上方：彩色字塊（高度跟隨字寬，font-size 用 min/max 在容器內縮放） */
+/* --g24-h/-s/-l/-text 由父層 .game24-char-group 的 inline style 提供，此處不可重複宣告，
+   否則會蓋掉繼承值（自訂屬性一旦在元素自身被宣告，即不再採用祖先繼承值） */
 .game24-char-tile {
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -224,17 +226,29 @@
     padding-bottom: 0.05em;
     font-size: clamp(14px, 4.2vw, 28px);
     font-weight: 900;
-    color: hsl(0, 0%, 14%);
+    color: var(--g24-text);
     border-radius: 8px;
-    background: linear-gradient(135deg,
-            hsl(var(--g24-h), 60%, 87%) 0%,
-            hsl(var(--g24-h), 60%, 75%) 50%,
-            hsl(var(--g24-h), 60%, 57%) 100%);
+    background: hsl(var(--g24-h), var(--g24-s), var(--g24-l));
     border: 1px solid hsla(var(--g24-h), 60%, 25%, 0.7);
     box-shadow:
         0 2px 4px rgba(0, 0, 0, 0.35),
         inset 0 1px 2px hsla(0, 0%, 100%, 0.6);
     text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);
+    position: relative;
+}
+
+/* 上方光澤：與 .game24-cell 相同視覺語彙，維持單色背景下的立體感 */
+.game24-char-tile::before {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 10%;
+    right: 10%;
+    height: 30%;
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.45) 0%, hsla(0, 0%, 100%, 0) 100%);
+    border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+    pointer-events: none;
+    z-index: 1;
 }
 
 /* 卡片下方：X/Y 計數 */
@@ -497,15 +511,15 @@
     user-select: none;
 }
 
-/* ── 字塊：糖果風漸層、立體浮起 ──
-   --g24-h: 由 JS 依字塊文字 charCode 雜湊指定的色相
-   --g24-s / --g24-l：飽和度與明度，目標字高飽和、干擾字低飽和
+/* ── 字塊：單色底 + 上方光澤 + 內陰影，維持立體浮起感（不用漸層避免辨識不易） ──
+   --g24-h/-s/-l：由 TileStyleUtils.getGroupColor 依組別指定，與 .game24-char-tile 保持一致
+   干擾字（decoy）另外套用低飽和灰調
 */
 .game24-cell {
     --g24-h: 40;
-    --g24-s: 70%;
-    --g24-l: 60%;
-    --g24-text: hsl(0, 0%, 100%);
+    --g24-s: 90%;
+    --g24-l: 70%;
+    --g24-text: hsl(0, 0%, 12%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -518,10 +532,7 @@
     text-shadow:
         0 1px 0 hsla(0, 0%, 0%, 0.35),
         0 0 2px hsla(0, 0%, 0%, 0.3);
-    background: linear-gradient(135deg,
-            hsl(var(--g24-h), var(--g24-s), calc(var(--g24-l) + 12%)) 0%,
-            hsl(var(--g24-h), var(--g24-s), var(--g24-l)) 50%,
-            hsl(var(--g24-h), var(--g24-s), calc(var(--g24-l) - 18%)) 100%);
+    background: hsl(var(--g24-h), var(--g24-s), var(--g24-l));
     border: 1px solid hsla(var(--g24-h), 60%, 25%, 0.7);
     border-radius: 14px;
     position: relative;

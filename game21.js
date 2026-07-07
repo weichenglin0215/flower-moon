@@ -72,12 +72,39 @@
         //                   忽略 stepInterval。
         //   'progressive' — 先等待 hintDelaySec 秒，之後每 stepInterval 秒
         //                   依序揭示 1 個字，直到全部字顯示為止。
+        // showWrongOnTimeout：時間到之後，答案區「非干擾」但字元不符的棒以紅色顯示，
+        //   讓玩家一眼看出還沒對到的欄位。小學至大學開啟；研究所關閉（最高難度不給提示）。
         difficultySettings: {
-            '小學': { timeLimit: 20, poemMinRating: 6, poemType: '五言', hintDelaySec: 0, hintStep: 'instant', stepInterval: 0, maxFixBarCount: 3, maxDecoyCount: 0, showRightChar: true },
-            '中學': { timeLimit: 40, poemMinRating: 5, poemType: '五言', hintDelaySec: 20, hintStep: 'progressive', stepInterval: 3, maxFixBarCount: 2, maxDecoyCount: 1, showRightChar: false },
-            '高中': { timeLimit: 60, poemMinRating: 4, poemType: '七言', hintDelaySec: 40, hintStep: 'progressive', stepInterval: 6, maxFixBarCount: 2, maxDecoyCount: 2, showRightChar: false },
-            '大學': { timeLimit: 80, poemMinRating: 3, poemType: '七言', hintDelaySec: 999, hintStep: 'never', stepInterval: 5, maxFixBarCount: 1, maxDecoyCount: 3, showRightChar: false },
-            '研究所': { timeLimit: 100, poemMinRating: 3, poemType: '七言', hintDelaySec: 999, hintStep: 'never', stepInterval: 0, maxFixBarCount: 0, maxDecoyCount: 3, showRightChar: false }
+            '小學': {
+                timeLimit: 20, poemMinRating: 6, poemType: '五言',
+                hintDelaySec: 8, hintStep: 'progressive', stepInterval: 2,
+                maxFixBarCount: 3, maxDecoyCount: 0, showRightChar: true,
+                showWrongOnTimeout: true
+            },
+            '中學': {
+                timeLimit: 40, poemMinRating: 5, poemType: '五言',
+                hintDelaySec: 21, hintStep: 'progressive', stepInterval: 5,
+                maxFixBarCount: 2, maxDecoyCount: 1, showRightChar: false,
+                showWrongOnTimeout: true
+            },
+            '高中': {
+                timeLimit: 60, poemMinRating: 4, poemType: '七言',
+                hintDelaySec: 31, hintStep: 'progressive', stepInterval: 10,
+                maxFixBarCount: 2, maxDecoyCount: 2, showRightChar: false,
+                showWrongOnTimeout: true
+            },
+            '大學': {
+                timeLimit: 80, poemMinRating: 3, poemType: '七言',
+                hintDelaySec: 59, hintStep: 'progressive', stepInterval: 10,
+                maxFixBarCount: 1, maxDecoyCount: 3, showRightChar: false,
+                showWrongOnTimeout: true
+            },
+            '研究所': {
+                timeLimit: 100, poemMinRating: 3, poemType: '七言',
+                hintDelaySec: 999, hintStep: 'never', stepInterval: 5,
+                maxFixBarCount: 0, maxDecoyCount: 3, showRightChar: false,
+                showWrongOnTimeout: false
+            }
         },
 
         // 提示用的計時器控制把柄（要在 startHintReveal 時全部清掉，避免上局殘留）
@@ -422,9 +449,9 @@
             info.onclick = () => {
                 if (window.PoemDialog) window.PoemDialog.openById(poem.id);
             };
-            // 開局先隱藏詩名（避免直接看作者推題目作弊）
-            // 解鎖時機：① 上方提示字完全顯示  ② 玩家過關
-            info.style.visibility = 'hidden';
+            // ⚠️ 規格：只有「小學」難度會在開局就顯示詩名（教學用意）；
+            //   其餘難度必須等玩家過關才能看到，避免透過詩名/作者反推答案作弊。
+            info.style.visibility = (this.difficulty === '小學') ? '' : 'hidden';
 
             this.renderGrid();
         },
@@ -604,6 +631,41 @@
             yellowRowEl.style.width = (this.gridCols * CELL_PX) + 'px';
             grid.appendChild(yellowRowEl);
 
+            // ⚠️ 規格：先找出每根答案棒「正確歸位」所佔的列範圍，
+            //   再在該答案欄內把上下超出這個範圍的區塊標成紅色斜線區，
+            //   提醒玩家答案卡的中央字必須落在黃列上，其他列都是不可放置區。
+            //   → 正確歸位時，答案棒佔用列：[MIDDLE_ROW - targetIdx, MIDDLE_ROW - targetIdx + L - 1]
+            //   → 混淆棒所在欄位（col >= puzzleLength）完全不標記，混淆欄本身無正解概念。
+            this.bars.forEach(bar => {
+                if (bar.isDecoy) return;
+                const col = bar.puzzleColIdx;
+                const L = bar.charString.length;
+                const correctTop = MIDDLE_ROW - bar.targetIdx;
+                const correctBottom = correctTop + L - 1;
+                // 上緣不可放置區：rows [0, correctTop - 1]
+                if (correctTop > 0) {
+                    const above = document.createElement('div');
+                    above.className = 'game21-no-drop-zone hidden';
+                    above.dataset.col = col;
+                    above.style.left = (col * CELL_PX) + 'px';
+                    above.style.top = '0px';
+                    above.style.width = CELL_PX + 'px';
+                    above.style.height = (correctTop * CELL_PX) + 'px';
+                    grid.appendChild(above);
+                }
+                // 下緣不可放置區：rows [correctBottom + 1, GRID_ROWS - 1]
+                if (correctBottom < GRID_ROWS - 1) {
+                    const below = document.createElement('div');
+                    below.className = 'game21-no-drop-zone hidden';
+                    below.dataset.col = col;
+                    below.style.left = (col * CELL_PX) + 'px';
+                    below.style.top = ((correctBottom + 1) * CELL_PX) + 'px';
+                    below.style.width = CELL_PX + 'px';
+                    below.style.height = ((GRID_ROWS - 1 - correctBottom) * CELL_PX) + 'px';
+                    grid.appendChild(below);
+                }
+            });
+
             // 直棒
             this.bars.forEach(bar => {
                 const barEl = document.createElement('div');
@@ -619,6 +681,12 @@
                     lock.className = 'game21-bar-lock';
                     lock.textContent = '🔒';
                     barEl.appendChild(lock);
+                } else {
+                    // ⚠️ 規格：可移動棒上方顯示「上下左右」四向箭頭，提醒玩家可拖曳
+                    const arrows = document.createElement('div');
+                    arrows.className = 'game21-bar-arrows';
+                    arrows.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>';
+                    barEl.appendChild(arrows);
                 }
                 for (let i = 0; i < bar.charString.length; i++) {
                     const cell = document.createElement('div');
@@ -745,6 +813,8 @@
                         });
                         if (window.SoundManager) window.SoundManager.playSuccessShort();
                         this.updateYellowRowHighlight();
+                        // 水平換位不改變垂直對齊狀態，但仍同步一次紅色區可見性以防萬一
+                        this.updateNoDropZoneVisibility();
                     }
                 }
 
@@ -758,11 +828,11 @@
                     bar.offset = newOff;
                     this.applyBarPosition(barEl, bar);
                     this.updateYellowRowHighlight();
+                    // ⚠️ 垂直對齊變動 → 重新評估該欄紅色區是否該顯示
+                    this.updateNoDropZoneVisibility();
                     if (window.SoundManager) window.SoundManager.playGuzheng(Math.abs(newOff) % 7, 0.4);
-                    if (this.checkWin()) {
-                        this.handleWin();
-                        return;
-                    }
+                    // ⚠️ 規格：勝利判定改為「鬆開滑鼠／手指離開」時才觸發，
+                    //   防止玩家刻意拖曳掃過正解位置取巧得分。
                 }
             };
             const onUp = (e) => {
@@ -818,13 +888,15 @@
             const info = document.getElementById('game21-poem-info');
             if (info) info.style.visibility = '';
 
-            // 黃框字逐欄亮起
+            // 黃框字逐欄亮起，同時將正確答案棒標為 .won（綠色底、金色字保留）
             const cells = [];
             for (let col = 0; col < this.puzzleLength; col++) {
                 const bar = this.bars.find(b => b.currentCol === col);
                 if (!bar) continue;
                 const barEl = this.barEls.get(bar);
                 if (!barEl) continue;
+                // ⚠️ 規格：混淆棒始終維持土黃色，因此不加 .won（win 時答案區其實不會有 decoy）
+                if (!bar.isDecoy) barEl.classList.add('won');
                 const idx = MIDDLE_ROW - bar.offset;
                 const c = barEl.querySelectorAll('.game21-cell')[idx];
                 if (c) cells.push(c);
@@ -877,27 +949,34 @@
             const mySession = this._hintSession;
 
             this.revealedHintChars = 0;
+            // ⚠️ 每局提示重跑時，紅色區也要回到「未啟動」，等新的顯示時機重新開啟
+            this.noDropZoneActive = false;
             const s = this.difficultySettings[this.difficulty];
 
             // never：完全不顯示，提示行恆為「（無提示）」，提早 return
+            //   ⚠️ 此難度亦不顯示紅色斜線非答案卡區域（不給玩家任何提示）
             if (s.hintStep === 'never') {
                 if (this.hintEl) this.hintEl.textContent = '（無提示）';
                 return;
             }
-            // instant：立即全顯
+            // instant：立即全顯（同時亮起非答案卡區域紅色斜線）
             if (s.hintStep === 'instant') {
                 this.revealedHintChars = this.puzzleText.length;
                 this.renderHint();
+                this.showNoDropZone();
                 return;
             }
             // 先渲染全部為 "_" 佔位符
             this.renderHint();
 
             // fullDelayed / progressive：等待 hintDelaySec 秒後處理
+            //   ⚠️ 紅色斜線非答案卡區域在此時（第一個提示字浮現的瞬間）同步顯示，
+            //   而不是等到全部提示字揭曉完畢。
             this.hintDelayHandle = setTimeout(() => {
                 this.hintDelayHandle = null;
                 if (mySession !== this._hintSession) return; // 已切換到新局
                 if (!this.isActive) return;
+                this.showNoDropZone();
                 if (s.hintStep === 'fullDelayed') {
                     this.revealedHintChars = this.puzzleText.length;
                     this.renderHint();
@@ -920,6 +999,34 @@
             }, Math.max(0, s.hintDelaySec) * 1000);
         },
 
+        // ⚠️ 開啟紅色斜線區的「顯示模式」（提示開始時觸發）；
+        //   之後由 updateNoDropZoneVisibility() 依各答案棒目前狀態決定顯示哪些欄。
+        showNoDropZone: function () {
+            this.noDropZoneActive = true;
+            this.updateNoDropZoneVisibility();
+        },
+
+        // ⚠️ 規格：若某答案棒「字數(charString.length)與上下位置(中央列字==targetChar)」都對，
+        //   則不論左右欄是否正確，都隱藏該答案欄的上下紅色警示區；
+        //   否則顯示，提醒玩家該欄的字數或上下位置有誤。
+        //   ⚠️ 判斷根據的是「該答案棒目前所在欄的正解位置」— 因為紅色區塊
+        //   建立時是綁在 puzzleColIdx（棒的正解欄），只要棒的上下對齊到位就等於解好那欄。
+        updateNoDropZoneVisibility: function () {
+            if (!this.gridEl || !this.noDropZoneActive) return;
+            const correctCols = new Set();
+            this.bars.forEach(bar => {
+                if (bar.isDecoy) return;
+                // 上下位置正確 = 中央列字 === targetChar
+                const idx = MIDDLE_ROW - bar.offset;
+                if (idx === bar.targetIdx) correctCols.add(bar.puzzleColIdx);
+            });
+            this.gridEl.querySelectorAll('.game21-no-drop-zone').forEach(el => {
+                const col = parseInt(el.dataset.col, 10);
+                if (correctCols.has(col)) el.classList.add('hidden');
+                else el.classList.remove('hidden');
+            });
+        },
+
         renderHint: function () {
             if (!this.hintEl) return;
             const chars = this.puzzleText.split('');
@@ -929,11 +1036,8 @@
                     : `<span class="game21-hint-char hidden">_</span>`
             ).join('');
             this.hintEl.innerHTML = html;
-            // 提示字全部顯示後解鎖詩名（已過關時 handleWin 也會解鎖，雙保險）
-            if (this.revealedHintChars >= this.puzzleText.length) {
-                const info = document.getElementById('game21-poem-info');
-                if (info) info.style.visibility = '';
-            }
+            // ⚠️ 規格：非小學難度的詩名只在玩家過關後才顯示，
+            //   因此這裡不再因「提示字全顯」而解鎖詩名（防止提示揭完 = 直接看答案）。
         },
 
         // ------------------------------------------------------------
@@ -991,6 +1095,29 @@
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+
+            // ⚠️ 規格：時間到（!win）之後，若難度啟用 showWrongOnTimeout，
+            //   將所有「未正確歸位」的答案卡與混淆卡都以紅色顯示。判定：
+            //     正確歸位 = 非 decoy、currentCol < puzzleLength、且中央列字元 = puzzleText[currentCol]
+            //   任何不符者（含混淆棒、上下對錯欄的答案棒、被推到 decoy 區的答案棒）皆標紅。
+            if (!win) {
+                const s = this.difficultySettings[this.difficulty] || {};
+                if (s.showWrongOnTimeout) {
+                    this.bars.forEach(bar => {
+                        let isCorrect = false;
+                        if (!bar.isDecoy && bar.currentCol < this.puzzleLength) {
+                            const idx = MIDDLE_ROW - bar.offset;
+                            const ch = (idx >= 0 && idx < bar.charString.length)
+                                ? bar.charString[idx] : '';
+                            if (ch === this.puzzleText[bar.currentCol]) isCorrect = true;
+                        }
+                        if (!isCorrect) {
+                            const barEl = this.barEls.get(bar);
+                            if (barEl) barEl.classList.add('wrong');
+                        }
+                    });
+                }
+            }
 
             if (!win && window.SupabaseClient) {
                 const durationS = this.gameStartTime

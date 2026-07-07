@@ -130,11 +130,9 @@
                         <svg id="game31-timer-ring">
                             <rect id="game31-timer-path" x="3" y="3"></rect>
                         </svg>
-                        <!-- 候選字直排浮現於詩句上方 -->
+                        <!-- 候選字直排浮現於詩句上方（紅線已刪除，改以「淺藍放大 1.5x」標示選中候選） -->
                         <div id="game31-candidates" class="game31-candidates hidden"></div>
-                        <!-- 紅線（對齊基準） -->
-                        <div id="game31-redline" class="game31-redline hidden"></div>
-                        <!-- 詩句橫排 -->
+                        <!-- 詩句橫排：移至遊戲區偏上方（約 1/3 高度） -->
                         <div id="game31-verse" class="game31-verse"></div>
                     </div>
                     <!-- 煉字典故卡 -->
@@ -462,20 +460,29 @@
             const settings = this.difficultySettings[this.difficulty];
 
             for (let i = 0; i < line.length; i++) {
+                // 每個字為「垂直堆疊：字 + 向下箭頭」，箭頭提示玩家往下拖曳（避免手指遮住字）
+                const wrapper = document.createElement('span');
+                wrapper.className = 'game31-verse-cell';
+
                 const span = document.createElement('span');
                 span.className = 'game31-verse-char';
                 span.dataset.idx = i;
                 if (i === q.charIdx) {
-                    // 替身字
                     span.textContent = q.decoy;
                     span.classList.add('game31-decoy');
-                    if (settings.showDecoyHint) {
-                        span.classList.add('game31-decoy-hint');
-                    }
+                    if (settings.showDecoyHint) span.classList.add('game31-decoy-hint');
                 } else {
                     span.textContent = line[i];
                 }
-                verse.appendChild(span);
+                wrapper.appendChild(span);
+
+                const arrow = document.createElement('span');
+                arrow.className = 'game31-drag-arrow';
+                arrow.textContent = '▼';
+                arrow.setAttribute('aria-hidden', 'true');
+                wrapper.appendChild(arrow);
+
+                verse.appendChild(wrapper);
             }
         },
 
@@ -498,6 +505,10 @@
                 const t = e.touches[0];
                 target = document.elementFromPoint(t.clientX, t.clientY);
             }
+            // 兼容點擊到箭頭：往上找到 .game31-verse-cell 再取內部字
+            if (target && target.classList && target.classList.contains('game31-drag-arrow')) {
+                target = target.parentElement && target.parentElement.querySelector('.game31-verse-char');
+            }
             if (!target || !target.classList || !target.classList.contains('game31-verse-char')) return;
 
             e.preventDefault();
@@ -511,12 +522,42 @@
             this.dragStartY = pt.y;
             this.dragCurrentY = pt.y;
 
+            // 玩家按下的字暫時隱藏（原本改金色 → 現在直接看不到，避免手指未遮住時仍見到字影響思考）
             target.classList.add('game31-pressed');
 
-            // 顯示候選字直排與紅線
+            // 每次點擊都重新生成候選字（避免玩家用試探比對「候選集」找出正確答案）
+            this.regenerateCandidatesForPress(charIdx);
             this.showCandidates(target);
 
             if (window.SoundManager) window.SoundManager.playOpenItem();
+        },
+
+        // 依玩家按下的字位置生成當次候選字集：
+        //   - 若按到「詩眼字」(charIdx === q.charIdx) → 候選集含 original + 3 干擾（打亂）
+        //   - 若按到「非詩眼字」→ 候選集不含 original，僅為該位置的字 + 3 個相關干擾
+        //   → 不同位置候選集完全不同，玩家無法用「哪個候選集出現正確答案」來作弊
+        regenerateCandidatesForPress: function (charIdx) {
+            const q = this.questions[this.currentQuestionIdx];
+            const line = this.poemLines[q.lineIdx] || '';
+            const settings = this.difficultySettings[this.difficulty];
+            let base;
+            if (charIdx === q.charIdx) {
+                // 詩眼字：候選集含正解
+                base = [q.original].concat(this.pickDistractors(q.original, q.decoy, 3, settings.distractorLevel));
+            } else {
+                // 非詩眼字：以該位置的原字為基準生成干擾，「不」放入詩眼原字 q.original
+                const shownChar = line[charIdx];
+                let distractors = this.pickDistractors(shownChar, q.original, 3, settings.distractorLevel);
+                // 保險：若干擾中混入 q.original，過濾掉並補一個雜項字
+                distractors = distractors.filter(c => c !== q.original);
+                while (distractors.length < 3) {
+                    const pool = this.decoyPool['其他'];
+                    const pick = pool[Math.floor(Math.random() * pool.length)];
+                    if (pick !== q.original && pick !== shownChar && !distractors.includes(pick)) distractors.push(pick);
+                }
+                base = [shownChar].concat(distractors.slice(0, 3));
+            }
+            this.currentCandidates = this.shuffle(base);
         },
 
         onDragMove: function (e) {
@@ -539,21 +580,13 @@
             this.isDragging = false;
             if (this.dragCharElement) this.dragCharElement.classList.remove('game31-pressed');
 
-            const dy = this.dragCurrentY - this.dragStartY;
-            // 取消手勢：拖曳距離 < 20px
-            if (Math.abs(dy) < 20) {
-                this.hideCandidates();
-                return;
-            }
-
-            // 紅線位置候選字 = 玩家提交答案
+            // 點擊即判定（即使玩家沒有拖曳，也要判勝負；沒拖曳＝停在正中央候選字）
             const q = this.questions[this.currentQuestionIdx];
-            const N = q.candidates.length;
-            // candidateOffset 正值 = 候選字向下捲 = 紅線指到較前面的字
-            // 取 (centerIdx - offset) 經 mod
+            const cands = this.currentCandidates || q.candidates;
+            const N = cands.length;
             const centerIdx = Math.floor(N / 2);
-            let pickIdx = ((centerIdx - this.candidateOffset) % N + N) % N;
-            const submitted = q.candidates[pickIdx];
+            const pickIdx = ((centerIdx - this.candidateOffset) % N + N) % N;
+            const submitted = cands[pickIdx];
 
             this.judgeAnswer(q, submitted);
         },
@@ -570,9 +603,8 @@
 
         /* 顯示候選字直排於指定字元上方 */
         showCandidates: function (charEl) {
-            const q = this.questions[this.currentQuestionIdx];
+            const cands = this.currentCandidates || (this.questions[this.currentQuestionIdx] && this.questions[this.currentQuestionIdx].candidates) || [];
             const cont = document.getElementById('game31-candidates');
-            const redline = document.getElementById('game31-redline');
             const stage = document.getElementById('game31-stage');
             const stageRect = stage.getBoundingClientRect();
             const charRect = charEl.getBoundingClientRect();
@@ -582,16 +614,15 @@
             const left = (charRect.left - stageRect.left) / scale + (charRect.width / scale) / 2;
 
             cont.innerHTML = '';
-            for (let i = 0; i < q.candidates.length; i++) {
+            for (let i = 0; i < cands.length; i++) {
                 const div = document.createElement('div');
                 div.className = 'game31-candidate-char';
-                div.textContent = q.candidates[i];
+                div.textContent = cands[i];
                 div.dataset.idx = i;
                 cont.appendChild(div);
             }
             cont.style.left = left + 'px';
             cont.classList.remove('hidden');
-            redline.classList.remove('hidden');
 
             this.candidateOffset = 0;
             this.updateCandidatesScroll();
@@ -599,9 +630,7 @@
 
         hideCandidates: function () {
             const cont = document.getElementById('game31-candidates');
-            const redline = document.getElementById('game31-redline');
             if (cont) cont.classList.add('hidden');
-            if (redline) redline.classList.add('hidden');
         },
 
         /* 根據 candidateOffset 重新排列候選字位置，並標出紅線位置者 */

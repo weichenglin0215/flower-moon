@@ -255,10 +255,10 @@
     filter: brightness(1.2);
 }
 
-/* 被遮擋的牌：灰階半透明 */
+/* 被遮擋的牌：只押暗、不半透明（透明會混入下方牌難以辨識） */
 .game30-tile.blocked {
-    filter: grayscale(0.7) brightness(0.65);
-    opacity: 0.6;
+    filter: brightness(0.45) saturate(0.9);
+    opacity: 1;
     cursor: default;
 }
 
@@ -606,4 +606,41 @@
     z-index: 30;
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.8);
+}
+/* ── 抄襲 GAME24 上方版型：sub-header 加 moves-label + info-bar 加 line-text ── */
+.game30-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+}
+.game30-sub-header #game30-moves-label { flex: 0 0 auto; }
+.game30-sub-header #game30-poem-info { flex: 1 1 auto; text-align: right; margin-right: 20px; }
+.game30-moves-label {
+    font-size: 18px;
+    color: hsl(40, 60%, 80%);
+    letter-spacing: 1px;
+}
+#game30-moves {
+    color: hsl(45, 95%, 62%);
+    font-weight: bold;
+    margin-left: 4px;
+    text-shadow: 0 0 4px hsla(45, 100%, 60%, 0.5);
+}
+.game30-info-bar {
+    width: 100%;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+}
+.game30-line-text {
+    font-size: 18px;
+    color: hsl(40, 55%, 88%);
+    text-align: center;
+    letter-spacing: 1px;
 }

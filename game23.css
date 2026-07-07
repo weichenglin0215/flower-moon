@@ -229,20 +229,27 @@
 }
 
 /* 空白格提示：showEmptyDelay 秒後出現，提醒玩家此區域不需放拼圖 */
-/* 無邊框、緊密相鄰，形成一大片灰色區域 */
+/* 無邊框、緊密相鄰，形成一大片紅色區域 */
 .game23-cell-empty-hint {
     position: absolute;
     box-sizing: border-box;
-    background: hsla(0, 0%, 50%, 0.25);  /* 25% 中灰 */
+    background: hsla(0, 100%, 50%, 0.25);
+    /* 25% 紅 */
     border: none;
     pointer-events: none;
-    z-index: 0;  /* 最底層，在 cell-bg 與 piece 下方 */
+    z-index: 0;
+    /* 最底層，在 cell-bg 與 piece 下方 */
     animation: game23-hint-fadein 0.8s ease;
 }
 
 @keyframes game23-hint-fadein {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .game23-piece {

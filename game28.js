@@ -63,7 +63,7 @@
             const idx = this.uniquePoemChars.indexOf(ch);
             if (idx >= 0) {
                 const n = this.uniquePoemChars.length || 1;
-                return Math.round((360 / n) * idx + 12) % 360;
+                return window.TileStyleUtils.getGroupColor(idx, n).hue;
             }
             let h = 0;
             for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
@@ -82,11 +82,11 @@
          * timeLimitRate：每字時間倍率
          */
         difficultySettings: {
-            '小學':   { boardRows: 6, boardCols: 6,  decoyRatio: 0.10, hintsMax: 5, orderBonus: 2, timeLimitRate: 18, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 18 },
-            '中學':   { boardRows: 7, boardCols: 6,  decoyRatio: 0.20, hintsMax: 3, orderBonus: 2, timeLimitRate: 14, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 21 },
-            '高中':   { boardRows: 8, boardCols: 7,  decoyRatio: 0.30, hintsMax: 2, orderBonus: 3, timeLimitRate: 11, poemMinRating: 4, minLines: 2, maxLines: 4, minChars: 14, maxChars: 28 },
-            '大學':   { boardRows: 9, boardCols: 8,  decoyRatio: 0.40, hintsMax: 1, orderBonus: 3, timeLimitRate: 9,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 18, maxChars: 36 },
-            '研究所': { boardRows: 10, boardCols: 8, decoyRatio: 0.50, hintsMax: 0, orderBonus: 5, timeLimitRate: 8,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 20, maxChars: 40 }
+            '小學': { boardRows: 6, boardCols: 6, decoyRatio: 0.0, hintsMax: 5, orderBonus: 2, timeLimitRate: 18, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 8, maxChars: 18 },
+            '中學': { boardRows: 7, boardCols: 6, decoyRatio: 0.0, hintsMax: 3, orderBonus: 2, timeLimitRate: 14, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 21 },
+            '高中': { boardRows: 8, boardCols: 7, decoyRatio: 0.0, hintsMax: 2, orderBonus: 3, timeLimitRate: 11, poemMinRating: 4, minLines: 2, maxLines: 4, minChars: 14, maxChars: 28 },
+            '大學': { boardRows: 9, boardCols: 8, decoyRatio: 0.0, hintsMax: 1, orderBonus: 3, timeLimitRate: 9, poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 18, maxChars: 36 },
+            '研究所': { boardRows: 10, boardCols: 8, decoyRatio: 0.0, hintsMax: 0, orderBonus: 5, timeLimitRate: 8, poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 20, maxChars: 40 }
         },
 
         // ── 共用干擾字池（簡易備援） ──
@@ -126,14 +126,17 @@
                     </div>
                 </div>
                 <div class="game28-sub-header">
+                    <div id="game28-moves-label" class="game28-moves-label" style="display:none">盤面:<span id="game28-stage-text">1/1</span> 步數:<span id="game28-moves">0</span>/<span id="game28-max-moves">0</span></div>
                     <div id="game28-poem-info" class="poem-info"></div>
                 </div>
-                <div class="game28-area">
-                    <div class="game28-info">
-                        <div id="game28-progress-text" class="game28-progress-text">剩餘：0 對</div>
-                        <div id="game28-bonus-text" class="game28-bonus-text">順序加成 ×1</div>
-                    </div>
+                <div class="game28-info-bar">
+                    <div id="game28-line-text" class="game28-line-text" style="display:none"></div>
+                    <div id="game28-progress-text" class="game28-progress-text">剩餘：0 對</div>
+                    <div id="game28-bonus-text" class="game28-bonus-text">順序加成 ×1</div>
                     <div id="game28-char-bar" class="game28-char-bar"></div>
+                </div>
+                <div class="game28-area">
+                    <div class="game28-info"></div>
                     <div class="game28-board-wrapper" id="game28-board-wrapper">
                         <svg id="game28-timer-ring">
                             <rect id="game28-timer-path" x="3" y="3"></rect>
@@ -546,6 +549,9 @@
                             div.style.setProperty('--g28-s', '60%');
                             div.style.setProperty('--g28-l', '75%');
                             div.style.setProperty('--g28-text', 'hsl(220, 30%, 14%)');
+                            // 同字同形：依字在 uniquePoemChars 索引套五種形狀之一
+                            const shpIdx = this.uniquePoemChars.indexOf(data.char);
+                            if (shpIdx >= 0) window.TileStyleUtils.applyShape(div, window.TileStyleUtils.getGroupShape(shpIdx));
                         } else {
                             div.classList.add('decoy');
                         }
@@ -563,11 +569,38 @@
             container.style.fontSize = fontSize + 'px';
         },
 
+        // 判斷字塊 (r,c) 四邊至少有一邊是空的（null／盤外）
+        //   規則：不能選被四周字塊完全包圍的內部字，避免玩家繞不出連線
+        hasEmptySide: function (r, c) {
+            const rows = this.board.length;
+            const cols = rows > 0 ? this.board[0].length : 0;
+            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            for (const [dr, dc] of dirs) {
+                const nr = r + dr, nc = c + dc;
+                if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) return true; // 盤外算空
+                if (!this.board[nr][nc]) return true; // 相鄰格為空
+            }
+            return false;
+        },
+
         // ── 點擊處理 ──
         onCellClick: function (r, c) {
             if (!this.isActive || this.animLocked) return;
             const data = this.board[r][c];
             if (!data) return;   // 空格
+
+            // 選取規則：字塊至少有一邊（上/下/左/右）為空（null 或超出棋盤）才可選
+            //   四邊全被其他字塊包圍的「內部字」不可選，避免玩家亂點無效字
+            if (!this.hasEmptySide(r, c)) {
+                if (window.SoundManager) window.SoundManager.playFailure && window.SoundManager.playFailure();
+                // 輕微搖晃提示不可選
+                const el = this.cellElements[r] && this.cellElements[r][c];
+                if (el) {
+                    el.classList.add('flash-red');
+                    setTimeout(() => el.classList.remove('flash-red'), 250);
+                }
+                return;
+            }
 
             if (window.SoundManager) window.SoundManager.playOpenItem();
 

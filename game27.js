@@ -79,7 +79,7 @@
             const idx = this.currentLineChars.indexOf(ch);
             if (idx >= 0) {
                 const n = this.currentLineChars.length || 1;
-                return Math.round((360 / n) * idx + 12) % 360;
+                return window.TileStyleUtils.getGroupColor(idx, n).hue;
             }
             let h = 0;
             for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
@@ -169,13 +169,16 @@
                     </div>
                 </div>
                 <div class="game27-sub-header">
+                    <div id="game27-moves-label" class="game27-moves-label" style="display:none">盤面:<span id="game27-stage-text">1/1</span> 步數:<span id="game27-moves">0</span>/<span id="game27-max-moves">0</span></div>
                     <div id="game27-poem-info" class="poem-info"></div>
                 </div>
+                <div class="game27-info-bar">
+                    <div id="game27-line-text" class="game27-line-text" style="display:none"></div>
+                    <div id="game27-progress-text" class="game27-progress-text"></div>
+                    <div id="game27-collect-bar" class="game27-collect-bar"></div>
+                </div>
                 <div class="game27-area">
-                    <div class="game27-info">
-                        <div id="game27-progress-text" class="game27-progress-text"></div>
-                        <div id="game27-collect-bar" class="game27-collect-bar"></div>
-                    </div>
+                    <div class="game27-info"></div>
                     <div class="game27-play-area">
                         <div id="game27-board-wrapper" class="game27-board-wrapper">
                             <svg id="game27-timer-ring">
