@@ -69,26 +69,28 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game4-container';
-            div.className = 'game4-overlay  hidden';
+            // game4-overlay 保留為本遊戲私有 hook；fm-overlay 承載共用外觀（詳見 theme_xuanzhi.css）
+            div.className = 'game4-overlay fm-overlay hidden';
             div.innerHTML = `
                 <!-- 调试边框 -->
                 <!-- <div class="debug-frame"></div> -->
-                <div class="game4-header">
-                    <div class="game4-score-board">分數: <span id="game4-score">0</span></div>
-                    <div class="game4-controls">
-                        <button class="game4-difficulty-tag" id="game4-diff-tag">小學</button>
-                        <button id="game4-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game4-newGame-btn" class="nav-btn">開新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game4-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game4-diff-tag" data-level="小學">小學</button>
+                        <button id="game4-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game4-newGame-btn" class="fm-nav-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game4-sub-header">
-                    <div id="game4-hearts" class="hearts"></div>
+                <div class="fm-sub-header">
+                    <div id="game4-hearts" class="fm-hearts"></div>
+                    <div id="game4-info" class="fm-poem-info"></div>
                 </div>
                 <div id="game4-area" class="game4-area">
                     <div id="game4-question" class="game4-question-area">
-                        <div id="game4-line1" class="poem-lines"></div>
-                        <div id="game4-line2" class="poem-lines"></div>
-                        <div id="game4-info" class="poem-info"></div>
+                        <div id="game4-line1" class="game4-poem-lines"></div>
+                        <div id="game4-line2" class="game4-poem-lines"></div>
+                        <!-- 詩名/朝代/作者：已移至 fm-sub-header 右側，見上方 -->
                     </div>
                     <div class="game4-answer-section">
                         <div id="game4-grid-container" class="grid-container">
@@ -159,22 +161,15 @@
             const diffTag = document.getElementById('game4-diff-tag');
             const retryBtn = document.getElementById('game4-retryGame-btn');
             const newBtn = document.getElementById('game4-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            // 難度標籤色彩改由 CSS 依 data-level 套色（見 theme_xuanzhi.css 的 .fm-difficulty-tag[data-level=...]）
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
@@ -241,7 +236,7 @@
             if (settings.showDelay > 0) {
                 this.showTimeout = setTimeout(() => {
                     this.cluesRevealed = true;
-                    const hiddenLines = document.querySelectorAll('.poem-lines.game4-hidden-line');
+                    const hiddenLines = document.querySelectorAll('.game4-poem-lines.game4-hidden-line');
                     hiddenLines.forEach(line => line.classList.add('revealed'));
                 }, settings.showDelay * 1000);
             }
@@ -289,7 +284,7 @@
                 if (settings.showDelay > 0) {
                     this.showTimeout = setTimeout(() => {
                         this.cluesRevealed = true;
-                        const hiddenLines = document.querySelectorAll('.poem-lines.game4-hidden-line');
+                        const hiddenLines = document.querySelectorAll('.game4-poem-lines.game4-hidden-line');
                         hiddenLines.forEach(line => line.classList.add('revealed'));
                     }, settings.showDelay * 1000);
                 }
@@ -393,7 +388,7 @@
                 // 如果該行完全沒有隱藏字(題目句)，則增加 game4-hidden-line class
                 const isFullLine = lineHiddens.length === 0;
                 const lineEl = lineNum === 1 ? l1 : l2;
-                lineEl.className = 'poem-lines';
+                lineEl.className = 'game4-poem-lines';
                 if (isFullLine && settings.showDelay > 0 && !this.isRevealed) {
                     if (!this.cluesRevealed) {
                         lineEl.classList.add('game4-hidden-line');
@@ -457,10 +452,11 @@
             this.adjustFontSize(l2, this.calculateRawLength(this.line2), 7, 2.5);
 
             //info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
-            info.innerHTML = `<span style="cursor: pointer; text-decoration: underline; opacity: 0.8;">
-                                ${this.currentPoem.title.length > 12 ? this.currentPoem.title.slice(0, 10)
-                    + "..." : this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}
-                            </span>`;
+            // 詩詞名稱最多顯示 8 字（避免在 fm-sub-header 右側與左邊紅心重疊）；連結樣式由 .fm-poem-info 提供
+            const _title4 = this.currentPoem.title.length > 8
+                ? this.currentPoem.title.slice(0, 8) + "…"
+                : this.currentPoem.title;
+            info.textContent = `${_title4} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
 
             info.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -688,7 +684,8 @@
                 rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+                //rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
             }
         },
 
@@ -699,14 +696,14 @@
             const max = this.difficultySettings[this.difficulty].maxMistakeCount;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
                 container.appendChild(span);
             }
         },
 
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game4-hearts .heart');
+            const hearts = document.querySelectorAll('#game4-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i < this.mistakeCount) {
                     h.classList.add('empty');
@@ -791,7 +788,7 @@
                     gameKey: 'game4',
                     timerContainerId: 'game4-grid-container',
                     scoreElementId: 'game4-score',
-                    heartsSelector: '#game4-hearts .heart:not(.empty)',
+                    heartsSelector: '#game4-hearts .fm-heart:not(.empty)',
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);

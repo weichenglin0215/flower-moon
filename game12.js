@@ -87,9 +87,9 @@
                 </div>
                 <div id="game12-area" class="game12-area">
                     <div id="game12-question" class="game12-question-area">
-                        <div id="game12-line1" class="poem-lines"></div>
-                        <div id="game12-line2" class="poem-lines"></div>
-                        <div id="game12-info" class="poem-info"></div>
+                        <div id="game12-line1" class="game12-poem-lines"></div>
+                        <div id="game12-line2" class="game12-poem-lines"></div>
+                        <div id="game12-info" class="game12-poem-info"></div>
                     </div>
                     <div id="game12-status" class="game12-status-msg"></div>
                     <div class="game12-answer-section">
@@ -386,7 +386,7 @@
                 const isClueLine = !this.hiddenPositions.some(p => p.lineIndex === lineIdx);
                 const lineEl = lineIdx === 0 ? l1 : l2;
 
-                lineEl.className = 'poem-lines';
+                lineEl.className = 'game12-poem-lines';
                 if (isClueLine && settings.showDelay > 0 && !this.isRevealed) {
                     if (!this.cluesRevealed) lineEl.classList.add('game12-hidden-line');
                     else lineEl.classList.add('game12-hidden-line', 'revealed');

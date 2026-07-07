@@ -1,0 +1,285 @@
+/* =========================================
+   花月共用主題：宣紙（Xuanzhi / Rice-Paper）淺色系
+   ----------------------------------------
+   設計目標：
+   - 以「淺米黃宣紙」為主底色，取代舊有的暗紅／深藍黑沉重配色。
+   - 主要於手機使用、面向較高年齡層玩家，故字體偏大、對比清晰、色調柔和不刺眼。
+   - 色彩語彙取自中國傳統：宣紙底、墨字、朱砂印色、青碧（過關），古典而雅致。
+
+   使用方式：
+   - 於 index.html 最前面以 <link> 載入本檔，讓 :root 變數全站可用。
+   - 各遊戲 CSS 以 var(--fm-xxx, 後備值) 引用；即使本檔未載入，後備值仍能正常顯示。
+   - 變數一律加 --fm- 前綴（FlowerMoon），避免與第三方或未來變數衝突。
+
+   ⚠️ 目前僅 game1 導入本主題作為範本；其餘遊戲之後再逐步套用。
+   ========================================= */
+
+:root {
+    /* ── 宣紙底色（由淺至深，用於徑向漸層與層次）── */
+    --fm-paper-light: hsl(44, 63%, 90%);
+    /* 宣紙受光處（漸層中心）*/
+    --fm-paper: hsl(43, 53%, 82%);
+    /* 宣紙主色 */
+    --fm-paper-deep: hsl(42, 48%, 76%);
+    /* 宣紙邊緣暗處（漸層外圈）*/
+    --fm-paper-card: hsl(43, 72%, 94%);
+    /* 卡片／按鈕的紙面（略白於底）*/
+
+    /* ── 墨色（文字）── */
+    --fm-ink: hsl(28, 26%, 24%);
+    /* 濃墨：詩句主文字 */
+    --fm-ink-soft: hsl(30, 25%, 23%);
+    /* 淡墨：次要文字 */
+    --fm-ink-faint: hsl(35, 38%, 39%);
+    /* 赭墨：註記／出處等弱化文字 */
+
+    /* ── 朱砂印色（強調、計時、答錯）── */
+    --fm-cinnabar: hsl(6, 63%, 46%);
+    /* 朱砂：計時框、紅心、答錯外框 */
+    --fm-cinnabar-bright: hsl(8, 56%, 51%);
+    /* 亮朱砂：遮蔽字（待答字）*/
+
+    /* ── 青碧（過關、答對）── */
+    --fm-celadon: hsl(150, 37%, 40%);
+    /* 青碧：已答對的字 */
+
+    /* ── 金赭（分數、得分紅心）── */
+    --fm-gold: hsl(40, 66%, 40%);
+    /* 金赭：分數、控制鈕文字 */
+
+    /* ── 描邊 ── */
+    --fm-border: hsl(40, 47%, 71%);
+    /* 淡赭描邊：按鈕外框 */
+    --fm-border-strong: hsl(35, 43%, 52%);
+    /* 濃赭描邊：hover／控制鈕 */
+    --fm-hairline: hsla(38, 50%, 31%, 0.16);
+    /* 極細分隔線 */
+    --fm-veil: hsla(38, 50%, 31%, 0.06);
+    /* 頂列／副標的淡色遮罩 */
+
+    /* ── 答題狀態（答對 / 答錯 / 提示）語意色 ── */
+    --fm-correct-bg: hsl(120, 35%, 90%);
+    --fm-correct-border: hsl(150, 37%, 36%);
+    --fm-correct-text: hsl(150, 100%, 15%);
+
+    --fm-wrong-bg: hsl(0, 50%, 86%);
+    --fm-wrong-border: hsl(6, 66%, 50%);
+    --fm-wrong-text: hsl(354, 53%, 23%);
+
+    --fm-hint-bg: hsl(213, 44%, 90%);
+    --fm-hint-border: hsl(216, 41%, 68%);
+    --fm-hint-text: hsl(221, 39%, 29%);
+
+    /* ── 陰影（宣紙上宜淺、宜暖，不用純黑重影）── */
+    --fm-shadow-soft: 0 2px 6px hsla(38, 50%, 31%, 0.2);
+    --fm-shadow-btn: 0 4px 6px hsla(38, 80%, 20%, 0.5);
+    --fm-text-shadow: 0 4px 4px hsla(38, 50%, 31%, 0.5);
+}
+
+
+/* ================================================================
+   墨黑主題（.fm-theme-dark 掛於遊戲 overlay 上即整體切換）
+   ---------------------------------------------------------------
+   game3/5/6/8/10/14/15/19/26/29 等以墨黑為底的遊戲，
+   只需在 overlay 上加 fm-theme-dark class，不必改任何 fm-* UI class；
+   本區塊等於「暗色皮膚」，改的是同一組 --fm-* 變數。
+   ================================================================ */
+.fm-theme-dark {
+    /* 底色：深藍黑徑向漸層（沿用舊 game*-overlay 的沉穩感）*/
+    --fm-paper-light: hsl(210, 30%, 25%);
+    --fm-paper: hsl(220, 40%, 10%);
+    --fm-paper-deep: hsl(0, 0%, 3%);
+    --fm-paper-card: hsl(210, 22%, 20%);
+
+    /* 文字：暖琥珀色系（暗底上易讀且不刺眼）*/
+    --fm-ink: hsl(40, 50%, 85%);
+    --fm-ink-soft: hsl(40, 40%, 78%);
+    --fm-ink-faint: hsl(35, 30%, 62%);
+
+    /* 分數：亮金 */
+    --fm-gold: hsl(48, 80%, 62%);
+
+    /* 描邊改為半透明琥珀 */
+    --fm-border: hsla(40, 60%, 70%, 0.32);
+    --fm-border-strong: hsla(40, 70%, 75%, 0.55);
+    --fm-hairline: hsla(40, 60%, 70%, 0.15);
+    --fm-veil: hsla(0, 0%, 0%, 0.35);
+}
+
+
+/* ================================================================
+   共用 UI 元件（跨遊戲統一樣式，前綴 .fm-）
+   ---------------------------------------------------------------
+   本區塊涵蓋所有遊戲介面「上半部」共用零件：overlay 背景、頂部
+   分數列、控制鈕、難度標籤、紅心副標。各遊戲的 gameXX.js 於
+   createDOM() 掛上對應 fm-* class 即可享有一致外觀。
+
+   下半部的遊戲區 (.gameXX-area) 之樣式仍留在各自 gameXX.css。
+   顏色透過 --fm-* 變數；overlay 加 .fm-theme-dark 即整體切成墨黑主題。
+   ================================================================ */
+
+/* ── 全畫面覆蓋層 ── */
+.fm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    background: radial-gradient(circle at 50% 30%,
+            var(--fm-paper-light) 0%,
+            var(--fm-paper) 70%,
+            var(--fm-paper-deep) 100%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--fm-ink);
+    font-family: 'Noto Serif TC', serif;
+    /* 防止瀏覽器縮放影響版面 */
+    zoom: 1;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* ── 頂部資訊列（分數 + 控制鈕）── */
+.fm-header {
+    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--fm-veil);
+    z-index: 10;
+    width: 100%;
+    height: 50px;
+}
+
+.fm-scoreboard {
+    color: var(--fm-gold);
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 50px;
+}
+
+.fm-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* 重來 / 開新局 按鈕 */
+.fm-nav-btn {
+    padding: 0 10px;
+    background: var(--fm-paper-card);
+    border: 0.8px solid var(--fm-border-strong);
+    color: var(--fm-gold);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.fm-nav-btn:hover {
+    /* 淺色底時提亮會泛白，改用邊框加深強調；暗色底則仍看得出變化 */
+    border-color: var(--fm-gold);
+    filter: brightness(0.97);
+}
+
+.fm-nav-btn:disabled {
+    background: hsl(45, 20%, 84%);
+    border-color: hsl(40, 20%, 70%);
+    color: hsl(40, 12%, 58%);
+}
+
+/* ── 難度標籤（依 data-level 屬性套色）── */
+.fm-difficulty-tag {
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 20px;
+    color: var(--fm-ink-soft);
+    border: 0.6px solid var(--fm-hairline);
+    z-index: 100;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* 各難度以柔和淡彩底標示；文字沿用 --fm-ink-soft 於淺／深底皆可辨識 */
+.fm-difficulty-tag[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(95, 38%, 74%) 0%, hsl(110, 34%, 64%) 100%);
+}
+
+.fm-difficulty-tag[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(205, 40%, 76%) 0%, hsl(220, 36%, 66%) 100%);
+}
+
+.fm-difficulty-tag[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(8, 55%, 76%) 0%, hsl(6, 50%, 66%) 100%);
+}
+
+.fm-difficulty-tag[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(285, 38%, 78%) 0%, hsl(272, 34%, 68%) 100%);
+}
+
+.fm-difficulty-tag[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(45, 66%, 74%) 0%, hsl(38, 62%, 64%) 100%);
+}
+
+.fm-difficulty-tag:hover {
+    box-shadow: 0 0 8px hsla(38, 50%, 31%, 0.35);
+    filter: brightness(1.05);
+}
+
+/* ── 副標（紅心＋詩詞資訊）── */
+/* 版位：紅心靠左、詩詞資訊靠右；未帶詩詞資訊之遊戲仍可只放紅心 */
+.fm-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--fm-veil);
+    z-index: 9;
+    border-bottom: 1px solid var(--fm-hairline);
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    box-sizing: border-box;
+}
+
+.fm-hearts {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    flex-wrap: nowrap;
+    /* 靠 sub-header 的 space-between 自動靠左 */
+}
+
+/* 詩詞出處連結（右對齊、字數溢出以省略號截斷；詩名長度上限由 JS 端截 5 字）*/
+.fm-poem-info {
+    font-size: 16px;
+    color: var(--fm-ink-faint);
+    text-align: right;
+    max-width: 60%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.fm-heart {
+    color: var(--fm-cinnabar);
+    font-size: 32px;
+}
+
+.fm-heart.empty {
+    /* 空心紅心：以淡赭表示已失去，於深／淺底皆可辨識 */
+    color: hsl(37, 35%, 68%);
+    opacity: 0.9;
+}
+
+.fm-heart.score {
+    /* scoreManager 於過關動畫加上 .score，換色成金赭 */
+    color: var(--fm-gold);
+    opacity: 1;
+}

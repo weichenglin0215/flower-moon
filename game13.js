@@ -66,25 +66,27 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game13-container';
-            div.className = 'game13-overlay  hidden';
+            // game13-overlay 保留為本遊戲私有 hook；fm-overlay 承載共用外觀（詳見 theme_xuanzhi.css）
+            div.className = 'game13-overlay fm-overlay hidden';
             div.innerHTML = `
-                <div class="game13-header">
-                    <div class="game13-score-board">分數: <span id="game13-score">0</span></div>
-                    <div class="game13-controls">
-                        <button class="game13-difficulty-tag" id="game13-diff-tag">小學</button>
-                        <button id="game13-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game13-newGame-btn" class="nav-btn">新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game13-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game13-diff-tag" data-level="小學">小學</button>
+                        <button id="game13-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game13-newGame-btn" class="fm-nav-btn">新局</button>
                     </div>
                 </div>
-                <div class="game13-sub-header">
-                    <div id="game13-hearts" class="hearts"></div>
+                <div class="fm-sub-header">
+                    <div id="game13-hearts" class="fm-hearts"></div>
+                    <!-- 註：game13 無詩詞出處連結；#game13-meta（人事時地題目本體）保留於題目區 -->
                 </div>
                 <div id="game13-area" class="game13-area">
                     <div id="game13-question" class="game13-question-area">
                         <div class="game13-meta-info" id="game13-meta"></div>
                         <div id="game13-poem-text" class="game13-poem-text">
-                            <div id="game13-line1" class="poem-lines"></div>
-                            <div id="game13-line2" class="poem-lines"></div>
+                            <div id="game13-line1" class="game13-poem-lines"></div>
+                            <div id="game13-line2" class="game13-poem-lines"></div>
                         </div>
                     </div>
                     <div class="game13-answer-section">
@@ -149,11 +151,10 @@
         updateUIForMode: function () {
             const diffTag = document.getElementById('game13-diff-tag');
             const newBtn = document.getElementById('game13-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            // 難度標籤色彩改由 CSS 依 data-level 套色（見 theme_xuanzhi.css 的 .fm-difficulty-tag[data-level=...]）
             if (diffTag) {
+                diffTag.setAttribute('data-level', this.difficulty);
                 diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
-                diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
             }
             // 挑戰模式下隱藏「新局」按鈕，避免玩家意外跳出挑戰流程
             if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
@@ -225,8 +226,9 @@
             if (!result) return false;
             this.currentPoem = result.poem;
             // 限制詩詞名稱長度為 7 個字
-            if (this.currentPoem.title.length > 7) {
-                this.currentPoem.title = this.currentPoem.title.substring(0, 7);
+            // 詩詞名稱最多 8 字（與 game1/game4 的 fm-poem-info 保持一致）
+            if (this.currentPoem.title.length > 8) {
+                this.currentPoem.title = this.currentPoem.title.substring(0, 8);
             }
             this.lines = result.lines;
             return true;
@@ -562,7 +564,8 @@
                 rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+                //rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
             }
         },
 
@@ -573,14 +576,14 @@
             const max = this.difficultySettings[this.difficulty].maxMistakeCount;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
                 container.appendChild(span);
             }
         },
 
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game13-hearts .heart');
+            const hearts = document.querySelectorAll('#game13-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i < this.mistakeCount) {
                     h.classList.add('empty');
@@ -656,7 +659,7 @@
                     gameKey: 'game13',
                     timerContainerId: 'game13-answer-pool',
                     scoreElementId: 'game13-score',
-                    heartsSelector: '#game13-hearts .heart:not(.empty)',
+                    heartsSelector: '#game13-hearts .fm-heart:not(.empty)',
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         if (this.isLevelMode) {

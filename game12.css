@@ -152,7 +152,7 @@
 }
 
 /* 題目展示 */
-.poem-lines {
+.game12-poem-lines {
     font-size: 50px;
     font-weight: bold;
     line-height: 1.2;
@@ -166,21 +166,21 @@
 }
 
 /* 隱藏字元 */
-.poem-lines span.hidden-char {
+.game12-poem-lines span.hidden-char {
     color: hsl(36, 80%, 50%);
     border-radius: 2px;
     padding: 0 2px;
 }
 
 /* 正確字元 */
-.poem-lines span.correct-char {
+.game12-poem-lines span.correct-char {
     color: hsl(145, 68%, 36%);
     font-weight: bold;
     text-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 /* 詩詞資料 */
-.poem-info {
+.game12-poem-info {
     font-size: 20px;
     margin-top: 4px;
     margin-bottom: 10px;

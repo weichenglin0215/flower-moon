@@ -3,75 +3,12 @@
    - 全獨立樣式表，供 game13.js 相關功能使用
    ========================================= */
 
-.game13-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    margin: 0;
-    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: hsl(40, 50%, 80%);
-    font-family: 'Noto Serif TC', serif;
-    zoom: 1;
-    -webkit-text-size-adjust: 100%;
-}
+/* ⚠️ 介面「上半部」（overlay 背景、頂列、分數、控制鈕、難度標籤、
+   紅心副標）之樣式已抽至 theme_xuanzhi.css 的 .fm-* 共用區塊。
+   本檔僅保留 .game13-area 及以下的遊戲區私有樣式。 */
 
 .hidden {
     display: none !important;
-}
-
-/* 頂部資訊列 (分數與控制) */
-.game13-header {
-    padding: 2px 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 10;
-    width: 100%;
-    height: 50px;
-}
-
-.game13-score-board {
-    color: hsl(50, 70%, 60%);
-    font-size: 24px;
-    font-weight: bold;
-    padding-left: 40px;
-}
-
-.game13-controls .nav-btn {
-    padding: 0px 10px;
-    background: hsl(120, 60%, 20%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
-    color: hsl(45, 80%, 70%);
-    border-radius: 12px;
-    font-size: 20px;
-    cursor: pointer;
-}
-
-.game13-controls .nav-btn:hover {
-    filter: brightness(1.5);
-    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
-}
-
-.game13-controls .nav-btn:disabled {
-    background: hsl(0, 0%, 50%);
-    color: hsl(45, 0%, 90%);
-}
-
-.game13-sub-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 9;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    width: 100%;
-    height: 40px;
 }
 
 .game13-area {
@@ -83,22 +20,7 @@
     width: 100%;
 }
 
-/* 難度標籤 */
-.game13-difficulty-tag {
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-size: 20px;
-    color: hsl(45, 30%, 85%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
-    z-index: 100;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.game13-difficulty-tag:hover {
-    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
-    filter: brightness(1.5);
-}
+/* 難度標籤樣式已上移至 theme_xuanzhi.css 的 .fm-difficulty-tag */
 
 /* 題目展示區 */
 .game13-question-area {
@@ -151,27 +73,26 @@
     border: 1px solid hsl(0, 80%, 60%);
 }
 
-/*詩句*/
-.poem-lines {
+/*詩句（宣紙墨字；狀態色沿用米色主題）*/
+.game13-poem-lines {
     font-size: 50px;
     font-weight: bold;
     line-height: 1.3;
     margin-bottom: 2px;
     letter-spacing: 4px;
-    color: hsl(40, 50%, 80%);
+    color: var(--fm-ink, #2e241b);
     text-align: center;
-    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.66);
 }
 
-.poem-lines span.hidden-char {
-    color: hsl(36, 80%, 50%);
-    border-bottom: 2px solid hsl(36, 80%, 50%);
+.game13-poem-lines span.hidden-char {
+    color: var(--fm-cinnabar-bright, #c94f3d);
+    border-bottom: 2px solid var(--fm-cinnabar-bright, #c94f3d);
     padding: 0 2px;
     margin: 0 2px;
 }
 
-.poem-lines span.correct-char {
-    color: hsl(145, 68%, 60%);
+.game13-poem-lines span.correct-char {
+    color: var(--fm-celadon, #3a7d5c);
 }
 
 /* 答案區域 */
