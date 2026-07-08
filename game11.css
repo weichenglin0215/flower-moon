@@ -3,131 +3,12 @@
    - 序列記憶與視覺留影益智遊戲
    ========================================= */
 
-/* 遊戲全屏遮罩：使用深藍到黑的放射狀漸變，突顯網格字塊 */
-.game11-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    margin: 0;
-    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: hsl(40, 50%, 80%);
-    font-family: 'Noto Serif TC', serif;
-    zoom: 1;
-}
+/* ⚠️ 介面「上半部」（overlay 背景、頂列、分數、控制鈕、難度標籤、
+   紅心副標、詩詞出處連結）之樣式已抽至 theme_xuanzhi.css 的 .fm-* 共用區塊。
+   本檔僅保留 .game11-area 及以下的遊戲區私有樣式。 */
 
 .hidden {
     display: none !important;
-}
-
-/* 遊戲頂部資訊列（分數與控制） */
-.game11-header {
-    padding: 2px 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.1);
-    z-index: 10;
-    width: 100%;
-    height: 40px;
-}
-
-.game11-score-board {
-    color: hsl(50, 70%, 60%);
-    font-size: 24px;
-    font-weight: bold;
-    padding-left: 50px;
-}
-
-.game11-controls .nav-btn {
-    padding: 0px 10px;
-    background: hsl(0, 60%, 25%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
-    color: hsl(45, 80%, 70%);
-    border-radius: 12px;
-    font-size: 20px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.game11-controls .nav-btn:hover {
-    background: hsl(0, 60%, 50%);
-    color: hsl(45, 80%, 90%);
-}
-
-.game11-controls .nav-btn:disabled {
-    background: hsl(0, 0%, 50%);
-    color: hsl(45, 0%, 90%);
-}
-
-/* 難度標籤 */
-.game11-difficulty-tag {
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-size: 20px;
-    color: hsl(45, 30%, 85%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
-    z-index: 100;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.game11-difficulty-tag[data-level="小學"] {
-    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
-}
-
-.game11-difficulty-tag[data-level="中學"] {
-    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
-}
-
-.game11-difficulty-tag[data-level="高中"] {
-    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
-}
-
-.game11-difficulty-tag[data-level="大學"] {
-    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
-}
-
-.game11-difficulty-tag[data-level="研究所"] {
-    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
-}
-
-.game11-difficulty-tag:hover {
-    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
-    filter: brightness(1.5);
-}
-
-/*紅心區域*/
-.game11-sub-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    /* 垂直居中 */
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 9;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    width: 100%;
-    height: 40px;
-}
-
-.hearts {
-    display: flex;
-    gap: 2px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.heart {
-    color: hsl(4, 90%, 60%);
-    font-size: 32px;
-}
-
-.heart.empty {
-    opacity: 0.9;
 }
 
 /* 遊戲主區域 */
@@ -144,25 +25,11 @@
     touch-action: none;
 }
 
-/* 詩詞資訊 */
-.game11-poem-info {
-    position: absolute;
-    top: 6px;
-    right: 12px;
-    font-size: 20px;
-    color: hsl(40, 50%, 80%);
-    text-align: right;
-    white-space: nowrap;
-    overflow: hidden;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-    z-index: 100;
-}
+/* 詩詞出處連結：樣式已上移至 theme_xuanzhi.css 的 .fm-poem-info（位於 fm-sub-header 右側）*/
 
-/*黃色狀態訊息*/
+/*狀態訊息*/
 .game11-status-msg {
-    color: hsl(45, 80%, 70%);
+    color: var(--fm-gold, #8a6a1e);
     font-size: 28px;
     font-weight: bold;
     margin-top: 10px;

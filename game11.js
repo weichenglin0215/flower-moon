@@ -77,21 +77,21 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game11-container';
-            div.className = 'game11-overlay  hidden';
+            div.className = 'game11-overlay fm-overlay hidden';
             div.innerHTML = `
-                <div class="game11-header">
-                    <div class="game11-score-board">分數: <span id="game11-score">0</span></div>
-                    <div class="game11-controls">
-                        <button class="game11-difficulty-tag" id="game11-diff-tag">小學</button>
-                        <button id="game11-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game11-newGame-btn" class="nav-btn">開新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game11-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game11-diff-tag" data-level="小學">小學</button>
+                        <button id="game11-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game11-newGame-btn" class="fm-nav-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game11-sub-header">
-                    <div id="game11-hearts" class="hearts"></div>
+                <div class="fm-sub-header">
+                    <div id="game11-hearts" class="fm-hearts"></div>
+                    <div id="game11-poem-info" class="fm-poem-info"></div>
                 </div>
                 <div id="game11-area" class="game11-area">
-                    <div id="game11-poem-info" class="game11-poem-info"></div>
                     <div id="game11-status" class="game11-status-msg">準備中...</div>
                     <div id="game11-grid" class="game11-grid-container"></div>
                 </div>
@@ -143,22 +143,14 @@
             const diffTag = document.getElementById('game11-diff-tag');
             const retryBtn = document.getElementById('game11-retryGame-btn');
             const newBtn = document.getElementById('game11-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
@@ -284,10 +276,13 @@
             this.currentPoem = result.poem;
 
             const info = document.getElementById('game11-poem-info');
-            info.innerHTML = `<span>${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}</span>`;
+            let _title11 = this.currentPoem.title;
+            if (_title11.length > 8) _title11 = _title11.substring(0, 8) + "…";
+            info.textContent = `${_title11} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             info.onclick = () => {
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
             };
+            this.updatePoemInfoVisibility(false);
 
             // Extract pure chars up to maxChars available, but bounded by grid capacity
             const rawChars = result.lines.join('').split('').slice(0, settings.maxChars);
@@ -315,6 +310,13 @@
 
             this.setupGrid(settings.rows, settings.cols, numGrids);
             return true;
+        },
+
+        // 小學難度維持顯示詩詞出處供提示；中學以上開局隱藏，勝利後才顯示
+        updatePoemInfoVisibility: function (revealed) {
+            const info = document.getElementById('game11-poem-info');
+            if (!info) return;
+            info.style.display = (this.difficulty === '小學' || revealed) ? '' : 'none';
         },
 
         // 初始化網格與字塊
@@ -374,14 +376,14 @@
             hearts.innerHTML = '';
             for (let i = 0; i < this.maxMistakes; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
                 hearts.appendChild(span);
             }
         },
 
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game11-hearts .heart');
+            const hearts = document.querySelectorAll('#game11-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i < this.mistakes) {
                     h.classList.add('empty');
@@ -400,6 +402,7 @@
             if (window.GameMessage) window.GameMessage.hide();
             this.renderHearts();
             this.updateHearts();
+            this.updatePoemInfoVisibility(false);
 
             const settings = this.difficultySettings[this.difficulty];
             this.currentStep = Math.min((settings.passChars || 0) + 1, this.poemChars.length);
@@ -625,7 +628,7 @@
                 gameKey: 'game11',
                 timerContainerId: 'game11-grid',
                 scoreElementId: 'game11-score',
-                heartsSelector: '#game11-hearts .heart:not(.empty)',
+                heartsSelector: '#game11-hearts .fm-heart:not(.empty)',
                 onComplete: (finalScore) => {
                     this.score = finalScore;
                     // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
@@ -652,6 +655,7 @@
                 });
             }
             this.gridContainer.classList.remove('is-player-phase');
+            if (win) this.updatePoemInfoVisibility(true);
 
             if (win) {
                 document.getElementById('game11-retryGame-btn').disabled = true;
