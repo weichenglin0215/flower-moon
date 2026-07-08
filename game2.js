@@ -64,21 +64,19 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game2-container';
-            div.className = 'game2-overlay  hidden';
+            div.className = 'game2-overlay fm-overlay hidden';
             div.innerHTML = `
-                <!-- 调试边框 -->
-                <!-- <div class="debug-frame"></div> -->
-                
-                <div class="game2-header">
-                    <div class="game2-score-board">分數: <span id="game2-score">0</span></div>
-                    <div class="game2-controls">
-                        <button class="game2-difficulty-tag" id="game2-diff-tag">小學</button>
-                        <button id="game2-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game2-newGame-btn" class="nav-btn">開新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game2-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game2-diff-tag" data-level="小學">小學</button>
+                        <button id="game2-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game2-newGame-btn" class="fm-nav-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game2-sub-header">
-                    <div id="game2-hearts" class="hearts"></div>
+                <div class="fm-sub-header">
+                    <div id="game2-hearts" class="fm-hearts"></div>
+                    <div id="game2-info" class="fm-poem-info"></div>
                 </div>
                 <div id="game2-area" class="game2-area">
                     <!-- 遊戲內容將在此生成 -->
@@ -88,7 +86,7 @@
                     <div id="game2-question" class="game2-question-area">
                         <div id="game2-line1" class="game2-poem-lines"></div>
                         <div id="game2-line2" class="game2-poem-lines"></div>
-                        <div id="game2-info" class="game2-poem-info" ></div>
+                        <!-- 詩名/朝代/作者：已移至 fm-sub-header 右側，見上方 -->
                     </div>
                     <div class="game2-answer-area">
                         <div id="game2-answer-grid-container" class="game2-answer-grid-container">
@@ -201,14 +199,10 @@
             const retryBtn = document.getElementById('game2-retryGame-btn');
             const newBtn = document.getElementById('game2-newGame-btn');
             const kwSelector = document.getElementById('game2-keywords');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
                 // 關卡模式下固定關鍵字，避免玩家切換關鍵字導致確定性消失
@@ -218,11 +212,7 @@
                 const kwIdx = (this.currentLevelIndex - 1) % this.keywords.length;
                 this.selectedKeyword = this.keywords[kwIdx];
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
                 if (kwSelector) kwSelector.style.display = 'flex';
@@ -270,6 +260,7 @@
             const settings = this.difficultySettings[this.difficulty];
 
             this.renderQuestion();
+            this.updatePoemInfoVisibility(false);
             this.renderGrid(true); // 使用舊有的 gridChars
             // 實際時限 = 答案行實際字數 × timeLimitRate
             const targetLine2r = this.answerLine === 1 ? this.line1 : this.line2;
@@ -306,6 +297,7 @@
             this.gameStartTime = Date.now();
             if (this.selectPoem()) {
                 this.renderQuestion();
+                this.updatePoemInfoVisibility(false);
                 this.renderGrid(false); // 生成新的 gridChars
                 // 實際時限 = 答案行實際字數 × timeLimitRate
                 const targetLine2 = this.answerLine === 1 ? this.line1 : this.line2;
@@ -471,8 +463,17 @@
             l1.innerHTML = renderLine(this.line1, this.answerLine === 1);
             l2.innerHTML = renderLine(this.line2, this.answerLine === 2);
 
-            info.textContent = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            let _title2 = this.currentPoem.title;
+            if (_title2.length > 8) _title2 = _title2.substring(0, 8) + "…";
+            info.textContent = `${_title2} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             info.dataset.poemId = this.currentPoem.id;
+        },
+
+        // 小學難度維持顯示詩詞出處供提示；中學以上開局隱藏，勝利後才顯示
+        updatePoemInfoVisibility: function (revealed) {
+            const info = document.getElementById('game2-info');
+            if (!info) return;
+            info.style.display = (this.difficulty === '小學' || revealed) ? '' : 'none';
         },
 
         renderGrid: function (isRetry = false) {
@@ -555,7 +556,7 @@
                         gameKey: 'game2',
                         timerContainerId: 'game2-answer-grid-container',
                         scoreElementId: 'game2-score',
-                        heartsSelector: '#game2-hearts .heart:not(.empty)',
+                        heartsSelector: '#game2-hearts .fm-heart:not(.empty)',
                         onComplete: (finalScore) => {
                             this.score = finalScore;
                             // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
@@ -636,14 +637,14 @@
             const settings = this.difficultySettings[this.difficulty];
             for (let i = 0; i < settings.maxMistakeCount; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
                 hearts.appendChild(span);
             }
         },
 
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game2-hearts .heart');
+            const hearts = document.querySelectorAll('#game2-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i < this.mistakeCount) {
                     h.classList.add('empty');
@@ -683,6 +684,7 @@
             }
             clearInterval(this.timerInterval);
             this.isRevealed = true;
+            if (win) this.updatePoemInfoVisibility(true);
             //取消顯示答案
             //this.renderQuestion();
 
