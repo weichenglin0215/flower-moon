@@ -829,6 +829,147 @@ window.TileStyleUtils = {
    }
 };
 
+// =============================================================================
+// 消除類遊戲（game24~game30）共用「字塊配色 / 形狀」呈現工具
+// -----------------------------------------------------------------------------
+// 目標：讓 game24~game30 的答案字塊（含頂端進度卡）配色與形狀規則統一於單一入口，
+// 避免各遊戲各寫一份重複的 getHueForChar/applyShape 樣板。
+//   ① 目標字：由 TileStyleUtils.getGroupColor(idx, n) 產生 {hue,sat,lum,textColor}
+//      —— 相同字永遠同色，句字位置越前色相越靠前。
+//   ② 干擾字：hash-based 穩定色相（同字同色），但 sat/lum 由呼叫端 CSS 決定灰調。
+//   ③ 形狀：預設走 TileStyleUtils.getGroupShape(idx) 五形（rounded-square/
+//      octagon/hexagon/circle/sharp-square）；game26、game29 泡泡龍/滾球風請以
+//      forceShape:'circle' 強制圓形，維持該遊戲主題的球體視覺。
+// =============================================================================
+window.TilePresentation = {
+   /**
+    * 取得目標字的完整分組配色；不在 targetChars 內回傳 null（代表干擾字）。
+    * @param {string} ch 字元
+    * @param {string[]} targetChars 當前句目標字陣列
+    * @returns {?{hue:number,sat:number,lum:number,textColor:string}}
+    */
+   getColorForChar: function (ch, targetChars) {
+      if (!ch || !Array.isArray(targetChars)) return null;
+      const idx = targetChars.indexOf(ch);
+      if (idx < 0) return null;
+      const n = targetChars.length || 1;
+      return window.TileStyleUtils.getGroupColor(idx, n);
+   },
+
+   /**
+    * 取得字元色相：目標字走 TileStyleUtils 分組；干擾字走 hash-based 穩定色相。
+    * @param {string} ch 字元
+    * @param {string[]} targetChars 當前句目標字陣列
+    * @returns {number} 0~360 的色相
+    */
+   getHueForChar: function (ch, targetChars) {
+      if (!ch) return 40;
+      if (Array.isArray(targetChars)) {
+         const idx = targetChars.indexOf(ch);
+         if (idx >= 0) {
+            const n = targetChars.length || 1;
+            return window.TileStyleUtils.getGroupColor(idx, n).hue;
+         }
+      }
+      // 干擾字：hash-based 穩定色相（保證同字同色）
+      let h = 0;
+      for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
+      return h % 360;
+   },
+
+   /**
+    * 取得目標字的形狀名稱；不在 targetChars 內回傳 null。
+    * @param {string} ch 字元
+    * @param {string[]} targetChars 當前句目標字陣列
+    * @param {object} [opts]
+    *   @param {string} [opts.forceShape] 強制形狀（如 'circle'），game26/game29 使用
+    * @returns {?string}
+    */
+   getShapeForChar: function (ch, targetChars, opts) {
+      opts = opts || {};
+      if (opts.forceShape) return opts.forceShape;
+      if (!Array.isArray(targetChars)) return null;
+      const idx = targetChars.indexOf(ch);
+      if (idx < 0) return null;
+      return window.TileStyleUtils.getGroupShape(idx);
+   },
+
+   /**
+    * 一次為 DOM 元素套用「CSS 變數 + 形狀」；呼叫端指定變數名稱前綴（如 '--g24'）。
+    * 目標字：--{prefix}-h/-s/-l/-text + applyShape（除非 forceShape）
+    * 干擾字：僅 --{prefix}-h（sat/lum 由呼叫端 CSS 決定灰調）
+    * @param {HTMLElement} el 目標 DOM 元素
+    * @param {string} ch 字元
+    * @param {string[]} targetChars 當前句目標字陣列
+    * @param {object} [opts]
+    *   @param {string} [opts.varPrefix='--tile'] CSS 變數名稱前綴（如 '--g24'、'--g26'）
+    *   @param {string} [opts.forceShape] 強制形狀（如 'circle'）
+    *   @param {boolean} [opts.skipShape=false] 只設變數不套形狀（例如頂端進度卡想固定 CSS 樣式時）
+    */
+   applyTileStyle: function (el, ch, targetChars, opts) {
+      if (!el) return;
+      opts = opts || {};
+      const prefix = opts.varPrefix || '--tile';
+      const color = this.getColorForChar(ch, targetChars);
+      if (color) {
+         el.style.setProperty(prefix + '-h', color.hue);
+         el.style.setProperty(prefix + '-s', color.sat + '%');
+         el.style.setProperty(prefix + '-l', color.lum + '%');
+         el.style.setProperty(prefix + '-text', color.textColor);
+         if (!opts.skipShape) {
+            const shape = this.getShapeForChar(ch, targetChars, opts);
+            if (shape) window.TileStyleUtils.applyShape(el, shape);
+         }
+      } else {
+         // 干擾字：只給色相，其餘由 CSS 灰調樣式覆寫
+         el.style.setProperty(prefix + '-h', this.getHueForChar(ch, targetChars));
+      }
+   }
+};
+
+// =============================================================================
+// 消除類遊戲（game24~game30）共用「次數 / 分數」計算工具
+// -----------------------------------------------------------------------------
+// 規則（依 V0.28.2 規範）：
+//   ① 次數（collectTimes）：每次「消除動作」一律 +1；不論本次消除到 3、4、5、
+//      或更多個相同答案字，都只算 1 次。次數是決定過關與否的核心條件。
+//   ② 分數（getMatchScore）：本次消除的相同答案字數 N（N≥3）× getPointA 倍率為
+//      pointsMultiplier = 2N − 5 → 3 個 = 1, 4 個 = 3, 5 個 = 5, 6 個 = 7 …（等差 2）
+//      最終得分 = pointsMultiplier × getPointA × chainMult（連鎖倍率由遊戲自定）。
+//   ③ 連鎖／串連類遊戲的 chainMult 由該遊戲自行帶入，本工具不干涉。
+// =============================================================================
+window.EliminateScore = {
+   /**
+    * 本次消除為玩家增加的「次數」。永遠回傳 1。
+    * 各遊戲在 collectProgress[char] 累加時應加上這個值，而不是加上實際消除的字數。
+    */
+   getCollectTimes: function () { return 1; },
+
+   /**
+    * 本次消除的分數倍率：2N − 5 for N ≥ 3；N < 3 回傳 0（正常不會發生，僅防呆）。
+    * 呼叫端再乘以 getPointA 與連鎖倍率即可。
+    * @param {number} matchLen 本次消除的相同字數 N
+    * @returns {number} 分數倍率
+    */
+   getPointsMultiplier: function (matchLen) {
+      if (matchLen < 3) return 0;
+      return 2 * matchLen - 5;
+   },
+
+   /**
+    * 一次完成算式：getPointsMultiplier(N) × getPointA × chainMult
+    * @param {number} matchLen 相同字數 N
+    * @param {number} getPointA 各遊戲的 getPointA 基準（可由 ScoreManager.getPointA 取得）
+    * @param {number} [chainMult=1] 連鎖倍率（如 game24 的 1,1,2,2,3,3,4,4,5,5 表）
+    * @returns {number} 本次消除得分
+    */
+   getMatchScore: function (matchLen, getPointA, chainMult) {
+      const mult = this.getPointsMultiplier(matchLen);
+      const cm = (typeof chainMult === 'number' && chainMult > 0) ? chainMult : 1;
+      return mult * (getPointA || 0) * cm;
+   }
+};
+
 /**
  * 全站通用的音效管理工具 (SoundManager)
  * 提供古箏五聲音階演奏、以及正確與錯誤操作的共用回饋音效。

@@ -61,17 +61,13 @@
         // 全詩去重後字陣列（首次出現順序）— 同字同色 HUE 索引基準
         uniquePoemChars: [],
 
-        // 同字必同色：依字在 uniquePoemChars 索引等分 360°
+        // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
+        //   game30 立體麻將以「整首詩去重字」為分組基準
         getHueForChar: function (ch) {
-            if (!ch) return 40;
-            const idx = this.uniquePoemChars.indexOf(ch);
-            if (idx >= 0) {
-                const n = this.uniquePoemChars.length || 1;
-                return window.TileStyleUtils.getGroupColor(idx, n).hue;
-            }
-            let h = 0;
-            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
-            return h % 360;
+            return window.TilePresentation.getHueForChar(ch, this.uniquePoemChars);
+        },
+        getColorForChar: function (ch) {
+            return window.TilePresentation.getColorForChar(ch, this.uniquePoemChars);
         },
         isPoemChar: function (ch) {
             return this.uniquePoemChars.indexOf(ch) >= 0;
@@ -87,11 +83,12 @@
          * timeLimitRate ：每字時間倍率（× targetChars.length 為總秒數）
          */
         difficultySettings: {
-            '小學':   { totalTiles: 30, layers: 3, decoyRatio: 0.10, bufferCapacity: 7, orderBonus: 2, timeLimitRate: 12, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 16 },
-            '中學':   { totalTiles: 36, layers: 3, decoyRatio: 0.20, bufferCapacity: 7, orderBonus: 2, timeLimitRate: 10, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 20 },
-            '高中':   { totalTiles: 45, layers: 4, decoyRatio: 0.30, bufferCapacity: 7, orderBonus: 3, timeLimitRate: 9,  poemMinRating: 4, minLines: 2, maxLines: 4, minChars: 12, maxChars: 24 },
-            '大學':   { totalTiles: 54, layers: 4, decoyRatio: 0.40, bufferCapacity: 6, orderBonus: 3, timeLimitRate: 8,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 16, maxChars: 28 },
-            '研究所': { totalTiles: 60, layers: 5, decoyRatio: 0.50, bufferCapacity: 5, orderBonus: 5, timeLimitRate: 7,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 18, maxChars: 32 }
+            // ⚠️ decoyRatio 統一歸零：答案區所有字必須來自當前詩句（不再有詩外干擾字）
+            '小學':   { totalTiles: 30, layers: 3, decoyRatio: 0.0, bufferCapacity: 7, orderBonus: 2, timeLimitRate: 12, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 16 },
+            '中學':   { totalTiles: 36, layers: 3, decoyRatio: 0.0, bufferCapacity: 7, orderBonus: 2, timeLimitRate: 10, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 20 },
+            '高中':   { totalTiles: 45, layers: 4, decoyRatio: 0.0, bufferCapacity: 7, orderBonus: 3, timeLimitRate: 9,  poemMinRating: 4, minLines: 2, maxLines: 4, minChars: 12, maxChars: 24 },
+            '大學':   { totalTiles: 54, layers: 4, decoyRatio: 0.0, bufferCapacity: 6, orderBonus: 3, timeLimitRate: 8,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 16, maxChars: 28 },
+            '研究所': { totalTiles: 60, layers: 5, decoyRatio: 0.0, bufferCapacity: 5, orderBonus: 5, timeLimitRate: 7,  poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 18, maxChars: 32 }
         },
 
         // 干擾字備援池

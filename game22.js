@@ -614,10 +614,30 @@
             }
 
             // 2. 拼圖片
-            this.pieces.forEach(piece => {
-                if (piece.inHold) return;
+            //   ⚠️ 排序規則（外層 = 大類別，內層 = 大小）：
+            //     A. 大類別：彎曲片（L / S / T / 2×2 …）→ 先渲染、在底層；
+            //                 直排片（1×N 或 N×1）→ 後渲染、在頂層。
+            //        因為直排片的 bounding box 就是它自己，不會侵蝕鄰片；
+            //        彎曲片的空角落才是造成「相鄰小片被吃掉點擊」的兇手。
+            //     B. 同類別內：大先渲、小後渲（小片壓在同類大片之上）。
+            //   加上 z-index 保底：直排 200 − size / 彎曲 100 − size，
+            //   任何直排永遠壓在任何彎曲之上。
+            const isStraight = (p) => {
+                if (p.cells.length <= 1) return true;
+                const allSameR = p.cells.every(([dr]) => dr === 0);
+                const allSameC = p.cells.every(([, dc]) => dc === 0);
+                return allSameR || allSameC;
+            };
+            const onBoard = this.pieces.filter(p => !p.inHold);
+            const sorted = onBoard.slice().sort((a, b) => {
+                const aBent = !isStraight(a), bBent = !isStraight(b);
+                if (aBent !== bBent) return aBent ? -1 : 1;  // 彎曲片先 → 底層
+                return b.cells.length - a.cells.length;       // 同類內大先
+            });
+            sorted.forEach(piece => {
                 const el = this.buildPieceEl(piece, CELL_PX);
                 this.applyPiecePosition(el, piece);
+                el.style.zIndex = (isStraight(piece) ? 200 : 100) - piece.cells.length;
                 grid.appendChild(el);
                 piece._el = el;
                 this.attachDragHandlers(el, piece);

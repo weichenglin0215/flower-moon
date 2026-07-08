@@ -78,18 +78,12 @@
         // currentLineChars 已存在；新增 uniquePoemChars（全詩去重，HUE 等分基準）
         uniquePoemChars: [],
 
-        // 依字塊字元計算色相：透過共用 TileStyleUtils 依當前句目標字位置分組配色（同字必同色）
-        // 干擾字（不在 currentLineChars 內）走灰調
+        // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
         getHueForChar: function (ch) {
-            if (!ch) return 40;
-            const idx = this.currentLineChars.indexOf(ch);
-            if (idx >= 0) {
-                const n = this.currentLineChars.length || 1;
-                return window.TileStyleUtils.getGroupColor(idx, n).hue;
-            }
-            let h = 0;
-            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
-            return h % 360;
+            return window.TilePresentation.getHueForChar(ch, this.currentLineChars);
+        },
+        getColorForChar: function (ch) {
+            return window.TilePresentation.getColorForChar(ch, this.currentLineChars);
         },
 
         // 是否為當前句目標字（控制 drawBubble 飽和度）
@@ -109,11 +103,31 @@
          * initRows     ：初始泡泡牆列數
          */
         difficultySettings: {
-            '小學':   { pushInterval: 15000, poemMinRating: 6, wallCols: 8,  decoyRatio: 0.10, reflectMax: 2, emergencyRescue: true,  timeLimitRate: 0, initRows: 4, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 28 },
-            '中學':   { pushInterval: 12000, poemMinRating: 5, wallCols: 9,  decoyRatio: 0.20, reflectMax: 2, emergencyRescue: true,  timeLimitRate: 0, initRows: 5, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 28 },
-            '高中':   { pushInterval: 10000, poemMinRating: 4, wallCols: 10, decoyRatio: 0.30, reflectMax: 1, emergencyRescue: true,  timeLimitRate: 0, initRows: 5, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 28 },
-            '大學':   { pushInterval: 8000,  poemMinRating: 3, wallCols: 11, decoyRatio: 0.40, reflectMax: 1, emergencyRescue: false, timeLimitRate: 0, initRows: 6, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 28 },
-            '研究所': { pushInterval: 5000,  poemMinRating: 3, wallCols: 12, decoyRatio: 0.50, reflectMax: 0, emergencyRescue: false, timeLimitRate: 0, initRows: 6, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 28 }
+            '小學': {
+                pushInterval: 15000, poemMinRating: 6, wallCols: 8, decoyRatio: 0.0, reflectMax: 2,
+                emergencyRescue: true, timeLimitRate: 0, initRows: 4,
+                minLines: 2, maxLines: 4, minChars: 8, maxChars: 28
+            },
+            '中學': {
+                pushInterval: 12000, poemMinRating: 5, wallCols: 9, decoyRatio: 0.0, reflectMax: 2,
+                emergencyRescue: true, timeLimitRate: 0, initRows: 5,
+                minLines: 2, maxLines: 4, minChars: 8, maxChars: 28
+            },
+            '高中': {
+                pushInterval: 10000, poemMinRating: 4, wallCols: 10, decoyRatio: 0.0, reflectMax: 1,
+                emergencyRescue: true, timeLimitRate: 0, initRows: 5,
+                minLines: 2, maxLines: 4, minChars: 8, maxChars: 28
+            },
+            '大學': {
+                pushInterval: 8000, poemMinRating: 3, wallCols: 11, decoyRatio: 0.0, reflectMax: 1,
+                emergencyRescue: false, timeLimitRate: 0, initRows: 6,
+                minLines: 2, maxLines: 4, minChars: 8, maxChars: 28
+            },
+            '研究所': {
+                pushInterval: 5000, poemMinRating: 3, wallCols: 12, decoyRatio: 0.0, reflectMax: 0,
+                emergencyRescue: false, timeLimitRate: 0, initRows: 6,
+                minLines: 2, maxLines: 4, minChars: 8, maxChars: 28
+            }
         },
 
         // ── CSS 載入防護 ──
@@ -156,7 +170,7 @@
                 <div class="game26-info-bar">
                     <div id="game26-line-text" class="game26-line-text" style="display:none"></div>
                     <div id="game26-progress" class="game26-progress"></div>
-                    <div id="game26-next-preview" class="game26-next-preview">即將發射：<span id="game26-next-char">－</span></div>
+                    <!--<div id="game26-next-preview" class="game26-next-preview">即將發射：<span id="game26-next-char">－</span></div>-->
                 </div>
                 <div class="game26-area">
                     <div id="game26-board-wrapper" class="game26-board-wrapper">
@@ -439,8 +453,9 @@
                 const prev = Math.min(this.collectTarget, prevGot[ch] || 0);
                 const done = got >= this.collectTarget;
                 const justDone = animateNewlyLit && done && prev < this.collectTarget;
-                const hue = this.getHueForChar(ch);
-                html += `<span class="game26-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g26-h:${hue}">`
+                // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
+                const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
+                html += `<span class="game26-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g26-h:${c.hue};--g26-s:${c.sat}%;--g26-l:${c.lum}%;--g26-text:${c.textColor}">`
                     + `<span class="game26-char-tile">${ch}</span>`
                     + `<span class="game26-char-count"><span class="game26-char-num">${got}</span>/<span class="game26-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
@@ -758,8 +773,9 @@
                     this.cellsByRow[g.r][g.c].alive = false;
                     this.cellsByRow[g.r][g.c] = null;
                 });
-                this.collectChar(b.char, 1);
-                this.score += this.getPointA() * group.length;
+                // ⚠️ 收集次數：整群一次算 1 次；分數 (2N−5) × getPointA
+                this.collectChar(b.char, window.EliminateScore.getCollectTimes());
+                this.score += window.EliminateScore.getMatchScore(group.length, this.getPointA(), 1);
                 // 粒子 + 字魂（同色系；字魂飛入頂端進度卡）
                 popPositions.forEach(pos => {
                     this.spawnParticles(pos.x, pos.y, 6, popHue);
@@ -770,11 +786,16 @@
                 const dropped = this.gravityCheck();
                 if (dropped.length > 0) {
                     const dropPositions = [];
+                    // ⚠️ 墜落連鎖仍屬同一次消除動作 → 依「相同字」分組，每字只計 1 次
+                    const droppedCharsCounted = new Set();
                     dropped.forEach(d => {
                         const ch = this.cellsByRow[d.r] && this.cellsByRow[d.r][d.c] ? this.cellsByRow[d.r][d.c].char : null;
                         const ctr = this.getCellCenter(d.r, d.c);
                         dropPositions.push({ x: ctr.x, y: ctr.y, ch, hue: ch ? this.getHueForChar(ch) : 45 });
-                        if (ch) this.collectChar(ch, 1);
+                        if (ch && !droppedCharsCounted.has(ch)) {
+                            this.collectChar(ch, window.EliminateScore.getCollectTimes());
+                            droppedCharsCounted.add(ch);
+                        }
                         this.cellsByRow[d.r][d.c] = null;
                     });
                     this.score += this.getPointA() * dropped.length * 2;

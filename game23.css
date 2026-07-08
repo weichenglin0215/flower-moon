@@ -208,6 +208,20 @@
     overflow: hidden;
 }
 
+/* ⚠️ 主句提示行（仿 game21 黃金橫批列）：金黃色上下邊框 + 陰影，
+   中間透明不遮拼圖字；z-index 900 > 任何拼圖，永遠浮在最上層。
+   pointer-events:none 確保不擋拖曳操作。 */
+.game23-main-row {
+    position: absolute;
+    background: transparent;
+    border-top: 3px solid hsl(45, 95%, 60%);
+    border-bottom: 3px solid hsl(45, 95%, 60%);
+    box-shadow: 0 0 12px hsla(45, 90%, 55%, 0.5),
+        inset 0 0 0 1px hsla(45, 100%, 80%, 0.4);
+    pointer-events: none;
+    z-index: 900;
+}
+
 .game23-cell-bg {
     position: absolute;
     box-sizing: border-box;
@@ -330,8 +344,9 @@
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 4px;
-    min-height: 100px;
-    max-height: 300px;
+    /* ⚠️ 棋盤加高到 13 列後，將暫存區高度縮成一半，讓棋盤可完整顯示 */
+    min-height: 50px;
+    max-height: 150px;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;

@@ -104,28 +104,14 @@
         // 連鎖讚辭詞庫（取代西式 Combo）
         chainPraises: ['妙手', '神來', '絕唱', '生花', '驚鴻', '繞樑', '吟絕', '入聖'],
 
-        // ── 目標字色相：依當前句目標字位置，透過共用 TileStyleUtils 分組配色（相同字永遠同色） ──
+        // ── 目標字色相：委派給 window.TilePresentation（跨 game24~game30 統一實作）──
         //   非目標（干擾）字維持灰調，避免搶走目標字注意力
         getHueForChar: function (ch) {
-            if (!ch) return 40;
-            const idx = this.currentLineChars.indexOf(ch);
-            if (idx >= 0) {
-                const n = this.currentLineChars.length || 1;
-                return window.TileStyleUtils.getGroupColor(idx, n).hue;
-            }
-            // 干擾字：雜湊穩定（保證同字同色），但 renderBoard 會強制套灰調
-            let h = 0;
-            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
-            return h % 360;
+            return window.TilePresentation.getHueForChar(ch, this.currentLineChars);
         },
-
         // 取得目標字的完整分組配色（hue/sat/lum/textColor）；非目標字回傳 null（改走灰階 decoy 樣式）
         getColorForChar: function (ch) {
-            if (!ch) return null;
-            const idx = this.currentLineChars.indexOf(ch);
-            if (idx < 0) return null;
-            const n = this.currentLineChars.length || 1;
-            return window.TileStyleUtils.getGroupColor(idx, n);
+            return window.TilePresentation.getColorForChar(ch, this.currentLineChars);
         },
 
         // ── CSS 載入防護（避免重複載入造成全域污染） ──
@@ -985,10 +971,12 @@
 
             matches.forEach(m => {
                 m.cells.forEach(cell => { toRemove[cell.r + ',' + cell.c] = true; });
-                // 收集字頻
-                const collectTimes = m.length >= 5 ? m.length : (m.length === 4 ? 2 : 1);
+                // ⚠️ 收集次數：一次消除只計 1 次（不論本次消到 3、4、5、6+ 個字）
                 if (this.collectProgress[m.char] !== undefined) {
-                    const newVal = Math.min(this.collectTarget, (this.collectProgress[m.char] || 0) + collectTimes);
+                    const newVal = Math.min(
+                        this.collectTarget,
+                        (this.collectProgress[m.char] || 0) + window.EliminateScore.getCollectTimes()
+                    );
                     this.collectProgress[m.char] = newVal;
                 }
                 // 四連 / 五連道具
@@ -999,10 +987,11 @@
                     const mid = m.cells[Math.floor(m.cells.length / 2)];
                     powerSpawns.push({ r: mid.r, c: mid.c, type: 'star', char: m.char });
                 }
-                // 加分（連鎖倍率）
-                const base = (window.ScoreManager && window.ScoreManager.gameSettings && window.ScoreManager.gameSettings.game24)
-                    ? window.ScoreManager.gameSettings.game24.getPointA : 1;
-                this.score += base * m.length * multTable[chainMult];
+                // ⚠️ 分數：(2N−5) × getPointA × 連鎖倍率
+                //   3個=1, 4個=3, 5個=5, 6個=7 …（等差 2）
+                const base = window.ScoreManager
+                    ? window.ScoreManager.getPointA('game24', this.difficulty) : 1;
+                this.score += window.EliminateScore.getMatchScore(m.length, base, multTable[chainMult]);
             });
 
             // 道具觸發：被消除格中若含道具，連帶消除其方向整行/列或同字全消

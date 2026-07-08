@@ -183,6 +183,9 @@
 
 .game28-char-group {
     --g28-h: 40;
+    --g28-s: 60%;
+    --g28-l: 70%;
+    --g28-text: hsl(220, 30%, 14%);
     flex: 1 1 0;
     min-width: 0;
     max-width: 48px;
@@ -208,12 +211,13 @@
     padding-bottom: 0.05em;
     font-size: clamp(12px, 3.6vw, 20px);
     font-weight: 900;
-    color: hsl(220, 30%, 14%);
+    color: var(--g28-text);
     border-radius: 5px;
+    /* ⚠️ 沿用 TilePresentation 的 hue/sat/lum 生成同色系立體漸層 */
     background: linear-gradient(135deg,
-            hsl(var(--g28-h), 60%, 87%) 0%,
-            hsl(var(--g28-h), 60%, 72%) 50%,
-            hsl(var(--g28-h), 60%, 55%) 100%);
+            hsl(var(--g28-h), var(--g28-s), calc(var(--g28-l) + 15%)) 0%,
+            hsl(var(--g28-h), var(--g28-s), var(--g28-l)) 50%,
+            hsl(var(--g28-h), var(--g28-s), calc(var(--g28-l) - 15%)) 100%);
     border: 1px solid hsla(var(--g28-h), 50%, 25%, 0.7);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), inset 0 1px 1px hsla(0, 0%, 100%, 0.55);
     text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);

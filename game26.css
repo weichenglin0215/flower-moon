@@ -173,6 +173,9 @@
 
 .game26-char-group {
     --g26-h: 40;
+    --g26-s: 60%;
+    --g26-l: 70%;
+    --g26-text: hsl(220, 30%, 14%);
     flex: 1 1 0;
     min-width: 0;
     max-width: 60px;
@@ -198,13 +201,13 @@
     padding-bottom: 0.05em;
     font-size: clamp(13px, 4vw, 24px);
     font-weight: 900;
-    color: hsl(220, 30%, 14%);
+    color: var(--g26-text);
     border-radius: 50%;
-    /* 圓形 — 對應泡泡龍主題 */
+    /* ⚠️ 圓形（保留泡泡龍主題）— 用 TilePresentation 提供的 hue/sat/lum 產生同色系漸層 */
     background: radial-gradient(circle at 30% 30%,
-            hsl(var(--g26-h), 60%, 92%) 0%,
-            hsl(var(--g26-h), 60%, 75%) 50%,
-            hsl(var(--g26-h), 60%, 55%) 100%);
+            hsl(var(--g26-h), var(--g26-s), calc(var(--g26-l) + 15%)) 0%,
+            hsl(var(--g26-h), var(--g26-s), var(--g26-l)) 50%,
+            hsl(var(--g26-h), var(--g26-s), calc(var(--g26-l) - 15%)) 100%);
     border: 1px solid hsla(var(--g26-h), 50%, 25%, 0.7);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 2px hsla(0, 0%, 100%, 0.55);
     text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);

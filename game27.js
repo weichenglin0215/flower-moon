@@ -72,18 +72,12 @@
         startTime: 0,
         gameStartTime: null,
 
-        // 同字必同色：依字在 currentLineChars 索引等分 360°
-        // 目標字（當前句）→ 高彩度高亮度；干擾字 → 低彩度灰調
+        // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
         getHueForChar: function (ch) {
-            if (!ch) return 40;
-            const idx = this.currentLineChars.indexOf(ch);
-            if (idx >= 0) {
-                const n = this.currentLineChars.length || 1;
-                return window.TileStyleUtils.getGroupColor(idx, n).hue;
-            }
-            let h = 0;
-            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
-            return h % 360;
+            return window.TilePresentation.getHueForChar(ch, this.currentLineChars);
+        },
+        getColorForChar: function (ch) {
+            return window.TilePresentation.getColorForChar(ch, this.currentLineChars);
         },
         isTargetChar: function (ch) {
             return this.currentLineChars.indexOf(ch) >= 0;
@@ -105,11 +99,12 @@
          * timeLimitRate：每字時間倍率（作為總時限上限；0=不使用）
          */
         difficultySettings: {
-            '小學':   { fallInterval: 1000, poemMinRating: 6, boardRows: 10, previewCount: 2, decoyRatio: 0.10, wallKick: true,         timeLimitRate: 8, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 24 },
-            '中學':   { fallInterval: 700,  poemMinRating: 5, boardRows: 11, previewCount: 2, decoyRatio: 0.20, wallKick: true,         timeLimitRate: 7, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 24 },
-            '高中':   { fallInterval: 500,  poemMinRating: 4, boardRows: 12, previewCount: 2, decoyRatio: 0.30, wallKick: true,         timeLimitRate: 6, minLines: 2, maxLines: 4, minChars: 10, maxChars: 28 },
-            '大學':   { fallInterval: 350,  poemMinRating: 3, boardRows: 12, previewCount: 1, decoyRatio: 0.40, wallKick: 'partial',    timeLimitRate: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 28 },
-            '研究所': { fallInterval: 200,  poemMinRating: 3, boardRows: 14, previewCount: 0, decoyRatio: 0.50, wallKick: false,        timeLimitRate: 4, minLines: 2, maxLines: 4, minChars: 10, maxChars: 28 }
+            // ⚠️ decoyRatio 統一歸零：答案區所有字必須來自當前詩句（不再有詩外干擾字）
+            '小學':   { fallInterval: 1000, poemMinRating: 6, boardRows: 10, previewCount: 2, decoyRatio: 0.0, wallKick: true,         timeLimitRate: 8, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 24 },
+            '中學':   { fallInterval: 700,  poemMinRating: 5, boardRows: 11, previewCount: 2, decoyRatio: 0.0, wallKick: true,         timeLimitRate: 7, minLines: 2, maxLines: 4, minChars: 8,  maxChars: 24 },
+            '高中':   { fallInterval: 500,  poemMinRating: 4, boardRows: 12, previewCount: 2, decoyRatio: 0.0, wallKick: true,         timeLimitRate: 6, minLines: 2, maxLines: 4, minChars: 10, maxChars: 28 },
+            '大學':   { fallInterval: 350,  poemMinRating: 3, boardRows: 12, previewCount: 1, decoyRatio: 0.0, wallKick: 'partial',    timeLimitRate: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 28 },
+            '研究所': { fallInterval: 200,  poemMinRating: 3, boardRows: 14, previewCount: 0, decoyRatio: 0.0, wallKick: false,        timeLimitRate: 4, minLines: 2, maxLines: 4, minChars: 10, maxChars: 28 }
         },
 
         // ── 磚塊形狀（類 Tetromino 7 種） ──
@@ -473,8 +468,9 @@
                 const prev = Math.min(this.collectTarget, prevGot[ch] || 0);
                 const done = got >= this.collectTarget;
                 const justDone = animateNewlyLit && done && prev < this.collectTarget;
-                const hue = this.getHueForChar(ch);
-                html += `<span class="game27-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g27-h:${hue}">`
+                // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
+                const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
+                html += `<span class="game27-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g27-h:${c.hue};--g27-s:${c.sat}%;--g27-l:${c.lum}%;--g27-text:${c.textColor}">`
                     + `<span class="game27-char-tile">${ch}</span>`
                     + `<span class="game27-char-count"><span class="game27-char-num">${got}</span>/<span class="game27-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
@@ -729,18 +725,23 @@
                 this.chainCount++;
 
                 // 收集字頻：每組同字消除每群 +1
-                const clearedCharsSet = {};
-                toClear.forEach(o => { clearedCharsSet[o.char] = (clearedCharsSet[o.char] || 0) + 1; });
-                for (const ch in clearedCharsSet) {
+                const clearedCharCount = {};
+                toClear.forEach(o => { clearedCharCount[o.char] = (clearedCharCount[o.char] || 0) + 1; });
+                for (const ch in clearedCharCount) {
                     if (this.currentLineChars.indexOf(ch) >= 0) {
-                        this.collectProgress[ch] = (this.collectProgress[ch] || 0) + 1;
+                        // ⚠️ 每字每次消除只算 1 次
+                        this.collectProgress[ch] = (this.collectProgress[ch] || 0)
+                            + window.EliminateScore.getCollectTimes();
                     }
                 }
 
-                // 計分：基礎 × 消除格數 × 連鎖倍率
+                // ⚠️ 計分：對每種被消除字以 (2N−5) 分別加分，再乘連鎖倍率
                 const base = this.getPointA();
                 const multiplier = Math.min(this.chainCount, 5);
-                const pts = base * toClear.length * multiplier;
+                let pts = 0;
+                for (const ch in clearedCharCount) {
+                    pts += window.EliminateScore.getMatchScore(clearedCharCount[ch], base, multiplier);
+                }
                 this.score += pts;
                 document.getElementById('game27-score').textContent = this.score;
 

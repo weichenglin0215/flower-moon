@@ -56,18 +56,13 @@
         // 全詩去重後字陣列（首次出現順序）— 同字同色的 HUE 索引基準
         uniquePoemChars: [],
 
-        // 依字塊字元計算色相：在 uniquePoemChars 內的「詩字」採等分色相、高彩度高亮度
-        // 干擾字（不在詩中）→ 灰調退後（彩度 12%）
+        // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
+        //   game28 以「整首詩去重字」為分組基準（連連看無明確逐句階段）
         getHueForChar: function (ch) {
-            if (!ch) return 40;
-            const idx = this.uniquePoemChars.indexOf(ch);
-            if (idx >= 0) {
-                const n = this.uniquePoemChars.length || 1;
-                return window.TileStyleUtils.getGroupColor(idx, n).hue;
-            }
-            let h = 0;
-            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
-            return h % 360;
+            return window.TilePresentation.getHueForChar(ch, this.uniquePoemChars);
+        },
+        getColorForChar: function (ch) {
+            return window.TilePresentation.getColorForChar(ch, this.uniquePoemChars);
         },
         isPoemChar: function (ch) {
             return this.uniquePoemChars.indexOf(ch) >= 0;
@@ -663,8 +658,9 @@
                 const got = total - left;
                 const done = left === 0;
                 const justDone = animateNewlyLit && done && (prev[ch] === undefined ? total : prev[ch]) > 0;
-                const hue = this.getHueForChar(ch);
-                html += `<span class="game28-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g28-h:${hue}">`
+                // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
+                const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
+                html += `<span class="game28-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g28-h:${c.hue};--g28-s:${c.sat}%;--g28-l:${c.lum}%;--g28-text:${c.textColor}">`
                     + `<span class="game28-char-tile">${ch}</span>`
                     + `<span class="game28-char-count"><span class="game28-char-num">${got}</span>/<span class="game28-char-den">${total}</span></span>`
                     + `</span>`;

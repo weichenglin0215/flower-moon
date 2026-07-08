@@ -71,18 +71,12 @@
         startTime: 0,
         gameStartTime: null,
 
-        // 同字必同色：依字在 currentLineChars 索引等分 360°
-        // 目標字 → 在 drawBall 中採高彩度高亮度；干擾字（不在 currentLineChars） → 低彩度灰調
+        // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
         getHueForChar: function (ch) {
-            if (!ch) return 40;
-            const idx = this.currentLineChars.indexOf(ch);
-            if (idx >= 0) {
-                const n = this.currentLineChars.length || 1;
-                return window.TileStyleUtils.getGroupColor(idx, n).hue;
-            }
-            let h = 0;
-            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
-            return h % 360;
+            return window.TilePresentation.getHueForChar(ch, this.currentLineChars);
+        },
+        getColorForChar: function (ch) {
+            return window.TilePresentation.getColorForChar(ch, this.currentLineChars);
         },
         isTargetChar: function (ch) {
             return this.currentLineChars.indexOf(ch) >= 0;
@@ -100,11 +94,12 @@
          * minLines/maxLines/minChars/maxChars：詩詞篩選
          */
         difficultySettings: {
-            '小學':   { flowSpeed: 0.020, poemMinRating: 6, trackLengthGrid: 30, decoyRatio: 0.10, previewCount: 2, chainRescueThreshold: 2, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '中學':   { flowSpeed: 0.030, poemMinRating: 5, trackLengthGrid: 35, decoyRatio: 0.20, previewCount: 2, chainRescueThreshold: 3, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '高中':   { flowSpeed: 0.040, poemMinRating: 4, trackLengthGrid: 40, decoyRatio: 0.30, previewCount: 1, chainRescueThreshold: 3, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '大學':   { flowSpeed: 0.055, poemMinRating: 3, trackLengthGrid: 45, decoyRatio: 0.40, previewCount: 1, chainRescueThreshold: 4, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
-            '研究所': { flowSpeed: 0.075, poemMinRating: 3, trackLengthGrid: 50, decoyRatio: 0.50, previewCount: 0, chainRescueThreshold: 5, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 }
+            // ⚠️ decoyRatio 統一歸零：答案區所有字必須來自當前詩句（不再有詩外干擾字）
+            '小學':   { flowSpeed: 0.020, poemMinRating: 6, trackLengthGrid: 30, decoyRatio: 0.0, previewCount: 2, chainRescueThreshold: 2, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '中學':   { flowSpeed: 0.030, poemMinRating: 5, trackLengthGrid: 35, decoyRatio: 0.0, previewCount: 2, chainRescueThreshold: 3, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '高中':   { flowSpeed: 0.040, poemMinRating: 4, trackLengthGrid: 40, decoyRatio: 0.0, previewCount: 1, chainRescueThreshold: 3, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '大學':   { flowSpeed: 0.055, poemMinRating: 3, trackLengthGrid: 45, decoyRatio: 0.0, previewCount: 1, chainRescueThreshold: 4, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 },
+            '研究所': { flowSpeed: 0.075, poemMinRating: 3, trackLengthGrid: 50, decoyRatio: 0.0, previewCount: 0, chainRescueThreshold: 5, timeLimitRate: 0, minLines: 2, maxLines: 4, minChars: 8, maxChars: 28 }
         },
 
         // ── CSS 載入防護 ──
@@ -497,8 +492,9 @@
                 const prev = Math.min(this.collectTarget, prevGot[ch] || 0);
                 const done = got >= this.collectTarget;
                 const justDone = animateNewlyLit && done && prev < this.collectTarget;
-                const hue = this.getHueForChar(ch);
-                html += `<span class="game29-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g29-h:${hue}">`
+                // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
+                const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
+                html += `<span class="game29-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g29-h:${c.hue};--g29-s:${c.sat}%;--g29-l:${c.lum}%;--g29-text:${c.textColor}">`
                     + `<span class="game29-char-tile">${ch}</span>`
                     + `<span class="game29-char-count"><span class="game29-char-num">${got}</span>/<span class="game29-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
@@ -858,13 +854,13 @@
                 }
                 this.resolveDragonOverlap();
 
-                // 收集字 + FX（同色粒子噴灑 + 字魂飛入進度卡）
-                this.collectChar(removedChar, 1);
+                // ⚠️ 收集次數：整群一次算 1 次；分數 (2N−5) × getPointA × 連鎖等級
+                this.collectChar(removedChar, window.EliminateScore.getCollectTimes());
                 removedPositions.forEach(pos => {
                     this.spawnParticles(pos.x, pos.y, 6, removedHue);
                     if (this.isTargetChar(removedChar)) this.spawnSoul(pos.x, pos.y, removedChar);
                 });
-                this.score += this.getPointA() * removed.length * chainLevel;
+                this.score += window.EliminateScore.getMatchScore(removed.length, this.getPointA(), chainLevel);
                 document.getElementById('game29-score').textContent = this.score;
                 this.updateLineDisplay(true); // animateNewlyLit
 

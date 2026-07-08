@@ -49,11 +49,26 @@
            lineCount：局內題數（=要拿幾句來出題）
         */
         difficultySettings: {
-            '小學': { timeLimitRate: 12, poemMinRating: 6, maxMistakeCount: 5, decoyLevel: 1, distractorLevel: 1, showDecoyHint: true, lineCount: 5 },
-            '中學': { timeLimitRate: 9, poemMinRating: 5, maxMistakeCount: 4, decoyLevel: 2, distractorLevel: 2, showDecoyHint: true, lineCount: 6 },
-            '高中': { timeLimitRate: 7, poemMinRating: 4, maxMistakeCount: 4, decoyLevel: 3, distractorLevel: 3, showDecoyHint: false, lineCount: 8 },
-            '大學': { timeLimitRate: 5, poemMinRating: 3, maxMistakeCount: 3, decoyLevel: 4, distractorLevel: 4, showDecoyHint: false, lineCount: 10 },
-            '研究所': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 3, decoyLevel: 5, distractorLevel: 5, showDecoyHint: false, lineCount: 12 }
+            '小學': {
+                timeLimitRate: 12, poemMinRating: 6, maxMistakeCount: 5, decoyLevel: 1,
+                distractorLevel: 1, showDecoyHint: true, lineCount: 5
+            },
+            '中學': {
+                timeLimitRate: 9, poemMinRating: 5, maxMistakeCount: 4, decoyLevel: 2,
+                distractorLevel: 2, showDecoyHint: true, lineCount: 6
+            },
+            '高中': {
+                timeLimitRate: 7, poemMinRating: 4, maxMistakeCount: 4, decoyLevel: 3,
+                distractorLevel: 3, showDecoyHint: false, lineCount: 8
+            },
+            '大學': {
+                timeLimitRate: 5, poemMinRating: 3, maxMistakeCount: 3, decoyLevel: 4,
+                distractorLevel: 4, showDecoyHint: false, lineCount: 10
+            },
+            '研究所': {
+                timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 3, decoyLevel: 5,
+                distractorLevel: 5, showDecoyHint: false, lineCount: 12
+            }
         },
 
         /* 替身字池（約 100 字常用字，未來可擴展為外部 JSON 資料庫）
@@ -633,26 +648,38 @@
             if (cont) cont.classList.add('hidden');
         },
 
-        /* 根據 candidateOffset 重新排列候選字位置，並標出紅線位置者 */
+        /* 根據 candidateOffset 重新排列候選字位置，並標出「選定字」（active）。
+           ⚠️ 顯示規則：無論輪盤如何循環轉動，畫面固定呈現 4 個字：
+              - 最下方 slot（slot 3）：選定字（game31-cand-active）
+              - 上方 slot 0~2：緊鄰選定字之前 3 個候選字（灰白色）
+              - 其餘候選字（距離 ≥ 4）一律隱藏
+         */
         updateCandidatesScroll: function () {
             const cont = document.getElementById('game31-candidates');
             if (!cont) return;
             const items = cont.querySelectorAll('.game31-candidate-char');
             const N = items.length;
             if (N === 0) return;
-            const CELL_H = 50;
+            const CELL_H = 72;
             const centerIdx = Math.floor(N / 2);
             const offset = this.candidateOffset;
-            // 紅線位置的候選 = 第 (centerIdx - offset) mod N
+            // 選定字位置的候選 = 第 (centerIdx - offset) mod N
             const redIdx = ((centerIdx - offset) % N + N) % N;
             items.forEach((el, i) => {
-                // 在直排中將 redIdx 那一格放到中央，其他依序上下排列
-                let rel = i - redIdx;
-                // 取最短繞行距離（捲動感）
-                if (rel > N / 2) rel -= N;
-                if (rel < -N / 2) rel += N;
-                const y = rel * CELL_H;
-                el.style.transform = `translateY(${y}px)`;
+                // dist = 該候選要再等 dist 步才輪到（沿輪盤順向）
+                //   dist=0：選定字        → slot 3（最下）
+                //   dist=1,2,3：灰白字    → slot 2,1,0（依序往上）
+                //   dist≥4：目前不可見    → 隱藏
+                const dist = ((redIdx - i) % N + N) % N;
+                if (dist <= 3) {
+                    const slotIdx = 3 - dist;  // 0→3, 1→2, 2→1, 3→0
+                    el.style.transform = `translateY(${slotIdx * CELL_H}px)`;
+                    el.style.opacity = '1';
+                } else {
+                    // 隱藏：置於頂端外並淡出，讓進入 / 離開視覺順滑
+                    el.style.transform = `translateY(${-CELL_H}px)`;
+                    el.style.opacity = '0';
+                }
                 el.classList.toggle('game31-cand-active', i === redIdx);
             });
         },
@@ -670,13 +697,13 @@
             this.hideCandidates();
 
             if (pickedRightDecoy && pickedRightOriginal) {
-                // 全對：滲血碎裂 + 毛筆原字浮現 + 典故卡
+                // 全對：滲血碎裂(取消) + 毛筆原字浮現 + 典故卡
                 if (window.SoundManager) window.SoundManager.playSuccess();
                 if (decoyEl) {
-                    decoyEl.classList.add('game31-bleed');
+                    //decoyEl.classList.add('game31-bleed'); //滲血碎裂(取消)
+                    decoyEl.textContent = q.original;
                     setTimeout(() => {
-                        decoyEl.textContent = q.original;
-                        decoyEl.classList.remove('game31-bleed', 'game31-decoy', 'game31-decoy-hint');
+                        //decoyEl.classList.remove('game31-bleed', 'game31-decoy', 'game31-decoy-hint'); //滲血碎裂(取消)
                         decoyEl.classList.add('game31-reveal');
                     }, 600);
                 }

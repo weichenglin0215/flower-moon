@@ -12,9 +12,14 @@
     //   ⑤ 勝利判定：逐格比對 expected 矩陣
     // ============================================================
 
-    const GRID_SIZE = 9;
-    const MIDDLE_IDX = 4;             // 0-based 第 5 行/欄
-    const CELL_PX = 50;               // 9×42 = 378 寬，可放入 500 舞台
+    // ⚠️ 棋盤：高 13 列 × 寬 9 欄；每格 50×50 px（適配 500px 舞台寬度 9×50 = 450）
+    const GRID_ROWS = 13;
+    const GRID_COLS = 9;
+    const GRID_SIZE = GRID_ROWS;      // 舊變數保留為列數別名（僅 for 逐列迴圈相容用）
+    const MIDDLE_ROW = 6;             // 中央列（主句橫向所在列，0-based 第 7 列）
+    const MIDDLE_COL = 4;             // 中央欄（保留給偶爾出現的 V 分支）
+    const MIDDLE_IDX = MIDDLE_ROW;    // 舊變數保留為列中央別名
+    const CELL_PX = 50;               // 每格邏輯像素（9 × 50 = 450，安全落在 500 舞台）
     const HOLD_CELL_PX = 24;
     const HISTORY_LIMIT = 20;
     const DRAG_THRESHOLD = 3;
@@ -124,12 +129,12 @@
                 decoyCharCount: 0, minPieceArea: 2, showEmptyDelay: 30, linkMainRate: 0.6
             },
             '大學': {
-                timeLimit: 180, poemMinRating: 3, poemType: '七言', mainOrient: 'random',
+                timeLimit: 180, poemMinRating: 3, poemType: '七言', mainOrient: 'H',
                 subMinRating: 2, hintLineDelay: 30, hintCharCount: 2, showHintInGrid: true,
                 decoyCharCount: 0, minPieceArea: 2, showEmptyDelay: 60, linkMainRate: 0.4
             },
             '研究所': {
-                timeLimit: 210, poemMinRating: 3, poemType: '七言', mainOrient: 'random',
+                timeLimit: 210, poemMinRating: 3, poemType: '七言', mainOrient: 'H',
                 subMinRating: 2, hintLineDelay: 40, hintCharCount: 1, showHintInGrid: true,
                 decoyCharCount: 0, minPieceArea: 2, showEmptyDelay: 90, linkMainRate: 0.2
             }
@@ -440,14 +445,14 @@
             this.crossCells = [];
             this.mainCells = [];
             for (let r = 0; r < GRID_SIZE; r++) {
-                this.expected.push(new Array(GRID_SIZE).fill(null));
-                this.crossCells.push(new Array(GRID_SIZE).fill(false));
-                this.mainCells.push(new Array(GRID_SIZE).fill(false));
+                this.expected.push(new Array(GRID_COLS).fill(null));
+                this.crossCells.push(new Array(GRID_COLS).fill(false));
+                this.mainCells.push(new Array(GRID_COLS).fill(false));
             }
 
             // 主句置於中軸：橫向→第 MIDDLE_IDX 行；直向→第 MIDDLE_IDX 欄
-            // 為了讓主句置中，起始偏移 = (GRID_SIZE - wantLen) / 2
-            const startOffset = Math.floor((GRID_SIZE - wantLen) / 2);
+            // 為了讓主句置中，橫向主句起始偏移 = (GRID_COLS - wantLen) / 2
+            const startOffset = Math.floor((GRID_COLS - wantLen) / 2);
             const mainPositions = [];
             for (let i = 0; i < wantLen; i++) {
                 const r = (this.mainOrientation === 'H') ? MIDDLE_IDX : (startOffset + i);
@@ -495,7 +500,7 @@
                 for (let k = 0; k < subLine.length; k++) {
                     const rr = (subOrient === 'V') ? (startR + k) : startR;
                     const cc = (subOrient === 'V') ? startC : (startC + k);
-                    if (rr < 0 || rr >= GRID_SIZE || cc < 0 || cc >= GRID_SIZE) continue;
+                    if (rr < 0 || rr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) continue;
                     const ch = subLine[k];
                     if (this.expected[rr][cc] != null) {
                         // 若已有字且不相符 → 跳過該格
@@ -513,7 +518,7 @@
             // 4. 干擾字：填入空白格的子集
             const emptyPositions = [];
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+                for (let c = 0; c < GRID_COLS; c++) {
                     if (this.expected[r][c] == null) emptyPositions.push({ r, c });
                 }
             }
@@ -524,7 +529,7 @@
             }
             const usedCharSet = new Set();
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+                for (let c = 0; c < GRID_COLS; c++) {
                     if (this.expected[r][c] != null) usedCharSet.add(this.expected[r][c]);
                 }
             }
@@ -569,7 +574,7 @@
         // decoySet  : 干擾字位置 Set（'r,c' 格式）
         // decoyChars: 干擾字元陣列（用於列表顯示）
         _debugLogPuzzle: function (subLines, decoySet, decoyChars) {
-            const G = GRID_SIZE;
+            const Gr = GRID_ROWS, Gc = GRID_COLS;
             const orientLabel = this.mainOrientation === 'H' ? '↔ 橫向（第5列）' : '↕ 直向（第5欄）';
             const poem = this.currentPoem;
 
@@ -595,11 +600,11 @@
             // ── 3. 9×9 格子視覺化 ────────────────────────────────
             // 圖例：★=主句  ◆=主副交叉  ·=干擾  　=副句  □=空格
             console.group('%c【9×9 格局圖】★主句  ◆交叉  ·干擾  　副句  □空格', 'color:#a0ffa0;font-size:12px');
-            const colHeader = '      col: ' + Array.from({ length: G }, (_, i) => String(i).padStart(2)).join('');
+            const colHeader = '      col: ' + Array.from({ length: Gc }, (_, i) => String(i).padStart(2)).join('');
             console.log('%c' + colHeader, 'color:#666');
-            for (let r = 0; r < G; r++) {
+            for (let r = 0; r < Gr; r++) {
                 let line = `  row ${r}: `;
-                for (let c = 0; c < G; c++) {
+                for (let c = 0; c < Gc; c++) {
                     const ch = this.expected[r][c];
                     const key = r + ',' + c;
                     if (ch == null) {
@@ -691,7 +696,7 @@
             const occupied = [];
             for (let r = 0; r < GRID_SIZE; r++) {
                 const row = [];
-                for (let c = 0; c < GRID_SIZE; c++) row.push(this.expected[r][c] == null);
+                for (let c = 0; c < GRID_COLS; c++) row.push(this.expected[r][c] == null);
                 occupied.push(row);
             }
             this.pieces = [];
@@ -709,7 +714,7 @@
                 : shapeKeys;
 
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+                for (let c = 0; c < GRID_COLS; c++) {
                     if (occupied[r][c]) continue;
                     const tryOrder = this.shuffleCopy(usedKeys).concat(['1x1']);
                     for (const k of tryOrder) {
@@ -744,7 +749,7 @@
             if (!this.mainCells) return;
             const mainCoords = [];
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+                for (let c = 0; c < GRID_COLS; c++) {
                     if (this.mainCells[r][c]) mainCoords.push({ r, c });
                 }
             }
@@ -765,7 +770,7 @@
                 const want = 1 + Math.floor(Math.random() * 2); // 1 或 2
                 for (const cand of candidates) {
                     if (cellsInPiece.length - 1 >= want) break;
-                    if (cand.r < 0 || cand.r >= GRID_SIZE || cand.c < 0 || cand.c >= GRID_SIZE) continue;
+                    if (cand.r < 0 || cand.r >= GRID_ROWS || cand.c < 0 || cand.c >= GRID_COLS) continue;
                     if (occupied[cand.r][cand.c]) continue;
                     if (this.expected[cand.r][cand.c] == null) continue;
                     cellsInPiece.push(cand);
@@ -844,7 +849,7 @@
                     ]);
                     let target = null;
                     for (const n of neighbors) {
-                        if (n.r < 0 || n.r >= GRID_SIZE || n.c < 0 || n.c >= GRID_SIZE) continue;
+                        if (n.r < 0 || n.r >= GRID_ROWS || n.c < 0 || n.c >= GRID_COLS) continue;
                         const cand = this._findPieceAt(n.r, n.c);
                         if (cand && cand !== s) { target = cand; break; }
                     }
@@ -859,7 +864,7 @@
         canPlace: function (occupied, r, c, cells) {
             for (const [dr, dc] of cells) {
                 const rr = r + dr, cc = c + dc;
-                if (rr < 0 || rr >= GRID_SIZE || cc < 0 || cc >= GRID_SIZE) return false;
+                if (rr < 0 || rr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) return false;
                 if (occupied[rr][cc]) return false;
             }
             return true;
@@ -878,35 +883,34 @@
             this.gridState = this.makeEmptyGridState();
             this.holdPieces = [];
             const order = this.shuffleCopy(this.pieces);
+            // ⚠️ 邊緣偏好：以 Chebyshev 距離中心的最大值作為「邊緣分數」，
+            //   分數越大代表越靠近棋盤外圍。掃描所有可放位置，取分數前 30%
+            //   的候選（含隨機平手打散）再隨機挑一，讓拼圖環繞在四邊、
+            //   中央答案區儘量空出。
+            const centerR = (GRID_ROWS - 1) / 2;
+            const centerC = (GRID_COLS - 1) / 2;
+            const edgeScore = (r, c) => Math.max(Math.abs(r - centerR), Math.abs(c - centerC));
             for (const piece of order) {
                 piece.inHold = false;
                 piece.anchorRow = -1;
                 piece.anchorCol = -1;
-                let placed = false;
-                for (let t = 0; t < 40; t++) {
-                    const r = Math.floor(Math.random() * GRID_SIZE);
-                    const c = Math.floor(Math.random() * GRID_SIZE);
-                    if (this.canPlacePieceOnGrid(piece, r, c, null)) {
-                        this.putPieceOnGrid(piece, r, c);
-                        placed = true;
-                        break;
-                    }
-                }
-                if (!placed) {
-                    outer: for (let r = 0; r < GRID_SIZE; r++) {
-                        for (let c = 0; c < GRID_SIZE; c++) {
-                            if (this.canPlacePieceOnGrid(piece, r, c, null)) {
-                                this.putPieceOnGrid(piece, r, c);
-                                placed = true;
-                                break outer;
-                            }
+                const candidates = [];
+                for (let r = 0; r < GRID_ROWS; r++) {
+                    for (let c = 0; c < GRID_COLS; c++) {
+                        if (this.canPlacePieceOnGrid(piece, r, c, null)) {
+                            candidates.push({ r, c, s: edgeScore(r, c) });
                         }
                     }
                 }
-                if (!placed) {
+                if (candidates.length === 0) {
                     piece.inHold = true;
                     this.holdPieces.push(piece);
+                    continue;
                 }
+                candidates.sort((a, b) => (b.s - a.s) || (Math.random() - 0.5));
+                const topCount = Math.max(1, Math.floor(candidates.length * 0.3));
+                const pick = candidates[Math.floor(Math.random() * topCount)];
+                this.putPieceOnGrid(piece, pick.r, pick.c);
             }
         },
 
@@ -914,7 +918,7 @@
             const g = [];
             for (let r = 0; r < GRID_SIZE; r++) {
                 const row = [];
-                for (let c = 0; c < GRID_SIZE; c++) row.push(null);
+                for (let c = 0; c < GRID_COLS; c++) row.push(null);
                 g.push(row);
             }
             return g;
@@ -925,7 +929,7 @@
             // 勝利判定只對有 expected 值的格子做字元比對
             for (const [dr, dc] of piece.cells) {
                 const rr = r + dr, cc = c + dc;
-                if (rr < 0 || rr >= GRID_SIZE || cc < 0 || cc >= GRID_SIZE) return false;
+                if (rr < 0 || rr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) return false;
                 const occ = this.gridState[rr][cc];
                 if (occ != null && occ !== ignorePieceId) return false;
             }
@@ -945,7 +949,7 @@
             if (piece.inHold) return;
             for (const [dr, dc] of piece.cells) {
                 const rr = piece.anchorRow + dr, cc = piece.anchorCol + dc;
-                if (rr >= 0 && rr < GRID_SIZE && cc >= 0 && cc < GRID_SIZE) {
+                if (rr >= 0 && rr < GRID_ROWS && cc >= 0 && cc < GRID_COLS) {
                     if (this.gridState[rr][cc] === piece.id) this.gridState[rr][cc] = null;
                 }
             }
@@ -965,14 +969,14 @@
             const grid = this.gridEl;
             if (!grid) return;
             grid.innerHTML = '';
-            grid.style.width = (GRID_SIZE * CELL_PX + 4) + 'px'; //加 4 因為最右邊的答案棒有點凸出去
-            grid.style.height = (GRID_SIZE * CELL_PX + 4) + 'px'; //加 4 因為最下面的答案棒有點凸出去
+            grid.style.width = (GRID_COLS * CELL_PX + 4) + 'px'; //加 4 因為最右邊的答案棒有點凸出去
+            grid.style.height = (GRID_ROWS * CELL_PX + 4) + 'px'; //加 4 因為最下面的答案棒有點凸出去
 
             // ── 空白格提示層（showEmptyDelay 觸發後才顯示）──
             // 用無邊框的淡灰色格子，緊密相鄰，看起來像一大片灰色區域
             if (this._showEmptyHintsFlag) {
                 for (let r = 0; r < GRID_SIZE; r++) {
-                    for (let c = 0; c < GRID_SIZE; c++) {
+                    for (let c = 0; c < GRID_COLS; c++) {
                         if (this.expected[r][c] != null) continue; // 只畫空格
                         const hint = document.createElement('div');
                         hint.className = 'game23-cell-empty-hint';
@@ -987,7 +991,7 @@
 
             const s = this.difficultySettings[this.difficulty];
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+                for (let c = 0; c < GRID_COLS; c++) {
                     if (this.expected[r][c] == null) continue;
                     const cellBg = document.createElement('div');
                     cellBg.className = 'game23-cell-bg';
@@ -1006,14 +1010,56 @@
                 }
             }
 
-            this.pieces.forEach(piece => {
-                if (piece.inHold) return;
+            // ⚠️ 排序規則（外層 = 大類別，內層 = 大小）：
+            //   A. 大類別：彎曲片（L / S / T / 2×2 …）→ 先渲染、在底層；
+            //              直排片（1×N 或 N×1）→ 後渲染、在頂層。
+            //      直排片 bounding box = 自己本身，不會有空角落覆蓋鄰片；
+            //      彎曲片的空角落才會造成「相鄰小片被吃掉點擊」。
+            //   B. 同類別內：大先渲、小後渲（小片壓在同類大片之上）。
+            //   z-index 保底：直排 200 − size / 彎曲 100 − size。
+            const isStraight = (p) => {
+                if (p.cells.length <= 1) return true;
+                const allSameR = p.cells.every(([dr]) => dr === 0);
+                const allSameC = p.cells.every(([, dc]) => dc === 0);
+                return allSameR || allSameC;
+            };
+            const onBoard = this.pieces.filter(p => !p.inHold);
+            const sorted = onBoard.slice().sort((a, b) => {
+                const aBent = !isStraight(a), bBent = !isStraight(b);
+                if (aBent !== bBent) return aBent ? -1 : 1;
+                return b.cells.length - a.cells.length;
+            });
+            sorted.forEach(piece => {
                 const el = this.buildPieceEl(piece, CELL_PX);
                 this.applyPiecePosition(el, piece);
+                el.style.zIndex = (isStraight(piece) ? 200 : 100) - piece.cells.length;
                 grid.appendChild(el);
                 piece._el = el;
                 this.attachDragHandlers(el, piece);
             });
+
+            // ⚠️ 主句提示行：金黃色邊框覆蓋在題目行的 5 或 7 個菱形格上，
+            //   浮在所有拼圖之上（z-index 900 > 拼圖最高 200），提示玩家答案該擺哪裡。
+            //   仿 game21 黃金橫批列：僅上下金邊 + 陰影，中間透明，不遮蔽拼圖字。
+            //   ⚠️ pointer-events:none 確保不擋拖曳。
+            if (this.mainOrientation === 'H' && this.mainLine) {
+                let minC = -1, maxC = -1;
+                for (let c = 0; c < GRID_COLS; c++) {
+                    if (this.mainCells[MIDDLE_ROW] && this.mainCells[MIDDLE_ROW][c]) {
+                        if (minC < 0) minC = c;
+                        maxC = c;
+                    }
+                }
+                if (minC >= 0) {
+                    const bar = document.createElement('div');
+                    bar.className = 'game23-main-row';
+                    bar.style.left = (minC * CELL_PX) + 'px';
+                    bar.style.top = (MIDDLE_ROW * CELL_PX) + 'px';
+                    bar.style.width = ((maxC - minC + 1) * CELL_PX) + 'px';
+                    bar.style.height = CELL_PX + 'px';
+                    grid.appendChild(bar);
+                }
+            }
         },
 
         pieceHue: function (piece) {
@@ -1247,7 +1293,7 @@
             const conflictIds = new Set();
             for (const [dr, dc] of piece.cells) {
                 const rr = targetRow + dr, cc = targetCol + dc;
-                if (rr < 0 || rr >= GRID_SIZE || cc < 0 || cc >= GRID_SIZE) {
+                if (rr < 0 || rr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) {
                     this.restoreSnapshot(snapshot);
                     this.renderAll();
                     return;
@@ -1303,12 +1349,12 @@
         },
 
         findNearestSpot: function (piece, originRow, originCol) {
-            for (let d = 0; d <= GRID_SIZE * 2; d++) {
+            for (let d = 0; d <= (GRID_ROWS + GRID_COLS); d++) {
                 for (let dr = -d; dr <= d; dr++) {
                     for (let dc = -d; dc <= d; dc++) {
                         if (Math.max(Math.abs(dr), Math.abs(dc)) !== d) continue;
                         const r = originRow + dr, c = originCol + dc;
-                        if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) continue;
+                        if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) continue;
                         if (this.canPlacePieceOnGrid(piece, r, c, null)) return { r, c };
                     }
                 }
@@ -1346,7 +1392,7 @@
                 if (!p.inHold && p.anchorRow >= 0) {
                     for (const [dr, dc] of p.cells) {
                         const rr = p.anchorRow + dr, cc = p.anchorCol + dc;
-                        if (rr >= 0 && rr < GRID_SIZE && cc >= 0 && cc < GRID_SIZE) {
+                        if (rr >= 0 && rr < GRID_ROWS && cc >= 0 && cc < GRID_COLS) {
                             this.gridState[rr][cc] = p.id;
                         }
                     }
@@ -1366,7 +1412,7 @@
         checkWin: function () {
             if (this.holdPieces.length > 0) return false;
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+                for (let c = 0; c < GRID_COLS; c++) {
                     const exp = this.expected[r][c];
                     if (exp == null) continue;
                     const pid = this.gridState[r][c];
@@ -1399,7 +1445,7 @@
 
             const cells = [];
             for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+                for (let c = 0; c < GRID_COLS; c++) {
                     if (this.expected[r][c] == null) continue;
                     const pid = this.gridState[r][c];
                     const piece = this.pieces.find(p => p.id === pid);

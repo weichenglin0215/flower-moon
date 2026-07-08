@@ -93,28 +93,12 @@
         hintTimer: null,
         hintedCells: [],
 
-        // 依字塊字元計算色相：透過共用 TileStyleUtils 依「當前句」目標字位置分組配色（相同字必同色）
-        // 干擾字（不在當前句中）退化為灰調
+        // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
         getHueForChar: function (ch) {
-            if (!ch) return 40;
-            const idx = this.currentLineChars.indexOf(ch);
-            if (idx >= 0) {
-                const n = this.currentLineChars.length || 1;
-                return window.TileStyleUtils.getGroupColor(idx, n).hue;
-            }
-            // 干擾字：穩定 hash → 一律走灰調（renderBoard 會額外套低彩度）
-            let h = 0;
-            for (let i = 0; i < ch.length; i++) h = (h * 31 + ch.charCodeAt(i)) >>> 0;
-            return h % 360;
+            return window.TilePresentation.getHueForChar(ch, this.currentLineChars);
         },
-
-        // 取得當前句目標字的完整分組配色（hue/sat/lum/textColor）；非目標字回傳 null（改走灰階 decoy）
         getColorForChar: function (ch) {
-            if (!ch) return null;
-            const idx = this.currentLineChars.indexOf(ch);
-            if (idx < 0) return null;
-            const n = this.currentLineChars.length || 1;
-            return window.TileStyleUtils.getGroupColor(idx, n);
+            return window.TilePresentation.getColorForChar(ch, this.currentLineChars);
         },
 
         // ── CSS 載入防護（避免重複載入造成全域污染） ──
@@ -782,24 +766,21 @@
             // 玩家動了 → 清除閒置提示
             this.clearHint();
 
-            // 收集當前句字頻（累加後上限 collectTarget，多消不浪費但顯示不超標）
-            const collectTimes = path.length;
+            // ⚠️ 收集次數：每次消除只算 1 次（不論拖曳長度）
             if (this.currentLineChars.indexOf(startChar) >= 0) {
                 this.collectProgress[startChar] = Math.min(
                     this.collectTarget,
-                    (this.collectProgress[startChar] || 0) + collectTimes
+                    (this.collectProgress[startChar] || 0) + window.EliminateScore.getCollectTimes()
                 );
             }
 
             // 順序成詩判定：路徑字塊的 verseIndex 是否單調遞增
             const isVerseOrder = this.detectVerseOrder(path);
 
-            // 計分：拖曳 N 個字連線 → (N − 2) 分（3連=1、4連=2、5連=3…）
-            //   base 為每分基準點數（沿用 ScoreManager.gameSettings.game25.getPointA）
-            const base = (window.ScoreManager && window.ScoreManager.gameSettings && window.ScoreManager.gameSettings.game25)
-                ? window.ScoreManager.gameSettings.game25.getPointA : 40;
-            const pointUnits = Math.max(0, path.length - 2);
-            let points = base * pointUnits;
+            // ⚠️ 分數：(2N−5) × getPointA — 3連=1, 4連=3, 5連=5, 6連=7…
+            const base = window.ScoreManager
+                ? window.ScoreManager.getPointA('game25', this.difficulty) : 40;
+            let points = window.EliminateScore.getMatchScore(path.length, base, 1);
             if (isVerseOrder) {
                 points *= settings.verseMult;
                 this.showVerseBonus(settings.verseMult);

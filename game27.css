@@ -183,6 +183,9 @@
 
 .game27-char-group {
     --g27-h: 40;
+    --g27-s: 60%;
+    --g27-l: 70%;
+    --g27-text: hsl(220, 30%, 14%);
     flex: 1 1 0;
     min-width: 0;
     max-width: 56px;
@@ -208,12 +211,13 @@
     padding-bottom: 0.05em;
     font-size: clamp(13px, 3.8vw, 22px);
     font-weight: 900;
-    color: hsl(220, 30%, 14%);
+    color: var(--g27-text);
     border-radius: 6px;
+    /* ⚠️ 沿用 TilePresentation 的 hue/sat/lum 生成同色系立體漸層（配合 game24 視覺一致） */
     background: linear-gradient(135deg,
-            hsl(var(--g27-h), 60%, 87%) 0%,
-            hsl(var(--g27-h), 60%, 72%) 50%,
-            hsl(var(--g27-h), 60%, 55%) 100%);
+            hsl(var(--g27-h), var(--g27-s), calc(var(--g27-l) + 15%)) 0%,
+            hsl(var(--g27-h), var(--g27-s), var(--g27-l)) 50%,
+            hsl(var(--g27-h), var(--g27-s), calc(var(--g27-l) - 15%)) 100%);
     border: 1px solid hsla(var(--g27-h), 50%, 25%, 0.7);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 2px hsla(0, 0%, 100%, 0.55);
     text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);

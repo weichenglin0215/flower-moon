@@ -173,6 +173,9 @@
 
 .game29-char-group {
     --g29-h: 40;
+    --g29-s: 60%;
+    --g29-l: 70%;
+    --g29-text: hsl(220, 30%, 14%);
     flex: 1 1 0;
     min-width: 0;
     max-width: 56px;
@@ -198,13 +201,13 @@
     padding-bottom: 0.05em;
     font-size: clamp(13px, 3.8vw, 22px);
     font-weight: 900;
-    color: hsl(220, 30%, 14%);
+    color: var(--g29-text);
     border-radius: 50%;
-    /* 圓形 — 呼應字球主題 */
+    /* ⚠️ 圓形（保留字球主題）— 用 TilePresentation 提供的 hue/sat/lum 產生同色系漸層 */
     background: radial-gradient(circle at 30% 30%,
-            hsl(var(--g29-h), 60%, 92%) 0%,
-            hsl(var(--g29-h), 60%, 72%) 50%,
-            hsl(var(--g29-h), 60%, 55%) 100%);
+            hsl(var(--g29-h), var(--g29-s), calc(var(--g29-l) + 15%)) 0%,
+            hsl(var(--g29-h), var(--g29-s), var(--g29-l)) 50%,
+            hsl(var(--g29-h), var(--g29-s), calc(var(--g29-l) - 15%)) 100%);
     border: 1px solid hsla(var(--g29-h), 50%, 25%, 0.7);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 2px hsla(0, 0%, 100%, 0.55);
     text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);
