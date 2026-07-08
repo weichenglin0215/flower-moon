@@ -78,19 +78,19 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game9-container';
-            div.className = 'game9-overlay  hidden';
+            div.className = 'game9-overlay fm-overlay hidden';
             div.innerHTML = `
-                <div class="game9-header">
-                    <div class="game9-score-board">分數: <span id="game9-score">0</span></div>
-                    <div class="game9-controls">
-                        <button class="game9-difficulty-tag" id="game9-diff-tag">小學</button>
-                        <button id="game9-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game9-newGame-btn" class="nav-btn newGame-btn">開新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game9-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game9-diff-tag" data-level="小學">小學</button>
+                        <button id="game9-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game9-newGame-btn" class="fm-nav-btn newGame-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game9-sub-header">
-                    <div id="game9-hearts" class="game9-hearts"></div>
-
+                <div class="fm-sub-header">
+                    <div id="game9-hearts" class="fm-hearts"></div>
+                    <div id="game9-poem-info" class="fm-poem-info"></div>
                 </div>
                 <div class="game9-area">
                     <svg id="game9-timer-ring">
@@ -99,10 +99,10 @@
                     </svg>
                     <button id="game9-undo-btn" class="game9-undo-btn" disabled>撤銷</button>
                   <div class="game9-info">
-                        <div id="game9-poem-info" class="game9-poem-info"></div>
+                        <!-- 詩名/朝代/作者：已移至 fm-sub-header 右側，見上方 -->
                         <div id="game9-progress-text" class="game9-progress-text"></div>
                     </div>
-                    
+
                     <div id="game9-play-area" class="game9-play-area">
                         <div id="game9-bolt-container" class="game9-bolt-container"></div>
                     </div>
@@ -196,22 +196,14 @@
             const diffTag = document.getElementById('game9-diff-tag');
             const retryBtn = document.getElementById('game9-retryGame-btn');
             const newBtn = document.getElementById('game9-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
@@ -323,9 +315,19 @@
             this.maxLineLength = Math.max(...this.lines.map(l => l.length));
             this.maxLineLength = Math.max(this.maxLineLength, 5);
 
+            let _title9 = this.currentPoem.title;
+            if (_title9.length > 8) _title9 = _title9.substring(0, 8) + "…";
             document.getElementById('game9-poem-info').textContent =
-                `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+                `${_title9} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+            this.updatePoemInfoVisibility(false);
             return true;
+        },
+
+        // 小學難度維持顯示詩詞出處供提示；中學以上開局隱藏，勝利後才顯示
+        updatePoemInfoVisibility: function (revealed) {
+            const info = document.getElementById('game9-poem-info');
+            if (!info) return;
+            info.style.display = (this.difficulty === '小學' || revealed) ? '' : 'none';
         },
         //game9只有startGameProcess() 透過isRetry控制是否重來或是開新局
         startGameProcess: function (isRetry) {
@@ -884,6 +886,7 @@
                 });
             }
             clearInterval(this.timerInterval);
+            if (win) this.updatePoemInfoVisibility(true);
 
             if (win) {
                 this.isWinning = true;

@@ -2,146 +2,13 @@
    遊戲九：詩韻鎖扣 (Nuts & Bolts: Verse) 樣式
    ========================================= */
 
-.game9-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    margin: 0;
-    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 10%) 100%);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    color: hsl(40, 50%, 80%);
-    font-family: 'Noto Serif TC', serif;
-    overflow: hidden;
-    box-sizing: border-box;
-}
+/* ⚠️ 介面「上半部」（overlay 背景、頂列、分數、控制鈕、難度標籤、
+   紅心副標、詩詞出處連結）之樣式已抽至 theme_xuanzhi.css 的 .fm-* 共用區塊。
+   本檔僅保留 .game9-area 及以下的遊戲區私有樣式（螺絲樁/螺帽配色維持原樣不動）。
+   註：game9 沒有紅心生命值系統，fm-hearts 容器恆為空。 */
 
 .hidden {
     display: none !important;
-}
-
-.game9-header {
-    padding: 2px 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.1);
-    z-index: 10;
-    width: 100%;
-    height: 50px;
-}
-
-.game9-score-board {
-    color: hsl(50, 70%, 60%);
-    font-size: 24px;
-    font-weight: bold;
-    padding-left: 50px;
-}
-
-.game9-controls {
-    display: flex;
-    gap: 10px;
-}
-
-.game9-controls .nav-btn {
-    padding: 0px 10px;
-    background: hsl(0, 60%, 25%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
-    color: hsl(45, 80%, 70%);
-    border-radius: 12px;
-    font-size: 20px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.game9-controls .nav-btn:hover {
-    background: hsl(0, 60%, 50%);
-    color: hsl(45, 80%, 90%);
-}
-
-.game9-controls .nav-btn:disabled {
-    background: hsl(0, 0%, 50%);
-    color: hsl(45, 0%, 90%);
-}
-
-/* 難度標籤 */
-.game9-difficulty-tag {
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-size: 20px;
-    color: hsl(45, 30%, 85%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
-    z-index: 100;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.game9-difficulty-tag[data-level="小學"] {
-    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
-}
-
-.game9-difficulty-tag[data-level="中學"] {
-    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
-}
-
-.game9-difficulty-tag[data-level="高中"] {
-    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
-}
-
-.game9-difficulty-tag[data-level="大學"] {
-    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
-}
-
-.game9-difficulty-tag[data-level="研究所"] {
-    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
-}
-
-.game9-difficulty-tag:hover {
-    box-shadow: 0 0px 8px rgba(255, 255, 255, 0.9);
-    filter: brightness(1.5);
-}
-
-/*GAME9並沒有紅心區域，所以不使用*/
-.game9-sub-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 9;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    width: 100%;
-    /*height: 40px;*/
-    height: 2px;
-    justify-content: right;
-    align-items: right;
-    padding: 0px 10px;
-}
-
-
-
-.game9-hearts {
-    display: flex;
-    gap: 2px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.game9-heart {
-    color: hsl(4, 90%, 60%);
-    font-size: 32px;
-}
-
-.game9-heart.empty {
-    opacity: 0.9;
-    color: hsla(0, 0%, 50%, 0.5);
-}
-
-.game9-heart.score {
-    color: hsl(36, 90%, 50%);
-    opacity: 1;
 }
 
 .game9-area {
@@ -185,29 +52,18 @@
     width: 100%;
     padding: 2px;
     font-size: 24px;
-    color: hsl(40, 50%, 80%);
+    color: var(--fm-ink, #2e241b);
     min-height: 40px;
     margin-bottom: 10px;
 }
 
-.game9-poem-info {
-    font-size: 18px;
-    margin-right: 20px;
-    color: hsl(40, 50%, 80%);
-    text-align: right;
-    white-space: nowrap;
-    overflow: hidden;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-    margin-bottom: 6px;
-}
+/* 詩詞出處連結：樣式已上移至 theme_xuanzhi.css 的 .fm-poem-info（位於 fm-sub-header 右側）*/
 
 .game9-progress-text {
     font-size: 22px;
     font-weight: bold;
     letter-spacing: 2px;
-    color: hsl(36, 80%, 60%);
+    color: var(--fm-gold, #8a6a1e);
 }
 
 /* 計時器防呆用 */
