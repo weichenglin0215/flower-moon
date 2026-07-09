@@ -713,10 +713,12 @@
                 this.score += pts;
                 document.getElementById('game31-score').textContent = this.score;
 
-                this.showLoreCard(q.original, q.lore, () => {
-                    this.isAnimating = false;
-                    this.nextQuestion();
-                });
+                //this.showLoreCard(q.original, q.lore, () => {
+                //    this.isAnimating = false;
+                //    //this.nextQuestion();
+                //});
+                this.nextQuestion();
+
             } else {
                 // 答錯：紅光閃爍 + 扣心 + 揭示
                 if (window.SoundManager) window.SoundManager.playFailure();

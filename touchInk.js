@@ -22,23 +22,26 @@
     'use strict';
 
     // ====== 可調參數（集中管理，方便調校效能與手感） ======
-    var MAX_PARTICLES = 1000;        // 粒子池上限（手機安全值）
+    var MAX_PARTICLES = 600;        // 粒子池上限（手機安全值）
     var MAX_DPR = 1.5;              // canvas 解析度倍率上限
     var SPAWN_SPACING = 3;          // 拖曳時每移動多少 px 生成一顆粒子
-    var SPAWN_PER_EVENT = 20;        // 單次 move 事件最多生成顆數（防止快速滑動爆量）
-    var GRAVITY = 24;               // 每秒往下的重力加速度（px/s^2）
-    var MAX_FALL_SPEED = 80;        // 下落終端速度（px/s），維持「慢慢散落」
+    var SPAWN_PER_EVENT = 1;        // 單次 move 事件最多生成顆數（防止快速滑動爆量）
+    var GRAVITY = 36;               // 每秒往下的重力加速度（px/s^2）
+    var MAX_FALL_SPEED = 120;        // 下落終端速度（px/s），維持「慢慢散落」
     var DRAG = 0.2;                // 每秒速度阻尼（模擬水的黏滯感）
     var SWAY_AMP_MIN = 3;           // 水波紋左右擺動振幅下限（px/s）
     var SWAY_AMP_MAX = 6;          // 擺動振幅上限
     var STIR_RADIUS = 90;          // 手指攪動影響半徑（px）
     var STIR_PUSH = 0.2;           // 手指移動速度傳遞給粒子的比例（推力）
     var STIR_SWIRL = 9;            // 繞著手指旋轉的切線力道（px/s^2）
-    var LIFE_MIN = 2.2;             // 粒子壽命下限（秒）
-    var LIFE_MAX = 4.5;             // 粒子壽命上限（秒）
+    var LIFE_MIN = 1.0;             // 粒子壽命下限（秒）
+    var LIFE_MAX = 3.0;             // 粒子壽命上限（秒）
     var SIZE_MIN = 1.0;             // 粒子半徑下限（px）
     var SIZE_MAX = 3.0;               // 粒子半徑上限（px）
-    var COLOR_SAMPLE_MS = 60;       // 顏色取樣節流間隔（毫秒）
+    var COLOR_SAMPLE_MS = 500;      // 畫面顏色取樣節流間隔（毫秒），半秒一次即可
+    var COLOR_JITTER = 0.8;        // 取樣色的隨機變化幅度（±30%）
+    var LINE_RATIO = 0.4;           // 每顆粒子有 40% 機率生成為線條型（否則為圓點）
+    var LINE_LENGTH_SCALE = 6;      // 線條長度 = 粒子單影格移動距離的倍數
 
     // ====== 模組狀態 ======
     var canvas = null;              // 覆蓋層 canvas
@@ -61,7 +64,8 @@
             r: 0, g: 0, b: 0,       // 顏色（RGB）
             phase: 0,               // 正弦擺動相位（水波紋律動）
             freq: 0,                // 擺動頻率
-            amp: 0                  // 擺動振幅
+            amp: 0,                 // 擺動振幅
+            isLine: false           // 是否為「線條型」粒子（沿拖尾方向畫直線）
         });
     }
     var recycleCursor = 0;          // 池滿時循環回收最舊粒子的游標
@@ -90,10 +94,24 @@
         canvas.height = Math.round(window.innerHeight * dpr);
     }
 
-    // ====== 畫面顏色取樣 ======
-    // 從觸控點下方的 DOM 元素取得顏色：優先找有實色背景的元素，
-    // 偶爾改取文字顏色增加多彩感（像沾到不同顏料）。
+    // ====== 畫面顏色取樣（實際顯示像素） ======
+    // 目標：取得「螢幕上實際顯示」的顏色（含圖片內容），而非物件/文字的樣式色。
+    // 瀏覽器無法直接讀取整頁合成後的像素，因此依觸控點下方的元素類型分別處理：
+    //   1. <img>     → 依顯示縮放比例映射回原圖座標，讀取該像素
+    //   2. <canvas>  → 直接 getImageData 讀取該像素
+    //   3. CSS 背景圖 → 載入圖檔（快取），依 background-size 映射後讀取該像素
+    //   4. 以上皆無  → 沿祖先鏈找第一個實色 background-color（最終退路）
+    // 取樣頻率僅每 COLOR_SAMPLE_MS（500ms）一次，效能負擔極低。
     var colorRegex = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[,/ ]+([\d.]+))?\)/;
+    var urlRegex = /url\(["']?([^"')]+)["']?\)/;
+
+    // 共用 1×1 離屏 canvas：把目標像素畫進來再讀出，避免每次配置記憶體
+    var pixelCanvas = document.createElement('canvas');
+    pixelCanvas.width = pixelCanvas.height = 1;
+    var pixelCtx = pixelCanvas.getContext('2d', { willReadFrequently: true });
+
+    // 背景圖片快取：url -> HTMLImageElement（載入一次重複使用）
+    var bgImageCache = {};
 
     function parseColor(str) {
         var m = colorRegex.exec(str);
@@ -103,27 +121,119 @@
         return { r: +m[1], g: +m[2], b: +m[3] };
     }
 
+    // 從圖片來源（img 或 Image 物件）的指定原圖座標讀出一顆像素
+    function readPixel(source, sx, sy) {
+        try {
+            pixelCtx.clearRect(0, 0, 1, 1);
+            pixelCtx.drawImage(source, sx, sy, 1, 1, 0, 0, 1, 1);
+            var d = pixelCtx.getImageData(0, 0, 1, 1).data;
+            if (d[3] < 26) return null; // 透明像素視為無色
+            return { r: d[0], g: d[1], b: d[2] };
+        } catch (err) {
+            return null; // 跨域圖片汙染 canvas 時放棄，走退路
+        }
+    }
+
+    // 取樣 <img>：把螢幕座標映射回原圖座標
+    function sampleImg(el, x, y) {
+        var rect = el.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1 || !el.naturalWidth) return null;
+        var sx = (x - rect.left) / rect.width * el.naturalWidth;
+        var sy = (y - rect.top) / rect.height * el.naturalHeight;
+        return readPixel(el, sx, sy);
+    }
+
+    // 取樣 <canvas>：注意 canvas 內部解析度可能與 CSS 顯示尺寸不同
+    function sampleCanvas(el, x, y) {
+        var rect = el.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1 || !el.width) return null;
+        var sx = (x - rect.left) / rect.width * el.width;
+        var sy = (y - rect.top) / rect.height * el.height;
+        try {
+            var c2d = el.getContext('2d');
+            if (!c2d) return readPixel(el, sx, sy); // WebGL canvas 改走 drawImage
+            var d = c2d.getImageData(sx | 0, sy | 0, 1, 1).data;
+            if (d[3] < 26) return null;
+            return { r: d[0], g: d[1], b: d[2] };
+        } catch (err) {
+            return null;
+        }
+    }
+
+    // 取樣 CSS 背景圖：依 background-size（cover/contain/其他視為填滿）映射座標
+    function sampleBgImage(el, cs, x, y) {
+        var m = urlRegex.exec(cs.backgroundImage);
+        if (!m) return null;
+        var url = m[1];
+        var img = bgImageCache[url];
+        if (!img) {
+            // 首次遇到：開始非同步載入並快取，本次先回 null 走退路
+            img = new Image();
+            img.src = url;
+            bgImageCache[url] = img;
+            return null;
+        }
+        if (!img.complete || !img.naturalWidth) return null;
+
+        var rect = el.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) return null;
+        var rx = (x - rect.left) / rect.width;   // 元素內相對位置 0~1
+        var ry = (y - rect.top) / rect.height;
+        var size = cs.backgroundSize;
+        var sx, sy;
+        if (size === 'cover' || size === 'contain') {
+            // cover：圖片等比放大填滿（超出部分裁切）；contain：等比縮小完整置入
+            var scaleRatio = size === 'cover'
+                ? Math.max(rect.width / img.naturalWidth, rect.height / img.naturalHeight)
+                : Math.min(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+            var drawW = img.naturalWidth * scaleRatio;
+            var drawH = img.naturalHeight * scaleRatio;
+            // 預設 background-position: center 置中
+            sx = (rx * rect.width - (rect.width - drawW) / 2) / scaleRatio;
+            sy = (ry * rect.height - (rect.height - drawH) / 2) / scaleRatio;
+            if (sx < 0 || sy < 0 || sx >= img.naturalWidth || sy >= img.naturalHeight) return null;
+        } else {
+            // 其他情況（100% 100%、auto 等）近似為填滿整個元素
+            sx = rx * img.naturalWidth;
+            sy = ry * img.naturalHeight;
+        }
+        return readPixel(img, sx, sy);
+    }
+
     function sampleColorAt(x, y) {
+        // elementFromPoint 會自動略過 pointer-events:none 的特效 canvas 本身
         var el = document.elementFromPoint(x, y);
         var depth = 0;
         while (el && el !== document.documentElement && depth < 8) {
-            var cs = getComputedStyle(el);
-            // 約 1/3 機率取文字色，讓筆觸更繽紛（僅在該元素文字色可解析時）
-            if (Math.random() < 0.33) {
-                var tc = parseColor(cs.color);
-                if (tc) return tc;
+            var tag = el.tagName;
+            // 1. 圖片元素：直接讀顯示中的像素
+            if (tag === 'IMG') {
+                var pc = sampleImg(el, x, y);
+                if (pc) return pc;
             }
+            // 2. canvas 元素（遊戲繪圖區）：直接讀像素
+            if (tag === 'CANVAS') {
+                var cc = sampleCanvas(el, x, y);
+                if (cc) return cc;
+            }
+            var cs = getComputedStyle(el);
+            // 3. CSS 背景圖：映射後讀圖檔像素
+            if (cs.backgroundImage && cs.backgroundImage !== 'none') {
+                var bc = sampleBgImage(el, cs, x, y);
+                if (bc) return bc;
+            }
+            // 4. 實色背景：這就是該點實際顯示的顏色
             var bg = parseColor(cs.backgroundColor);
             if (bg) return bg;
             el = el.parentElement;
             depth++;
         }
-        // 找不到實色時，退回宣紙底色（--fm 主題的米白）
+        // 找不到任何顏色時，退回宣紙底色（--fm 主題的米白）
         return { r: 232, g: 222, b: 200 };
     }
 
     // ====== 粒子生成 ======
-    function spawnParticle(x, y, baseColor, pvx, pvy) {
+    function spawnParticle(x, y, baseColor, pvx, pvy, isLine) {
         var p;
         if (aliveCount < MAX_PARTICLES) {
             // 從池中找一顆未使用的
@@ -144,19 +254,12 @@
         p.size = SIZE_MIN + Math.random() * (SIZE_MAX - SIZE_MIN);
         p.maxLife = LIFE_MIN + Math.random() * (LIFE_MAX - LIFE_MIN);
         p.life = p.maxLife;
-        // 顏色帶少量明暗抖動，避免同色粒子過於死板
-        //var jitR = (Math.random() - 0.5) * 64;
-        //var jitG = (Math.random() - 0.5) * 64;
-        //var jitB = (Math.random() - 0.5) * 64;
-        //p.r = Math.max(0, Math.min(255, baseColor.r + jitR));
-        //p.g = Math.max(0, Math.min(255, baseColor.g + jitG));
-        //p.b = Math.max(0, Math.min(255, baseColor.b + jitB));
-        var jitR = (Math.random()) * 255;
-        var jitG = (Math.random()) * 255;
-        var jitB = (Math.random()) * 255;
-        p.r = jitR;
-        p.g = jitG;
-        p.b = jitB;
+        // 顏色 = 畫面取樣色 ± 30% 隨機變化（各通道獨立抖動）
+        p.r = Math.max(0, Math.min(255, baseColor.r * (1 + (Math.random() - 0.5) * 2 * COLOR_JITTER)));
+        p.g = Math.max(0, Math.min(255, baseColor.g * (1 + (Math.random() - 0.5) * 2 * COLOR_JITTER)));
+        p.b = Math.max(0, Math.min(255, baseColor.b * (1 + (Math.random() - 0.5) * 2 * COLOR_JITTER)));
+        // 型態：若呼叫端未指定則以 LINE_RATIO 機率決定為線條型
+        p.isLine = (isLine === undefined) ? (Math.random() < LINE_RATIO) : !!isLine;
         // 水波紋擺動參數：各粒子相位/頻率/振幅皆不同，形成自然律動
         p.phase = Math.random() * Math.PI * 2;
         p.freq = 1.5 + Math.random() * 2.5;
@@ -173,7 +276,8 @@
             lastT: performance.now(),
             lastSample: 0,
             spawnAcc: 0,
-            color: sampleColorAt(e.clientX, e.clientY)
+            //color: sampleColorAt(e.clientX, e.clientY)
+            color: { r: 160, g: 160, b: 160 }
         };
         pointerCount++;
         // 按下當下先噴一小撮
@@ -196,7 +300,7 @@
 
         // 顏色取樣節流：滑動途中每 COLOR_SAMPLE_MS 才重新取一次色
         if (now - pt.lastSample > COLOR_SAMPLE_MS) {
-            pt.color = sampleColorAt(e.clientX, e.clientY);
+            //pt.color = sampleColorAt(e.clientX, e.clientY);
             pt.lastSample = now;
         }
 
@@ -290,16 +394,39 @@
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
-            // 掉出畫面底部即回收
-            if (p.y - p.size > window.innerHeight) { p.alive = false; aliveCount--; continue; }
+            // 超出「介面舞台範圍」（邏輯 500×850，經 stageRect 換算為螢幕座標）
+            // 任一邊界即回收；stageRect 尚未就緒時退回整個視窗範圍
+            var sr = window.stageRect;
+            var bL = sr ? sr.left : 0;
+            var bT = sr ? sr.top : 0;
+            var bR = sr ? sr.left + sr.width : window.innerWidth;
+            var bB = sr ? sr.top + sr.height : window.innerHeight;
+            var margin = p.size + 40; // 緩衝：避免線條尚有一截在範圍內就被刪
+            if (p.y - margin > bB || p.y + margin < bT ||
+                p.x - margin > bR || p.x + margin < bL) {
+                p.alive = false; aliveCount--; continue;
+            }
 
             // --- 繪製：淡出 + 輕微縮小，模擬顏料在水中化開 ---
             var alpha = 1.0; //lifeRatio * 0.65;
             var size = p.size * (0.6 + 0.4 * lifeRatio) * dpr;
-            ctx.beginPath();
-            ctx.arc(p.x * dpr, p.y * dpr, size, 0, 6.2832);
-            ctx.fillStyle = 'rgba(' + (p.r | 0) + ',' + (p.g | 0) + ',' + (p.b | 0) + ',' + alpha.toFixed(3) + ')';
-            ctx.fill();
+            ctx.fillStyle = ctx.strokeStyle =
+                'rgba(' + (p.r | 0) + ',' + (p.g | 0) + ',' + (p.b | 0) + ',' + alpha.toFixed(3) + ')';
+            if (p.isLine) {
+                // 線條型粒子：沿拖尾方向（速度反方向）畫直線，
+                // 長度 = 本影格移動距離的三倍
+                var mx = p.vx * dt * LINE_LENGTH_SCALE;
+                var my = p.vy * dt * LINE_LENGTH_SCALE;
+                ctx.beginPath();
+                ctx.moveTo(p.x * dpr, p.y * dpr);
+                ctx.lineTo((p.x - mx) * dpr, (p.y - my) * dpr);
+                ctx.lineWidth = size;
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.arc(p.x * dpr, p.y * dpr, size, 0, 6.2832);
+                ctx.fill();
+            }
             survivors++;
         }
 
@@ -335,6 +462,14 @@
 
     // ====== 對外介面 ======
     window.TouchInk = {
+        /** 除錯用：回傳內部狀態（正式版可移除） */
+        _debug: function () {
+            var lineN = 0;
+            for (var i = 0; i < MAX_PARTICLES; i++) if (pool[i].alive && pool[i].isLine) lineN++;
+            return { aliveCount: aliveCount, lineCount: lineN, running: running, enabled: enabled, pointerCount: pointerCount };
+        },
+        /** 除錯用：直接測試指定螢幕座標的顏色取樣結果（正式版可移除） */
+        _sample: function (x, y) { return sampleColorAt(x, y); },
         /** 啟用特效 */
         enable: function () { enabled = true; },
         /** 停用特效並立即清空畫面 */
