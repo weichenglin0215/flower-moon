@@ -82,12 +82,29 @@
     justify-content: center;
     width: 100%;
     margin-top: 20px;
+    /* ⚠️ 水平置中保底：見 game1 同款修正說明 */
+    align-self: center;
 }
 
-.grid-container {
+/* ⚠️ 三層同心圓結構（同 game1）：
+   ① 最外圈：紅色 SVG timer path（10px stroke）
+   ② 5px 間隔（由本層 padding 提供）
+   ③ 中間圈：3px 邊框 + 徑向漸層底 + border-radius 20px（.game12-grid-inner-ring）
+   ④ 20px 間隔（由中間圈 padding 提供）
+   ⑤ 內圈：翻牌字塊（.game12-answer-grid） */
+.game12-grid-container {
     position: relative;
-    background: rgba(0, 0, 0, 0.2);
+    display: inline-block;
+    padding: 15px;
+    background: transparent;
+    border-radius: 0;
+}
+
+.game12-grid-inner-ring {
+    background: radial-gradient(hsla(0, 0%, 100%, 0.0) 60%, rgba(0, 0, 0, 0.1)) 100%;
+    border: 3px solid var(--fm-border, #d8c193);
     border-radius: 20px;
+    padding: 20px;
 }
 
 #game12-timer-ring {
@@ -120,10 +137,31 @@
     display: grid;
     gap: 6px;
     /* Match Game 11 */
-    padding: 20px;
+    /* ⚠️ 邊距改由 .game12-grid-inner-ring 統一提供 20px */
+    padding: 0;
     justify-content: center;
     justify-items: center;
     align-items: center;
+}
+
+/* ⚠️ 字塊出場動畫：中心點整體 XY 放大（scale 0→1），每片 0.5s；
+   延遲由 JS 依「所有字塊啟動時機壓進 0~0.5 秒」規則設定（同 game1/game2/game4）。
+   作用於 .game12-tile（外層），與翻牌動畫（.game12-tile-inner 的 rotateY）不同元素，互不衝突。 */
+.game12-tile.game12-tile-appear {
+    transform-origin: center center;
+    animation: game12-tile-grow 0.5s ease-out both;
+}
+
+@keyframes game12-tile-grow {
+    from {
+        filter: brightness(0.66);
+        transform: scale(0);
+    }
+
+    to {
+        filter: brightness(1);
+        transform: scale(1);
+    }
 }
 
 /* 翻轉字塊樣式 (完全依照 Game 11) */
@@ -168,7 +206,7 @@
 
 /* 正面 (關閉時，彩色 HSL，依照 Game 11) */
 .game12-tile-front {
-    border: 4px solid hsl(0, 0%, 10%);
+    border: 4px solid hsl(40, 40%, 33%);
 }
 
 .game12-answer-grid.is-player-phase .game12-tile-front {

@@ -86,7 +86,8 @@
 
 .game13-poem-lines span.hidden-char {
     color: var(--fm-cinnabar-bright, #c94f3d);
-    border-bottom: 2px solid var(--fm-cinnabar-bright, #c94f3d);
+    font-weight: bold;
+    /*border-bottom: 2px solid var(--fm-cinnabar-bright, #c94f3d);*/
     padding: 0 2px;
     margin: 0 2px;
 }
@@ -102,6 +103,28 @@
     align-items: center;
     justify-content: center;
     width: 100%;
+    /* ⚠️ 水平置中保底：見 game1 同款修正說明 */
+    align-self: center;
+}
+
+/* ⚠️ 三層同心圓結構（同 game1）：
+   ① 最外圈：紅色 SVG timer path（10px stroke）
+   ② 5px 間隔（由本層 padding 提供）
+   ③ 中間圈：3px 邊框 + 徑向漸層底 + border-radius 20px（.game13-answer-pool-inner-ring）
+   ④ 20px 間隔（由中間圈 padding 提供）
+   ⑤ 內圈：答案字/元資訊按鈕池（.game13-answer-pool） */
+.game13-answer-pool-container {
+    position: relative;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.game13-answer-pool-inner-ring {
+    background: radial-gradient(hsla(0, 0%, 100%, 0.0) 60%, rgba(0, 0, 0, 0.1)) 100%;
+    border: 3px solid var(--fm-border, #d8c193);
+    border-radius: 20px;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .game13-answer-pool {
@@ -110,13 +133,12 @@
     justify-content: center;
     align-content: center;
     gap: 10px;
-    margin-top: 10px;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 20px;
+    /* ⚠️ 邊距改由 .game13-answer-pool-inner-ring 統一提供 20px */
+    margin: 0;
+    padding: 0;
     max-width: 100%;
     /* 限制最大高度為約 8 行按鈕的高度，超過則捲動 */
-    height: 540px;
+    height: 500px;
     /*overflow-y: auto;*/
 }
 
@@ -153,6 +175,25 @@
     justify-content: center;
     padding-bottom: 6px;
     /* 修正文字下偏問題，將其向上推 */
+}
+
+/* ⚠️ 答案卡出場動畫：中心點整體 XY 放大（scale 0→1），每片 0.5s；
+   延遲由 JS 依「所有卡片啟動時機壓進 0~0.5 秒」規則設定（同 game1/game2/game4/game12）。 */
+.ans-btn-13.ans-btn-13-appear {
+    transform-origin: center center;
+    animation: game13-ans-grow 0.5s ease-out both;
+}
+
+@keyframes game13-ans-grow {
+    from {
+        filter: brightness(0.66);
+        transform: scale(0);
+    }
+
+    to {
+        filter: brightness(1);
+        transform: scale(1);
+    }
 }
 
 .ans-btn-13 {

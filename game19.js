@@ -1285,7 +1285,8 @@
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
                 const s = Math.round(50 + 40 * elapsed);
                 const l = Math.round(22 + 32 * elapsed);
-                rect.style.stroke = `hsl(0, ${s}%, ${l}%)`;
+                // 刻意加亮倒數框
+                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(10 + 80 * elapsed)}%)`;
             }
         },
 

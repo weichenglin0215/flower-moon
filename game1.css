@@ -89,15 +89,35 @@
     justify-content: center;
     align-items: center;
     max-width: 96%;
+    /* ⚠️ 修正水平居中：外層 .game1-area 為 flex column（cross-axis = 水平）
+       且 align-items 預設為 stretch，加上 max-width 後會靠左對齊。
+       用 align-self: center 讓 .game1-answer-area 依自身寬度居中。 */
+    align-self: center;
 }
 
+/* ⚠️ 三層同心圓結構：
+   ① 最外圈：紅色 SVG timer path（10px stroke），畫在 .game1-answer-grid-container 的外緣
+   ② 5px 間隔（由 container padding 提供）
+   ③ 中間圈：3px 邊框 + 徑向漸層底 + border-radius 20px（.game1-answer-inner-ring）
+   ④ 20px 間隔（由 inner-ring padding 提供）
+   ⑤ 內圈：4 個答案卡（.game1-answer-grid） */
 .game1-answer-grid-container {
     position: relative;
-    padding: 1px;
-    background: rgba(255, 255, 255, 0.0);
-    /*減少這一層的邊框，把空間留給答案按鍵*/
+    display: inline-block;
+    /* 讓外層 padding = 10px（timer 環寬）+ 5px（間隔）= 15px */
+    padding: 15px;
+    /* 徑向漸層底 + 3px 邊框搬到中間圈（.game1-answer-inner-ring），本層純粹只框住 timer */
+    background: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+.game1-answer-inner-ring {
+    background: radial-gradient(hsla(0, 0%, 100%, 0.0) 60%, rgba(0, 0, 0, 0.1)) 100%;
+    border: 3px solid var(--fm-border, #d8c193);
     border-radius: 20px;
-    /* 讓 SVG 定位 */
+    /* ⚠️ 內圈邊框到答案卡之間的 20px 間隔 */
+    padding: 20px;
 }
 
 /* 計時器外環 (SVG方式實現) */
@@ -126,11 +146,9 @@
 
 .game1-answer-grid {
     display: grid;
-    margin: 2px;
-    /* 整個answer-grid與周遭的間距 */
-
-    padding: 20px;
-    /*這個GRID與內容物(按鍵)的間距*/
+    margin: 0;
+    /* ⚠️ 內外邊距改由 .game1-answer-inner-ring 統一提供 20px 邊距 */
+    padding: 0;
     gap: 2px;
     /* 答案按鍵之間的間距，請設定0，讓按鍵ans-btn的 margin 自行設定即可 */
     justify-content: center;
@@ -165,6 +183,28 @@
 .game1-option-btn:hover {
     border-color: var(--fm-border-strong, #b98e50);
     background: #fffdf3;
+}
+
+/* ⚠️ 答案卡出場動畫：以自身中心點同時向上/向下 Y 放大（0.1 → 1.0），每片動畫 0.5s。
+   ⚠️ 動畫延遲由 JS 依「所有卡片啟動時機一律壓進 0~0.5 秒之間」規則設定，
+   卡片再多也不會拖長整體出場時間（例如 4 片 → 延遲 0 / 0.167 / 0.334 / 0.5）。
+   ⚠️ animation-fill-mode: both — 延遲期間即套用 from 狀態（scaleY 0.1），
+   避免「先完整顯示 → 又壓縮」的閃爍。 */
+.game1-option-btn.game1-option-appear {
+    transform-origin: center center;
+    animation: game1-option-grow 0.5s ease-out both;
+}
+
+@keyframes game1-option-grow {
+    from {
+        filter: brightness(0.66);
+        transform: scaleY(0.0);
+    }
+
+    to {
+        filter: brightness(1);
+        transform: scaleY(1);
+    }
 }
 
 .game1-option-btn.correct {

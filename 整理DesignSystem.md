@@ -316,6 +316,150 @@ CSS 端 `#gameN-timer-path` 的靜態 `stroke` 預設值也建議改用 `var(--f
 
 ---
 
+## 7.1 答案卡三層同心圓結構 + 出場放大動畫（2026-07-09 新增，game1/2/4/12/13 已落地）
+
+> 適用對象：任何用 SVG `<rect>` 畫倒數框、外面包一層答案卡容器的遊戲（`gameN-answer-grid-container` / `gameN-grid-container` / `gameN-answer-pool-container` 等）。目前已套用：**game1、game2、game4、game12、game13**。
+
+### 7.1.1 視覺結構（由外到內）
+
+```
+① 最外圈：紅色 SVG timer stroke（10px，JS 即時插值顏色/長度）
+② 5px 間隔（由外層 container 的 padding 提供）
+③ 中間圈：3px 邊框 + 徑向漸層底色 + border-radius 20px
+④ 20px 間隔（由中間圈的 padding 提供）
+⑤ 內圈：答案卡本體（grid/pool，margin/padding 皆為 0）
+```
+
+### 7.1.2 HTML 骨架
+
+```html
+<div id="gameN-xxx-container" class="gameN-xxx-container">
+    <svg id="gameN-timer-ring">
+        <rect id="gameN-timer-path" x="5" y="5"></rect>
+    </svg>
+    <div class="gameN-xxx-inner-ring">
+        <div id="gameN-answer-grid" class="gameN-answer-grid">
+            <!-- JS 動態插入答案卡 -->
+        </div>
+    </div>
+</div>
+```
+
+⚠️ `<rect>` 的 `x`/`y` 統一改為 `5`（原本各遊戲寫法不一，3/4/8 都有），搭配 `stroke-width:10`，讓 stroke 中心線落在 container 外緣 0~10px 環帶正中央。
+
+### 7.1.3 CSS 三層拆分
+
+```css
+/* ① 外層：只負責 timer 定位，透明無邊框 */
+.gameN-xxx-container {
+    position: relative;
+    display: inline-block;   /* 或視原本 layout 保留 relative 即可，見 game13 範例 */
+    padding: 15px;           /* 10px stroke + 5px 間隔 */
+    background: transparent;
+    border-radius: 0;
+}
+
+/* ③ 中間圈：視覺主體 */
+.gameN-xxx-inner-ring {
+    background: radial-gradient(hsla(0, 0%, 100%, 0.0), rgba(0, 0, 0, 0.1));
+    /* 或視遊戲原本底色維持 rgba(0,0,0,0.1~0.2) 也可，不強制换成漸層 */
+    border: 3px solid var(--fm-border, #d8c193);
+    border-radius: 20px;
+    padding: 20px;
+}
+
+/* ⑤ 內圈：答案卡容器本身，margin/padding 全部歸零（間距已由 inner-ring 提供） */
+.gameN-answer-grid {
+    display: grid; /* 或 flex，視原本排版方式 */
+    margin: 0;
+    padding: 0;
+    ...
+}
+```
+
+若原本容器是 `position:relative` 但沒有 `display:inline-block`（例如 game13 的 `.game13-answer-pool-container` 有 `width:90%` inline style），保持外層原有的 `width`/`display` 設定即可，只需加上 `padding:15px` 和 `box-sizing:border-box`。
+
+### 7.1.4 JS：timer rect 尺寸公式
+
+`updateTimerRing()` 內原本的 `w - 6` / `w - 8` 等寫法統一改為 `w - 10`（對應 stroke-width 10 + x/y=5）：
+
+```js
+rect.setAttribute('width', Math.max(0, w - 10));
+rect.setAttribute('height', Math.max(0, h - 10));
+const perimeter = (Math.max(0, w - 10) + Math.max(0, h - 10)) * 2;
+```
+
+### 7.1.5 水平置中保底
+
+若答案卡容器偏左（尤其是父層 `.gameN-area` 為 `flex-direction: column` 且本層有 `max-width` 限制時），在答案卡外層容器（`.gameN-answer-area` / `.gameN-answer-section` 等）加上：
+
+```css
+.gameN-answer-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    ...
+    align-self: center;  /* ⚠️ 保底：避免 flex column 父層下的 stretch 行為造成偏左 */
+}
+```
+
+即使原本已經置中，加這行也無副作用，建議每次套用三層結構時一併補上。
+
+### 7.1.6 答案卡出場動畫：所有卡片啟動時機壓進 0~0.5 秒、每片動畫 0.5 秒、中心點整體縮放
+
+```js
+// 渲染答案卡的迴圈內：
+const N = allChars.length; // 或候選字/字塊總數
+allChars.forEach((item, i) => {
+    const btn = document.createElement('button'); // 或 div（如 game12 的 tile）
+    ...
+    btn.classList.add('gameN-ans-appear');
+    // ⚠️ 不管 N 是多少，第一片永遠 0s、最後一片永遠 0.5s，中間平均分布
+    //   （N=1 時特判為 0，避免除以 0）
+    const delay = (N > 1) ? (i / (N - 1)) * 0.5 : 0;
+    btn.style.animationDelay = delay.toFixed(3) + 's';
+    ...
+});
+```
+
+```css
+.gameN-ans-btn.gameN-ans-appear {
+    transform-origin: center center;   /* ⚠️ 中心點整體縮放，不是由下往上「長高」 */
+    animation: gameN-ans-grow 0.5s ease-out both;
+}
+
+@keyframes gameN-ans-grow {
+    from {
+        filter: brightness(0.66);
+        transform: scale(0);   /* ⚠️ X/Y 同時縮放（scale），不要只用 scaleY 拉高 */
+    }
+    to {
+        filter: brightness(1);
+        transform: scale(1);
+    }
+}
+```
+
+**常見誤區**：
+- ❌ `animation-delay: i * 0.5s`（卡片越多，出場總時長越長）→ ✅ 應該是 `(i / (N-1)) * 0.5s`，總時長固定在 0.5 秒內。
+- ❌ `transform: scaleY(0.1) → scaleY(1)`、`transform-origin: bottom`（由下往上長高）→ ✅ `transform: scale(0) → scale(1)`、`transform-origin: center center`（中心點整體放大）。
+- ❌ 忘記 `animation-fill-mode: both` → 延遲期間卡片會先以完整大小閃現，再瞬間縮小才開始動畫，非常突兀。
+- ⚠️ 若答案卡容器本身也有其他 transform 動畫（例如 game12 的翻牌 `rotateY`），務必確認出場動畫作用在**外層**元素、翻牌動畫作用在**內層**子元素（`.gameN-tile` vs `.gameN-tile-inner`），兩者互不干擾。若誤加在同一元素上，`transform` 只會保留最後套用的一個值，導致其中一個動畫失效。
+
+### 7.1.7 順手處理：清掉無前綴全域 class 碰撞
+
+套用三層結構、重新整理 HTML 骨架時，若發現原本容器用的是無前綴的全域 class（如 `.grid-container`、`.answer-grid`、`.ans-btn`），**務必一併加上 `gameN-` 前綴**（見第 5 節），因為這類全域名稱只要兩個遊戲同時載入就會互相覆蓋樣式。本次遷移已發現並修正的碰撞：
+
+| 全域 class | 原本使用者 | 修正後 |
+|---|---|---|
+| `.grid-container` | game4、game12 同時定義 | `.game4-grid-container`、`.game12-grid-container` |
+| `.answer-grid` | game4 | `.game4-answer-grid` |
+| `.ans-btn` | game4 | `.game4-ans-btn` |
+
+（`.ans-btn-13` 因為已有 `-13` 尾綴、實務上不會與其他遊戲碰撞，這次維持原名未強制改為 `.game13-ans-btn`。）
+
+---
+
 ## 8. 難度標籤色彩：改用 `data-level` 屬性，勿用 JS inline 硬寫顏色
 
 **Before（舊寫法，會蓋掉 CSS 主題）：**
@@ -451,7 +595,9 @@ loadCSS: function () {
 | `game1.js` / `game1.css` | ✅ 已完整遷移（含詩句色、答題按鈕色、計時框 alpha-only 動畫） |
 | `game4.js` / `game4.css` | ✅ 已完整遷移 |
 | `game13.js` / `game13.css` | ✅ 已完整遷移 |
-| `game12.js` / `game12.css` | ⚠️ 僅完成 `.poem-lines`/`.poem-info` 全域污染改名（第 5 節），**尚未**套用 `.fm-*` 主題（第 3/4 節），今晚可從這款開始 |
+| `game12.js` / `game12.css` | ✅ `.fm-*` 主題與 header 已套用（早於本文件記錄）；2026-07-09 補上第 7.1 節三層同心圓結構、置中修正、字塊出場動畫，並修正 `.grid-container` 與 game4 的全域碰撞 |
+| `game2.js` / `game2.css` | 2026-07-09 補上第 7.1 節三層同心圓結構、置中修正（原本已有答案卡出場動畫） |
+| `game13.js` / `game13.css` | 2026-07-09 補上第 7.1 節三層同心圓結構、置中修正、答案卡出場動畫 |
 | 其他所有 gameN | ❌ 全數未動 |
 
 ---

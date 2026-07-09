@@ -35,10 +35,10 @@
         //singleCharReaction: 單字反應對錯，true=單字反應對錯，false=整句反應對錯
         difficultySettings: {
             '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0, singleCharReaction: true },
-            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 5, singleCharReaction: true },
-            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 7, maxAddDecoyChars: 12, showDelay: 15, singleCharReaction: false },
-            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 10, maxAddDecoyChars: 15, showDelay: 20, singleCharReaction: false },
-            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 14, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false }
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 4, singleCharReaction: true },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 6, maxAddDecoyChars: 12, showDelay: 8, singleCharReaction: false },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 6, maxAddDecoyChars: 15, showDelay: 12, singleCharReaction: false },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 6, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false }
         },
 
         // 常用字庫已移至 script.js 的 window.SharedDecoy 中
@@ -92,12 +92,18 @@
                         <div id="game4-line2" class="game4-poem-lines"></div>
                         <!-- 詩名/朝代/作者：已移至 fm-sub-header 右側，見上方 -->
                     </div>
+                    <!-- 答案區域 (含邊框倒數) — 三層同心圓結構（同 game1）：
+                         ① 最外圈：紅色 SVG timer stroke（10px）
+                         ② 中間圈：3px 邊框 + 徑向漸層底色 + border-radius 20px
+                         ③ 內圈：答案卡（20px padding） -->
                     <div class="game4-answer-section">
-                        <div id="game4-grid-container" class="grid-container">
+                        <div id="game4-grid-container" class="game4-grid-container">
                             <svg id="game4-timer-ring">
-                                <rect id="game4-timer-path" x="3" y="3"></rect>
+                                <rect id="game4-timer-path" x="5" y="5"></rect>
                             </svg>
-                            <div class="answer-grid" id="game4-grid"></div>
+                            <div class="game4-grid-inner-ring">
+                                <div class="game4-answer-grid" id="game4-grid"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -498,9 +504,15 @@
             container.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
             container.innerHTML = '';
 
-            allChars.forEach(char => {
+            const N = allChars.length;
+            allChars.forEach((char, i) => {
                 const btn = document.createElement('button');
-                btn.className = 'ans-btn';
+                btn.className = 'game4-ans-btn';
+                // ⚠️ 出場動畫：所有卡片啟動時機壓進 0~0.5 秒之間，每片動畫本身 0.5s，
+                //   中心點整體 XY 放大（scale 0→1）
+                btn.classList.add('game4-ans-appear');
+                const delay = (N > 1) ? (i / (N - 1)) * 0.5 : 0;
+                btn.style.animationDelay = delay.toFixed(3) + 's';
                 //難度是"大學"或"研究所"設定按鍵的尺寸與間距
                 if (this.difficulty === '研究所') {
                     btn.style.width = '56px';
@@ -667,10 +679,11 @@
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
 
-            rect.setAttribute('width', Math.max(0, w - 6));
-            rect.setAttribute('height', Math.max(0, h - 6));
+            // ⚠️ 對齊三層結構最外圈：rect x=5 y=5、stroke-width=10 → 覆蓋 container 外緣 10px 環帶
+            rect.setAttribute('width', Math.max(0, w - 10));
+            rect.setAttribute('height', Math.max(0, h - 10));
 
-            const perimeter = (Math.max(0, w - 6) + Math.max(0, h - 6)) * 2;
+            const perimeter = (Math.max(0, w - 10) + Math.max(0, h - 10)) * 2;
             rect.style.strokeDasharray = perimeter;
             if (mode === 'win') {
                 // 勝利動畫：黃色弧段從紅色結束點繼續，顯示剩餘時間，順時針縮短至消失
@@ -684,7 +697,6 @@
                 rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                //rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
                 rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
             }
         },

@@ -114,13 +114,32 @@
     justify-content: center;
     align-items: center;
     width: 100%;
+    /* ⚠️ 水平置中保底：父層 .game2-area 為 flex column，align-items 預設 stretch，
+       若本層有 max-width 限制會偏左，用 align-self:center 保證置中（同 game1）。 */
+    align-self: center;
 }
 
+/* ⚠️ 三層同心圓結構（同 game1）：
+   ① 最外圈：紅色 SVG timer path（10px stroke），畫在本層外緣
+   ② 5px 間隔（由本層 padding 提供）
+   ③ 中間圈：3px 邊框 + 徑向漸層底 + border-radius 20px（.game2-answer-inner-ring）
+   ④ 20px 間隔（由中間圈 padding 提供）
+   ⑤ 內圈：答案卡（.game2-answer-grid） */
 .game2-answer-grid-container {
     position: relative;
-    background: rgba(0, 0, 0, 0.2);
+    display: inline-block;
+    /* 10px（timer 環寬）+ 5px（間隔）= 15px */
+    padding: 15px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+.game2-answer-inner-ring {
+    background: radial-gradient(hsla(0, 0%, 100%, 0.0) 60%, rgba(0, 0, 0, 0.1)) 100%;
+    border: 3px solid var(--fm-border, #d8c193);
     border-radius: 20px;
-    /* 讓 SVG 定位 */
+    padding: 20px;
 }
 
 /* 計時器外環 (SVG方式實現) */
@@ -148,11 +167,9 @@
 
 .game2-answer-grid {
     display: grid;
-    margin: 0px;
-    /* 整個answer-grid與周遭的間距 */
-
-    padding: 20px;
-    /*這個GRID與內容物(按鍵)的間距*/
+    margin: 0;
+    /* ⚠️ 邊距改由 .game2-answer-inner-ring 統一提供 20px */
+    padding: 0;
     gap: 1px;
     /* 答案按鍵之間的間距，請設定0，讓按鍵ans-btn的 margin 自行設定即可 */
     justify-content: center;
@@ -184,6 +201,28 @@
 
 .game2-ans-btn:active {
     transform: scale(0.9);
+}
+
+/* ⚠️ 答案卡出場動畫：以自身中心點整體 XY 放大（scale 0 → 1），每片動畫 0.5s。
+   ⚠️ 動畫延遲由 JS 依「所有卡片啟動時機一律壓進 0~0.5 秒之間」規則設定，
+   卡片再多也不會拖長整體出場時間。
+   ⚠️ animation-fill-mode: both — 延遲期間即套用 from 狀態（scale 0），
+   避免「先完整顯示 → 又縮回」的閃爍。 */
+.game2-ans-btn.game2-ans-appear {
+    transform-origin: center center;
+    animation: game2-ans-grow 0.5s ease-out both;
+}
+
+@keyframes game2-ans-grow {
+    from {
+        filter: brightness(0.66);
+        transform: scale(0);
+    }
+
+    to {
+        filter: brightness(1);
+        transform: scale(1);
+    }
 }
 
 .game2-ans-btn.disabled {

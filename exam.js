@@ -454,7 +454,7 @@
             rect.style.strokeDashoffset = perimeter * clamped;
             // 暗紅 → 鮮紅（越接近時間到越紅）
             const elapsed = 1 - clamped;
-            rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+            rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
         },
 
         _onAnswer: function (btn, text) {

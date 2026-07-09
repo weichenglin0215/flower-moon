@@ -102,14 +102,20 @@
                         <!-- 詩名/朝代/作者：已移至 fm-sub-header 右側，見上方 -->
                     </div>
 
-                    <!-- 答案區域 (含邊框倒數) -->
+                    <!-- 答案區域 (含邊框倒數)
+                         三層結構：
+                         ① 最外圈：紅色 SVG timer stroke（10px）
+                         ② 中間圈：3px 邊框 + 徑向漸層底色 + border-radius 20px
+                         ③ 內圈：4 個答案卡（20px padding） -->
                     <div class="game1-answer-area">
                         <div id="game1-answer-grid-container" class="game1-answer-grid-container">
                             <svg id="game1-timer-ring">
-                                <rect id="game1-timer-path" x="4" y="4"></rect>
+                                <rect id="game1-timer-path" x="5" y="5"></rect>
                             </svg>
-                            <div id="game1-answer-grid" class="game1-answer-grid">
-                                <!-- JS 動態插入 -->
+                            <div class="game1-answer-inner-ring">
+                                <div id="game1-answer-grid" class="game1-answer-grid">
+                                    <!-- JS 動態插入 -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -525,13 +531,20 @@
             // 每次生成選項時重置 SVG 大小
             setTimeout(() => this.updateTimerRing(1), 0);
 
-            this.currentOptions.forEach(opt => {
+            const N = this.currentOptions.length;
+            this.currentOptions.forEach((opt, i) => {
                 const btn = document.createElement('button');
                 btn.className = 'game1-option-btn';
                 btn.textContent = opt.text;
                 // 動態縮小字體
                 this.adjustFontSize(btn, opt.text.length, 7, 2.0);
                 btn.dataset.isCorrect = opt.isCorrect; // 標記是否正確
+                // ⚠️ 出場動畫：所有卡片的啟動時機都被壓進 0~0.5 秒之間
+                //   （不管幾片，第一片延遲 0、最後一片延遲 0.5s；中間平均分布）
+                //   每片動畫本身仍為 0.5s，從中心點同時向上/向下放大（scaleY 0.1→1）
+                btn.classList.add('game1-option-appear');
+                const delay = (N > 1) ? (i / (N - 1)) * 0.5 : 0;
+                btn.style.animationDelay = delay.toFixed(3) + 's';
                 btn.addEventListener('click', () => {
                     if (window.SoundManager) {
                         if (opt.isCorrect) window.SoundManager.playSuccess();
@@ -582,10 +595,11 @@
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
 
-            // 邊框預留 (stroke-width: 8) -> 2px margin inside
-            // Rect 實際大小
-            const rw = w - 8;
-            const rh = h - 8;
+            // ⚠️ Timer rect 對齊三層結構的最外圈：rect x=5 y=5，stroke-width=10
+            //   → stroke 中心線於 (5, 5) 位置，向外 5px + 向內 5px = 覆蓋 0~10 這一圈
+            //   → 剛好落在 container 外緣 10px 帶狀區
+            const rw = w - 10;
+            const rh = h - 10;
             if (rw < 0 || rh < 0) return;
 
             rect.setAttribute('width', rw);

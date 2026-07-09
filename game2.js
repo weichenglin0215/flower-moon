@@ -88,13 +88,19 @@
                         <div id="game2-line2" class="game2-poem-lines"></div>
                         <!-- 詩名/朝代/作者：已移至 fm-sub-header 右側，見上方 -->
                     </div>
+                    <!-- 答案區域 (含邊框倒數) — 三層同心圓結構（同 game1）：
+                         ① 最外圈：紅色 SVG timer stroke（10px）
+                         ② 中間圈：3px 邊框 + 徑向漸層底色 + border-radius 20px
+                         ③ 內圈：答案卡（20px padding） -->
                     <div class="game2-answer-area">
                         <div id="game2-answer-grid-container" class="game2-answer-grid-container">
                             <svg id="game2-timer-ring">
-                                <rect id="game2-timer-path" x="4" y="4"></rect>
+                                <rect id="game2-timer-path" x="5" y="5"></rect>
                             </svg>
-                            <div class="game2-answer-grid" id="game2-answer-grid">
-                                <!-- JS 動態插入 -->
+                            <div class="game2-answer-inner-ring">
+                                <div class="game2-answer-grid" id="game2-answer-grid">
+                                    <!-- JS 動態插入 -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -511,10 +517,17 @@
                 this.currentGridChars = allChars;
             }
 
-            allChars.forEach(char => {
+            const N = allChars.length;
+            allChars.forEach((char, i) => {
                 const btn = document.createElement('button');
                 btn.className = 'game2-ans-btn';
                 btn.textContent = char;
+                // ⚠️ 出場動畫：所有卡片的啟動時機都壓進 0~0.5 秒之間
+                //   （第一片 0s、最後一片 0.5s，其餘平均分布），每片動畫 0.5s
+                //   從中心點整體 XY 放大（scale 0.0 → 1.0）
+                btn.classList.add('game2-ans-appear');
+                const delay = (N > 1) ? (i / (N - 1)) * 0.5 : 0;
+                btn.style.animationDelay = delay.toFixed(3) + 's';
                 // 如果是 retry，且該字已經被正確輸入過了，則需要標記為 disabled
                 // 但為了簡單起見，retry 時 currentInputIndex 被重置為 0 了，所以全部按鈕都是可用狀態
                 btn.onclick = (e) => {
@@ -609,10 +622,11 @@
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
 
-            rect.setAttribute('width', w - 8);
-            rect.setAttribute('height', h - 8);
+            // ⚠️ 對齊三層結構最外圈：rect x=5 y=5、stroke-width=10 → 覆蓋 container 外緣 10px 環帶
+            rect.setAttribute('width', w - 10);
+            rect.setAttribute('height', h - 10);
 
-            const perimeter = (w - 8 + h - 8) * 2;
+            const perimeter = (w - 10 + h - 10) * 2;
             rect.style.strokeDasharray = perimeter;
             if (mode === 'win') {
                 // 勝利動畫：黃色弧段從紅色結束點繼續，顯示剩餘時間，順時針縮短至消失
@@ -626,7 +640,7 @@
                 rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
             }
         },
 

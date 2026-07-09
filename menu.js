@@ -101,6 +101,7 @@
             if (item.image) {
                 const imgWrapper = document.createElement('div');
                 imgWrapper.className = 'menu-item-img-wrap';
+                imgWrapper.title = item.page;
                 const img = document.createElement('img');
                 img.src = item.image;
                 img.alt = item.label;
@@ -115,6 +116,7 @@
             } else {
                 const imgWrapper = document.createElement('div');
                 imgWrapper.className = 'menu-item-img-wrap menu-item-img-placeholder';
+                imgWrapper.title = item.page;
                 cell.appendChild(imgWrapper);
             }
 

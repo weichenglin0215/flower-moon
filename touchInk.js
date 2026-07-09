@@ -26,7 +26,7 @@
     var MAX_DPR = 1.5;              // canvas 解析度倍率上限
     var SPAWN_SPACING = 3;          // 拖曳時每移動多少 px 生成一顆粒子
     var SPAWN_PER_EVENT = 1;        // 單次 move 事件最多生成顆數（防止快速滑動爆量）
-    var GRAVITY = 36;               // 每秒往下的重力加速度（px/s^2）
+    var GRAVITY = 96;               // 每秒往下的重力加速度（px/s^2）
     var MAX_FALL_SPEED = 120;        // 下落終端速度（px/s），維持「慢慢散落」
     var DRAG = 0.2;                // 每秒速度阻尼（模擬水的黏滯感）
     var SWAY_AMP_MIN = 3;           // 水波紋左右擺動振幅下限（px/s）
@@ -34,10 +34,10 @@
     var STIR_RADIUS = 90;          // 手指攪動影響半徑（px）
     var STIR_PUSH = 0.2;           // 手指移動速度傳遞給粒子的比例（推力）
     var STIR_SWIRL = 9;            // 繞著手指旋轉的切線力道（px/s^2）
-    var LIFE_MIN = 1.0;             // 粒子壽命下限（秒）
-    var LIFE_MAX = 3.0;             // 粒子壽命上限（秒）
+    var LIFE_MIN = 0.5;             // 粒子壽命下限（秒）
+    var LIFE_MAX = 2.0;             // 粒子壽命上限（秒）
     var SIZE_MIN = 1.0;             // 粒子半徑下限（px）
-    var SIZE_MAX = 3.0;               // 粒子半徑上限（px）
+    var SIZE_MAX = 5.0;               // 粒子半徑上限（px）
     var COLOR_SAMPLE_MS = 500;      // 畫面顏色取樣節流間隔（毫秒），半秒一次即可
     var COLOR_JITTER = 0.8;        // 取樣色的隨機變化幅度（±30%）
     var LINE_RATIO = 0.4;           // 每顆粒子有 40% 機率生成為線條型（否則為圓點）

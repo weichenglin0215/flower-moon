@@ -1169,7 +1169,8 @@
                 rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
+                // 刻意加亮倒數框
+                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(10 + 80 * elapsed)}%)`;
             }
         },
 
