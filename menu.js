@@ -52,6 +52,7 @@
         { page: 'leaderboard', label: '群英榜', image: 'images/Menu/群英榜_Menu256.jpg' },
         { page: 'collection', label: '江南小院', image: 'images/Menu/江南小院_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
+        { page: 'wordcloud', label: '文字雲', image: 'images/Menu/文字雲_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
@@ -319,6 +320,25 @@
         } catch (e) { console.warn('[Menu] 隱藏名人列傳失敗', e); }
 
         try {
+            if (window.WordCloud && typeof window.WordCloud.stopGame === 'function') {
+                window.WordCloud.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏文字雲失敗', e); }
+
+        // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
+        try {
+            if (window.LeaderboardDialog && typeof window.LeaderboardDialog.hide === 'function') {
+                window.LeaderboardDialog.hide();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏群英榜失敗', e); }
+
+        try {
+            if (window.CollectionDialog && typeof window.CollectionDialog.hide === 'function') {
+                window.CollectionDialog.hide();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏江南小院失敗', e); }
+
+        try {
             if (window.PoemDialog && typeof window.PoemDialog.close === 'function') {
                 window.PoemDialog.close();
             }
@@ -565,6 +585,10 @@
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();
                         else window.location.href = 'index.html?page=author-bio';
+                        break;
+                    case 'wordcloud':
+                        if (window.WordCloud) window.WordCloud.show();
+                        else window.location.href = 'index.html?page=wordcloud';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();
