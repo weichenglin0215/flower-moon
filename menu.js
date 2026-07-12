@@ -48,6 +48,7 @@
         { page: 'game33', label: '作者是誰', image: 'images/Menu/作者是誰_Menu256.jpg' },
         { page: 'game34', label: '猜猜詩題', image: 'images/Menu/猜猜詩題_Menu256.jpg' },
         { page: 'game35', label: '詩人心情', image: 'images/Menu/詩人心情_Menu256.jpg' },
+        { page: 'game36', label: '轉輪覓詩', image: 'images/Menu/轉輪覓詩_Menu256.jpg' },
         { page: 'achievements', label: '成就紀錄', image: 'images/Menu/成就與紀錄_Menu256.jpg' },
         { page: 'leaderboard', label: '群英榜', image: 'images/Menu/群英榜_Menu256.jpg' },
         { page: 'collection', label: '江南小院', image: 'images/Menu/江南小院_Menu256.jpg' },
@@ -290,7 +291,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -581,6 +582,10 @@
                     case 'game35':
                         if (window.Game35) window.Game35.show();
                         else window.location.href = 'index.html?game=35';
+                        break;
+                    case 'game36':
+                        if (window.Game36) window.Game36.show();
+                        else window.location.href = 'index.html?game=36';
                         break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();

@@ -68,7 +68,8 @@ const ScoreManager = {
         'game32': { base: 100, heart: 10, time: 0, getPointA: 1 }, //尋詩地圖（地圖故事）
         'game33': { base: 100, heart: 10, time: 0, getPointA: 1 }, //作者是誰（風格辨識）
         'game34': { base: 100, heart: 10, time: 0, getPointA: 1 }, //猜猜詩題（標題配對）
-        'game35': { base: 100, heart: 10, time: 0, getPointA: 1 } //詩人心情（情境推理）
+        'game35': { base: 100, heart: 10, time: 0, getPointA: 1 }, //詩人心情（情境推理）
+        'game36': { base: 100, heart: 0, time: 2, getPointA: 0 } //轉輪覓詩（Wordle 推理，無紅心，時限只給時間加成）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別

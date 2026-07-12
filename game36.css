@@ -1,0 +1,360 @@
+/* ============================================================================
+ * game36.css — 轉輪覓詩 (Poetry Wordle)
+ * ----------------------------------------------------------------------------
+ * 美術完全沿用 game1 米白宣紙主題（theme_xuanzhi.css 的 --fm-* 變數），
+ * 僅新增 game36- 前綴的版面配置 class，不自創新色系。使用 px（由 #stage scale 縮放）。
+ * fm-overlay / fm-header / fm-scoreboard / fm-controls / fm-nav-btn /
+ * fm-difficulty-tag / fm-sub-header / fm-poem-info 皆繼承共用主題。
+ * ========================================================================== */
+
+.game36-overlay.hidden { display: none; }
+
+/* 內容自頂端排起，填滿 500×850（覆寫 fm-overlay 的垂直置中，避免頂部留白）*/
+.game36-overlay {
+    justify-content: flex-start;
+}
+
+/* ── 副標：已嘗試次數（左） + 詩詞資訊（右）── */
+.game36-tries {
+    font-size: 14px;
+    color: var(--fm-ink-faint, #6b5836);
+    white-space: nowrap;
+    padding-left: 4px;
+}
+
+/* ── 正確答案區（頂端常駐 7 格摘要，僅顯示已知綠字）── */
+.game36-solved-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 0 2px;
+}
+.game36-solved-label {
+    font-size: 13px;
+    color: var(--fm-ink-faint, #8a7550);
+    margin-bottom: 4px;
+    letter-spacing: 4px;
+}
+.game36-solved-row {
+    display: grid;
+    gap: 8px;
+    /* grid-template-columns 由 JS 設定 */
+}
+.game36-solved-cell {
+    /* 空格：faint 虛線，象徵「待猜出」*/
+    background: transparent;
+    border: 2px dashed var(--fm-border, #d8c193);
+}
+.game36-solved-cell.g-green {
+    background: var(--fm-correct-bg, #e4f0e2);
+    border: 2px solid var(--fm-correct-border, #7cbf93);
+    color: var(--fm-correct-text, #245c3c);
+    box-shadow: 0 0 6px hsla(150, 60%, 45%, 0.35);
+}
+
+/* ── 判定網格區 ── */
+.game36-grid-area {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0 6px;
+}
+
+/* 網格檢視窗（固定尺寸，內部可捲動；四周為計時邊框）*/
+.game36-grid-viewport {
+    position: relative;
+    box-sizing: border-box;
+    margin: 0 auto;
+    /* height 由 JS 依 5.5 列動態設定 */
+}
+
+.game36-grid-scroll {
+    position: absolute;
+    inset: 8px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px;
+    -webkit-overflow-scrolling: touch;
+    /* 隱藏捲軸，但保留手指上下拖曳捲動 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-behavior: smooth;
+}
+.game36-grid-scroll::-webkit-scrollbar { display: none; }
+
+.game36-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.game36-row {
+    display: grid;
+    gap: 8px;
+}
+
+/* 單一格子（字體約格子的 90%，由 JS 動態設定）*/
+.game36-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--fm-ink, #2e241b);
+    background: var(--fm-paper-card, #fbf5e6);
+    border: 2px solid var(--fm-border, #d8c193);
+    border-radius: 8px;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+/* 五言居中填入時左右留下的空白格：faint 虛線，永不染色 */
+.game36-cell-empty {
+    background: transparent;
+    border: 2px dashed var(--fm-hairline, hsla(38, 50%, 31%, 0.16));
+}
+
+/* 開局預先渲染的 6 列虛線佔位（讓玩家一眼看到題目區）*/
+.game36-row-placeholder {
+    opacity: 0.85;
+}
+.game36-cell-placeholder {
+    background: transparent;
+    border: 2px dashed var(--fm-border, #d8c193);
+    opacity: 0.55;
+}
+
+/* 翻牌動畫：翻至中點時內容/顏色已切換 */
+.game36-cell.reveal {
+    animation: game36-flip 0.42s ease;
+}
+@keyframes game36-flip {
+    0%   { transform: rotateX(0deg); }
+    50%  { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+}
+
+/* 三色判定（全數沿用 game1 既有語意色）*/
+.game36-cell.g-green {
+    background: var(--fm-correct-bg, #e4f0e2);
+    border-color: var(--fm-correct-border, #7cbf93);
+    color: var(--fm-correct-text, #245c3c);
+}
+.game36-cell.g-blue {
+    background: var(--fm-hint-bg, #e2eaf4);
+    border-color: var(--fm-hint-border, #8ba6cf);
+    color: var(--fm-hint-text, #2d3f66);
+}
+.game36-cell.g-gray {
+    background: var(--fm-paper-deep, #e6d9b8);
+    border-color: var(--fm-border, #d8c193);
+    color: var(--fm-ink-faint, #8a7550);
+}
+
+/* 計時邊框 SVG（沿用 game1 三層結構）*/
+#game36-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+#game36-timer-path {
+    fill: none;
+    stroke: hsla(0, 90%, 50%, 0.05);
+    stroke-width: 10;
+    rx: 16;
+    ry: 16;
+    transition: stroke-dashoffset 0.1s linear, stroke 0.3s ease;
+}
+
+/* ── 詩句轉輪區 ── */
+.game36-reel-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 4px;
+}
+
+.game36-reel {
+    position: relative;
+    width: 440px;
+    height: 210px;
+    overflow: hidden;
+    touch-action: none;   /* 完全接管垂直手勢，避免瀏覽器捲頁 */
+    /* 上下漸層遮罩，強化滾筒縱深 */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+
+/* 命中窗口（中央高亮框）*/
+.game36-reel-window {
+    position: absolute;
+    left: 50%;
+    top: 105px;
+    transform: translate(-50%, -50%);
+    width: 430px;
+    height: 58px;
+    border: 2px solid var(--fm-border-strong, #b98e50);
+    border-radius: 10px;
+    background: var(--fm-veil, hsla(38, 50%, 31%, 0.06));
+    pointer-events: none;
+    z-index: 1;
+}
+
+.game36-reel-items {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+}
+
+.game36-reel-item {
+    position: absolute;
+    left: 50%;
+    top: 105px;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+    font-size: 40px;
+    color: var(--fm-ink-soft, #4a3a26);
+    cursor: pointer;
+    padding: 4px 12px;
+    letter-spacing: 3px;
+    will-change: top, transform, opacity;
+}
+
+/* 命中窗口中的候選：最大最清晰，宣紙卡片浮起 */
+.game36-reel-item.center {
+    font-size: 54px;
+    font-weight: 700;
+    color: var(--fm-ink, #2e241b);
+    background: var(--fm-paper-card, #fbf5e6);
+    border: 2px solid var(--fm-border-strong, #b98e50);
+    border-radius: 10px;
+    box-shadow: var(--fm-shadow-soft, 0 2px 6px hsla(38, 50%, 31%, 0.2));
+}
+
+/* 已猜過的候選：右側硃紅勾銷標記 */
+.game36-reel-item.guessed::after {
+    content: '✓';
+    color: var(--fm-cinnabar, #c0392b);
+    margin-left: 8px;
+    font-size: 0.8em;
+    opacity: 0.85;
+}
+
+.game36-hint {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--fm-ink-faint, #8a7550);
+    user-select: none;
+}
+
+/* ── 手動輸入按鈕 ── */
+.game36-manual-btn {
+    margin-top: 4px;
+    font-size: 14px;
+    padding: 6px 18px;
+}
+
+/* ── 手動輸入彈窗（掛在遊戲區上半，不遮蔽正確答案區與判定網格頂端）── */
+.game36-manual-overlay {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 200px;              /* 對齊正確答案區下方，不遮蔽頂端摘要 */
+    padding: 16px 18px 18px;
+    background: var(--fm-paper-card, #fbf5e6);
+    border: 3px solid var(--fm-border-strong, #b98e50);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px hsla(38, 60%, 20%, 0.35);
+    z-index: 50;
+    color: var(--fm-ink, #2e241b);
+}
+.game36-manual-overlay.hidden { display: none; }
+
+.game36-manual-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--fm-gold, #a37a1a);
+    letter-spacing: 4px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.game36-manual-blue-label {
+    font-size: 12px;
+    color: var(--fm-ink-faint, #8a7550);
+    margin-bottom: 4px;
+    letter-spacing: 2px;
+    text-align: center;
+}
+.game36-manual-blue-row {
+    display: grid;
+    gap: 6px;
+    justify-content: center;
+    margin: 4px auto 12px;
+}
+.game36-manual-blue-cell {
+    padding: 0;
+    line-height: 1;
+    /* 空格顯示為 faint 虛線占位 */
+    background: transparent;
+    border: 2px dashed var(--fm-hairline, hsla(38, 50%, 31%, 0.16));
+}
+.game36-manual-blue-cell.g-blue {
+    background: var(--fm-hint-bg, #e2eaf4);
+    border: 2px solid var(--fm-hint-border, #8ba6cf);
+    color: var(--fm-hint-text, #2d3f66);
+}
+
+.game36-manual-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 6px;
+}
+.game36-manual-input {
+    flex: 1;
+    font-size: 22px;
+    padding: 8px 12px;
+    border: 2px solid var(--fm-border, #d8c193);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--fm-ink, #2e241b);
+    text-align: center;
+    letter-spacing: 3px;
+    font-family: inherit;
+    outline: none;
+}
+.game36-manual-input:focus {
+    border-color: var(--fm-border-strong, #b98e50);
+}
+.game36-manual-input-error {
+    border-color: var(--fm-cinnabar, #c0392b) !important;
+    animation: game36-shake 0.4s ease;
+}
+@keyframes game36-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+}
+
+.game36-manual-confirm {
+    font-size: 16px;
+    padding: 8px 18px;
+    flex: 0 0 auto;
+}
+
+.game36-manual-close {
+    position: absolute;
+    right: 8px;
+    top: 4px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    font-size: 24px;
+    color: var(--fm-ink-faint, #8a7550);
+    cursor: pointer;
+    line-height: 1;
+}
+.game36-manual-close:hover { color: var(--fm-cinnabar, #c0392b); }

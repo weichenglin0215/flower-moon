@@ -555,24 +555,46 @@
             const q = this.questions[this.currentQuestionIdx];
             const line = this.poemLines[q.lineIdx] || '';
             const settings = this.difficultySettings[this.difficulty];
+            // 玩家按下的位置目前顯示的字（詩眼位置 = 替身字；其他位置 = 原詩字）
+            const shownChar = (charIdx === q.charIdx) ? q.decoy : line[charIdx];
             let base;
             if (charIdx === q.charIdx) {
-                // 詩眼字：候選集含正解
+                // 詩眼字位置：候選集含正解，排除替身字（pickDistractors 已排除 q.decoy）
                 base = [q.original].concat(this.pickDistractors(q.original, q.decoy, 3, settings.distractorLevel));
             } else {
-                // 非詩眼字：以該位置的原字為基準生成干擾，「不」放入詩眼原字 q.original
-                const shownChar = line[charIdx];
-                let distractors = this.pickDistractors(shownChar, q.original, 3, settings.distractorLevel);
-                // 保險：若干擾中混入 q.original，過濾掉並補一個雜項字
-                distractors = distractors.filter(c => c !== q.original);
-                while (distractors.length < 3) {
+                // 非詩眼字位置：候選集不含 shownChar（玩家按下的字）也不含 q.original（不能誤導）
+                let distractors = this.pickDistractors(shownChar, q.original, 4, settings.distractorLevel);
+                distractors = distractors.filter(c => c !== q.original && c !== shownChar && c !== q.decoy);
+                while (distractors.length < 4) {
                     const pool = this.decoyPool['其他'];
                     const pick = pool[Math.floor(Math.random() * pool.length)];
-                    if (pick !== q.original && pick !== shownChar && !distractors.includes(pick)) distractors.push(pick);
+                    if (pick !== q.original && pick !== shownChar && pick !== q.decoy && !distractors.includes(pick)) distractors.push(pick);
                 }
-                base = [shownChar].concat(distractors.slice(0, 3));
+                base = distractors.slice(0, 4);
+            }
+            // 保險：任何情況下都移除 shownChar（要求 §5）
+            base = base.filter(c => c !== shownChar);
+            // 若過濾後不足 4 個（例：shownChar 恰好在裡面被剔除）用「其他」池補齊
+            while (base.length < 4) {
+                const pool = this.decoyPool['其他'];
+                const pick = pool[Math.floor(Math.random() * pool.length)];
+                if (pick !== shownChar && pick !== q.decoy && (charIdx === q.charIdx ? true : pick !== q.original) && !base.includes(pick)) {
+                    base.push(pick);
+                }
             }
             this.currentCandidates = this.shuffle(base);
+            // 要求 §4：詩眼位置的正解不能停在中央（提交預設位置），強制玩家至少拖曳一次
+            if (charIdx === q.charIdx) {
+                const N = this.currentCandidates.length;
+                const centerIdx = Math.floor(N / 2);
+                if (this.currentCandidates[centerIdx] === q.original) {
+                    // 與非中央隨機位置對調
+                    let swapIdx;
+                    do { swapIdx = Math.floor(Math.random() * N); } while (swapIdx === centerIdx);
+                    [this.currentCandidates[centerIdx], this.currentCandidates[swapIdx]]
+                        = [this.currentCandidates[swapIdx], this.currentCandidates[centerIdx]];
+                }
+            }
         },
 
         onDragMove: function (e) {
@@ -697,15 +719,13 @@
             this.hideCandidates();
 
             if (pickedRightDecoy && pickedRightOriginal) {
-                // 全對：滲血碎裂(取消) + 毛筆原字浮現 + 典故卡
+                // 全對：綠字綻放動畫（0.6s 毛筆浮現 + 綠色外框）
                 if (window.SoundManager) window.SoundManager.playSuccess();
                 if (decoyEl) {
-                    //decoyEl.classList.add('game31-bleed'); //滲血碎裂(取消)
+                    // 替換替身字為原字並移除替身樣式，讓綠字 reveal 動畫獨秀
                     decoyEl.textContent = q.original;
-                    setTimeout(() => {
-                        //decoyEl.classList.remove('game31-bleed', 'game31-decoy', 'game31-decoy-hint'); //滲血碎裂(取消)
-                        decoyEl.classList.add('game31-reveal');
-                    }, 600);
+                    decoyEl.classList.remove('game31-decoy', 'game31-decoy-hint');
+                    decoyEl.classList.add('game31-reveal');
                 }
                 // 加分
                 const pts = (window.ScoreManager && window.ScoreManager.gameSettings.game31)
@@ -713,11 +733,13 @@
                 this.score += pts;
                 document.getElementById('game31-score').textContent = this.score;
 
-                //this.showLoreCard(q.original, q.lore, () => {
-                //    this.isAnimating = false;
-                //    //this.nextQuestion();
-                //});
-                this.nextQuestion();
+                // 延遲切題：等綠字 reveal 動畫（0.6s）表演完再進入下一題
+                //   ⚠️ 若不 delay，nextQuestion 會立即 innerHTML='' 抹掉正在進行的動畫
+                //   ⚠️ 也要在此重置 isAnimating（原本 lore 卡 callback 的責任已消失）
+                setTimeout(() => {
+                    this.isAnimating = false;
+                    this.nextQuestion();
+                }, 900);
 
             } else {
                 // 答錯：紅光閃爍 + 扣心 + 揭示
@@ -754,13 +776,58 @@
         },
 
         nextQuestion: function () {
-            this.currentQuestionIdx++;
-            if (this.currentQuestionIdx >= this.questions.length) {
-                this.gameOver(true, '');
-                return;
-            }
-            this.renderCurrentQuestion();
-            this.updateProgressText();
+            // 舊句先左至右一格一格縮小消失（0.05s 錯開、每格 0.3s），
+            // 再切換並讓新句以相同節奏放大浮現。避免題目間的視覺跳切。
+            this._animateVerseOut(() => {
+                this.currentQuestionIdx++;
+                if (this.currentQuestionIdx >= this.questions.length) {
+                    this.gameOver(true, '');
+                    return;
+                }
+                this.renderCurrentQuestion();
+                this.updateProgressText();
+                this._animateVerseIn();
+            });
+        },
+
+        // 舊句消失：由左至右依序 scale→0
+        _animateVerseOut: function (done) {
+            const cells = document.querySelectorAll('#game31-verse .game31-verse-cell');
+            if (!cells.length) { done && done(); return; }
+            const stagger = 50, dur = 300;
+            cells.forEach((cell, i) => {
+                setTimeout(() => {
+                    cell.style.transition = `transform ${dur}ms ease-in, opacity ${dur}ms ease-in`;
+                    cell.style.transformOrigin = 'center center';
+                    cell.style.transform = 'scale(0)';
+                    cell.style.opacity = '0';
+                }, i * stagger);
+            });
+            const total = (cells.length - 1) * stagger + dur + 40;
+            setTimeout(() => { done && done(); }, total);
+        },
+
+        // 新句浮現：初始 scale=0，由左至右依序 scale→1
+        _animateVerseIn: function () {
+            const cells = document.querySelectorAll('#game31-verse .game31-verse-cell');
+            if (!cells.length) return;
+            const stagger = 50, dur = 300;
+            // 先全部設為隱藏（不觸發過渡）
+            cells.forEach(cell => {
+                cell.style.transition = 'none';
+                cell.style.transformOrigin = 'center center';
+                cell.style.transform = 'scale(0)';
+                cell.style.opacity = '0';
+            });
+            // 強制重排以套用初始狀態
+            void document.getElementById('game31-verse').offsetHeight;
+            cells.forEach((cell, i) => {
+                setTimeout(() => {
+                    cell.style.transition = `transform ${dur}ms ease-out, opacity ${dur}ms ease-out`;
+                    cell.style.transform = 'scale(1)';
+                    cell.style.opacity = '1';
+                }, i * stagger);
+            });
         },
 
         /* 顯示煉字典故卡 */
