@@ -69,7 +69,7 @@ const ScoreManager = {
         'game33': { base: 100, heart: 10, time: 0, getPointA: 1 }, //作者是誰（風格辨識）
         'game34': { base: 100, heart: 10, time: 0, getPointA: 1 }, //猜猜詩題（標題配對）
         'game35': { base: 100, heart: 10, time: 0, getPointA: 1 }, //詩人心情（情境推理）
-        'game36': { base: 100, heart: 0, time: 2, getPointA: 0 } //轉輪覓詩（Wordle 推理，無紅心，時限只給時間加成）
+        'game36': { base: 100, heart: 0, time: 0.5, getPointA: 0 } //轉輪覓詩（Wordle 推理，無紅心，時限只給時間加成）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
@@ -604,7 +604,8 @@ const ScoreManager = {
             if (scoreBoard) {
                 const mulTip = document.createElement('span');
                 mulTip.textContent = ` × ${multiplier}`;
-                mulTip.style.color = '#f1c40f';
+                // 樣式（金黃色）改由 theme_xuanzhi.css 的 .fm-score-multiplier 提供
+                mulTip.className = 'fm-score-multiplier';
                 scoreBoard.appendChild(mulTip);
                 setTimeout(() => mulTip.remove(), 1500);
             }
@@ -755,6 +756,28 @@ const ScoreManager = {
     },
 
     /**
+     * 讀取飛行星星的基準色。
+     * 來源：theme_xuanzhi.css 的 --fm-star-gold（與 .flying-star 的後備色一致）。
+     * 解析成 { h, s, l }（皆為數值）供逐顆星星抖動使用；解析失敗時回退到金黃預設，
+     * 確保即使主題未載入或變數異常，星星仍為可見的金黃色而非黑色。
+     */
+    getStarBaseColor: function () {
+        const fallback = { h: 45, s: 100, l: 60 }; // 金黃後備色
+        try {
+            const raw = getComputedStyle(document.documentElement)
+                .getPropertyValue('--fm-star-gold').trim();
+            // 支援 hsl()/hsla() 形式，例如 hsl(30, 95%, 55%)
+            const m = raw.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i);
+            if (m) {
+                return { h: parseFloat(m[1]), s: parseFloat(m[2]), l: parseFloat(m[3]) };
+            }
+        } catch (e) {
+            /* 忽略解析錯誤，改用後備色 */
+        }
+        return fallback;
+    },
+
+    /**
      * 創建一顆飛行的星星從計時器飛向分數面板
      */
     createFlyingStar: function (containerId, scoreElementId, ratio, onLand, customStartPoint) {
@@ -797,11 +820,16 @@ const ScoreManager = {
         star.textContent = '★';
         star.style.left = pxToRem(p0.x);
         star.style.top = pxToRem(p0.y);
-        // 每顆星星隨機微變：色相 ±15%(基準60→51~69)、飽和度 ±15%(基準100→85~100)、尺寸 ±30%(基準2rem→1.4~2.6rem)
-        const hueJitter = 60 + (Math.random() - 0.5) * 20;          // 41 ~ 79
-        const lumJitter = Math.max(50, 50 + Math.random() * 30);  // 85 ~ 100
+        // 每顆星星隨機微變：以 theme_xuanzhi.css 的 --fm-star-gold 為基準色，
+        // 再對「色相 ±10、飽和度 ±15、亮度 +0~30」做隨機抖動，讓星群有層次。
+        // 基準色不再寫死；改由 getStarBaseColor() 從 CSS 變數解析取得。
+        const base = this.getStarBaseColor();
+        const hueJitter = base.h + (Math.random() - 0.5) * 60;                                   // 基準色相 ±10
+        const satJitter = Math.min(255, Math.max(0, base.s + (Math.random() - 0.5) * 30));       // 基準飽和度 ±15
+        // 亮度：在基準之上隨機提亮 0~30；並設可見度保底（避免基準過暗時星星看不見）
+        const lumJitter = Math.min(255, Math.max(0, base.l + (Math.random() - 0.5) * 30));
         const sizeJitter = 1.5 * (1 + (Math.random() - 0.5) * 0.6);   // 1.4 ~ 2.6 rem
-        star.style.color = `hsl(${hueJitter}, 100%, ${lumJitter}%)`;
+        star.style.color = `hsl(${hueJitter}, ${satJitter}%, ${lumJitter}%)`;
         star.style.fontSize = sizeJitter.toFixed(2) + 'rem';
         document.body.appendChild(star);
 
@@ -844,18 +872,12 @@ const ScoreManager = {
      * 初始化結算動畫所需的 CSS 樣式
      */
     initCSS: function () {
+        // ⚠️ 2026-07：.flying-star 樣式已整併至 theme_xuanzhi.css（結算共用樣式）。
+        // 此處僅保留 .heart.score（未加 fm- 前綴的舊紅心過關色），供未套用主題的頁面後備。
         if (!document.getElementById('score-manager-css')) {
             const style = document.createElement('style');
             style.id = 'score-manager-css';
             style.textContent = `
-                .flying-star {
-                    position: fixed;
-                    z-index: 1100;
-                    font-size: 2rem;
-                    color: hsl(60, 100%, 50%);
-                    pointer-events: none;
-                    will-change: transform, opacity;
-                }
                 .heart.score {
                     color: hsl(60, 90%, 60%) !important;
                     opacity: 1 !important;

@@ -71,17 +71,19 @@
         /*
          * 難度設定（依企劃書 §7）
          * boardRows / boardCols：盤面尺寸
-         * decoyRatio   ：干擾字佔比
-         * hintsMax     ：提示次數上限
-         * orderBonus   ：順序加成倍率（達標時的倍率）
-         * timeLimitRate：每字時間倍率
+         * decoyRatio     ：干擾字佔比
+         * hintsMax       ：提示次數上限
+         * orderBonus     ：順序加成倍率（達標時的倍率）
+         * timeLimitRate  ：每字時間倍率
+         * maxAdjacentSame：允許「兩張相同字牌相鄰擺放」的最高次數上限（實際盤面可少於此值）。
+         *                  數字越小越難（相鄰同牌可直接消，等於送分）。生成盤面時會檢查並修正到 ≤ 此值。
          */
         difficultySettings: {
-            '小學': { boardRows: 6, boardCols: 6, decoyRatio: 0.0, hintsMax: 5, orderBonus: 2, timeLimitRate: 18, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 8, maxChars: 18 },
-            '中學': { boardRows: 7, boardCols: 6, decoyRatio: 0.0, hintsMax: 3, orderBonus: 2, timeLimitRate: 14, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 21 },
-            '高中': { boardRows: 8, boardCols: 7, decoyRatio: 0.0, hintsMax: 2, orderBonus: 3, timeLimitRate: 11, poemMinRating: 4, minLines: 2, maxLines: 4, minChars: 14, maxChars: 28 },
-            '大學': { boardRows: 9, boardCols: 8, decoyRatio: 0.0, hintsMax: 1, orderBonus: 3, timeLimitRate: 9, poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 18, maxChars: 36 },
-            '研究所': { boardRows: 10, boardCols: 8, decoyRatio: 0.0, hintsMax: 0, orderBonus: 5, timeLimitRate: 8, poemMinRating: 3, minLines: 2, maxLines: 4, minChars: 20, maxChars: 40 }
+            '小學': { boardRows: 8, boardCols: 7, decoyRatio: 0.0, hintsMax: 5, orderBonus: 2, timeLimitRate: 10, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 10, maxChars: 14, maxAdjacentSame: 3 },
+            '中學': { boardRows: 8, boardCols: 8, decoyRatio: 0.0, hintsMax: 3, orderBonus: 2, timeLimitRate: 9, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 10, maxChars: 20, maxAdjacentSame: 2 },
+            '高中': { boardRows: 8, boardCols: 7, decoyRatio: 0.0, hintsMax: 2, orderBonus: 3, timeLimitRate: 8, poemMinRating: 4, minLines: 4, maxLines: 4, minChars: 20, maxChars: 28, maxAdjacentSame: 1 },
+            '大學': { boardRows: 7, boardCols: 6, decoyRatio: 0.0, hintsMax: 1, orderBonus: 3, timeLimitRate: 7, poemMinRating: 3, minLines: 4, maxLines: 6, minChars: 20, maxChars: 42, maxAdjacentSame: 0 },
+            '研究所': { boardRows: 8, boardCols: 7, decoyRatio: 0.0, hintsMax: 0, orderBonus: 5, timeLimitRate: 6, poemMinRating: 3, minLines: 4, maxLines: 8, minChars: 20, maxChars: 56, maxAdjacentSame: 0 }
         },
 
         // ── 共用干擾字池（簡易備援） ──
@@ -122,12 +124,12 @@
                 </div>
                 <div class="game28-sub-header">
                     <div id="game28-moves-label" class="game28-moves-label" style="display:none">盤面:<span id="game28-stage-text">1/1</span> 步數:<span id="game28-moves">0</span>/<span id="game28-max-moves">0</span></div>
-                    <div id="game28-poem-info" class="poem-info"></div>
-                </div>
-                <div class="game28-info-bar">
                     <div id="game28-line-text" class="game28-line-text" style="display:none"></div>
                     <div id="game28-progress-text" class="game28-progress-text">剩餘：0 對</div>
                     <div id="game28-bonus-text" class="game28-bonus-text">順序加成 ×1</div>
+                    <div id="game28-poem-info" class="poem-info"></div>
+                </div>
+                <div class="game28-info-bar">
                     <div id="game28-char-bar" class="game28-char-bar"></div>
                 </div>
                 <div class="game28-area">
@@ -362,9 +364,9 @@
                 if (!seen[ch]) { seen[ch] = true; this.uniquePoemChars.push(ch); }
             }
 
-            // 顯示詩名 — 全名截 16 字 + 全名放 title 屬性供 hover 顯示
-            const fullName = `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
-            const infoText = fullName.length > 16 ? (fullName.slice(0, 15) + '…') : fullName;
+            // 顯示詩名 — 全名截 12 字 + 全名放 title 屬性供 hover 顯示
+            const fullName = `${this.currentPoem.title}/${this.currentPoem.dynasty}/${this.currentPoem.author}`;
+            const infoText = fullName.length > 12 ? (fullName.slice(0, 11) + '…') : fullName;
             const infoEl = document.getElementById('game28-poem-info');
             infoEl.textContent = infoText;
             infoEl.title = fullName;
@@ -473,60 +475,218 @@
                 }
             }
 
-            // 5) 若起始即死局，自動重排
-            let safety = 0;
-            while (!this.hasAnyMatch() && safety < 10) {
-                this.reshuffleBoard();
-                safety++;
+            // 5) 兩道限制同時滿足才接受此盤面：
+            //    (a) 相鄰同牌數 ≤ 該難度 maxAdjacentSame（相鄰同牌可直接消＝送分，難度越高允許越少）
+            //    (b) 整盤可完全清除（isBoardSolvable：實際找到一條完整清盤解法）
+            //    先修正相鄰重複，再驗證可解；不合則重排位置重試，數次仍失敗才接受（遊戲中死局自動重排為後備）。
+            const maxAdj = this.getMaxAdjacentSame();
+            this.reduceAdjacentSamePairs(maxAdj);
+            let genTry = 0;
+            while ((this.countAdjacentSamePairs() > maxAdj || !this.isBoardSolvable(15)) && genTry < 30) {
+                this._shuffleOccupied();
+                this.reduceAdjacentSamePairs(maxAdj);
+                genTry++;
             }
         },
 
-        // 重新洗牌（保留剩餘字牌、僅打散位置）
-        reshuffleBoard: function () {
-            const remaining = [];
+        // ── 相鄰同牌限制（difficultySettings.maxAdjacentSame） ──
+        // 取得目前難度允許的「相鄰同牌」最高次數；未設定時視為不限制
+        getMaxAdjacentSame: function () {
+            const s = this.difficultySettings[this.difficulty];
+            return (s && typeof s.maxAdjacentSame === 'number') ? s.maxAdjacentSame : Infinity;
+        },
+
+        // 統計盤面上「上下或左右相鄰且同字」的對數（每對只計一次：只往右、往下看）
+        countAdjacentSamePairs: function () {
+            let count = 0;
             for (let r = 0; r < this.rows; r++) {
                 for (let c = 0; c < this.cols; c++) {
-                    if (this.board[r][c]) remaining.push(this.board[r][c].char);
+                    const cell = this.board[r][c];
+                    if (!cell) continue;
+                    const right = (c + 1 < this.cols) ? this.board[r][c + 1] : null;
+                    const down = (r + 1 < this.rows) ? this.board[r + 1][c] : null;
+                    if (right && right.char === cell.char) count++;
+                    if (down && down.char === cell.char) count++;
                 }
             }
-            for (let i = remaining.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
-            }
-            let k = 0;
+            return count;
+        },
+
+        // 隨機挑一個「與某相鄰格同字」的格子（供修正用）
+        _findAdjacentSameCell: function () {
+            const bad = [];
             for (let r = 0; r < this.rows; r++) {
                 for (let c = 0; c < this.cols; c++) {
-                    if (this.board[r][c]) {
-                        this.board[r][c] = { char: remaining[k++] };
-                    }
-                }
-            }
-            // 避免重排後仍是死局
-            let safety = 0;
-            while (!this.hasAnyMatch() && safety < 10) {
-                for (let i = remaining.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
-                }
-                let kk = 0;
-                for (let r = 0; r < this.rows; r++) {
-                    for (let c = 0; c < this.cols; c++) {
-                        if (this.board[r][c]) {
-                            this.board[r][c] = { char: remaining[kk++] };
+                    const cell = this.board[r][c];
+                    if (!cell) continue;
+                    const nb = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]];
+                    for (const [nr, nc] of nb) {
+                        if (nr >= 0 && nr < this.rows && nc >= 0 && nc < this.cols &&
+                            this.board[nr][nc] && this.board[nr][nc].char === cell.char) {
+                            bad.push({ r, c });
+                            break;
                         }
                     }
                 }
+            }
+            return bad.length ? bad[Math.floor(Math.random() * bad.length)] : null;
+        },
+
+        // 打散「已佔用格子」的字（保留哪些格有牌、只重排字），供生成/重排時使用
+        _shuffleOccupied: function () {
+            const chars = [];
+            for (let r = 0; r < this.rows; r++)
+                for (let c = 0; c < this.cols; c++)
+                    if (this.board[r][c]) chars.push(this.board[r][c].char);
+            for (let i = chars.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [chars[i], chars[j]] = [chars[j], chars[i]];
+            }
+            let k = 0;
+            for (let r = 0; r < this.rows; r++)
+                for (let c = 0; c < this.cols; c++)
+                    if (this.board[r][c]) this.board[r][c] = { char: chars[k++] };
+        },
+
+        // 以「交換兩格字」的爬山法把相鄰同牌數壓到 ≤ maxAllowed（保留字牌多重集合，不影響可解性驗證的字數分布）
+        reduceAdjacentSamePairs: function (maxAllowed, maxSwaps) {
+            if (!(maxAllowed >= 0) || maxAllowed === Infinity) return;   // 不限制則不處理
+            maxSwaps = maxSwaps || 3000;
+            const cells = [];
+            for (let r = 0; r < this.rows; r++)
+                for (let c = 0; c < this.cols; c++)
+                    if (this.board[r][c]) cells.push({ r, c });
+            if (cells.length < 2) return;
+
+            let swaps = 0;
+            let cur = this.countAdjacentSamePairs();
+            while (cur > maxAllowed && swaps < maxSwaps) {
+                const bad = this._findAdjacentSameCell();
+                if (!bad) break;
+                const other = cells[Math.floor(Math.random() * cells.length)];
+                // 交換兩格的字
+                const t = this.board[bad.r][bad.c].char;
+                this.board[bad.r][bad.c].char = this.board[other.r][other.c].char;
+                this.board[other.r][other.c].char = t;
+                const after = this.countAdjacentSamePairs();
+                if (after < cur) {
+                    cur = after;            // 有改善 → 保留
+                } else {
+                    // 無改善 → 還原
+                    const t2 = this.board[bad.r][bad.c].char;
+                    this.board[bad.r][bad.c].char = this.board[other.r][other.c].char;
+                    this.board[other.r][other.c].char = t2;
+                }
+                swaps++;
+            }
+        },
+
+        // ── 可解性驗證（保證盤面可被完全清除） ──
+        // 為何需要：只確認「盤面存在一組可連牌」(hasAnyMatch) 並不能保證整盤清得完 —
+        //   貪婪地亂消可能把自己逼進死局。真正的保證是：能實際「找出」一條把牌全部消掉的順序。
+        // 作法：以隨機貪婪解算器嘗試多次（restarts 次）。只要任一次成功清空整盤，
+        //   即為「此盤可解」的建構性證明（我們手上就握有一組解）。全部失敗才視為（很可能）不可解。
+        //   —— 因此被接受的盤面「必定」至少存在一條解法。
+        isBoardSolvable: function (restarts) {
+            const snap = () => this.board.map(row => row.map(cell => cell ? { char: cell.char } : null));
+            const original = snap();
+            const restore = (s) => { this.board = s.map(row => row.map(cell => cell ? { char: cell.char } : null)); };
+
+            let solved = false;
+            for (let attempt = 0; attempt < restarts && !solved; attempt++) {
+                restore(original);
+                solved = this._greedyClear();
+            }
+            restore(original);   // 還原真正盤面（解算過程會清空 this.board）
+            return solved;
+        },
+
+        // 隨機貪婪清盤：反覆隨機挑一組可連牌消除，直到清空（成功）或無牌可連（失敗）
+        _greedyClear: function () {
+            let remaining = 0;
+            for (let r = 0; r < this.rows; r++)
+                for (let c = 0; c < this.cols; c++)
+                    if (this.board[r][c]) remaining++;
+
+            while (remaining > 0) {
+                const pair = this._findRandomMatch();
+                if (!pair) return false;   // 死局：此貪婪路線清不完
+                this.board[pair[0].r][pair[0].c] = null;
+                this.board[pair[1].r][pair[1].c] = null;
+                remaining -= 2;
+            }
+            return true;
+        },
+
+        // 隨機挑一組「可連通」的同字牌（供解算器用）；以隨機順序掃描以增加不同貪婪路線的多樣性
+        _findRandomMatch: function () {
+            const positions = [];
+            for (let r = 0; r < this.rows; r++)
+                for (let c = 0; c < this.cols; c++)
+                    if (this.board[r][c]) positions.push({ r, c, char: this.board[r][c].char });
+            // 洗牌位置
+            for (let i = positions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [positions[i], positions[j]] = [positions[j], positions[i]];
+            }
+            const byChar = {};
+            positions.forEach(p => { (byChar[p.char] = byChar[p.char] || []).push(p); });
+            const chars = Object.keys(byChar);
+            for (let i = chars.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [chars[i], chars[j]] = [chars[j], chars[i]];
+            }
+            for (const ch of chars) {
+                const arr = byChar[ch];
+                for (let i = 0; i < arr.length; i++) {
+                    for (let j = i + 1; j < arr.length; j++) {
+                        if (this.findPath(arr[i].r, arr[i].c, arr[j].r, arr[j].c)) {
+                            return [arr[i], arr[j]];
+                        }
+                    }
+                }
+            }
+            return null;
+        },
+
+        // 重新洗牌（保留剩餘字牌、僅打散位置）；同時盡量滿足「相鄰同牌 ≤ 難度上限」且非死局
+        reshuffleBoard: function () {
+            const maxAdj = this.getMaxAdjacentSame();
+            this._shuffleOccupied();
+            this.reduceAdjacentSamePairs(maxAdj);
+            // 重排後須確保仍有可連的一步（非死局），並盡量維持相鄰同牌上限
+            let safety = 0;
+            while ((!this.hasAnyMatch() || this.countAdjacentSamePairs() > maxAdj) && safety < 15) {
+                this._shuffleOccupied();
+                this.reduceAdjacentSamePairs(maxAdj);
                 safety++;
             }
         },
 
         // ── 渲染盤面 ──
+        // 版面模型：四邊各保留半個格子 → 格距 cellW = 盤寬/(cols+1)，
+        //   字牌 (r,c) 中心 = ((c+1)·cellW, (r+1)·cellH)；
+        //   如此「盤外繞行環」的索引 -1 對應座標 0（盤面左/上緣），索引 cols/rows 對應盤寬/盤高（右/下緣），
+        //   連線繞行時剛好落在四周保留的半格空間內，且與 drawPath 的座標完全一致。
         renderBoard: function () {
             const container = document.getElementById('game28-board');
+            const W = container.clientWidth || container.offsetWidth;
+            const H = container.clientHeight || container.offsetHeight;
+            // 版面尚未定案（尺寸為 0）時，等下一影格再排（絕對定位模型需要真實像素尺寸）
+            if (W < 10 || H < 10) {
+                requestAnimationFrame(() => this.renderBoard());
+                return;
+            }
             container.innerHTML = '';
-            container.style.gridTemplateColumns = `repeat(${this.cols}, 1fr)`;
-            container.style.gridTemplateRows = `repeat(${this.rows}, 1fr)`;
             this.cellElements = Array(this.rows).fill().map(() => Array(this.cols).fill(null));
+            const cellW = W / (this.cols + 1);
+            const cellH = H / (this.rows + 1);
+            // 字塊本體略小於格距，露出間隙供連線與立體感
+            const gap = Math.max(3, Math.min(cellW, cellH) * 0.14);
+            const tileW = Math.max(1, cellW - gap);
+            const tileH = Math.max(1, cellH - gap);
+            // 供 drawPath 沿用同一組度量
+            this._cellW = cellW; this._cellH = cellH; this._boardW = W; this._boardH = H;
 
             for (let r = 0; r < this.rows; r++) {
                 for (let c = 0; c < this.cols; c++) {
@@ -534,6 +694,13 @@
                     div.className = 'game28-cell';
                     div.dataset.r = r;
                     div.dataset.c = c;
+                    // 絕對定位：以格中心回推左上角
+                    const cx = (c + 1) * cellW;
+                    const cy = (r + 1) * cellH;
+                    div.style.left = (cx - tileW / 2) + 'px';
+                    div.style.top = (cy - tileH / 2) + 'px';
+                    div.style.width = tileW + 'px';
+                    div.style.height = tileH + 'px';
                     const data = this.board[r][c];
                     if (data) {
                         div.textContent = data.char;
@@ -559,23 +726,9 @@
                 }
             }
 
-            // 字體大小依欄數動態調整
-            const fontSize = Math.max(18, Math.min(40, Math.floor(280 / this.cols)));
+            // 字體大小依格距動態調整
+            const fontSize = Math.max(16, Math.min(38, Math.floor(Math.min(tileW, tileH) * 0.62)));
             container.style.fontSize = fontSize + 'px';
-        },
-
-        // 判斷字塊 (r,c) 四邊至少有一邊是空的（null／盤外）
-        //   規則：不能選被四周字塊完全包圍的內部字，避免玩家繞不出連線
-        hasEmptySide: function (r, c) {
-            const rows = this.board.length;
-            const cols = rows > 0 ? this.board[0].length : 0;
-            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-            for (const [dr, dc] of dirs) {
-                const nr = r + dr, nc = c + dc;
-                if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) return true; // 盤外算空
-                if (!this.board[nr][nc]) return true; // 相鄰格為空
-            }
-            return false;
         },
 
         // ── 點擊處理 ──
@@ -584,19 +737,10 @@
             const data = this.board[r][c];
             if (!data) return;   // 空格
 
-            // 選取規則：字塊至少有一邊（上/下/左/右）為空（null 或超出棋盤）才可選
-            //   四邊全被其他字塊包圍的「內部字」不可選，避免玩家亂點無效字
-            if (!this.hasEmptySide(r, c)) {
-                if (window.SoundManager) window.SoundManager.playFailure && window.SoundManager.playFailure();
-                // 輕微搖晃提示不可選
-                const el = this.cellElements[r] && this.cellElements[r][c];
-                if (el) {
-                    el.classList.add('flash-red');
-                    setTimeout(() => el.classList.remove('flash-red'), 250);
-                }
-                return;
-            }
-
+            // ⚠️ 不再以「四邊是否有空側」限制選取：
+            //   連連看的合法性完全由「能否以 ≤2 折的路徑穿過空格連通」決定（findPath）。
+            //   舊的 hasEmptySide 規則會誤擋「相鄰但四周被包圍」的一對牌（它們其實可直接相連），
+            //   造成解算器判定可解、玩家卻無法執行 → 過不了關。改由 findPath 統一裁定。
             if (window.SoundManager) window.SoundManager.playOpenItem();
 
             if (!this.firstPick) {
@@ -666,6 +810,9 @@
                     + `</span>`;
             });
             el.innerHTML = html;
+            // 進度字卡超過 14 個 → 改為可換行（上下兩行以上），避免字塊被壓縮／裁切
+            const shownCount = this.uniquePoemChars.filter(ch => (this.charCountTotal[ch] || 0) > 0).length;
+            el.classList.toggle('game28-char-bar--wrap', shownCount > 14);
             this._prevCharCountLeft = Object.assign({}, this.charCountLeft);
         },
 
@@ -872,22 +1019,40 @@
                 }
             }
             // 2 折：經過兩個轉折點。
-            // 含「沿盤面外繞行」 → 我們把盤面擴展為虛擬一圈外邊（-1, rows）。
-            // 兩段平行直線：先從起點沿某方向走到 (r1, x) / (x, c1)，
-            // 再從終點沿同方向得到 (r2, x) / (x, c2)；中間兩點以直線連接。
-            // 列掃描（共同行 row = x，從 -1 到 rows）
+            // 含「沿盤面外繞行」 → 盤面擴展為虛擬一圈外邊（索引 -1 與 rows/cols）。
+            // 兩段平行直線：先從起點沿某方向走到 (r1, x)/(x, c1)，再從終點沿同方向得到 (r2, x)/(x, c2)。
+            // ⚠️ 掃描順序改為「離兩端點最近者優先」：讓連線優先走最近的通道／最近的保留側，
+            //    避免總是從 -1 起掃而繞去遠端；此僅改變回傳路徑外觀，不影響是否存在路徑（解局判定不受影響）。
+            const near = (x, a, b) => Math.min(Math.abs(x - a), Math.abs(x - b));
+
+            // 列掃描（共同行 row = x，範圍 -1 ~ rows）
+            const rowCands = [];
             for (let x = -1; x <= this.rows; x++) {
                 if (x === r1 || x === r2) continue;
-                if (this.isStraightClear(r1, c1, x, c1) &&
+                rowCands.push(x);
+            }
+            rowCands.sort((a, b) => near(a, r1, r2) - near(b, r1, r2));
+            for (const x of rowCands) {
+                // ⚠️ 關鍵修正：兩個「轉折格」(x,c1)、(x,c2) 本身也必須是空的（或盤外），
+                //    否則路徑會在該處「轉彎穿過一張牌」——這正是「兩牌之間有牌卻直接連過去」的成因。
+                if (this.isCellPassable(x, c1) && this.isCellPassable(x, c2) &&
+                    this.isStraightClear(r1, c1, x, c1) &&
                     this.isStraightClear(x, c1, x, c2) &&
                     this.isStraightClear(x, c2, r2, c2)) {
                     return [{ r: r1, c: c1 }, { r: x, c: c1 }, { r: x, c: c2 }, { r: r2, c: c2 }];
                 }
             }
-            // 欄掃描（共同欄 col = x）
+            // 欄掃描（共同欄 col = x，範圍 -1 ~ cols）
+            const colCands = [];
             for (let x = -1; x <= this.cols; x++) {
                 if (x === c1 || x === c2) continue;
-                if (this.isStraightClear(r1, c1, r1, x) &&
+                colCands.push(x);
+            }
+            colCands.sort((a, b) => near(a, c1, c2) - near(b, c1, c2));
+            for (const x of colCands) {
+                // ⚠️ 同上：兩個轉折格 (r1,x)、(r2,x) 本身也必須為空（或盤外）才能轉彎
+                if (this.isCellPassable(r1, x) && this.isCellPassable(r2, x) &&
+                    this.isStraightClear(r1, c1, r1, x) &&
                     this.isStraightClear(r1, x, r2, x) &&
                     this.isStraightClear(r2, x, r2, c2)) {
                     return [{ r: r1, c: c1 }, { r: r1, c: x }, { r: r2, c: x }, { r: r2, c: c2 }];
@@ -1040,19 +1205,20 @@
         drawPath: function (pathPoints) {
             const svg = document.getElementById('game28-path-svg');
             const board = document.getElementById('game28-board');
-            const bw = board.offsetWidth;
-            const bh = board.offsetHeight;
-            const cellW = bw / this.cols;
-            const cellH = bh / this.rows;
+            const bw = board.clientWidth || board.offsetWidth;
+            const bh = board.clientHeight || board.offsetHeight;
+            // 與 renderBoard 相同的半格保留模型：cellW = 盤寬/(cols+1)，字牌中心 = (c+1)·cellW
+            const cellW = bw / (this.cols + 1);
+            const cellH = bh / (this.rows + 1);
             svg.setAttribute('viewBox', `0 0 ${bw} ${bh}`);
             svg.setAttribute('width', bw);
             svg.setAttribute('height', bh);
             svg.innerHTML = '';
 
             const toXY = (p) => {
-                // 盤面外座標：用負/超出值計算
-                const x = (p.c + 0.5) * cellW;
-                const y = (p.r + 0.5) * cellH;
+                // 盤內字牌：中心 = (c+1)·cellW；盤外繞行環：索引 -1 → 0（左/上緣），索引 cols/rows → 盤寬/盤高（右/下緣）
+                const x = (p.c + 1) * cellW;
+                const y = (p.r + 1) * cellH;
                 return { x, y };
             };
 
@@ -1090,7 +1256,7 @@
         updateProgressText: function () {
             const pairs = this.tilesLeft / 2;
             const el = document.getElementById('game28-progress-text');
-            if (el) el.textContent = `剩餘：${pairs} 對`;
+            if (el) el.textContent = `剩餘:${pairs}對`;
         },
 
         updateBonusText: function () {
@@ -1098,7 +1264,7 @@
             const el = document.getElementById('game28-bonus-text');
             if (!el) return;
             const mult = this.orderStreak >= 2 ? settings.orderBonus : 1;
-            el.textContent = `順序加成 ×${mult}（連 ${this.orderStreak}）`;
+            el.textContent = `順序加成 ${this.orderStreak}/${mult}`;
         },
 
         // ── 計時 ──

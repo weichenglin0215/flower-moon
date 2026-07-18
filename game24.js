@@ -116,6 +116,15 @@
 
         // ── CSS 載入防護（避免重複載入造成全域污染） ──
         loadCSS: function () {
+            // 共用墨色外殼（.fmd-*）：game24 的上半部外殼已搬移至 theme_dark.css，
+            // 於非 index.html 環境也須確保載入（且需在 game24.css 之前）
+            if (!document.getElementById('theme-dark-css')) {
+                const themeLink = document.createElement('link');
+                themeLink.id = 'theme-dark-css';
+                themeLink.rel = 'stylesheet';
+                themeLink.href = 'theme_dark.css';
+                document.head.appendChild(themeLink);
+            }
             if (!document.getElementById('game24-css')) {
                 const link = document.createElement('link');
                 link.id = 'game24-css';
@@ -137,30 +146,31 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game24-container';
-            div.className = 'game24-overlay hidden';
+            // 上半部外殼改用共用墨色主題 class（.fmd-*，定義於 theme_dark.css）
+            div.className = 'fmd-overlay hidden';
             div.innerHTML = `
-                <div class="game24-header">
-                    <div class="game24-score-board">分數: <span id="game24-score">0</span></div>
-                    <div class="game24-controls">
-                        <button class="game24-difficulty-tag" id="game24-diff-tag">小學</button>
+                <div class="fmd-header">
+                    <div class="fmd-score-board">分數: <span id="game24-score">0</span></div>
+                    <div class="fmd-controls">
+                        <button class="fmd-difficulty-tag" id="game24-diff-tag">小學</button>
                         <button id="game24-retryGame-btn" class="nav-btn">重來</button>
                         <button id="game24-newGame-btn" class="nav-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game24-sub-header">
-                    <div id="game24-moves-label" class="game24-moves-label" style="display:none">盤面:<span id="game24-stage-text">1/1</span> 步數:<span id="game24-moves">0</span>/<span id="game24-max-moves">0</span></div>
-                    <div id="game24-poem-info" class="poem-info" style="cursor:pointer; text-decoration:underline; opacity:0.85;"></div>
+                <div class="fmd-sub-header">
+                    <div id="game24-moves-label" class="game24-moves-label fmd-moves-label" style="display:none">盤面:<span id="game24-stage-text">1/1</span> 步數:<span id="game24-moves">0</span>/<span id="game24-max-moves">0</span></div>
+                    <div id="game24-poem-info" class="fmd-poem-info" style="cursor:pointer; text-decoration:underline; opacity:0.85;"></div>
                 </div>
-                <div class="game24-info-bar">
+                <div class="fmd-info-bar">
                     <div id="game24-line-text" class="game24-line-text" style="display:none"></div>
                     <div id="game24-progress" class="game24-progress"></div>
                 </div>
-                <div class="game24-area">
-                    <div id="game24-board-wrapper" class="game24-board-wrapper">
-                        <svg id="game24-timer-ring">
-                            <rect id="game24-timer-path" x="3" y="3"></rect>
-                            <rect id="game24-moves-path-white" x="3" y="3"></rect>
-                            <rect id="game24-moves-path-red" x="3" y="3"></rect>
+                <div class="fmd-area">
+                    <div id="game24-board-wrapper" class="fmd-board-wrapper">
+                        <svg id="game24-timer-ring" class="fmd-timer-ring">
+                            <rect id="game24-timer-path" class="fmd-timer-path" x="3" y="3"></rect>
+                            <rect id="game24-moves-path-white" class="fmd-moves-path-white" x="3" y="3"></rect>
+                            <rect id="game24-moves-path-red" class="fmd-moves-path-red" x="3" y="3"></rect>
                         </svg>
                         <div id="game24-board" class="game24-board"></div>
                         <div id="game24-chain-praise" class="game24-chain-praise hidden"></div>

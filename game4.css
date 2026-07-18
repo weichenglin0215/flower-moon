@@ -121,26 +121,8 @@
     padding: 20px;
 }
 
-#game4-timer-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
-#game4-timer-path {
-    fill: none;
-    stroke: var(--fm-cinnabar, hsl(6, 63%, 46%));
-    stroke-width: 10px;
-    stroke-linecap: round;
-    stroke-dasharray: 10000;
-    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
-    stroke-dashoffset: 10000;
-    /* 預設隱藏：offset=dasharray → 完全不可見 */
-    /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
-}
+/* 計時器外環／計時框：樣式已移至 theme_xuanzhi.css 的 .fm-timer-ring / .fm-timer-path
+   （紅→黃即時色由 game4.js updateTimerRing 逐格插值）。*/
 
 .game4-answer-grid {
     display: grid;
@@ -248,13 +230,4 @@
     }
 }
 
-/* Flying Star Animation */
-.flying-star {
-    position: fixed;
-    z-index: 3000;
-    font-size: 40px;
-    color: hsl(60, 100%, 50%);
-    /*text-shadow: 0 0 6px rgba(241, 196, 15, 0.8), 0 0 12px rgba(241, 196, 15, 0.4);*/
-    pointer-events: none;
-    will-change: transform, opacity;
-}
+/* 飛行星星 .flying-star：樣式已移至 theme_xuanzhi.css（結算共用樣式）。*/

@@ -109,8 +109,8 @@
                          ③ 內圈：4 個答案卡（20px padding） -->
                     <div class="game1-answer-area">
                         <div id="game1-answer-grid-container" class="game1-answer-grid-container">
-                            <svg id="game1-timer-ring">
-                                <rect id="game1-timer-path" x="5" y="5"></rect>
+                            <svg id="game1-timer-ring" class="fm-timer-ring">
+                                <rect id="game1-timer-path" class="fm-timer-path" x="5" y="5"></rect>
                             </svg>
                             <div class="game1-answer-inner-ring">
                                 <div id="game1-answer-grid" class="game1-answer-grid">
@@ -582,6 +582,28 @@
             }, 100);
         },
 
+        /**
+         * 讀取計時框的基準色。
+         * 來源：theme_xuanzhi.css 的 --fm-timer-* 變數（計時色集中管理，不再寫死於各遊戲）。
+         * 解析成 { h, s, l } 供 updateTimerRing 使用；解析失敗時回退到 fallback，
+         * 確保即使主題未載入或變數異常，計時框仍有可見顏色。
+         * 與 scoreManager.js 的 getStarBaseColor() 同一套「以 CSS 變數為基準色」的做法。
+         */
+        getTimerBaseColor: function (varName, fallback) {
+            try {
+                const raw = getComputedStyle(document.documentElement)
+                    .getPropertyValue(varName).trim();
+                // 支援 hsl()/hsla() 形式，例如 hsl(0, 90%, 50%)
+                const m = raw.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i);
+                if (m) {
+                    return { h: parseFloat(m[1]), s: parseFloat(m[2]), l: parseFloat(m[3]) };
+                }
+            } catch (e) {
+                /* 忽略解析錯誤，改用後備色 */
+            }
+            return fallback;
+        },
+
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game1-timer-path');
             const container = document.getElementById('game1-answer-grid-container');
@@ -615,13 +637,21 @@
                 rect.style.transition = 'stroke 0.3s ease'; // dashoffset/dasharray 立即更新，僅顏色過渡
                 rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
                 rect.style.strokeDashoffset = clamped * perimeter;
-                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
+                // 色相／飽和度取自主題金黃 --fm-timer-gold；亮度隨剩餘比例 clamped 掃動（base.l-15 → base.l+5），
+                // 作為動畫的明暗變化維度，並以 25 為亮度保底避免主題值過暗時變黑。
+                const base = this.getTimerBaseColor('--fm-timer-gold', { h: 40, s: 66, l: 45 });
+                const lum = Math.max(25, Math.round(base.l - 15 + 20 * clamped));
+                rect.style.stroke = `hsl(${base.h}, ${base.s}%, ${lum}%)`;
             } else {
                 // 正常計時：顯示消逝時間（暗紅→鮮紅，順時針增長）
                 rect.style.transition = ''; // 恢復 CSS 定義的過渡效果
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
+                // 色相／飽和度／亮度取自主題朱紅 --fm-timer-red；透明度隨消逝比例 elapsed 掃動（5% → 50%），
+                // 作為「暗紅→鮮紅」的漸強維度。
+                const base = this.getTimerBaseColor('--fm-timer-red', { h: 0, s: 90, l: 50 });
+                const alpha = Math.round(5 + 45 * elapsed);
+                rect.style.stroke = `hsla(${base.h}, ${base.s}%, ${base.l}%, ${alpha}%)`;
             }
         },
 

@@ -142,28 +142,8 @@
     padding: 20px;
 }
 
-/* 計時器外環 (SVG方式實現) */
-#game2-timer-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    /* 不干擾點擊 */
-}
-
-#game2-timer-path {
-    fill: none;
-    stroke: var(--fm-cinnabar, hsl(6, 63%, 46%));
-    stroke-width: 10px;
-    stroke-linecap: round;
-    stroke-dasharray: 10000;
-    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
-    stroke-dashoffset: 10000;
-    /* 預設隱藏：offset=dasharray → 完全不可見 */
-    /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
-}
+/* 計時器外環／計時框：樣式已移至 theme_xuanzhi.css 的 .fm-timer-ring / .fm-timer-path
+   （紅→黃即時色由 game2.js updateTimerRing 逐格插值）。*/
 
 .game2-answer-grid {
     display: grid;
@@ -246,53 +226,8 @@
     animation: game4-shake 0.4s;
 }
 
-/* 宣告成功失敗 */
-.game2-message {
-    position: absolute;
-    top: 90%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: hsl(40, 50%, 90%);
-    padding: 6px;
-    padding-bottom: 80px;
-    border-radius: 20px;
-    text-align: center;
-    color: hsl(210, 30%, 24%);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8);
-    z-index: 20;
-    width: 90%;
-}
-
-.game2-message h2 {
-    font-size: 24px;
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 10px;
-    margin: 6px 0;
-}
-
-.game2-message p {
-    font-size: 20px;
-    display: inline-block;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-.game2-message .nav-btn {
-    background: hsl(145, 68%, 36%);
-    color: white;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
-    border: none;
-    border-radius: 30px;
-    padding: 4px 40px;
-    font-size: 24px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.game2-message .nav-btn:hover {
-    filter: brightness(1.5);
-}
+/* 過關與否訊息框：game2.js 已改用共用 GameMessage 元件
+   （.common-game-message，樣式見 theme_xuanzhi.css）。原 .game2-message 已移除。*/
 
 
 

@@ -268,24 +268,5 @@
     }
 }
 
-#game13-timer-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
-#game13-timer-path {
-    fill: none;
-    stroke: hsl(0, 50%, 22%);
-    /* 初始暗紅色（由 JS 插值到鮮紅）*/
-    stroke-width: 10px;
-    stroke-linecap: round;
-    stroke-dasharray: 10000;
-    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
-    stroke-dashoffset: 10000;
-    /* 預設隱藏：offset=dasharray → 完全不可見 */
-    /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
-}
+/* 計時器外環／計時框：樣式已移至 theme_xuanzhi.css 的 .fm-timer-ring / .fm-timer-path
+   （紅→黃即時色由 game13.js updateTimerRing 逐格插值）。*/

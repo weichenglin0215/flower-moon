@@ -181,6 +181,13 @@
     overflow: hidden;
 }
 
+/* 進度字卡超過 14 個時改為可換行（上下兩行以上），避免字塊被過度壓縮／裁切 */
+.game28-char-bar.game28-char-bar--wrap {
+    flex-wrap: wrap;
+    overflow: visible;
+    row-gap: 4px;
+}
+
 .game28-char-group {
     --g28-h: 40;
     --g28-s: 60%;
@@ -369,10 +376,10 @@
     position: relative;
     width: 100%;
     height: 100%;
-    display: grid;
-    /* 加大格線間距、字塊縮小，留出邊緣空間顯示方塊之間的連線 */
-    gap: 8px;
-    padding: 6px;
+    /* 字塊改由 JS 以「絕對定位」排列（(cols+1)/(rows+1) 半格保留模型）：
+       四邊各保留半個格子的空隙，供兩字牌之間的連線繞行；
+       故此處不再使用 grid/gap/padding（改由 renderBoard 計算 left/top/width/height）。 */
+    padding: 0;
     box-sizing: border-box;
     z-index: 2;
 }
@@ -383,6 +390,9 @@
     --g28-s: 60%;
     --g28-l: 75%;
     --g28-text: hsl(220, 30%, 14%);
+    /* 由 renderBoard 以絕對定位設定 left/top/width/height（半格保留模型） */
+    position: absolute;
+    box-sizing: border-box;
     display: flex;
     justify-content: center;
     align-items: center;

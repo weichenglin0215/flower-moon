@@ -106,12 +106,12 @@
             '小學': {
                 pushInterval: 15000, poemMinRating: 6, wallCols: 8, decoyRatio: 0.0, reflectMax: 2,
                 emergencyRescue: true, timeLimitRate: 0, initRows: 4,
-                minLines: 2, maxLines: 4, minChars: 8, maxChars: 28
+                minLines: 2, maxLines: 4, minChars: 10, maxChars: 28
             },
             '中學': {
                 pushInterval: 12000, poemMinRating: 5, wallCols: 9, decoyRatio: 0.0, reflectMax: 2,
                 emergencyRescue: true, timeLimitRate: 0, initRows: 5,
-                minLines: 2, maxLines: 4, minChars: 8, maxChars: 28
+                minLines: 2, maxLines: 4, minChars: 14, maxChars: 28
             },
             '高中': {
                 pushInterval: 10000, poemMinRating: 4, wallCols: 10, decoyRatio: 0.0, reflectMax: 1,
@@ -501,13 +501,13 @@
                 });
                 if (otherChars.length > 0) return otherChars[Math.floor(Math.random() * otherChars.length)];
             }
-            // 60% 機率走「缺口字」，30% 走「全詩字」，10% 走 fallback
+            // ⚠️ 非干擾字一律只從「當前句字」抽（缺口字優先）。
+            //   舊做法有 30% 機率抽 this.targetChars（全詩字）→ 會混入其他句的字，
+            //   即使 decoyRatio=0 仍出現混淆字。混淆字唯一來源應是上方 useDecoy 分支（受 decoyRatio 控制）。
             const r = Math.random();
             const deficits = this.currentLineChars.filter(ch => (this.collectProgress[ch] || 0) < this.collectTarget);
             if (r < 0.6 && deficits.length > 0) {
                 return deficits[Math.floor(Math.random() * deficits.length)];
-            } else if (r < 0.9 && this.targetChars.length > 0) {
-                return this.targetChars[Math.floor(Math.random() * this.targetChars.length)];
             }
             if (this.currentLineChars.length > 0) {
                 return this.currentLineChars[Math.floor(Math.random() * this.currentLineChars.length)];
@@ -541,9 +541,13 @@
                 this.nextChar = wallCharList[Math.floor(Math.random() * wallCharList.length)];
                 return;
             }
-            // 干擾：targetChars 隨抽
-            if (this.targetChars.length > 0) {
-                this.nextChar = this.targetChars[Math.floor(Math.random() * this.targetChars.length)];
+            // fallback：改用「牆面已有字 / 當前句字」，不再抽全詩 targetChars（避免射出他句混淆字）
+            if (wallCharList.length > 0) {
+                this.nextChar = wallCharList[Math.floor(Math.random() * wallCharList.length)];
+                return;
+            }
+            if (this.currentLineChars.length > 0) {
+                this.nextChar = this.currentLineChars[Math.floor(Math.random() * this.currentLineChars.length)];
                 return;
             }
             this.nextChar = '詩';
@@ -661,6 +665,10 @@
                 vx, vy,
                 char: this.nextChar
             };
+            // ⚠️ 發射「當下」立刻換上下一顆（發射台顯示 this.nextChar）：
+            //   舊做法在 attachBubble（泡泡落地）才換，導致快手玩家發射後仍看到同一顆字、易誤判。
+            this.pickNextChar();
+            this.updateNextPreview();
             if (window.SoundManager && window.SoundManager.playOpenItem) window.SoundManager.playOpenItem();
         },
 
@@ -826,9 +834,7 @@
             // 失敗：泡泡牆觸及壓力線
             this.checkPressureLineFail();
 
-            // 抽下一顆
-            this.pickNextChar();
-            this.updateNextPreview();
+            // 下一顆已於 fireBubble（發射當下）預先換好，此處不再重複抽取。
         },
 
         // BFS 同字群

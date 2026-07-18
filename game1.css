@@ -120,29 +120,8 @@
     padding: 20px;
 }
 
-/* 計時器外環 (SVG方式實現) */
-#game1-timer-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    /* 不干擾點擊 */
-}
-
-#game1-timer-path {
-    fill: none;
-    stroke: var(--fm-cinnabar, hsl(6, 63%, 46%));
-    /* 朱砂計時框（由 JS 插值變化）*/
-    stroke-width: 10px;
-    stroke-linecap: round;
-    stroke-dasharray: 10000;
-    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
-    stroke-dashoffset: 10000;
-    /* 預設隱藏：offset=dasharray → 完全不可見 */
-    /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
-}
+/* 計時器外環／計時框：樣式已移至 theme_xuanzhi.css 的 .fm-timer-ring / .fm-timer-path
+   （紅→黃即時色由 game1.js updateTimerRing 逐格插值）。*/
 
 .game1-answer-grid {
     display: grid;

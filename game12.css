@@ -107,30 +107,15 @@
     padding: 20px;
 }
 
+/* 計時器外環／計時框：主要樣式已移至 theme_xuanzhi.css 的 .fm-timer-ring / .fm-timer-path
+   （紅→黃即時色由 game12.js updateTimerRing 逐格插值）。此處僅保留 game12 專屬的
+   疊層順序與隱藏切換。*/
 #game12-timer-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
     z-index: 5;
 }
 
 #game12-timer-ring.hidden {
     display: none !important;
-}
-
-#game12-timer-path {
-    fill: none;
-    stroke: var(--fm-cinnabar, hsl(6, 63%, 46%));
-    stroke-width: 10px;
-    stroke-linecap: round;
-    stroke-dasharray: 10000;
-    /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
-    stroke-dashoffset: 10000;
-    /* 預設隱藏：offset=dasharray → 完全不可見 */
-    /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
 }
 
 .game12-answer-grid {
@@ -262,12 +247,4 @@
 
 /* .game12-message Styles Removed - Using Unified GameMessage Component */
 
-/* Flying Star Animation (Legacy from Game 4) */
-.flying-star {
-    position: fixed;
-    z-index: 3000;
-    font-size: 40px;
-    color: hsl(60, 100%, 50%);
-    pointer-events: none;
-    will-change: transform, opacity;
-}
+/* 飛行星星 .flying-star：樣式已移至 theme_xuanzhi.css（結算共用樣式）。*/

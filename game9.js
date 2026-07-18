@@ -93,9 +93,9 @@
                     <div id="game9-poem-info" class="fm-poem-info"></div>
                 </div>
                 <div class="game9-area">
-                    <svg id="game9-timer-ring">
-                        <rect id="game9-timer-path-white" x="3" y="3"></rect>
-                        <rect id="game9-timer-path-red" x="3" y="3"></rect>
+                    <svg id="game9-timer-ring" class="fm-timer-ring">
+                        <rect id="game9-timer-path-white" class="fm-timer-path-white" x="3" y="3"></rect>
+                        <rect id="game9-timer-path-red" class="fm-timer-path-red" x="3" y="3"></rect>
                     </svg>
                     <button id="game9-undo-btn" class="game9-undo-btn" disabled>撤銷</button>
                   <div class="game9-info">

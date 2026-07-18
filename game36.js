@@ -812,6 +812,21 @@
             }, 100);
         },
 
+        /**
+         * 讀取計時框的基準色（來源：theme_xuanzhi.css 的 --fm-timer-* 變數）。
+         * 解析成 { h, s, l }；解析失敗時回退到 fallback，確保計時框仍有可見顏色。
+         * 與 scoreManager.js 的 getStarBaseColor() 同一套「以 CSS 變數為基準色」的做法。
+         */
+        getTimerBaseColor: function (varName, fallback) {
+            try {
+                const raw = getComputedStyle(document.documentElement)
+                    .getPropertyValue(varName).trim();
+                const m = raw.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i);
+                if (m) return { h: parseFloat(m[1]), s: parseFloat(m[2]), l: parseFloat(m[3]) };
+            } catch (e) { /* 忽略解析錯誤，改用後備色 */ }
+            return fallback;
+        },
+
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game36-timer-path');
             const container = document.getElementById('game36-grid-viewport');
@@ -831,12 +846,19 @@
                 rect.style.transition = 'stroke 0.3s ease';
                 rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
                 rect.style.strokeDashoffset = clamped * perimeter;
-                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
+                // 色相／飽和度取自主題金黃 --fm-timer-gold；亮度隨剩餘比例掃動（base.l-15 → base.l+5），
+                // 並以 25 為亮度保底避免主題值過暗時變黑。
+                const base = this.getTimerBaseColor('--fm-timer-gold', { h: 45, s: 95, l: 70 });
+                const lum = Math.max(25, Math.round(base.l - 15 + 20 * clamped));
+                rect.style.stroke = `hsl(${base.h}, ${base.s}%, ${lum}%)`;
             } else {
                 rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
+                // 色相／飽和度／亮度取自主題朱紅 --fm-timer-red；透明度隨消逝比例掃動（5% → 50%）。
+                const base = this.getTimerBaseColor('--fm-timer-red', { h: 0, s: 90, l: 50 });
+                const alpha = Math.round(5 + 45 * elapsed);
+                rect.style.stroke = `hsla(${base.h}, ${base.s}%, ${base.l}%, ${alpha}%)`;
             }
         },
 

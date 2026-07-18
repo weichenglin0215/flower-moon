@@ -78,21 +78,9 @@
     display: none;
 }
 
-#game9-timer-path-red,
-#game9-timer-path-white {
-    fill: none;
-    stroke-width: 8px;
-    stroke-linecap: butt;
-    transition: stroke-dasharray 0.3s ease;
-}
-
-#game9-timer-path-red {
-    stroke: hsl(0, 100%, 40%);
-}
-
-#game9-timer-path-white {
-    stroke: hsl(33, 50%, 75%);
-}
+/* 紅白相間雙計時框：樣式已移至 theme_xuanzhi.css 的 .fm-timer-path-red / .fm-timer-path-white
+   （紅＝--fm-timer-red、白＝--fm-timer-white，與其他遊戲統一）。
+   game9 的計時框顏色為靜態（updateTimerRing 只改 dasharray、不改 stroke）。*/
 
 .game9-play-area {
     position: relative;

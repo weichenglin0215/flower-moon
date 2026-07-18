@@ -41,7 +41,7 @@
         canvasHeight: 600,
         trackPoints: [],          // 軌道採樣點 [{x, y, t}]，t 為沿軌道弧長累積（0 → totalLen）
         trackTotalLen: 0,         // 軌道總弧長
-        ballR: 16,                // 字球半徑（邏輯像素）
+        ballR: 32,                // 字球半徑（邏輯像素）── 放大為原 16 的 200%（setupTrack 亦會設回 32）
         centerX: 240,             // 中心發射台 X
         centerY: 300,             // 中心發射台 Y
 
@@ -383,8 +383,9 @@
             const settings = this.difficultySettings[this.difficulty];
             // 字球直徑作為單位，軌道格數 = trackLengthGrid
             const grid = settings.trackLengthGrid;
-            // 動態調整字球半徑（讓軌道塞得下 grid 顆球）
-            this.ballR = 16;
+            // 字球半徑：整體放大為原本(16)的 200%。間距(step=ballR*2)、碰撞、發射台皆隨之等比放大，
+            //   軌道能容納的球數約減半；螺旋幾何(outerR/turns)不隨 ballR 改變，相鄰圈間距≈100px > 直徑64，故不相碰。
+            this.ballR = 32;
 
             // 螺旋參數：外半徑 → 內半徑，環繞圈數依 grid 決定
             const outerR = Math.min(this.canvasWidth, this.canvasHeight) * 0.46;
@@ -546,10 +547,12 @@
                 });
                 if (otherChars.length > 0) return otherChars[Math.floor(Math.random() * otherChars.length)];
             }
+            // ⚠️ 非干擾字一律只從「當前句字」抽（缺口字優先）。
+            //   舊做法有 25% 機率抽 this.targetChars（全詩字）→ 混入其他句的字，即使 decoyRatio=0 仍出現混淆字。
+            //   混淆字唯一來源應是上方 useDecoy 分支（受 decoyRatio 控制）。
             const r = Math.random();
             const deficits = this.currentLineChars.filter(ch => (this.collectProgress[ch] || 0) < this.collectTarget);
             if (r < 0.65 && deficits.length > 0) return deficits[Math.floor(Math.random() * deficits.length)];
-            if (r < 0.9 && this.targetChars.length > 0) return this.targetChars[Math.floor(Math.random() * this.targetChars.length)];
             if (this.currentLineChars.length > 0) return this.currentLineChars[Math.floor(Math.random() * this.currentLineChars.length)];
             return '詩';
         },
@@ -585,7 +588,9 @@
             } else if (r < 0.9 && dragonKeys.length > 0) {
                 return dragonKeys[Math.floor(Math.random() * dragonKeys.length)];
             }
-            if (this.targetChars.length > 0) return this.targetChars[Math.floor(Math.random() * this.targetChars.length)];
+            // fallback：改用「長龍上已有字 / 當前句字」，不再抽全詩 targetChars（避免射出他句混淆字）
+            if (dragonKeys.length > 0) return dragonKeys[Math.floor(Math.random() * dragonKeys.length)];
+            if (this.currentLineChars.length > 0) return this.currentLineChars[Math.floor(Math.random() * this.currentLineChars.length)];
             return '詩';
         },
 
@@ -659,6 +664,9 @@
                 vy: Math.sin(angle) * speed,
                 char: this.nextChar
             };
+            // ⚠️ 發射「當下」立刻換上下一顆（發射台顯示 this.nextChar）：
+            //   舊做法在 advanceQueue（字球落地合併後）才換，導致快手玩家發射後仍看到同一顆字、易誤判。
+            this.advanceQueue();
             if (window.SoundManager && window.SoundManager.playOpenItem) window.SoundManager.playOpenItem();
         },
 
@@ -802,8 +810,7 @@
             // 觸發消除掃描（含連鎖）
             this.chainScanAfterMerge(b.char);
 
-            // 換下一顆
-            this.advanceQueue();
+            // 下一顆已於 fireBall（發射當下）預先換好，此處不再重複換牌。
         },
 
         // 換下一顆 + 下下顆

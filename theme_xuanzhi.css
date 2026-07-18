@@ -47,6 +47,16 @@
     --fm-gold: hsl(40, 66%, 40%);
     /* 金赭：分數、控制鈕文字 */
 
+    /* ── 結算（過關動畫）色彩 ── */
+    --fm-timer-red: hsl(0, 90%, 50%);
+    /* 倒數計時框：計時中的紅 */
+    --fm-timer-gold: hsl(30, 95%, 50%);
+    /* 倒數計時框：勝利時「剩餘時間轉分數」的黃，但是倒數是寫死在每個遊戲中 */
+    --fm-timer-white: hsl(33, 80%, 100%);
+    /* game9 詩韻鎖扣：紅白相間計時框的白（暖赭白）*/
+    --fm-star-gold: hsl(30, 90%, 50%);
+    /* 飛行星星／分數倍數 的金黃 */
+
     /* ── 描邊 ── */
     --fm-border: hsl(40, 47%, 71%);
     /* 淡赭描邊：按鈕外框 */
@@ -274,7 +284,9 @@
 
 .fm-heart.empty {
     /* 空心紅心：以淡赭表示已失去，於深／淺底皆可辨識 */
-    color: hsl(37, 35%, 68%);
+    /*color: hsl(37, 35%, 68%);*/
+    color: var(--fm-cinnabar);
+    font-weight: bold;
     opacity: 0.9;
 }
 
@@ -282,4 +294,221 @@
     /* scoreManager 於過關動畫加上 .score，換色成金赭 */
     color: var(--fm-gold);
     opacity: 1;
+}
+
+
+/* ================================================================
+   結算（過關動畫）共用樣式（前綴 .fm-）
+   ---------------------------------------------------------------
+   本區塊統一「結算」四大視覺元件，供 game1/2/4/9/12/13/36 共用：
+     1. 分數倍數提示（× N）        → .fm-score-multiplier
+     2. 倒數計時框（紅→黃）        → .fm-timer-ring / .fm-timer-path(-red/-white)
+     3. 飛行星星（黃色）           → .flying-star
+     4. 過關與否訊息框             → .common-game-message（原 gameMessage.css）
+
+   ⚠️ 計時框的「即時紅→黃」動畫由各 gameX.js 的 updateTimerRing() 以
+      inline stroke 逐格插值繪製（countdown 用 --fm-timer-red 色系、
+      win 用 --fm-timer-gold 色系）；本檔的 class 提供 JS 執行前的
+      預設外觀與幾何，色值集中於上方 --fm-timer-* 變數。
+   ================================================================ */
+
+/* ── 1. 分數倍數提示（scoreManager 於分數看板旁插入的「× N」）── */
+.fm-score-multiplier {
+    color: var(--fm-gold);
+    font-weight: bold;
+}
+
+/* ── 2. 倒數計時框（SVG 外環）── */
+.fm-timer-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* 切勿阻擋按鈕點擊 */
+}
+
+/* 單一計時框（game1/2/4/12/13/36）：預設朱紅、圓端，JS 執行前先隱藏避免閃爍 */
+.fm-timer-path {
+    fill: none;
+    stroke: var(--fm-timer-red);
+    stroke-width: 10px;
+    stroke-linecap: round;
+    stroke-dasharray: 10000;
+    stroke-dashoffset: 10000;
+}
+
+/* game9 詩韻鎖扣：紅白相間雙計時框（較細、平端）*/
+.fm-timer-path-red,
+.fm-timer-path-white {
+    fill: none;
+    stroke-width: 8px;
+    stroke-linecap: butt;
+    transition: stroke-dasharray 0.3s ease;
+}
+
+.fm-timer-path-red {
+    stroke: var(--fm-timer-red);
+}
+
+.fm-timer-path-white {
+    stroke: var(--fm-timer-white);
+}
+
+/* ── 3. 飛行星星（scoreManager 過關動畫；顏色由 JS 逐顆 jitter，class 提供定位與後備色）── */
+.flying-star {
+    position: fixed;
+    z-index: 3000;
+    font-size: 40px;
+    color: var(--fm-star-gold);
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+/* ── 4. 過關與否訊息框（原 gameMessage.css 之 .common-game-message，統一移至本檔）── */
+.common-game-message {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    /* 使用 CSS 變數來控制相對寬度 */
+    --msg-width-scale: 0.9;
+    width: 90%;
+    background: hsl(45, 30%, 85%);
+    border-radius: 20px;
+    text-align: center;
+    color: hsl(0, 0%, 30%);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+    /* ⚠ 此處刻意「不」設定 z-index。
+       因為本元素是被 #common-game-message-wrapper 包住的 container，
+       wrapper 才是直接 append 到 document.body 的根容器，stacking 是由 wrapper 的
+       inline z-index 決定（gameMessage.js 設為 2050，低於 4 個覆蓋層的 2100）。
+       在此額外設 z-index 沒效果且會讓人誤以為這裡可以調整層級。 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+/* --- 標準模式 (無額外資訊) --- */
+.common-game-message:not(.has-extra) {
+    top: 83%;
+    height: 15%;
+    padding: 4px;
+    padding-bottom: 60px;
+    /* 為按鈕留空間 */
+}
+
+/* --- 擴展模式 (帶有 .has-extra 額外資訊，如 Game 3) --- */
+.common-game-message.has-extra {
+    position: fixed;
+    /* 全文模式改用固定定位確保在視窗中央 */
+    top: 55%;
+    /* 修正為偏下方 */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 75%;
+    max-height: 85vh;
+    padding: 10px;
+    padding-bottom: 60px;
+    /* 為按鈕留空間 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 顯示與隱藏控制 */
+.common-game-message.hidden {
+    display: none !important;
+}
+
+/* 標題與得分資訊容器 */
+.common-game-message .msg-header-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: nowrap;
+    margin-bottom: 2px;
+    width: 90%;
+}
+
+/* 標題 */
+.common-game-message h2 {
+    font-size: 24px;
+    font-weight: bold;
+    color: hsl(145, 68%, 30%);
+    margin: 0;
+    margin-right: 10px;
+}
+
+/* 分數 */
+.common-game-message p {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* 按鈕樣式 */
+.common-game-message .nav-btn {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: hsl(145, 68%, 36%);
+    color: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+    border: none;
+    border-radius: 30px;
+    padding: 4px 50px;
+    font-size: 24px;
+    cursor: pointer;
+    transition: filter 0.5s, transform 0.2s;
+    white-space: nowrap;
+}
+
+.common-game-message .nav-btn:hover {
+    filter: brightness(1.25);
+}
+
+.common-game-message .nav-btn:active {
+    transform: translateX(-50%) scale(0.95);
+}
+
+/* 額外內容區域 (.extra-content) - 設為可捲動主體 */
+.common-game-message .extra-content {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* iOS 滾動平滑化 */
+    margin: 4px 0;
+    padding: 4px 16px;
+    background: rgba(0, 0, 0, 0.0);
+    border-radius: 10px;
+    text-align: center;
+    font-size: 28px;
+    letter-spacing: 4px;
+    line-height: 1.4;
+    box-sizing: border-box;
+}
+
+/* 針對 Game 3 的內容微調 */
+.common-game-message .game3-result-poem-info h3 {
+    margin: 2px 0 !important;
+}
+
+/* 適應性調整 */
+@media (max-height: 480px) {
+    .common-game-message:not(.has-extra) {
+        height: 15%;
+    }
+
+    .common-game-message.has-extra {
+        height: 80%;
+        max-height: 95vh;
+        overflow-y: auto;
+    }
 }

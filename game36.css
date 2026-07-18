@@ -159,9 +159,12 @@
     pointer-events: none;
     z-index: 5;
 }
+/* game36 計時框幾何為圓角矩形（rx/ry），且 svg 尺寸由 JS 設定，故保留本專屬區塊；
+   計時的紅色改用 theme_xuanzhi.css 的共用變數 --fm-timer-red（勝利轉分數的黃由
+   game36.js updateTimerRing 以 --fm-timer-gold 色系逐格插值）。*/
 #game36-timer-path {
     fill: none;
-    stroke: hsla(0, 90%, 50%, 0.05);
+    stroke: var(--fm-timer-red);
     stroke-width: 10;
     rx: 16;
     ry: 16;
