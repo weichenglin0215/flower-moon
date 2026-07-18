@@ -647,7 +647,15 @@
 
                 rankViewEl.classList.remove('clickable-rank');
 
-                rankViewEl.onclick = null;
+                rankViewEl.style.cursor = 'pointer';
+
+                rankViewEl.onclick = () => {
+
+                    if (window.SoundManager) window.SoundManager.playOpenItem && window.SoundManager.playOpenItem();
+
+                    this.showRankTablePopup(currentRankName);
+
+                };
 
             }
 
@@ -1200,6 +1208,74 @@
 
             // 雲端只需同步 totalScore, games, levelProgress, claimed
 
+        },
+
+        // 點擊當前文位開啟：所有文位一覽表（文位名 + 積分門檻），右上角 X 關閉
+        showRankTablePopup: function (currentRankName) {
+
+            if (!this.overlay) return;
+
+            // 若已存在，先移除
+            const existed = this.overlay.querySelector('#achRankTablePopup');
+            if (existed) existed.remove();
+
+            const ranks = (window.ScoreManager && window.ScoreManager.ranks) || [];
+
+            const rows = ranks.map(r => {
+                const isCurr = (r.name === currentRankName);
+                const rowStyle = isCurr
+                    ? 'background:hsla(45,80%,45%,0.28);font-weight:bold;color:hsl(48,90%,80%);'
+                    : '';
+                return `<tr style="${rowStyle}">
+                    <td style="padding:6px 10px;border-bottom:1px solid hsla(45,40%,60%,0.25);text-align:center;">${r.name}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid hsla(45,40%,60%,0.25);text-align:right;">${r.minScore.toLocaleString()}</td>
+                </tr>`;
+            }).join('');
+
+            const popup = document.createElement('div');
+            popup.id = 'achRankTablePopup';
+            popup.style.cssText = [
+                'position:absolute',
+                'left:50%',
+                'top:50%',
+                'transform:translate(-50%,-50%)',
+                'width:66%',
+                'max-height:92%',
+                'background:linear-gradient(135deg, hsl(30,35%,16%), hsl(28,40%,2%))',
+                'border:2px solid hsl(45,70%,55%)',
+                'border-radius:12px',
+                'box-shadow:0 8px 32px rgba(0,0,0,0.6)',
+                'z-index:10',
+                'display:flex',
+                'flex-direction:column',
+                'color:hsl(45,80%,88%)',
+                'font-family:inherit'
+            ].join(';');
+
+            popup.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid hsla(45,60%,55%,0.4);">
+                    <div style="font-size:22px;font-weight:bold;color:hsl(48,85%,72%);">文位一覽</div>
+                    <div id="achRankTableClose" style="cursor:pointer;font-size:22px;line-height:1;padding:2px 8px;color:hsl(45,70%,75%);">✕</div>
+                </div>
+                <div style="overflow-y:auto;padding:10px 14px;">
+                    <table style="width:100%;border-collapse:collapse;font-size:20px;">
+                        <thead>
+                            <tr style="color:hsl(48,80%,70%);">
+                                <th style="padding:6px 10px;border-bottom:2px solid hsla(45,60%,55%,0.5);text-align:center;">文位</th>
+                                <th style="padding:6px 10px;border-bottom:2px solid hsla(45,60%,55%,0.5);text-align:right;">積分門檻</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+
+            const container = this.overlay.querySelector('#achContainer') || this.overlay;
+            container.appendChild(popup);
+
+            popup.querySelector('#achRankTableClose').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playCloseItem && window.SoundManager.playCloseItem();
+                popup.remove();
+            });
         },
 
         // 「參加考試」與「領取獎狀」CTA — 掛在總覽 #achNextRankInfo（文位下方）

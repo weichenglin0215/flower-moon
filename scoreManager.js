@@ -163,11 +163,13 @@ const ScoreManager = {
         if (!playerData) return this.ranks[0].name;
         const score = Math.floor(playerData.totalScore || 0);
         const claimed = (playerData.achievements && playerData.achievements.claimed) || [];
+        const coll = (window.FMCollectionSave && window.FMCollectionSave.load && window.FMCollectionSave.load()) || {};
+        const passed = (coll.ranks && coll.ranks.passed) || [];
 
-        // 由高到低找出已領獎狀的最高文位
+        // 由高到低找出「已通過考試 且 已領獎狀」的最高文位
         for (let i = this.EXAM_RANK_NAMES.length - 1; i >= 0; i--) {
             const name = this.EXAM_RANK_NAMES[i];
-            if (claimed.includes('rank_' + name)) return name;
+            if (passed.indexOf(name) >= 0 && claimed.includes('rank_' + name)) return name;
         }
 
         // 尚未領任何考試文位獎狀：以積分推算，但封頂在「童生」

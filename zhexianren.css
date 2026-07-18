@@ -1,0 +1,80 @@
+/* ============================================================================
+ * zhexianren.css — 謫仙人（珠簾詩）舒壓頁樣式
+ * 慣例：所有 class 加 zhexianren- 前綴；overlay 掛於 body 並由 JS 同步 stage 縮放。
+ * ========================================================================== */
+
+/* 全螢幕覆蓋層（實際尺寸/位置由 JS registerOverlayResize 設定） */
+.zhexianren-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 500px;
+    height: 850px;
+    overflow: hidden;
+    z-index: 20000;
+    background: hsl(40, 30%, 84%);
+    /* 防止觸控時瀏覽器介入捲動/縮放，讓珠簾撥弄與雙指縮放順暢 */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.zhexianren-overlay.hidden {
+    display: none;
+}
+
+/* 珠簾繪製畫布 */
+.zhexianren-canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    touch-action: none;
+}
+
+/* 關閉鍵（畫面固定，不隨相機縮放） */
+.zhexianren-close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 24px;
+    color: hsl(30, 40%, 30%);
+    background: hsla(40, 40%, 96%, 0.7);
+    border: 1px solid hsla(30, 40%, 40%, 0.4);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 20010;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.zhexianren-close:hover {
+    background: hsla(40, 50%, 92%, 0.95);
+    transform: scale(1.08);
+}
+
+/* 手勢提示（底部置中，數秒後淡出） */
+.zhexianren-hint {
+    position: absolute;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 18px;
+    font-size: 15px;
+    color: hsl(30, 35%, 28%);
+    background: hsla(40, 45%, 95%, 0.72);
+    border: 1px solid hsla(30, 40%, 45%, 0.3);
+    border-radius: 20px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 20010;
+    transition: opacity 0.8s ease;
+    opacity: 1;
+}
+
+.zhexianren-hint.faded {
+    opacity: 0;
+}

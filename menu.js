@@ -54,6 +54,7 @@
         { page: 'collection', label: '江南小院', image: 'images/Menu/江南小院_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'wordcloud', label: '文字雲', image: 'images/Menu/文字雲_Menu256.jpg' },
+        { page: 'zhexianren', label: '謫仙人', image: 'images/Menu/謫仙人_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
@@ -326,6 +327,12 @@
             }
         } catch (e) { console.warn('[Menu] 隱藏文字雲失敗', e); }
 
+        try {
+            if (window.ZheXianRen && typeof window.ZheXianRen.stopGame === 'function') {
+                window.ZheXianRen.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏謫仙人失敗', e); }
+
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
             if (window.LeaderboardDialog && typeof window.LeaderboardDialog.hide === 'function') {
@@ -594,6 +601,10 @@
                     case 'wordcloud':
                         if (window.WordCloud) window.WordCloud.show();
                         else window.location.href = 'index.html?page=wordcloud';
+                        break;
+                    case 'zhexianren':
+                        if (window.ZheXianRen) window.ZheXianRen.show();
+                        else window.location.href = 'index.html?page=zhexianren';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();
