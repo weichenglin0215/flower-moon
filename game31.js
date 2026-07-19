@@ -27,7 +27,7 @@
         dragCharElement: null,  // 玩家按住的字 DOM
         dragCharIndex: -1,      // 玩家按住的字在當前句中的位置
         candidateOffset: 0,     // 候選字捲動偏移（格）
-        SCROLL_PX_PER_STEP: 30,
+        SCROLL_PX_PER_STEP: 60, // 每滑動一格候選字所需的像素距離；拉長為原本(30)的 200%，避免手指太靈敏誤跳過正確字
 
         // --- 計時器 ---
         timer: 0,
@@ -47,27 +47,35 @@
            distractorLevel：干擾字相似度等級 1~5
            showDecoyHint：是否高亮替身字
            lineCount：局內題數（=要拿幾句來出題）
+           minDecoyCount / maxDecoyCount：每一句最少 / 最多有多少個替身（混淆）字
+             —— 若某句字數少於 minDecoyCount，則以該句字數為上限（保底至少 1）
+             —— 玩家答對「該句所有替身字」才進入下一句；只要答錯其中任何一個 → 扣心 + 揭示 + 進下一句
         */
         difficultySettings: {
             '小學': {
-                timeLimitRate: 12, poemMinRating: 6, maxMistakeCount: 5, decoyLevel: 1,
-                distractorLevel: 1, showDecoyHint: true, lineCount: 5
+                timeLimitRate: 9, poemMinRating: 6, maxMistakeCount: 5, decoyLevel: 1,
+                distractorLevel: 1, showDecoyHint: true, lineCount: 4,
+                minDecoyCount: 1, maxDecoyCount: 1
             },
             '中學': {
                 timeLimitRate: 9, poemMinRating: 5, maxMistakeCount: 4, decoyLevel: 2,
-                distractorLevel: 2, showDecoyHint: true, lineCount: 6
+                distractorLevel: 2, showDecoyHint: true, lineCount: 6,
+                minDecoyCount: 1, maxDecoyCount: 2
             },
             '高中': {
-                timeLimitRate: 7, poemMinRating: 4, maxMistakeCount: 4, decoyLevel: 3,
-                distractorLevel: 3, showDecoyHint: false, lineCount: 8
+                timeLimitRate: 9, poemMinRating: 4, maxMistakeCount: 3, decoyLevel: 3,
+                distractorLevel: 3, showDecoyHint: false, lineCount: 8,
+                minDecoyCount: 1, maxDecoyCount: 2
             },
             '大學': {
-                timeLimitRate: 5, poemMinRating: 3, maxMistakeCount: 3, decoyLevel: 4,
-                distractorLevel: 4, showDecoyHint: false, lineCount: 10
+                timeLimitRate: 9, poemMinRating: 3, maxMistakeCount: 2, decoyLevel: 4,
+                distractorLevel: 4, showDecoyHint: false, lineCount: 12,
+                minDecoyCount: 1, maxDecoyCount: 3
             },
             '研究所': {
-                timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 3, decoyLevel: 5,
-                distractorLevel: 5, showDecoyHint: false, lineCount: 12
+                timeLimitRate: 9, poemMinRating: 3, maxMistakeCount: 1, decoyLevel: 5,
+                distractorLevel: 5, showDecoyHint: false, lineCount: 16,
+                minDecoyCount: 2, maxDecoyCount: 3
             }
         },
 
@@ -123,27 +131,28 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game31-container';
-            div.className = 'game31-overlay hidden';
+            // game31-overlay 保留為本遊戲私有 hook；fm-overlay 承載共用米色宣紙外觀（詳見 theme_xuanzhi.css）
+            div.className = 'game31-overlay fm-overlay hidden';
             div.innerHTML = `
-                <div class="game31-header">
-                    <div class="game31-score-board">分數: <span id="game31-score">0</span></div>
-                    <div class="game31-controls">
-                        <button class="game31-difficulty-tag" id="game31-diff-tag">小學</button>
-                        <button id="game31-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game31-newGame-btn" class="nav-btn">開新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game31-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game31-diff-tag" data-level="小學">小學</button>
+                        <button id="game31-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game31-newGame-btn" class="fm-nav-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game31-sub-header">
-                    <div id="game31-hearts" class="hearts"></div>
+                <div class="fm-sub-header">
+                    <div id="game31-hearts" class="fm-hearts"></div>
+                    <div id="game31-poem-info" class="fm-poem-info"></div>
                 </div>
                 <div class="game31-area">
                     <div class="game31-info">
-                        <div id="game31-poem-info" class="poem-info"></div>
                         <div id="game31-progress-text" class="game31-progress-text"></div>
                     </div>
                     <div id="game31-stage" class="game31-stage">
-                        <svg id="game31-timer-ring">
-                            <rect id="game31-timer-path" x="3" y="3"></rect>
+                        <svg id="game31-timer-ring" class="fm-timer-ring">
+                            <rect id="game31-timer-path" class="fm-timer-path" x="3" y="3"></rect>
                         </svg>
                         <!-- 候選字直排浮現於詩句上方（紅線已刪除，改以「淺藍放大 1.5x」標示選中候選） -->
                         <div id="game31-candidates" class="game31-candidates hidden"></div>
@@ -221,22 +230,16 @@
             const diffTag = document.getElementById('game31-diff-tag');
             const retryBtn = document.getElementById('game31-retryGame-btn');
             const newBtn = document.getElementById('game31-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            // 難度標籤色彩已改由 CSS 依 data-level 屬性套色（見 theme_xuanzhi.css 的 .fm-difficulty-tag[data-level=...]）
+            // 這裡只負責更新文字與同步 data-level；避免 JS 硬寫顏色覆蓋主題。
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
@@ -311,8 +314,11 @@
             // targetChars：把每行第一個字塞入（用於時間計算，長度 = 局內題數 = 字數）
             this.targetChars = this.poemLines.map(line => line[0] || '');
 
+            // 詩詞名稱最多顯示 8 字（避免在 fm-sub-header 右側與左邊紅心重疊，同 game1/game20 慣例）
+            let title31 = this.currentPoem.title;
+            if (title31.length > 8) title31 = title31.substring(0, 8) + "…";
             document.getElementById('game31-poem-info').textContent =
-                `${this.currentPoem.title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
+                `${title31} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             document.getElementById('game31-poem-info').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -355,7 +361,10 @@
             this.startTimer();
         },
 
-        /* 為每行詩生成一題：選一個詩眼字 → 生成替身 → 生成 3 個干擾字 */
+        /* 為每行詩生成一題：依難度決定該句要放幾個替身字（1~3 個不等）→
+           每個替身各自生成一個「替身字」；候選字集會在玩家按下時針對「當下按的位置」
+           即時重新生成（見 regenerateCandidatesForPress），這裡不再預先算 candidates。
+        */
         generateQuestions: function () {
             this.questions = [];
             const settings = this.difficultySettings[this.difficulty];
@@ -363,31 +372,57 @@
                 const line = this.poemLines[i];
                 if (!line || line.length === 0) continue;
 
-                // 隨機選一字作為詩眼（非標點，已由 getSharedRandomPoem 過濾）
-                const charIdx = Math.floor(Math.random() * line.length);
-                const original = line[charIdx];
+                // 依難度隨機決定該句要放幾個替身：
+                //   ⚠️ 無論字數多短、難度多高，該句至少要保留 2 個「正確字」（非替身），
+                //   避免例如三字句只剩 1 個正確字時玩法難以理解（無從判斷句意、失去對照基準）。
+                //   故替身數上限 = min(難度設定的 maxDecoyCount, 該句字數 - 2)。
+                const minD = Math.max(1, settings.minDecoyCount || 1);
+                const maxD = Math.max(minD, settings.maxDecoyCount || minD);
+                const cap = Math.min(maxD, Math.max(1, line.length - 2));
+                const floor = Math.min(minD, cap);
+                const decoyCount = Math.floor(Math.random() * (cap - floor + 1)) + floor;
 
-                // 生成替身字
-                const decoy = this.pickDecoyChar(original, settings.decoyLevel);
+                // 從該句所有字位隨機挑 decoyCount 個不重複位置
+                const available = [];
+                for (let k = 0; k < line.length; k++) available.push(k);
+                this.shuffleInPlace(available);
+                const positions = available.slice(0, decoyCount).sort((a, b) => a - b);
 
-                // 生成 3 干擾字（不含 original、不含 decoy）
-                const distractors = this.pickDistractors(original, decoy, 3, settings.distractorLevel);
-
-                // 候選字陣列（原字 + 3 干擾）打亂順序
-                const candidates = this.shuffle([original, ...distractors]);
+                // 為每個替身位置各自生成「該位置原字 → 替身字」
+                //   同一句不同替身彼此不衝突：後生成者的替身若剛好等於前者的原字，
+                //   會在字池篩選階段被排除（pickDecoyChar 只保證 !== 該位置原字，故此處再過濾）
+                const usedDecoys = new Set();
+                const decoys = positions.map(charIdx => {
+                    const original = line[charIdx];
+                    let decoy = this.pickDecoyChar(original, settings.decoyLevel);
+                    // 避免同一句兩個替身字撞在一起，且替身不能剛好等於句中其他字（會混淆玩家）
+                    let safety = 20;
+                    while (safety-- > 0 &&
+                        (usedDecoys.has(decoy) || line.indexOf(decoy) >= 0)) {
+                        decoy = this.pickDecoyChar(original, settings.decoyLevel);
+                    }
+                    usedDecoys.add(decoy);
+                    return { charIdx, original, decoy, solved: false };
+                });
 
                 // 煉字典故（隨機選一則占位）
                 const lore = this.loreDB[Math.floor(Math.random() * this.loreDB.length)];
 
                 this.questions.push({
                     lineIdx: i,
-                    charIdx: charIdx,
-                    original: original,
-                    decoy: decoy,
-                    candidates: candidates,
+                    decoys: decoys,   // [{ charIdx, original, decoy, solved }, ...]
                     lore: lore
                 });
             }
+        },
+
+        // 供 generateQuestions 內部用：對陣列原地洗牌（不生新陣列）
+        shuffleInPlace: function (arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
         },
 
         /* 從替身字池挑出與 original 不同的近義字（依等級控制相似度） */
@@ -464,7 +499,7 @@
             return a;
         },
 
-        /* 渲染當前題目（橫排詩句，其中詩眼字被換成替身字） */
+        /* 渲染當前題目（橫排詩句，該句所有替身位置都換成替身字；已答對的替身位置顯示原字並套綠字外框） */
         renderCurrentQuestion: function () {
             const verse = document.getElementById('game31-verse');
             verse.innerHTML = '';
@@ -474,6 +509,10 @@
             const line = this.poemLines[q.lineIdx];
             const settings = this.difficultySettings[this.difficulty];
 
+            // 建 charIdx → decoy 物件的對照表，方便迴圈中快速查該位置是否為替身
+            const decoyMap = {};
+            q.decoys.forEach(d => { decoyMap[d.charIdx] = d; });
+
             for (let i = 0; i < line.length; i++) {
                 // 每個字為「垂直堆疊：字 + 向下箭頭」，箭頭提示玩家往下拖曳（避免手指遮住字）
                 const wrapper = document.createElement('span');
@@ -482,11 +521,19 @@
                 const span = document.createElement('span');
                 span.className = 'game31-verse-char';
                 span.dataset.idx = i;
-                if (i === q.charIdx) {
-                    span.textContent = q.decoy;
+
+                const d = decoyMap[i];
+                if (d && d.solved) {
+                    // 該位置已被玩家在本輪內答對過 → 顯示原字，套綠字外框（本輪不再重播動畫）
+                    span.textContent = d.original;
+                    span.classList.add('game31-reveal-static');
+                } else if (d) {
+                    // 該位置為未解替身 → 顯示替身字，並依難度決定是否高亮
+                    span.textContent = d.decoy;
                     span.classList.add('game31-decoy');
                     if (settings.showDecoyHint) span.classList.add('game31-decoy-hint');
                 } else {
+                    // 一般字（非替身位置）
                     span.textContent = line[i];
                 }
                 wrapper.appendChild(span);
@@ -528,6 +575,14 @@
 
             e.preventDefault();
             const charIdx = parseInt(target.dataset.idx);
+
+            // 已解替身位置（顯示綠字）不可再點 —— 避免玩家誤點導致「已答對又扣心」
+            const q0 = this.questions[this.currentQuestionIdx];
+            if (q0) {
+                const already = q0.decoys.find(d => d.charIdx === charIdx && d.solved);
+                if (already) return;
+            }
+
             this.isDragging = true;
             this.dragCharElement = target;
             this.dragCharIndex = charIdx;
@@ -548,47 +603,68 @@
         },
 
         // 依玩家按下的字位置生成當次候選字集：
-        //   - 若按到「詩眼字」(charIdx === q.charIdx) → 候選集含 original + 3 干擾（打亂）
-        //   - 若按到「非詩眼字」→ 候選集不含 original，僅為該位置的字 + 3 個相關干擾
+        //   - 若按到「未解替身位置」→ 候選集含該位置的原字 + 3 個相關干擾（打亂）
+        //   - 若按到「非替身位置」或「已解替身位置」→ 候選集不含任何未解替身的原字（避免直接暴露答案）
         //   → 不同位置候選集完全不同，玩家無法用「哪個候選集出現正確答案」來作弊
+        //   ⚠️ 多替身題：需同時排除「該句所有未解替身的原字 / 替身字」，避免玩家從候選字反推
         regenerateCandidatesForPress: function (charIdx) {
             const q = this.questions[this.currentQuestionIdx];
             const line = this.poemLines[q.lineIdx] || '';
             const settings = this.difficultySettings[this.difficulty];
-            // 玩家按下的位置目前顯示的字（詩眼位置 = 替身字；其他位置 = 原詩字）
-            const shownChar = (charIdx === q.charIdx) ? q.decoy : line[charIdx];
+
+            // 找出「玩家按下的是否為某個未解替身」
+            const activeDecoy = q.decoys.find(d => d.charIdx === charIdx && !d.solved);
+
+            // 蒐集當句所有「未解替身」的原字與替身字，供後續過濾用
+            const unsolvedOriginals = new Set(q.decoys.filter(d => !d.solved).map(d => d.original));
+            const unsolvedDecoys = new Set(q.decoys.filter(d => !d.solved).map(d => d.decoy));
+
+            // 玩家按下的位置目前顯示的字（若為未解替身則是替身字；否則為原詩字）
+            const shownChar = activeDecoy ? activeDecoy.decoy : line[charIdx];
+
             let base;
-            if (charIdx === q.charIdx) {
-                // 詩眼字位置：候選集含正解，排除替身字（pickDistractors 已排除 q.decoy）
-                base = [q.original].concat(this.pickDistractors(q.original, q.decoy, 3, settings.distractorLevel));
+            if (activeDecoy) {
+                // 未解替身位置：候選集必含該替身「自己」的原字，其餘 3 個為相關干擾
+                base = [activeDecoy.original].concat(
+                    this.pickDistractors(activeDecoy.original, activeDecoy.decoy, 3, settings.distractorLevel)
+                );
+                // 排除「其他未解替身」的原字（保留自己的）— 避免暴露別題答案
+                base = base.filter(c => c === activeDecoy.original || !unsolvedOriginals.has(c));
             } else {
-                // 非詩眼字位置：候選集不含 shownChar（玩家按下的字）也不含 q.original（不能誤導）
-                let distractors = this.pickDistractors(shownChar, q.original, 4, settings.distractorLevel);
-                distractors = distractors.filter(c => c !== q.original && c !== shownChar && c !== q.decoy);
+                // 非替身位置（或已解位置）：不能出現任何未解替身的原字（否則暴露答案）
+                let distractors = this.pickDistractors(shownChar, null, 4, settings.distractorLevel);
+                distractors = distractors.filter(c =>
+                    c !== shownChar && !unsolvedOriginals.has(c) && !unsolvedDecoys.has(c)
+                );
                 while (distractors.length < 4) {
                     const pool = this.decoyPool['其他'];
                     const pick = pool[Math.floor(Math.random() * pool.length)];
-                    if (pick !== q.original && pick !== shownChar && pick !== q.decoy && !distractors.includes(pick)) distractors.push(pick);
+                    if (pick !== shownChar && !unsolvedOriginals.has(pick) && !unsolvedDecoys.has(pick) && !distractors.includes(pick)) {
+                        distractors.push(pick);
+                    }
                 }
                 base = distractors.slice(0, 4);
             }
-            // 保險：任何情況下都移除 shownChar（要求 §5）
+
+            // 保險：任何情況下都移除 shownChar
             base = base.filter(c => c !== shownChar);
-            // 若過濾後不足 4 個（例：shownChar 恰好在裡面被剔除）用「其他」池補齊
+            // 若過濾後不足 4 個，用「其他」池補齊（同樣避開所有未解替身原字/替身字）
             while (base.length < 4) {
                 const pool = this.decoyPool['其他'];
                 const pick = pool[Math.floor(Math.random() * pool.length)];
-                if (pick !== shownChar && pick !== q.decoy && (charIdx === q.charIdx ? true : pick !== q.original) && !base.includes(pick)) {
+                const isSelfOriginal = activeDecoy && pick === activeDecoy.original;
+                const conflictsOriginal = !isSelfOriginal && unsolvedOriginals.has(pick);
+                if (pick !== shownChar && !conflictsOriginal && !unsolvedDecoys.has(pick) && !base.includes(pick)) {
                     base.push(pick);
                 }
             }
             this.currentCandidates = this.shuffle(base);
-            // 要求 §4：詩眼位置的正解不能停在中央（提交預設位置），強制玩家至少拖曳一次
-            if (charIdx === q.charIdx) {
+
+            // 替身位置的正解不能停在中央（提交預設位置），強制玩家至少拖曳一次
+            if (activeDecoy) {
                 const N = this.currentCandidates.length;
                 const centerIdx = Math.floor(N / 2);
-                if (this.currentCandidates[centerIdx] === q.original) {
-                    // 與非中央隨機位置對調
+                if (this.currentCandidates[centerIdx] === activeDecoy.original) {
                     let swapIdx;
                     do { swapIdx = Math.floor(Math.random() * N); } while (swapIdx === centerIdx);
                     [this.currentCandidates[centerIdx], this.currentCandidates[swapIdx]]
@@ -619,7 +695,7 @@
 
             // 點擊即判定（即使玩家沒有拖曳，也要判勝負；沒拖曳＝停在正中央候選字）
             const q = this.questions[this.currentQuestionIdx];
-            const cands = this.currentCandidates || q.candidates;
+            const cands = this.currentCandidates || [];
             const N = cands.length;
             const centerIdx = Math.floor(N / 2);
             const pickIdx = ((centerIdx - this.candidateOffset) % N + N) % N;
@@ -638,9 +714,9 @@
             return { x: e.clientX, y: e.clientY };
         },
 
-        /* 顯示候選字直排於指定字元上方 */
+        /* 顯示候選字直排於指定字元上方（候選由 regenerateCandidatesForPress 於按下瞬間即時生成） */
         showCandidates: function (charEl) {
-            const cands = this.currentCandidates || (this.questions[this.currentQuestionIdx] && this.questions[this.currentQuestionIdx].candidates) || [];
+            const cands = this.currentCandidates || [];
             const cont = document.getElementById('game31-candidates');
             const stage = document.getElementById('game31-stage');
             const stageRect = stage.getBoundingClientRect();
@@ -706,43 +782,54 @@
             });
         },
 
-        /* 判定答案 */
+        /* 判定答案（多替身版）：
+             - 玩家按到「未解替身位置」+ 選中該位置的原字 → 該替身標記為 solved，加分並綠字亮起
+                 · 若該句仍有其他未解替身 → 停在該句繼續讓玩家找下一個替身
+                 · 若該句所有替身皆已 solved → 進下一句
+             - 其他情況（按到非替身位置 / 按到替身位置但選了錯字）→ 扣心，把該句剩餘未解替身
+               全部揭示為紅字原字，進下一句（或達失敗上限則遊戲結束）
+        */
         judgeAnswer: function (q, submitted) {
-            this.isAnimating = true;
             const verse = document.getElementById('game31-verse');
-            const decoyEl = verse.querySelector('.game31-decoy');
 
-            // 玩家是否拖曳到替身字 = this.dragCharIndex === q.charIdx
-            const pickedRightDecoy = (this.dragCharIndex === q.charIdx);
-            const pickedRightOriginal = (submitted === q.original);
+            // 玩家按到的位置若是某個「未解替身」，即為本次要判定的目標
+            const activeDecoy = q.decoys.find(d => d.charIdx === this.dragCharIndex && !d.solved);
+            const pickedRight = !!activeDecoy && (submitted === activeDecoy.original);
 
             this.hideCandidates();
 
-            if (pickedRightDecoy && pickedRightOriginal) {
-                // 全對：綠字綻放動畫（0.6s 毛筆浮現 + 綠色外框）
+            if (pickedRight) {
+                // 本次替身答對 → 標記 solved、綠字浮現、加分
                 if (window.SoundManager) window.SoundManager.playSuccess();
-                if (decoyEl) {
-                    // 替換替身字為原字並移除替身樣式，讓綠字 reveal 動畫獨秀
-                    decoyEl.textContent = q.original;
-                    decoyEl.classList.remove('game31-decoy', 'game31-decoy-hint');
-                    decoyEl.classList.add('game31-reveal');
+                activeDecoy.solved = true;
+
+                if (this.dragCharElement) {
+                    this.dragCharElement.textContent = activeDecoy.original;
+                    this.dragCharElement.classList.remove('game31-decoy', 'game31-decoy-hint');
+                    this.dragCharElement.classList.add('game31-reveal');
                 }
-                // 加分
+
                 const pts = (window.ScoreManager && window.ScoreManager.gameSettings.game31)
                     ? window.ScoreManager.gameSettings.game31.getPointA : 50;
                 this.score += pts;
                 document.getElementById('game31-score').textContent = this.score;
 
-                // 延遲切題：等綠字 reveal 動畫（0.6s）表演完再進入下一題
-                //   ⚠️ 若不 delay，nextQuestion 會立即 innerHTML='' 抹掉正在進行的動畫
-                //   ⚠️ 也要在此重置 isAnimating（原本 lore 卡 callback 的責任已消失）
-                setTimeout(() => {
-                    this.isAnimating = false;
-                    this.nextQuestion();
-                }, 900);
+                // 若該句所有替身皆已 solved → 延遲後進下一句（換句動畫期間才需要鎖住輸入）；
+                // 否則該句還有其他未解替身 → ⚠️ 不設 isAnimating，讓玩家可以立刻拖曳下一個替身，
+                //   不必等這顆字的 0.6s 綠字浮現動畫播完，避免浪費玩家時間。
+                const allSolved = q.decoys.every(d => d.solved);
+                if (allSolved) {
+                    this.isAnimating = true;
+                    setTimeout(() => {
+                        this.isAnimating = false;
+                        this.nextQuestion();
+                    }, 900);
+                }
 
             } else {
-                // 答錯：紅光閃爍 + 扣心 + 揭示
+                // 答錯（不論是按錯位置、還是按對位置但選錯原字）→ 扣心 + 揭示 + 進下一句
+                // ⚠️ 答錯情境仍需鎖住輸入：揭示動畫與扣心結算期間不應允許玩家繼續拖曳。
+                this.isAnimating = true;
                 if (window.SoundManager) window.SoundManager.playFailure();
                 if (this.dragCharElement) {
                     this.dragCharElement.classList.add('game31-wrong');
@@ -750,13 +837,17 @@
                         if (this.dragCharElement) this.dragCharElement.classList.remove('game31-wrong');
                     }, 800);
                 }
-                // 揭示正確答案：將替身字以紅色閃爍替換為原字
-                if (decoyEl) {
-                    setTimeout(() => {
-                        decoyEl.textContent = q.original;
-                        decoyEl.classList.add('game31-revealed-wrong');
-                    }, 400);
-                }
+                // 揭示該句所有「未解替身」的原字（已解替身維持綠字，不動）
+                setTimeout(() => {
+                    q.decoys.forEach(d => {
+                        if (d.solved) return;
+                        const el = verse.querySelector(`.game31-verse-char[data-idx="${d.charIdx}"]`);
+                        if (el) {
+                            el.textContent = d.original;
+                            el.classList.add('game31-revealed-wrong');
+                        }
+                    });
+                }, 400);
                 this.mistakeCount++;
                 this.updateHearts();
 
@@ -881,6 +972,21 @@
             }, 50);
         },
 
+        /**
+         * 讀取計時框的基準色（來源：theme_xuanzhi.css 的 --fm-timer-* 變數）。
+         * 解析成 { h, s, l }；解析失敗時回退到 fallback，確保計時框仍有可見顏色。
+         * 與 scoreManager.js 的 getStarBaseColor() 同一套「以 CSS 變數為基準色」的做法。
+         */
+        getTimerBaseColor: function (varName, fallback) {
+            try {
+                const raw = getComputedStyle(document.documentElement)
+                    .getPropertyValue(varName).trim();
+                const m = raw.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i);
+                if (m) return { h: parseFloat(m[1]), s: parseFloat(m[2]), l: parseFloat(m[3]) };
+            } catch (e) { /* 忽略解析錯誤，改用後備色 */ }
+            return fallback;
+        },
+
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game31-timer-path');
             const wrapper = document.getElementById('game31-stage');
@@ -900,14 +1006,25 @@
             const perimeter = (w - 6 + h - 6) * 2;
             rect.style.strokeDasharray = perimeter;
             if (mode === 'win') {
+                // 勝利動畫：黃色弧段順時針縮短
                 const clamped = Math.max(0, Math.min(1, ratio));
+                rect.style.transition = 'stroke 0.3s ease';
                 rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
                 rect.style.strokeDashoffset = clamped * perimeter;
-                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
+                // 色相／飽和度取自主題金黃 --fm-timer-gold；亮度隨剩餘比例掃動（base.l-15 → base.l+5），
+                // 並以 25 為亮度保底避免主題值過暗時變黑。
+                const base = this.getTimerBaseColor('--fm-timer-gold', { h: 40, s: 66, l: 45 });
+                const lum = Math.max(25, Math.round(base.l - 15 + 20 * clamped));
+                rect.style.stroke = `hsl(${base.h}, ${base.s}%, ${lum}%)`;
             } else {
+                // 正常倒數：暗紅→鮮紅（透明度掃動）
+                rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
+                // 色相／飽和度／亮度取自主題朱紅 --fm-timer-red；透明度隨消逝比例掃動（5% → 50%）。
+                const base = this.getTimerBaseColor('--fm-timer-red', { h: 0, s: 90, l: 50 });
+                const alpha = Math.round(5 + 45 * elapsed);
+                rect.style.stroke = `hsla(${base.h}, ${base.s}%, ${base.l}%, ${alpha}%)`;
             }
         },
 
@@ -920,14 +1037,14 @@
             if (max > 10) max = 0;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
                 container.appendChild(span);
             }
         },
 
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game31-hearts .heart');
+            const hearts = document.querySelectorAll('#game31-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i < this.mistakeCount) {
                     h.classList.add('empty');
@@ -1006,7 +1123,7 @@
                     gameKey: 'game31',
                     timerContainerId: 'game31-stage',
                     scoreElementId: 'game31-score',
-                    heartsSelector: '#game31-hearts .heart:not(.empty)',
+                    heartsSelector: '#game31-hearts .fm-heart:not(.empty)',
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         checkAchievementsAndShow(finalScore);

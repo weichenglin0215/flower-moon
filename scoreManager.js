@@ -38,7 +38,7 @@ const ScoreManager = {
         'game10': { base: 100, heart: 10, time: 0, getPointA: 1, getPointB: 20 }, //擊石鳴詩，無時間限制
         'game11': { base: 100, heart: 10, time: 0, getPointA: 5, getPointB: 30 }, //翻墨識蹤，無時間限制
         'game12': { base: 100, heart: 10, time: 2, getPointA: 20 }, //疏影橫斜
-        'game13': { base: 100, heart: 10, time: 2, getPointA: 20 }, //人事時地
+        'game13': { base: 100, heart: 10, time: 1, getPointA: 20 }, //人事時地
         'game14': { base: 100, heart: 10, time: 3, getPointA: 5 }, //步步驚心
         'game15': { base: 100, heart: 10, time: 2, getPointA: 15 }, //墨韻游龍
         'game16': { base: 100, heart: 5, time: 0, getPointA: 5 }, //打地詩，無時間限制 
@@ -64,7 +64,7 @@ const ScoreManager = {
         'game28': { base: 100, heart: 10, time: 2, getPointA: 2 }, //兩心相印（連連看）
         'game29': { base: 100, heart: 10, time: 3, getPointA: 1 }, //字龍盤環（滾球收集）
         'game30': { base: 100, heart: 10, time: 3, getPointA: 1 }, //層巒疊翠（麻將疊疊）
-        'game31': { base: 100, heart: 10, time: 3, getPointA: 1 }, //詩眼覓蹤（字詞替換）
+        'game31': { base: 100, heart: 10, time: 3, getPointA: 15 }, //詩眼覓蹤（字詞替換）
         'game32': { base: 100, heart: 10, time: 0, getPointA: 1 }, //尋詩地圖（地圖故事）
         'game33': { base: 100, heart: 10, time: 0, getPointA: 1 }, //作者是誰（風格辨識）
         'game34': { base: 100, heart: 10, time: 0, getPointA: 1 }, //猜猜詩題（標題配對）

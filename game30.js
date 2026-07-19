@@ -535,12 +535,29 @@
         },
 
         // ── 渲染牌山 ──
+        // 排序規則（決定畫面上「誰疊在誰上面」）：
+        //   1) 先依 layer 由低到高排（低層先畫在下面 → 高層後畫覆蓋在上面）。
+        //      這一步搭配每張牌各自的 z-index = 10 + layer*10，保證「跨層」的
+        //      上下關係一定正確：層數越高，z-index 越大，一定畫在更高層的最上面。
+        //   2) ⚠️ 同一層內的牌，因為生成時位置間距故意設得很密（見 generateTower 的
+        //      slotW/slotH），同層牌之間本來就會大量重疊。若同層內部完全不排序，
+        //      z-index 剛好打平時瀏覽器只能依「加入 DOM 的先後順序」決勝負，
+        //      而加入順序來自生成時的隨機洗牌 —— 這就是「被壓暗（blocked）的牌卻
+        //      顯示在最上層」的成因：同層牌的前後關係其實是隨機的，不是照設計規則。
+        //      這裡加上一個固定、看得懂的次要排序：座標 (x + y) 越大（越靠右下），
+        //      畫得越晚、也就疊在越上面，讓同層牌呈現穩定一致的「右下壓左上」視覺堆疊，
+        //      不會每次開新局都隨機決定同層牌的前後關係。
         renderTower: function () {
             const tower = document.getElementById('game30-tower');
             tower.innerHTML = '';
 
-            // 依 layer 排序（低層先繪 → 高層後繪 → 視覺上覆蓋）
-            const sorted = this.tiles.slice().sort((a, b) => a.layer - b.layer);
+            // ⚠️ 必須排除已經飛入暫存槽的牌（t.removed === true），
+            //   否則這個函式若在遊戲中途被重新呼叫（例如 useUndo 撤回時），
+            //   會把已經消失的牌全部重新畫回牌山上。
+            const sorted = this.tiles.filter(t => !t.removed).sort((a, b) => {
+                if (a.layer !== b.layer) return a.layer - b.layer;
+                return (a.x + a.y) - (b.x + b.y);
+            });
             sorted.forEach(t => {
                 const el = document.createElement('div');
                 el.className = 'game30-tile';
@@ -1043,31 +1060,12 @@
             const t = this.tiles.find(x => x.id === item.tileId);
             if (t) {
                 t.removed = false;
-                // 重建 DOM
-                const tower = document.getElementById('game30-tower');
-                const el = document.createElement('div');
-                el.className = 'game30-tile';
-                el.textContent = t.char;
-                el.style.left = t.x + 'px';
-                el.style.top = t.y + 'px';
-                el.style.zIndex = 10 + t.layer * 10;
-                el.dataset.tid = t.id;
-                el.onclick = () => this.onTileClick(t.id);
-                // 同字同色（與 renderTower 同樣套用 HUE）
-                const hue = this.getHueForChar(t.char);
-                el.style.setProperty('--g30-h', hue);
-                if (this.isPoemChar(t.char)) {
-                    el.style.setProperty('--g30-s', '60%');
-                    el.style.setProperty('--g30-l', '75%');
-                    el.style.setProperty('--g30-text', 'hsl(220, 30%, 14%)');
-                    // 同字同形：依字在 uniquePoemChars 索引套五種形狀之一
-                    const shpIdx = this.uniquePoemChars.indexOf(t.char);
-                    if (shpIdx >= 0) window.TileStyleUtils.applyShape(el, window.TileStyleUtils.getGroupShape(shpIdx));
-                } else {
-                    el.classList.add('decoy');
-                }
-                tower.appendChild(el);
-                t.el = el;
+                // ⚠️ 改用 renderTower() 整盤重繪，而不是只手動補建這一張牌的 DOM。
+                //   原本這裡自己 appendChild 一張新牌到 tower 最後面，會讓它在「同 z-index 打平」時
+                //   永遠排在最上層（因為 DOM 順序最新），跟 renderTower() 依座標排序決定的
+                //   同層前後關係不一致 —— 兩處各自維護一套排序邏輯，一定會慢慢兜不起來。
+                //   改成呼叫同一份 renderTower()，保證撤回後的牌，前後關係跟平常渲染完全一致。
+                this.renderTower();
             }
             this.buffer.splice(lastIdx, 1);
             this.renderBuffer();

@@ -60,6 +60,10 @@
 /* 詩詞出處連結：樣式已上移至 theme_xuanzhi.css 的 .fm-poem-info（位於 fm-sub-header 右側）*/
 
 .game9-progress-text {
+    /* 靠左顯示 */
+    /*display: flex;*/
+    text-align: left;
+    justify-content: flex-start;
     font-size: 22px;
     font-weight: bold;
     letter-spacing: 2px;
@@ -107,18 +111,21 @@
     padding: 20px 0;
 }
 
-/* 單根螺絲樁 */
+/* 單根螺絲樁（畫面上垂直站立、可以疊放螺帽文字的那根柱子） */
 .game9-bolt {
     position: relative;
     width: 40px;
-    /* Height set dynamically in JS */
-    /* Enough height for 5 nuts */
-    background: linear-gradient(to right, hsl(40, 20%, 30%), hsl(40, 30%, 50%), hsl(40, 20%, 30%));
+    /* ⚠️ 這裡故意不寫死 height，因為每根螺絲樁能放幾顆螺帽（幾個字）不一定一樣多，
+       所以高度改由 game9.js 的 renderLevel() 依「這句詩最長有幾個字」動態計算後
+       用 JavaScript 設定（搜尋 boltEl.style.height 即可找到那段程式碼）。 */
+    background: linear-gradient(to right, hsl(40, 20%, 50%), hsl(40, 30%, 70%), hsl(40, 20%, 50%));
     border-radius: 6px 6px 0 0;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(0, 0, 0, 0.3);
     display: flex;
+    /* flex-direction: column-reverse 的意思是：子元素（螺帽）由「下往上」排列，
+       這樣我們在程式碼裡用 appendChild 依序把螺帽加進去時，
+       畫面上第一個加入的螺帽就會自然疊在最底部，符合「螺絲從底部往上鎖」的視覺效果。 */
     flex-direction: column-reverse;
-    /* Stack from bottom */
     align-items: center;
     cursor: pointer;
     transition: transform 0.2s ease, filter 0.2s ease;
@@ -129,10 +136,10 @@
     content: '';
     position: absolute;
     bottom: -10px;
-    left: -5px;
+    left: -15px;
     width: 70px;
     height: 10px;
-    background: hsl(40, 20%, 20%);
+    background: hsl(40, 20%, 40%);
     border-radius: 4px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
 }
@@ -172,7 +179,15 @@
     }
 }
 
-/* 螺帽文字 */
+/* 螺帽文字（每一顆疊在螺絲樁上、寫著一個詩詞文字的方塊） */
+/* ⚠️ 重要：height 這個值「不能」單獨在這裡改完就沒事！
+   game9.js 的 renderLevel() 裡有一段計算「每顆螺帽疊放的間隔（bottom 位置）」與
+   「整根螺絲樁要多高」的程式碼，那段程式碼裡有跟這裡的 height 對應的常數
+   （搜尋 NUT_HEIGHT 即可找到）。如果只改這裡的 height，卻沒有同步改 game9.js
+   裡的 NUT_HEIGHT，螺帽疊起來就會「間隔跑掉」（黏在一起變不出縫隙，
+   或是縫隙太大看起來鬆散）。
+   目前 height: 72px 已經同步更新過 NUT_HEIGHT: 72，兩邊是一致的，
+   之後如果還要再調整螺帽高度，記得「這裡」跟「game9.js 的 NUT_HEIGHT」要一起改。 */
 .game9-nut {
     position: absolute;
     width: 64px;
@@ -180,16 +195,17 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 40px;
+    font-size: 45px;
     font-weight: bold;
     color: hsl(40, 50%, 90%);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
     border-radius: 8px;
     box-shadow: 0 4px 4px rgba(0, 0, 0, 0.5), inset 0 2px 4px hsla(0, 0%, 100%, 0.5);
     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    /* Smooth movement */
+    /* 讓螺帽被選取（浮起）或放下時的位移動畫更平滑、有點彈跳感 */
     pointer-events: auto;
-    /* Allow clicking specific nuts */
+    /* 允許直接點擊「某一顆」螺帽（而不是只能點整根螺絲樁），
+       這樣玩家才能點中間某顆螺帽，一次選取它跟它上面的所有螺帽 */
     cursor: pointer;
 }
 
@@ -257,10 +273,10 @@
 .game9-nut-hint {
     position: absolute;
     bottom: -12px;
-    right: 2px;
+    right: 0px;
     font-size: 24px;
-    color: hsla(0, 0%, 100%, 0.8);
-    font-weight: normal;
+    color: hsla(0, 0%, 100%, 1.0);
+    font-weight: bold;
 }
 
 /* .game9-message Styles Removed - Using Unified GameMessage Component */

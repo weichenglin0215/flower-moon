@@ -100,8 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return x - Math.floor(x);
         }
 
-        // 1. 顏色 (色相 Hue)
-        const hue = Math.floor(seededRandom(1) * 360);
+        // 1. 顏色 (色相 Hue)：依「星期幾」決定基準色相（360° 平均分成 7 等分），
+        //    星期日=0、星期一=360/7≈51.5、...、星期六=6×360/7≈308，同一星期幾的卡片色系一致；
+        //    再以種子亂數在 ±12 範圍內微調，避免同星期的卡片色相完全相同。
+        const weekdayHue = date.getDay() * (360 / 7);
+        const hueJitter = (seededRandom(1) - 0.5) * 24; // -12 ~ +12
+        const hue = Math.floor(((weekdayHue + hueJitter) % 360 + 360) % 360);
         cardInner.style.setProperty('--card-hue', hue);
 
         // 2. 詩詞選擇

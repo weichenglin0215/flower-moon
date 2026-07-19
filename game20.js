@@ -102,18 +102,20 @@
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game20-container';
-            div.className = 'game20-overlay hidden';
+            // game20-overlay 保留為本遊戲私有 hook；fm-overlay 承載共用米色宣紙外觀（詳見 theme_xuanzhi.css）
+            div.className = 'game20-overlay fm-overlay hidden';
             div.innerHTML = `
-                <div class="game20-header">
-                    <div class="game20-score-board">分數: <span id="game20-score">0</span></div>
-                    <div class="game20-controls">
-                        <button class="game20-difficulty-tag" id="game20-diff-tag">小學</button>
-                        <button id="game20-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game20-newGame-btn" class="nav-btn">開新局</button>
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game20-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game20-diff-tag" data-level="小學">小學</button>
+                        <button id="game20-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game20-newGame-btn" class="fm-nav-btn">開新局</button>
                     </div>
                 </div>
-                <div class="game20-sub-header">
-                    <div id="game20-hearts" class="hearts"></div>
+                <div class="fm-sub-header">
+                    <div id="game20-hearts" class="fm-hearts"></div>
+                    <div id="game20-poem-info" class="fm-poem-info"></div>
                 </div>
                 <div id="game20-area" class="game20-area">
                     <!-- 題目區：依出題格式動態顯示 1-2 句可見句 + 隱藏佔位欄 -->
@@ -121,16 +123,13 @@
                         <div id="game20-question-lines" class="game20-question-lines">
                             <!-- 由 renderChallenge() 注入 -->
                         </div>
-                        <div id="game20-poem-info" class="game20-poem-info">
-                            <!-- 詩名 / 朝代 / 作者 -->
-                        </div>
                     </div>
 
                     <!-- 答案區：SVG 計時邊框 + 縱向選項網格 -->
                     <div class="game20-answer-area">
                         <div id="game20-answer-grid-container" class="game20-answer-grid-container">
-                            <svg id="game20-timer-ring">
-                                <rect id="game20-timer-path" x="4" y="4"></rect>
+                            <svg id="game20-timer-ring" class="fm-timer-ring">
+                                <rect id="game20-timer-path" class="fm-timer-path" x="4" y="4"></rect>
                             </svg>
                             <div id="game20-answer-grid" class="game20-answer-grid">
                                 <!-- 由 renderOptions() 注入 -->
@@ -203,22 +202,16 @@
             const diffTag = document.getElementById('game20-diff-tag');
             const retryBtn = document.getElementById('game20-retryGame-btn');
             const newBtn = document.getElementById('game20-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            // 難度標籤色彩已改由 CSS 依 data-level 屬性套色（見 theme_xuanzhi.css 的 .fm-difficulty-tag[data-level=...]）
+            // 這裡只負責更新文字與同步 data-level；避免 JS 硬寫顏色覆蓋主題。
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
@@ -560,9 +553,9 @@
             }
             qDiv.innerHTML = lineNodes.join('');
 
-            // 詩詞資訊（長標題裁切）
+            // 詩詞資訊（顯示於 fm-sub-header 右側，最多 8 字避免與紅心重疊）
             let title = this.currentPoem.title;
-            if (title.length > 12) title = title.substring(0, 10) + "...";
+            if (title.length > 8) title = title.substring(0, 8) + "…";
             const infoText = `${title} / ${this.currentPoem.dynasty} / ${this.currentPoem.author}`;
             const infoEl = document.getElementById('game20-poem-info');
             infoEl.textContent = infoText;
@@ -650,6 +643,21 @@
             }, 100);
         },
 
+        /**
+         * 讀取計時框的基準色（來源：theme_xuanzhi.css 的 --fm-timer-* 變數）。
+         * 解析成 { h, s, l }；解析失敗時回退到 fallback，確保計時框仍有可見顏色。
+         * 與 scoreManager.js 的 getStarBaseColor() 同一套「以 CSS 變數為基準色」的做法。
+         */
+        getTimerBaseColor: function (varName, fallback) {
+            try {
+                const raw = getComputedStyle(document.documentElement)
+                    .getPropertyValue(varName).trim();
+                const m = raw.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i);
+                if (m) return { h: parseFloat(m[1]), s: parseFloat(m[2]), l: parseFloat(m[3]) };
+            } catch (e) { /* 忽略解析錯誤，改用後備色 */ }
+            return fallback;
+        },
+
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game20-timer-path');
             const container = document.getElementById('game20-answer-grid-container');
@@ -672,13 +680,20 @@
                 rect.style.transition = 'stroke 0.3s ease';
                 rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
                 rect.style.strokeDashoffset = clamped * perimeter;
-                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
+                // 色相／飽和度取自主題金黃 --fm-timer-gold；亮度隨剩餘比例掃動（base.l-15 → base.l+5），
+                // 並以 25 為亮度保底避免主題值過暗時變黑。
+                const base = this.getTimerBaseColor('--fm-timer-gold', { h: 45, s: 95, l: 70 });
+                const lum = Math.max(25, Math.round(base.l - 15 + 20 * clamped));
+                rect.style.stroke = `hsl(${base.h}, ${base.s}%, ${lum}%)`;
             } else {
-                // 正常倒數：暗紅→鮮紅
+                // 正常倒數：暗紅→鮮紅（透明度掃動）
                 rect.style.transition = '';
                 rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
                 const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsla(0, 90%, 50%, ${Math.round(5 + 45 * elapsed)}%)`;
+                // 色相／飽和度／亮度取自主題朱紅 --fm-timer-red；透明度隨消逝比例掃動（5% → 50%）。
+                const base = this.getTimerBaseColor('--fm-timer-red', { h: 0, s: 90, l: 50 });
+                const alpha = Math.round(5 + 45 * elapsed);
+                rect.style.stroke = `hsla(${base.h}, ${base.s}%, ${base.l}%, ${alpha}%)`;
             }
         },
 
@@ -730,7 +745,7 @@
                     gameKey: 'game20',
                     timerContainerId: 'game20-answer-grid-container',
                     scoreElementId: 'game20-score',
-                    heartsSelector: '#game20-hearts .heart:not(.empty)',
+                    heartsSelector: '#game20-hearts .fm-heart:not(.empty)',
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         this.gameOver(true, '');
@@ -761,14 +776,14 @@
             const max = this.difficultySettings[this.difficulty].maxMistakeCount;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
                 hearts.appendChild(span);
             }
         },
 
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game20-hearts .heart');
+            const hearts = document.querySelectorAll('#game20-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i < this.mistakeCount) {
                     h.classList.add('empty');

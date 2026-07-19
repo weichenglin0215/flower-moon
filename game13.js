@@ -33,10 +33,10 @@
         // charDistractors:每個隱藏字額外增加的干擾項
         difficultySettings: {
             '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 3, metaHideCount: 1, charHideCount: 1, metaDistractors: 2, charDistractors: 5 },
-            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 4, metaHideCount: 2, charHideCount: 3, metaDistractors: 2, charDistractors: 3 },
-            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 5, metaHideCount: 3, charHideCount: 5, metaDistractors: 2, charDistractors: 3 },
-            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 6, metaHideCount: 3, charHideCount: 7, metaDistractors: 2, charDistractors: 2 },
-            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 7, metaHideCount: 3, charHideCount: 9, metaDistractors: 2, charDistractors: 1 }
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 3, metaHideCount: 2, charHideCount: 3, metaDistractors: 2, charDistractors: 3 },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 2, metaHideCount: 3, charHideCount: 5, metaDistractors: 2, charDistractors: 3 },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 2, metaHideCount: 3, charHideCount: 7, metaDistractors: 2, charDistractors: 2 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 1, metaHideCount: 3, charHideCount: 9, metaDistractors: 2, charDistractors: 1 }
         },
 
         loadCSS: function () {
@@ -187,6 +187,7 @@
             if (window.GameMessage) window.GameMessage.hide();
             if (this.selectRandomPoem()) {
                 this.generateProblem();
+                this.renderAnswerPool(); // 新題目：重建按鈕池（含 8 行收斂）
                 this.renderUI();
                 this.adjustFontSize(document.getElementById('game13-line1'), this.lines[0].length);
                 this.adjustFontSize(document.getElementById('game13-line2'), this.lines[1].length);
@@ -219,6 +220,7 @@
             this.candidates.sort(() => Math.random() - 0.5);
 
             this.refreshNextHole();
+            this.renderAnswerPool(); // 重來：候選陣列被 sort 打亂 → 重建按鈕池
             this.renderUI();
             // 依實際隱藏題目數量動態計算時間限制（(meta+char) × timeLimitRate）
             const settings13r = this.difficultySettings[this.difficulty];
@@ -380,7 +382,7 @@
                 if (m.isHidden) {
                     box.classList.add('hidden-meta');
                     if (m.isSolved) {
-                        box.textContent = m.value;
+                        box.textContent = m.value.length > 5 ? m.value.slice(0, 4) + '…' : m.value;
                         box.classList.add('correct');
                     } else {
                         // 顯示類型提示
@@ -388,7 +390,7 @@
                         box.textContent = labels[m.type];
                     }
                 } else {
-                    box.textContent = m.value;
+                    box.textContent = m.value.length > 5 ? m.value.slice(0, 4) + '…' : m.value;
                     box.classList.add('correct'); // 不列入問題時，以綠色顯示
                 }
                 metaContainer.appendChild(box);
@@ -422,9 +424,17 @@
             l1.innerHTML = renderText(this.lines[0], 0);
             l2.innerHTML = renderText(this.lines[1], 1);
 
-            // 3. 渲染按鈕池
+            // ⚠️ 過去這裡會整個重建按鈕池，導致每次答對後所有按鈕都重新播放出場動畫、
+            //    看起來像「答案區重新洗排」。現已改為：只有 startNewGame/retryGame 才會
+            //    透過 renderAnswerPool() 重建；答對時由 handleInput 就地更新該顆按鈕即可。
+        },
+
+        // 只在「新題目 / 重來」時呼叫：重建整個按鈕池並套版面收斂邏輯
+        renderAnswerPool: function () {
             const pool = document.getElementById('game13-answer-pool');
+            if (!pool) return;
             pool.innerHTML = '';
+            pool.classList.remove('compact-layout');    // 每次重建先回歸標準尺寸
             const N = this.candidates.length;
             this.candidates.forEach((cand, idx) => {
                 const btn = document.createElement('button');
@@ -446,11 +456,13 @@
                 }
 
                 btn.onclick = () => this.handleInput(cand, btn);
+                // 把 candidate 掛到 DOM 上，供 packAnswerPool 反查（不動 candidates 陣列本身的順序）
+                btn._g13Cand = cand;
                 pool.appendChild(btn);
             });
 
-            // 檢查是否超出 8 行，若超出則縮小尺寸
-            this.checkAnswerPoolRows();
+            // 版面收斂：以 FFD 裝箱演算法把按鈕塞進 8 行；不夠再刪干擾字候選
+            this.packAnswerPool();
         },
 
         adjustFontSize: function (element, length) {
@@ -462,17 +474,223 @@
             }
         },
 
-        checkAnswerPoolRows: function () {
+        // 目標：把答案方塊擠進 8 行內（實際上受 .game13-answer-pool 固定 height 500px 限制）。
+        //   Step 1 —— 若溢出則套用 compact-layout（按鈕/間距縮小 → 每行可塞更多按鈕）
+        //   Step 2 —— 若 compact 仍溢出，才逐一刪除干擾字候選（isCorrect=false）直到剛好放得下
+        //   ⚠️ 只刪 isCorrect=false 的干擾字；正確答案（含已按對的）一律保留，避免玩家無法通關。
+        //   ⚠️ 此函式只在 renderAnswerPool（新題目 / 重來）呼叫一次；答對時 handleInput 就地更新按鈕，
+        //      不再重跑此函式，因此不會「多次觸發後累積刪過頭」。
+        // ⚠️ 為何不能用「flex-wrap 貪婪左到右 + 只看有沒有 overflow」的舊做法：
+        //    flex-wrap 依 DOM 順序把按鈕由左至右塞，遇到第一個放不下的就換行。
+        //    若某顆較寬的 meta-btn（如「李商隱」）出現在中段，它會被擠到下一行、
+        //    留下一行只有它一顆的稀疏行 → 明明所有按鈕總寬能塞進 8 行卻塞不下。
+        //
+        // 正確作法：把「排幾行」當成 Bin Packing 用 First-Fit-Decreasing（FFD）：
+        //   1. 量測每顆按鈕實際寬度、pool 內寬、gap；
+        //   2. 依寬度從大到小排，依序放進「還塞得下」的第一個既有行；都塞不下才開新行；
+        //   3. 把 DOM 依 FFD 分行順序（row1 全部, row2 全部, ...）重排，
+        //      flex-wrap 貪婪左到右就會忠實重現 FFD 的分行結果。
+        //   4. 若 FFD 需要的行數 > 8：先套 compact-layout（按鈕/間距縮小）再重算；
+        //   5. compact 仍 > 8 行：才刪一顆干擾字候選（isCorrect=false）重算，
+        //      直到裝得下或無干擾字可刪。正確答案（含已按對的）一律保留。
+        //
+        // ⚠️ 只在 renderAnswerPool 呼叫一次；答對時 handleInput 就地更新按鈕（不重跑此函式）。
+        packAnswerPool: function () {
             const pool = document.getElementById('game13-answer-pool');
             if (!pool) return;
+            const MAX_ROWS = 8;
 
-            // 先移除之前的緊湊模式類名
+            // 量測「當前 CSS 模式下」每顆按鈕寬度、pool 可用內寬、gap
+            const measure = () => {
+                const btns = Array.from(pool.querySelectorAll('.ans-btn-13'));
+                const cs = getComputedStyle(pool);
+                const poolInnerWidth = pool.clientWidth
+                    - parseFloat(cs.paddingLeft || 0)
+                    - parseFloat(cs.paddingRight || 0);
+                const gap = parseFloat(cs.columnGap || cs.gap || 10);
+                const widths = btns.map(b => b.offsetWidth);
+                return { btns, widths, poolInnerWidth, gap };
+            };
+
+            // FFD 裝箱：回傳 rows: [{ items: [btnIndex, ...], total: usedWidth }, ...]
+            //   items 內按鈕的索引指向傳入 btns 的位置。
+            const packFFD = (btns, widths, poolInnerWidth, gap) => {
+                const rows = [];
+                // 由大到小排；穩定排序保留同寬按鈕的原順序（保持玩家視覺上的隨機感）
+                const order = widths
+                    .map((w, i) => ({ w, i }))
+                    .sort((a, b) => b.w - a.w);
+                for (const { w, i } of order) {
+                    let placed = false;
+                    for (const row of rows) {
+                        const need = row.items.length > 0 ? w + gap : w;
+                        if (row.total + need <= poolInnerWidth + 0.5) {
+                            row.items.push(i);
+                            row.total += need;
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (!placed) rows.push({ items: [i], total: w });
+                }
+                return rows;
+            };
+
+            // 依 rows 重排 pool 子節點：row1 全部 → row2 全部 → ...
+            //   appendChild 已存在節點會把它搬到最後，class/事件/animationDelay 保留
+            const reorderPool = (btns, rows) => {
+                for (const row of rows) {
+                    for (const idx of row.items) pool.appendChild(btns[idx]);
+                }
+            };
+
+            // 找一顆「isCorrect=false 且尚未按對」的干擾字按鈕，從 DOM 與 this.candidates 一併移除
+            const removeOneDecoy = () => {
+                const btns = Array.from(pool.querySelectorAll('.ans-btn-13'));
+                for (let i = btns.length - 1; i >= 0; i--) {
+                    const cand = btns[i]._g13Cand;
+                    if (!cand) continue;
+                    if (cand.isCorrect) continue;
+                    if (cand.isClickedCorrect) continue;
+                    btns[i].remove();
+                    const candIdx = this.candidates.indexOf(cand);
+                    if (candIdx >= 0) this.candidates.splice(candIdx, 1);
+                    return true;
+                }
+                return false;
+            };
+
+            // Step 1：以標準尺寸做一次 FFD
             pool.classList.remove('compact-layout');
+            let m = measure();
+            let rows = packFFD(m.btns, m.widths, m.poolInnerWidth, m.gap);
 
-            // 如果捲動高度大於實際高度，代表超出 8 行 (因為 CSS 中設定了固定高度 540px)
-            if (pool.scrollHeight > pool.offsetHeight + 5) {
+            // Step 2：> 8 行 → 套 compact-layout（按鈕/間距縮小）後重算
+            if (rows.length > MAX_ROWS) {
                 pool.classList.add('compact-layout');
+                m = measure();
+                rows = packFFD(m.btns, m.widths, m.poolInnerWidth, m.gap);
             }
+
+            // Step 3：compact 仍 > 8 行 → 逐顆刪干擾字，重算，直到裝得下或無干擾字可刪
+            let safety = 0;
+            while (rows.length > MAX_ROWS && safety < 200) {
+                safety++;
+                if (!removeOneDecoy()) break;
+                m = measure();
+                rows = packFFD(m.btns, m.widths, m.poolInnerWidth, m.gap);
+            }
+
+            // Step 4：位置混淆（打破 FFD 產生的「詩名／作者集中在上、單字集中在下」的呆板排列）
+            //   FFD 為了塞得最緊，會讓大 meta 集中在前幾行、小的 char 集中在後幾行。
+            //   此處在**不新增行數、不撐爆任何一行**的前提下做兩步打散：
+            //     (a) 每顆 2/3 字 meta-btn 嘗試與另一行連續 2/3 顆 char-btn 交換位置；
+            //     (b) 打亂 rows 陣列的上下順序。
+            this.scrambleAnswerPool(m.btns, rows, m.poolInnerWidth, m.gap);
+
+            // 最後：依 FFD 分行結果把 DOM 按 row1→row2→... 順序重排，交給 flex-wrap 忠實重現
+            reorderPool(m.btns, rows);
+        },
+
+        // 位置混淆器：在 FFD 分行的基礎上做「兩顆／三顆等寬區塊互換」與「行序打亂」，
+        //   讓玩家看到的不是「meta 全在上、char 全在下」的呆板佈局，同時保證不增加行數。
+        //
+        // 步驟：
+        //   1. 蒐集所有 2 字／3 字 meta-btn 的位置（1 字 meta 視覺上與 char-btn 相同，不必換）；
+        //   2. 對每顆這種 meta，隨機在**別行**找一段連續 N 顆 char-btn（N = 該 meta 字數），
+        //      模擬交換後計算兩行寬度：只要都 ≤ pool 內寬 → 交換 items 順序；
+        //   3. 洗亂 rows 陣列上下順序（避免題名總在最上、單字總在最下）。
+        scrambleAnswerPool: function (btns, rows, poolInnerWidth, gap) {
+            const shuffle = (arr) => {
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+                return arr;
+            };
+
+            // 計算一整行的寬度（含 items 之間的 gap）
+            const computeRowWidth = (itemIndices) => {
+                if (itemIndices.length === 0) return 0;
+                let w = 0;
+                for (let i = 0; i < itemIndices.length; i++) {
+                    w += btns[itemIndices[i]].offsetWidth;
+                    if (i > 0) w += gap;
+                }
+                return w;
+            };
+
+            // 蒐集所有可交換的 meta-btn 位置：字數為 2 或 3 者才處理
+            //   （字數 1 的 meta 與 char-btn 視覺上難以區分，混淆意義不大；> 3 字的 meta（長詩名）
+            //    因寬度過大、不易找到對稱的字塊組來交換，此處也略過。）
+            const metaLocations = [];
+            for (let r = 0; r < rows.length; r++) {
+                for (let i = 0; i < rows[r].items.length; i++) {
+                    const btn = btns[rows[r].items[i]];
+                    if (!btn.classList.contains('meta-btn')) continue;
+                    const cc = (btn.textContent || '').length;
+                    if (cc === 2 || cc === 3) metaLocations.push({ rowIdx: r, itemIdx: i, charCount: cc });
+                }
+            }
+            shuffle(metaLocations);
+
+            // 對每顆 meta，嘗試在別行找連續 N 顆 char-btn 交換
+            for (const meta of metaLocations) {
+                const N = meta.charCount;
+                const srcRow = rows[meta.rowIdx];
+                // 若 srcRow 已被前面的交換動過，itemIdx 可能已失效 → 用 btn 反查最新位置
+                const metaBtnIdx = srcRow.items[meta.itemIdx];
+                if (!metaBtnIdx && metaBtnIdx !== 0) continue;
+                const metaBtn = btns[metaBtnIdx];
+                // 反查在 srcRow 內的當前 itemIdx（前面交換可能改動）
+                const currentMetaItemIdx = srcRow.items.indexOf(metaBtnIdx);
+                if (currentMetaItemIdx < 0) continue;
+
+                // 在別行找「連續 N 顆 char-btn」的所有起點
+                const candidateSlots = [];
+                for (let r = 0; r < rows.length; r++) {
+                    if (r === meta.rowIdx) continue;
+                    const items = rows[r].items;
+                    for (let i = 0; i + N <= items.length; i++) {
+                        let allChar = true;
+                        for (let k = 0; k < N; k++) {
+                            if (!btns[items[i + k]].classList.contains('char-btn')) {
+                                allChar = false; break;
+                            }
+                        }
+                        if (allChar) candidateSlots.push({ rowIdx: r, startItemIdx: i });
+                    }
+                }
+                if (candidateSlots.length === 0) continue;
+                shuffle(candidateSlots);
+
+                // 嘗試每個候選：模擬交換後兩行都須 ≤ poolInnerWidth 才實際交換
+                for (const slot of candidateSlots) {
+                    const dstRow = rows[slot.rowIdx];
+                    const charBtnIndices = [];
+                    for (let k = 0; k < N; k++) charBtnIndices.push(dstRow.items[slot.startItemIdx + k]);
+
+                    const srcItemsAfter = srcRow.items.slice();
+                    srcItemsAfter.splice(currentMetaItemIdx, 1, ...charBtnIndices);
+                    const dstItemsAfter = dstRow.items.slice();
+                    dstItemsAfter.splice(slot.startItemIdx, N, metaBtnIdx);
+
+                    const newSrcWidth = computeRowWidth(srcItemsAfter);
+                    const newDstWidth = computeRowWidth(dstItemsAfter);
+                    if (newSrcWidth > poolInnerWidth + 0.5) continue;
+                    if (newDstWidth > poolInnerWidth + 0.5) continue;
+
+                    // 落實交換
+                    srcRow.items = srcItemsAfter;
+                    srcRow.total = newSrcWidth;
+                    dstRow.items = dstItemsAfter;
+                    dstRow.total = newDstWidth;
+                    break;
+                }
+            }
+
+            // 最後把 rows 陣列上下順序洗亂（避免上寬下窄的固定觀感）
+            shuffle(rows);
         },
 
         handleInput: function (cand, btn) {
@@ -505,6 +723,9 @@
 
                 document.getElementById('game13-score').textContent = this.score;
                 this.refreshNextHole();
+                // ⚠️ 就地更新被點的按鈕：不重建整個按鈕池，才不會每次答對都重播出場動畫
+                //    看起來像「答案區重新洗排」。renderUI 只負責更新元數據與詩句區。
+                btn.classList.add('disabled', 'correct');
                 this.renderUI();
 
                 // 檢查是否全解
