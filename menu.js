@@ -30,6 +30,7 @@
         { page: 'game12', label: '疏影橫斜', image: 'images/Menu/疏影橫斜_Menu256.jpg' },
         { page: 'game3', label: '字爬梯', image: 'images/Menu/字爬梯_Menu256.jpg' },
         { page: 'game14', label: '步步驚心', image: 'images/Menu/步步驚心_Menu256.jpg' },
+        { page: 'game37', label: '步步為陣', image: 'images/Menu/步步為陣_Menu256.jpg' },
         { page: 'game5', label: '詩詞精靈', image: 'images/Menu/詩詞小精靈_Menu256.jpg' },
         { page: 'game6', label: '詩陣侵略', image: 'images/Menu/詩陣侵略_Menu256.jpg' },
         { page: 'game19', label: '詩碟狂襲', image: 'images/Menu/詩碟狂襲_Menu256.jpg' },
@@ -55,6 +56,7 @@
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'wordcloud', label: '文字雲', image: 'images/Menu/文字雲_Menu256.jpg' },
         { page: 'zhexianren', label: '詩詞珠簾', image: 'images/Menu/詩詞珠簾_Menu256.jpg' },
+        { page: 'suiyuean', label: '隨遇而安', image: 'images/Menu/隨遇而安_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
@@ -292,7 +294,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -332,6 +334,12 @@
                 window.ZheXianRen.stopGame();
             }
         } catch (e) { console.warn('[Menu] 隱藏謫仙人失敗', e); }
+
+        try {
+            if (window.SuiYuEAn && typeof window.SuiYuEAn.stopGame === 'function') {
+                window.SuiYuEAn.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏隨遇而安失敗', e); }
 
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
@@ -594,6 +602,10 @@
                         if (window.Game36) window.Game36.show();
                         else window.location.href = 'index.html?game=36';
                         break;
+                    case 'game37':
+                        if (window.Game37) window.Game37.show();
+                        else window.location.href = 'index.html?game=37';
+                        break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();
                         else window.location.href = 'index.html?page=author-bio';
@@ -605,6 +617,10 @@
                     case 'zhexianren':
                         if (window.ZheXianRen) window.ZheXianRen.show();
                         else window.location.href = 'index.html?page=zhexianren';
+                        break;
+                    case 'suiyuean':
+                        if (window.SuiYuEAn) window.SuiYuEAn.show();
+                        else window.location.href = 'index.html?page=suiyuean';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();

@@ -69,7 +69,8 @@ const ScoreManager = {
         'game33': { base: 100, heart: 10, time: 0, getPointA: 1 }, //作者是誰（風格辨識）
         'game34': { base: 100, heart: 10, time: 0, getPointA: 1 }, //猜猜詩題（標題配對）
         'game35': { base: 100, heart: 10, time: 0, getPointA: 1 }, //詩人心情（情境推理）
-        'game36': { base: 100, heart: 0, time: 0.5, getPointA: 0 } //轉輪覓詩（Wordle 推理，無紅心，時限只給時間加成）
+        'game36': { base: 100, heart: 0, time: 0.5, getPointA: 0 }, //轉輪覓詩（Wordle 推理，無紅心，時限只給時間加成）
+        'game37': { base: 100, heart: 10, time: 2, getPointA: 3 } //步步為陣（getPointA 會再依當前宮格邊長倍增，見 game37.js handleBtnClick）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
