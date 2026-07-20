@@ -9,6 +9,8 @@
  * 每句字第一次合併（湊滿 2 字以上）即依「第幾句完成連接」的順序著色
  * （紅、橙、黃…依句數平均分布色相）；句與句彼此永不合併。
  * 全部句子拼齊後，畫面仍持續漂移碰撞，並再度顯示按鈕，點擊即重新換一首詩。
+ * 支援手指/滑鼠拖曳擾動：拖曳畫面時，半徑內的字會被推開（未開始漂移前也有即時
+ * 位移回饋，開始漂移後還會附帶一點延續動能），讓玩家能主動撥弄字塊互動。
  *
  * 慣例：所有 CSS class 加 suiyuean- 前綴；overlay 掛於 document.body（非 #stage，
  *       因 stage 有 transform 會造成 position:fixed 二次縮放）；透過
@@ -24,11 +26,16 @@
     const EDGE_MARGIN = 14;      // 字離畫面邊緣的最小安全距離
 
     // ── 詩詞取材參數 ──
+    // 畫面希望字數夠多、視覺熱鬧，但單一首詩很少能滿足這麼多字，
+    // 因此改為「多首詩詞湊字數」：每次向題庫抽一小段（固定偶數句、至少 2 句，
+    // 符合「兩句一聯」的詩詞原則），逐段累加，直到總字數落在目標範圍。
     const POEM_MIN_RATING = 3;
-    const POEM_MIN_LINES = 4;
-    const POEM_MAX_LINES = 8;
-    const POEM_MIN_CHARS = 16;
-    const POEM_MAX_CHARS = 64;
+    const TOTAL_MIN_CHARS = 56;   // 全部詩句加總的最少字數
+    const TOTAL_MAX_CHARS = 98;   // 全部詩句加總的最多字數
+    const PULL_MIN_LINES = 2;     // 每次抽取的最少句數（偶數，至少一聯）
+    const PULL_MAX_LINES = 8;     // 每次抽取的最多句數（偶數）
+    const MAX_POEMS = 10;         // 最多混合幾首詩，避免無限迴圈
+    const MAX_PULL_ATTEMPTS = 30; // 抽取嘗試次數上限，避免無限迴圈
 
     // ── 字體與成長 ──
     const FONT_START = 16;       // 初始字體大小 (px)
@@ -38,17 +45,23 @@
     // ── 運動參數 ──
     const SPEED_MIN = 0.55;      // 初始速度下限 (px/frame @60fps)
     const SPEED_MAX = 1.35;      // 初始速度上限
-    const FRICTION = 0.998;     // 每幀速度衰減（略為減速）
+    const FRICTION = 0.994;     // 每幀速度衰減（略為減速）
     const MIN_SPEED = 0.32;      // 速度下限，避免完全靜止
-    const MAX_SPEED = 2.50;      // 速度上限
-    const WALL_BOOST = 1.50;     // 碰邊緣反彈的加速倍率
-    const COLLISION_BOOST = 1.30;// 無效碰撞反彈的加速倍率
+    const MAX_SPEED = 1.66;      // 速度上限
+    const WALL_BOOST = 1.66;     // 碰邊緣反彈的加速倍率
+    const COLLISION_BOOST = 1.33;// 無效碰撞反彈的加速倍率
     const WALL_JITTER = 0.35;    // 碰邊緣時額外隨機偏轉角度上限（弧度），避免陷入完全水平/垂直、永遠撞不到其他字塊的軌跡
 
     // ── 碰撞特效（存續時間可依需求個別調整，單位 ms）──
     const FLASH_LIFE_EFFECTIVE = 360;    // 有效合併（成句）時的白框存續時間
     const FLASH_LIFE_INEFFECTIVE = 100;  // 無效碰撞（彈開）時的白框存續時間
     const FLASH_PAD = 3;         // 特效框比字塊本身多出的邊距 (px)
+
+    // ── 手指/滑鼠拖曳擾動 ──
+    const DRAG_RADIUS = 70;        // 拖曳影響半徑（世界座標 px）
+    const DRAG_MAX_STEP = 30;      // 單次移動量上限，避免手指瞬移造成字塊爆衝
+    const DRAG_POS_STRENGTH = 0.9; // 直接推動位置的力道（即時視覺回饋，靜止時也感覺得到）
+    const DRAG_VEL_STRENGTH = 0.16;// 順帶加到速度上的力道（開始漂移後讓擾動有延續的動能）
 
     const SuiYuEAn = {
 
@@ -74,6 +87,11 @@
         dpr: 1,
         _lastTime: 0,
 
+        // ── 拖曳擾動狀態 ──
+        _dragging: false,
+        _dragPointerId: null,
+        _lastDragX: 0, _lastDragY: 0,
+
         // ========================================================
         // CSS 載入防護
         // ========================================================
@@ -92,14 +110,19 @@
         // ========================================================
         init: function () {
             this.loadCSS();
-            if (!document.getElementById('suiyuean-container')) {
+            const isFirstInit = !document.getElementById('suiyuean-container');
+            if (isFirstInit) {
                 this.createDOM();
-                this.bindEvents();
             }
+            // ⚠️ 必須在 bindEvents() 之前先取得 DOM 參照：bindEvents 內的拖曳監聽器
+            // 需要用到 this.canvas，先呼叫 bindEvents 會拿到尚未賦值的 null。
             this.container = document.getElementById('suiyuean-container');
             this.canvas = document.getElementById('suiyuean-canvas');
             this.ctx = this.canvas.getContext('2d');
             this.startBtn = document.getElementById('suiyuean-start-btn');
+            if (isFirstInit) {
+                this.bindEvents();
+            }
             this._setupCanvasSize();
         },
 
@@ -149,6 +172,71 @@
                 }
                 this._onStartClick();
             });
+
+            // ── 手指/滑鼠拖曳擾動字塊（Pointer Events 同時涵蓋滑鼠與觸控）──
+            const cv = this.canvas;
+            cv.addEventListener('pointerdown', (e) => {
+                const p = this._canvasCoords(e.clientX, e.clientY);
+                this._dragging = true;
+                this._dragPointerId = e.pointerId;
+                this._lastDragX = p.x; this._lastDragY = p.y;
+                try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 部分瀏覽器可能不支援，忽略即可 */ }
+                e.preventDefault();
+            });
+            cv.addEventListener('pointermove', (e) => {
+                if (!this._dragging || e.pointerId !== this._dragPointerId) return;
+                const p = this._canvasCoords(e.clientX, e.clientY);
+                this._disturbChunks(p.x, p.y, p.x - this._lastDragX, p.y - this._lastDragY);
+                this._lastDragX = p.x; this._lastDragY = p.y;
+                e.preventDefault();
+            });
+            const endDrag = (e) => {
+                if (e.pointerId !== this._dragPointerId) return;
+                this._dragging = false;
+                this._dragPointerId = null;
+            };
+            cv.addEventListener('pointerup', endDrag);
+            cv.addEventListener('pointercancel', endDrag);
+            cv.addEventListener('pointerleave', endDrag);
+        },
+
+        // clientX/Y → 畫布邏輯座標（0..STAGE_W, 0..STAGE_H），已抵銷 stage 的 CSS 縮放
+        _canvasCoords: function (clientX, clientY) {
+            const rect = this.canvas.getBoundingClientRect();
+            return {
+                x: (clientX - rect.left) / rect.width * STAGE_W,
+                y: (clientY - rect.top) / rect.height * STAGE_H,
+            };
+        },
+
+        // 手指/滑鼠拖曳擾動：半徑內的字塊依距離遠近被推動，越靠近拖曳點推力越大；
+        // 同時直接位移（讓靜止狀態也有立即回饋）與加一點速度（讓漂移中的字有延續動能）。
+        _disturbChunks: function (wx, wy, dx, dy) {
+            let mag = Math.hypot(dx, dy);
+            if (mag < 0.01) return;
+            if (mag > DRAG_MAX_STEP) {
+                const s = DRAG_MAX_STEP / mag;
+                dx *= s; dy *= s;
+            }
+
+            const r2 = DRAG_RADIUS * DRAG_RADIUS;
+            for (const c of this.chunks) {
+                const ddx = c.x - wx, ddy = c.y - wy;
+                const d2 = ddx * ddx + ddy * ddy;
+                if (d2 > r2) continue;
+                const f = 1 - Math.sqrt(d2) / DRAG_RADIUS;
+
+                c.x += dx * f * DRAG_POS_STRENGTH;
+                c.y += dy * f * DRAG_POS_STRENGTH;
+                c.vx += dx * f * DRAG_VEL_STRENGTH;
+                c.vy += dy * f * DRAG_VEL_STRENGTH;
+                this._clampSpeed(c);
+
+                // 拖曳可能把字塊推出畫面，直接夾回邊界內（未啟動漂移時牆壁反彈邏輯不會執行）
+                const m = this._metricsOf(c);
+                c.x = Math.max(m.halfW, Math.min(STAGE_W - m.halfW, c.x));
+                c.y = Math.max(m.halfH, Math.min(STAGE_H - m.halfH, c.y));
+            }
         },
 
         _onStartClick: function () {
@@ -167,30 +255,54 @@
         // ========================================================
         // 詩詞取材
         // ========================================================
+        // 混合多首詩詞的句子，直到總字數落在 [TOTAL_MIN_CHARS, TOTAL_MAX_CHARS]；
+        // 每次抽取都固定偶數句、至少 2 句（一聯），絕不會只抽到單一句或奇數句。
         _pickPoemLines: function () {
-            let lines = null;
+            let lines = [];
+            let totalChars = 0;
+
             try {
                 if (typeof getSharedRandomPoem === 'function') {
-                    const result = getSharedRandomPoem(
-                        POEM_MIN_RATING, POEM_MIN_LINES, POEM_MAX_LINES,
-                        POEM_MIN_CHARS, POEM_MAX_CHARS, "", null, 'suiyuean'
-                    );
-                    if (result && Array.isArray(result.lines) && result.lines.length > 0) {
-                        lines = result.lines;
+                    let poemCount = 0;
+                    let attempts = 0;
+                    while (totalChars < TOTAL_MIN_CHARS && poemCount < MAX_POEMS && attempts < MAX_PULL_ATTEMPTS) {
+                        attempts++;
+                        const remaining = TOTAL_MAX_CHARS - totalChars;
+                        if (remaining < PULL_MIN_LINES * 2) break; // 剩餘空間連最短一聯都放不下，收尾
+
+                        const result = getSharedRandomPoem(
+                            POEM_MIN_RATING, PULL_MIN_LINES, PULL_MAX_LINES,
+                            PULL_MIN_LINES * 2, remaining, "", null, 'suiyuean'
+                        );
+                        if (!result || !Array.isArray(result.lines) || result.lines.length === 0) continue;
+
+                        // 保險：getSharedRandomPoem 理論上已保證偶數句，這裡雙重確認，
+                        // 若意外拿到奇數句就捨去最後一句，絕不允許單句/奇數句進入畫面
+                        let pulled = result.lines;
+                        if (pulled.length % 2 !== 0) pulled = pulled.slice(0, pulled.length - 1);
+                        if (pulled.length < 2) continue;
+
+                        const pulledChars = pulled.join('').length;
+                        if (totalChars + pulledChars > TOTAL_MAX_CHARS) continue; // 超出上限，重抽
+
+                        lines = lines.concat(pulled);
+                        totalChars += pulledChars;
+                        poemCount++;
                     }
                 }
             } catch (e) { console.warn('[隨遇而安] getSharedRandomPoem 失敗', e); }
 
-            if (!lines && typeof POEMS !== 'undefined' && Array.isArray(POEMS) && POEMS.length > 0) {
+            if (lines.length === 0 && typeof POEMS !== 'undefined' && Array.isArray(POEMS) && POEMS.length > 0) {
                 // 降級保護：直接從題庫任取一首並去除標點
                 const poem = POEMS[Math.floor(Math.random() * POEMS.length)];
                 if (poem && Array.isArray(poem.content)) {
                     lines = poem.content
                         .map(l => (l || '').replace(/[，。？！、：；「」『』\s]/g, ""))
                         .filter(l => l.length > 0);
+                    if (lines.length % 2 !== 0) lines = lines.slice(0, lines.length - 1);
                 }
             }
-            return lines || [];
+            return lines;
         },
 
         // ========================================================
@@ -590,6 +702,8 @@
             this.container.classList.remove('hidden');
             this.started = false;
             this.allCompleted = false;
+            this._dragging = false;
+            this._dragPointerId = null;
             if (this.startBtn) this.startBtn.classList.remove('hidden');
             this._newRound();
             this._startLoop();
