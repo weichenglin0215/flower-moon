@@ -84,6 +84,98 @@
             'images/聖旨獎狀.png'
         ],
 
+        // ══════════════════════════════════════════════════════════
+        // 獎狀獎勵對照表（依獎狀種類分別查表發放，取代舊版固定 10,000分/100文錢）
+        // 統一比例：100 積分 = 1 文錢
+        // ══════════════════════════════════════════════════════════
+
+        // 【遊戲別】過關次數獎狀：不分遊戲，統一標準；100 次起每滿 100 次給予相同獎勵，可無限延伸
+        gameCountRewards: {
+            10: { score: 1000, silver: 10 },
+            20: { score: 2000, silver: 20 },
+            50: { score: 5000, silver: 50 },
+            100: { score: 10000, silver: 100 } // 100 次以上（含每滿 100 次）皆套用此檔
+        },
+
+        // 【難度別】過關次數獎狀：分五種難度各自一張表，門檻結構同上，獎勵隨難度遞增
+        difficultyCountRewards: {
+            '小學': { 10: { score: 300, silver: 3 }, 20: { score: 600, silver: 6 }, 50: { score: 1500, silver: 15 }, 100: { score: 3000, silver: 30 } },
+            '中學': { 10: { score: 600, silver: 6 }, 20: { score: 1200, silver: 12 }, 50: { score: 3000, silver: 30 }, 100: { score: 6000, silver: 60 } },
+            '高中': { 10: { score: 1000, silver: 10 }, 20: { score: 2000, silver: 20 }, 50: { score: 5000, silver: 50 }, 100: { score: 10000, silver: 100 } },
+            '大學': { 10: { score: 2000, silver: 20 }, 20: { score: 4000, silver: 40 }, 50: { score: 10000, silver: 100 }, 100: { score: 20000, silver: 200 } },
+            '研究所': { 10: { score: 3000, silver: 30 }, 20: { score: 6000, silver: 60 }, 50: { score: 15000, silver: 150 }, 100: { score: 30000, silver: 300 } }
+        },
+
+        // 【關卡挑戰】里程碑獎狀：每個遊戲每累積過關 20 關發一張，最高採計至 300 關
+        levelMilestoneRewards: {
+            20: { score: 1000, silver: 10 },
+            40: { score: 2000, silver: 20 },
+            60: { score: 3000, silver: 30 },
+            80: { score: 4000, silver: 40 },
+            100: { score: 5000, silver: 50 },
+            120: { score: 6000, silver: 60 },
+            140: { score: 7200, silver: 72 },
+            160: { score: 9000, silver: 90 },
+            180: { score: 11000, silver: 110 },
+            200: { score: 13500, silver: 135 },
+            220: { score: 16500, silver: 165 },
+            240: { score: 20000, silver: 200 },
+            260: { score: 24000, silver: 240 },
+            280: { score: 28500, silver: 285 },
+            300: { score: 33000, silver: 330 }
+        },
+
+        // 【文位】階級獎狀：書僮為起始階級，自動擁有無需領取，故不列入表中
+        rankRewards: {
+            '蒙童': { score: 3000, silver: 30 },
+            '塾生': { score: 6000, silver: 60 },
+            '童生': { score: 8000, silver: 80 },
+            '縣案首': { score: 10000, silver: 100 },
+            '府案首': { score: 16000, silver: 160 },
+            '文童': { score: 32000, silver: 320 },
+            '秀才': { score: 64000, silver: 640 },
+            '舉人': { score: 128000, silver: 1280 },
+            '貢士': { score: 256000, silver: 2560 },
+            '進士': { score: 512000, silver: 5120 },
+            '探花': { score: 1024000, silver: 10240 },
+            '榜眼': { score: 2048000, silver: 20480 },
+            '狀元': { score: 4096000, silver: 40960 },
+            '大儒': { score: 8192000, silver: 81920 }
+        },
+
+        // 依 count 類獎狀（遊戲別／難度別）的查表結果取得獎勵；100 以上一律沿用 100 檔位的獎勵
+        getCountReward: function (table, threshold) {
+            return table[threshold] || table[100] || { score: 0, silver: 0 };
+        },
+
+        // 產生某個 key（遊戲代號或難度名稱）在目前次數下「已達成」的所有門檻：10 / 20 / 50 / 100 起每滿 100 次
+        getCountThresholds: function (count) {
+            const list = [];
+            [10, 20, 50, 100].forEach(t => { if (count >= t) list.push(t); });
+            for (let t = 200; t <= count; t += 100) list.push(t);
+            return list;
+        },
+
+        // 依 achId 判斷獎狀種類，回傳對應的 { score, silver } 獎勵
+        getRewardForAchId: function (achId) {
+            if (achId.indexOf('rank_') === 0) {
+                const rankName = achId.slice('rank_'.length);
+                return this.rankRewards[rankName] || { score: 0, silver: 0 };
+            }
+            if (achId.indexOf('level_milestone_') === 0) {
+                const milestone = parseInt(achId.slice(achId.lastIndexOf('_') + 1), 10);
+                return this.levelMilestoneRewards[milestone] || { score: 0, silver: 0 };
+            }
+            // 其餘格式為 `${key}_${threshold}`：key 為難度名稱（小學/中學/高中/大學/研究所）或遊戲代號（gameN）
+            const lastUnderscore = achId.lastIndexOf('_');
+            const key = achId.slice(0, lastUnderscore);
+            const threshold = parseInt(achId.slice(lastUnderscore + 1), 10);
+            if (this.difficultyCountRewards[key]) {
+                return this.getCountReward(this.difficultyCountRewards[key], threshold);
+            }
+            return this.getCountReward(this.gameCountRewards, threshold);
+        },
+
         init: function () {
             if (this.overlay) return;
             // 確保 achievement.css 已載入
@@ -782,8 +874,6 @@
 
             const claimStatus = data.achievements.claimed || [];
 
-            const thresholds = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
-
             const certImages = this.certImages;
 
 
@@ -1030,31 +1120,46 @@
 
 
 
-            thresholds.forEach((t, i) => {
+            categories.forEach(cat => {
 
-                const certImg = certImages[i % certImages.length];
+                const countsInfo = cat.data;
 
-                categories.forEach(cat => {
-
-                    const countsInfo = cat.data;
-
-                    const nameMap = cat.map;
+                const nameMap = cat.map;
 
 
 
-                    for (let key in nameMap) {
+                for (let key in nameMap) {
 
-                        let count = countsInfo[key] || 0;
+                    let count = countsInfo[key] || 0;
 
-                        if (typeof count === 'object') count = count.playCount || 0;
+                    if (typeof count === 'object') count = count.playCount || 0;
 
-                        const dispName = nameMap[key];
+                    const dispName = nameMap[key];
+
+                    const isDifficultyKey = !!this.difficultyCountRewards[key];
+
+
+
+                    // 動態產生此 key 已達成的門檻：10 / 20 / 50 / 100 起每滿 100 次無限延伸
+                    const keyThresholds = this.getCountThresholds(count);
+                    // 防禦性處理：若玩家過去已領取但目前存檔的次數低於門檻（理論上不會發生），仍將該門檻補回清單
+                    claimStatus.forEach(id => {
+                        if (id.indexOf(key + '_') === 0) {
+                            const n = parseInt(id.slice(key.length + 1), 10);
+                            if (!isNaN(n) && keyThresholds.indexOf(n) === -1) keyThresholds.push(n);
+                        }
+                    });
+                    keyThresholds.sort((a, b) => a - b);
+
+
+
+                    keyThresholds.forEach((t, i) => {
+
+                        const certImg = certImages[i % certImages.length];
 
                         let title = `「${dispName}」過關${t}次`;
 
-
-
-                        if (dispName === '小學' || dispName === '中學' || dispName === '高中' || dispName === '大學' || dispName === '研究所') {
+                        if (isDifficultyKey) {
 
                             title = `『${dispName}』程度過關${t}次`;
 
@@ -1063,12 +1168,6 @@
 
 
                         const achId = `${key}_${t}`;
-
-
-
-                        if (count < t && !claimStatus.includes(achId)) continue; // 隱藏未達成的舊成就，避免清單過長
-
-
 
                         const isClaimed = claimStatus.includes(achId);
 
@@ -1148,9 +1247,9 @@
 
                         badgesContainer.appendChild(item);
 
-                    }
+                    });
 
-                });
+                }
 
             });
 
@@ -1966,11 +2065,10 @@
 
             data.achievements.claimed.push(achId);
 
-            // ── 獎勵：積分 10,000 + 對應文錢 ──
-            //    官方比例（收集系統企畫書六版）：100 積分 = 1 文錢
-            //    10,000 積分 → 100 文錢
-            const scoreReward = 10000;
-            const silverReward = Math.floor(scoreReward / 100);
+            // ── 獎勵：依獎狀種類查表發放積分與文錢（比例維持 100 積分 = 1 文錢）──
+            const reward = this.getRewardForAchId(achId);
+            const scoreReward = reward.score;
+            const silverReward = reward.silver;
 
             data.totalScore += scoreReward;
 
