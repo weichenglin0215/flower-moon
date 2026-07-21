@@ -54,9 +54,9 @@
         poem: { radius: 245, refFont: 19, cap: 100 },
     };
 
-    // ── 依詩詞評價決定項目大小：最高評價 = 2 倍、最低 = 0.25 倍（將最低放大為原 0.1 的 250%）──
-    const SCORE_MIN_SCALE = 0.25;
-    const SCORE_MAX_SCALE = 2.0;
+    // ── 依詩詞評價決定項目大小：最高評價 = 2 倍、最低 = 0.5 倍（將最低放大為原 0.1 的 250%）──
+    const SCORE_MIN_SCALE = 0.8;
+    const SCORE_MAX_SCALE = 2.4;
     const FONT_MIN_PX = 7;    // 可讀性下限
     const FONT_MAX_PX = 120;   // 上限放寬，讓最高評價項目在最前方仍能展現完整透視放大
 
@@ -67,7 +67,7 @@
     const RELAX_ITERS = 120;         // 鬆弛迭代次數（一次性，僅在載入層級時執行）
     const RELAX_PAD = 0.95;          // 項目角半徑的縮放（越大越不重疊、但越稀疏）
 
-    const INERTIA_DECAY = 0.94;      // 慣性每幀衰減
+    const INERTIA_DECAY = 0.995;      // 慣性每幀衰減
 
     // ── 狀態機常數 ──
     const S_IDLE = 'IDLE';

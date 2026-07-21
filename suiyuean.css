@@ -57,8 +57,8 @@
 .suiyuean-title {
     position: absolute;
     top: 18px;
-    left: 20px;
-    font-family: 'Noto Serif TC', serif;
+    left: 60px;
+    font-family: 'Noto TC';
     font-size: 20px;
     letter-spacing: 4px;
     color: hsla(45, 55%, 88%, 0.6);
@@ -100,6 +100,13 @@
 }
 
 @keyframes suiyuean-glow {
-    0%, 100% { box-shadow: 0 0 12px hsla(45, 70%, 60%, 0.25), 0 4px 10px rgba(0, 0, 0, 0.5); }
-    50% { box-shadow: 0 0 26px hsla(45, 80%, 65%, 0.55), 0 4px 10px rgba(0, 0, 0, 0.5); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 12px hsla(45, 70%, 60%, 0.25), 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 26px hsla(45, 80%, 65%, 0.55), 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
 }

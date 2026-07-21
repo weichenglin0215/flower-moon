@@ -1,14 +1,20 @@
 /* ============================================================================
  * zhexianren.js — 謫仙人 (Beaded Poem Curtain / 珠簾詩)
  * ----------------------------------------------------------------------------
- * 一頁「舒壓」介面（非遊戲、無計分）。畫面上方懸掛「謫仙人」匾額，
- * 匾額下方垂掛數條「珠簾」，每一條由幾首詩的詩句組合而成（每次開啟隨機），
- * 且每條長短不一。
+ * 一頁「舒壓」介面（非遊戲、無計分）。畫面上方懸掛「文位」匾額，
+ * 匾額下方固定垂掛 15 條「珠簾」（對應 15 個文位），以畫面寬度中央為基準、
+ * 固定間隔向左右展開；每一條由幾首詩的詩句組合而成（每次開啟隨機），且每條長短不一。
+ * 玩家實際文位範圍內的珠簾正常顯示，超出範圍（尚未達到）者半透明顯示；解鎖順序由
+ * 畫面正中央那一條開始、往左右交錯擴散（見 UNLOCK_ORDER），而非單純由左至右。
+ * 文位在「童生」(含)以下時，左右兩側各加掛一條固定的鼓勵珠簾。
  *
  * 互動：
  *   - 以手指（或滑鼠）撥弄珠簾 → 珠子如串珠般上下相連擺動（Verlet 繩索模擬）。
  *   - 每一條珠簾各自獨立：只有「同一條的上下字」互相牽引，左右不同條彼此不碰撞。
  *   - 雙指縮放（pinch）可放大縮小整個畫面觀看；雙指平移可移動視角。
+ *   - 點擊匾額 → 切換預覽下一個文位，預覽該文位下珠簾範圍的樣子；預覽非本人文位時
+ *     全部珠簾一律半透明顯示以示區別。符合文位範圍的珠簾文字會依繩段轉折角度變化
+ *     色相（轉折在 ±ANGLE_THRESHOLD_DEG 內維持原墨色，超出則依角度量染上橘／紫色調）。
  *
  * 慣例：所有 CSS class 加 zhexianren- 前綴；overlay 掛於 document.body（非 #stage，
  *       因 stage 有 transform 會造成 position:fixed 二次縮放）；透過
@@ -25,17 +31,45 @@
     // ── 匾額（懸掛珠簾的橫樑）──
     const PLAQUE_CX = STAGE_W / 2;   // 匾額中心 X
     const PLAQUE_CY = 92;            // 匾額中心 Y
-    const PLAQUE_W = 300;            // 匾額寬
+    const PLAQUE_W = 400;            // 匾額寬
     const PLAQUE_H = 96;             // 匾額高
     const ANCHOR_Y = PLAQUE_CY + PLAQUE_H / 2 + 6;  // 珠簾錨點（匾額底緣下方）
 
     // ── 珠簾配置 ──
-    //   條數改為依玩家文位動態決定（書僮=1 … 大儒=15），見 buildColumns。
-    const COL_MARGIN = 40;           // 左右留白
+    //   一律固定顯示 15 條（對應 15 個文位），符合玩家文位範圍的珠簾正常顯示，
+    //   超出範圍的（尚未達到的文位）以半透明顯示，見 buildColumns / _render。
+    const TOTAL_COLUMNS = 15;        // 珠簾固定總條數（對應書僮～大儒 15 個文位）
+    const COL_SPACING = 28;          // 珠簾固定間隔（px），以畫面寬度中央為基準向左右展開
+    // 符合文位範圍的珠簾「解鎖順序」：從畫面正中央那一條開始，往右、往左交錯擴散
+    // （而非依欄位索引由左至右依序解鎖），讓低文位玩家看到的正常顯示珠簾集中在中央。
+    // 例：TOTAL_COLUMNS=15、中心索引=7 時，順序為 [7,8,6,9,5,10,4,11,3,12,2,13,1,14,0]。
+    const UNLOCK_ORDER = (function () {
+        const center = Math.floor((TOTAL_COLUMNS - 1) / 2);
+        const order = [center];
+        let left = center - 1, right = center + 1;
+        while (order.length < TOTAL_COLUMNS) {
+            if (right <= TOTAL_COLUMNS - 1) { order.push(right); right++; }
+            if (order.length < TOTAL_COLUMNS && left >= 0) { order.push(left); left--; }
+        }
+        return order;
+    })();
+    // UNLOCK_RANK[欄位索引] = 該欄位在解鎖順序中排第幾（0-based），供 _render 判斷是否「符合文位範圍」
+    const UNLOCK_RANK = (function () {
+        const rank = new Array(TOTAL_COLUMNS);
+        UNLOCK_ORDER.forEach((colIdx, order) => { rank[colIdx] = order; });
+        return rank;
+    })();
     const SEG_LEN = 23;              // 珠與珠的間距（繩段長）
-    const BEAD_FONT = 19;            // 珠上文字大小 (px)
-    const MIN_BEADS = 10;            // 每條最少字數（含標點）
+    const BEAD_FONT = 20;            // 珠上文字大小 (px)
+    const MIN_BEADS = 16;            // 每條最少字數（含標點）
     const MAX_BEADS = 32;            // 每條最多字數（含標點）28+4
+    const LOCKED_ALPHA = 0.5;        // 超出文位範圍／預覽非本人文位時的半透明程度
+
+    // ── 珠上文字色彩變化（依繩段轉折角度）──
+    const ANGLE_THRESHOLD_DEG = 10;  // 轉折角度容許範圍：在此範圍內維持原墨色
+    const HUE_EXTRA_MAX = 1440;        // 超出範圍後，角度轉換為色相的最大偏移量（避免過度繞色環）
+    const BEND_SAT = 66;             // 轉折變色時固定飽和度（優雅不俗豔）
+    const BEND_LIGHT = 45;           // 轉折變色時固定明度
 
     // ── Verlet 物理參數 ──
     //   每一條珠簾各自於 [MIN,MAX] 範圍隨機取用重力與阻尼，使擺動各異、更自然。
@@ -81,10 +115,15 @@
         hintEl: null,
 
         // ── 資料 ──
-        columns: [],          // [{ beads:[{x,y,px,py,ch}], anchorX, ink, gravity, damping, breezePhase, breezeAmp }]
-        rankName: '書僮',     // 玩家文位（顯示於匾額、決定條數）
+        columns: [],          // [{ beads:[{x,y,px,py,ch}], anchorX, inkH, inkS, inkL, gravity, damping, breezePhase, breezeAmp }]
+        rankName: '書僮',     // 玩家實際文位（決定「符合文位範圍」的珠簾數量基準）
+        previewIndex: 0,      // 目前匾額顯示/預覽中的文位索引（點擊匾額可切換，預設＝玩家自己的文位）
         _nextGustAt: 0,       // 下次自動陣風的時間戳
         _gust: null,          // 進行中的橫掃陣風 { start, duration, dir, strength }
+
+        // ── 匾額點擊判定（區分「點擊切換文位」與「撥弄拖曳」）──
+        _downWX: 0, _downWY: 0,
+        _downOnPlaque: false,
 
         // ── 相機 ──
         zoom: 1,
@@ -151,7 +190,7 @@
             div.innerHTML = `
                 <canvas id="zhexianren-canvas" class="zhexianren-canvas"></canvas>
                 <div id="zhexianren-close" class="zhexianren-close" aria-label="關閉">✕</div>
-                <div id="zhexianren-hint" class="zhexianren-hint">手指撥弄珠簾 · 雙指縮放畫面</div>
+                <div id="zhexianren-hint" class="zhexianren-hint">手指撥弄珠簾 · 雙指縮放畫面 · 點擊匾額預覽文位</div>
             `;
             // ⚠️ 掛於 body（非 #stage：stage 有 transform 會造成 position:fixed 雙重縮放）
             document.body.appendChild(div);
@@ -180,11 +219,13 @@
                 this.hide();
             });
 
-            // ── 滑鼠（桌機）：撥弄 ──
+            // ── 滑鼠（桌機）：撥弄 ／ 點擊匾額切換預覽文位 ──
             cv.addEventListener('mousedown', (e) => {
                 const w = this._canvasToWorld(e.clientX, e.clientY);
                 this._pointerDown = true;
                 this._lastWX = w.x; this._lastWY = w.y;
+                this._downWX = w.x; this._downWY = w.y;
+                this._downOnPlaque = this._isInPlaque(w.x, w.y);
             });
             window.addEventListener('mousemove', (e) => {
                 if (!this._pointerDown) return;
@@ -192,7 +233,12 @@
                 this._flick(w.x, w.y, this._lastWX, this._lastWY);
                 this._lastWX = w.x; this._lastWY = w.y;
             });
-            window.addEventListener('mouseup', () => { this._pointerDown = false; });
+            window.addEventListener('mouseup', (e) => {
+                const w = this._canvasToWorld(e.clientX, e.clientY);
+                const moved = Math.hypot(w.x - this._downWX, w.y - this._downWY);
+                if (moved < 6 && this._downOnPlaque) this._togglePreviewRank();
+                this._pointerDown = false;
+            });
 
             // ── 滾輪縮放（桌機輔助）──
             cv.addEventListener('wheel', (e) => {
@@ -216,6 +262,8 @@
                     const w = this._canvasToWorld(e.touches[0].clientX, e.touches[0].clientY);
                     this._pointerDown = true;
                     this._lastWX = w.x; this._lastWY = w.y;
+                    this._downWX = w.x; this._downWY = w.y;
+                    this._downOnPlaque = this._isInPlaque(w.x, w.y);
                 }
                 e.preventDefault();
             }, { passive: false });
@@ -245,7 +293,15 @@
             }, { passive: false });
 
             cv.addEventListener('touchend', (e) => {
-                if (e.touches.length === 0) { this._pinching = false; this._pointerDown = false; }
+                if (e.touches.length === 0) {
+                    const t = e.changedTouches && e.changedTouches[0];
+                    if (t) {
+                        const w = this._canvasToWorld(t.clientX, t.clientY);
+                        const moved = Math.hypot(w.x - this._downWX, w.y - this._downWY);
+                        if (moved < 6 && this._downOnPlaque) this._togglePreviewRank();
+                    }
+                    this._pinching = false; this._pointerDown = false;
+                }
                 else if (e.touches.length === 1) {
                     // 由雙指變單指：重新起算撥弄基準
                     this._pinching = false;
@@ -330,6 +386,20 @@
             }
         },
 
+        // 世界座標是否落在匾額範圍內（供點擊切換預覽文位判定用）
+        _isInPlaque: function (wx, wy) {
+            const x = PLAQUE_CX - PLAQUE_W / 2, y = PLAQUE_CY - PLAQUE_H / 2;
+            return wx >= x && wx <= x + PLAQUE_W && wy >= y && wy <= y + PLAQUE_H;
+        },
+
+        // 點擊匾額：切換到下一個文位做預覽（僅改變顯示，不重建珠簾內容）
+        _togglePreviewRank: function () {
+            const ranks = (window.ScoreManager && window.ScoreManager.ranks) || null;
+            if (!ranks || ranks.length === 0) return;
+            this.previewIndex = (this.previewIndex + 1) % ranks.length;
+            if (window.SoundManager) window.SoundManager.playOpenItem();
+        },
+
         // ========================================================
         // 建構珠簾（每次開啟隨機組合）
         // ========================================================
@@ -337,37 +407,37 @@
             return (typeof POEMS !== 'undefined' && POEMS) ? POEMS : [];
         },
 
+        // 一律建構固定 TOTAL_COLUMNS(15) 條珠簾，以畫面寬度中央為基準、固定間隔向左右展開；
+        // 「符合文位範圍」與否只影響顯示（見 _render），不影響珠簾內容本身，
+        // 因此切換預覽文位（_togglePreviewRank）不需要、也不會重建珠簾。
         buildColumns: function () {
             const poems = this._poems();
             this.columns = [];
             if (poems.length === 0) return;
 
-            // 依玩家文位決定條數：書僮=1 … 大儒=15
-            const colCount = this._rankColumnCount();
+            for (let c = 0; c < TOTAL_COLUMNS; c++) {
+                const anchorX = STAGE_W / 2 + (c - (TOTAL_COLUMNS - 1) / 2) * COL_SPACING;
 
-            for (let c = 0; c < colCount; c++) {
-                const anchorX = (colCount === 1)
-                    ? STAGE_W / 2
-                    : COL_MARGIN + c * (STAGE_W - COL_MARGIN * 2) / (colCount - 1);
-
-                // 本條由「同一首詩」串成：句間加「，」、句末加「。」，長度 10~28 字
+                // 本條由「同一首詩」串成：句間加「，」、句末加「。」，長度 10~32 字
                 const chars = this._buildPoemString();
                 if (chars.length === 0) continue;
                 this._pushColumn(anchorX, chars, this._inkForSegment(c));
             }
 
-            // 文位在「童生」(含)以下時，左右兩側各加一條勵志珠簾，鼓勵玩家提升文位
+            // 文位在「童生」(含)以下時，左右兩側各加一條勵志珠簾，鼓勵玩家提升文位；
+            // 這兩條不算入文位範圍的解鎖判定，一律以固定金褐色、正常不透明顯示（見 _render）。
             if (this._rankIndex() <= 3) {
                 const tip = Array.from('提升文位可以增加串珠的數量，加油吧！');
-                // 金褐色以與詩句區別、更醒目
-                const tipInk = 'hsl(32, 60%, 34%)';
-                this._pushColumn(20, tip, tipInk);                 // 左側
-                this._pushColumn(STAGE_W - 20, tip.slice(), tipInk); // 右側
+                const tipInk = { h: 32, s: 60, l: 34 }; // 金褐色，與詩句珠簾區別、更醒目
+                this._pushColumn(20, tip, tipInk, true);                 // 左側
+                this._pushColumn(STAGE_W - 20, tip.slice(), tipInk, true); // 右側
             }
         },
 
         // 建立一條珠簾並加入 this.columns（含各自隨機的重力/阻尼/微風參數）
-        _pushColumn: function (anchorX, chars, ink) {
+        // ink：{ h, s, l } 墨色 HSL 三元組（見 _inkForSegment）；
+        // isTip：是否為「提升文位」鼓勵珠簾（固定顏色、不受文位範圍/預覽透明度影響）
+        _pushColumn: function (anchorX, chars, ink, isTip) {
             const gravity = GRAVITY_MIN + Math.random() * (GRAVITY_MAX - GRAVITY_MIN);
             const damping = DAMPING_MIN + Math.random() * (DAMPING_MAX - DAMPING_MIN);
             const breezePhase = Math.random() * Math.PI * 2;
@@ -381,7 +451,11 @@
                 beads.push({ x: anchorX, y, px: anchorX, py: y, ch: chars[k], pinned: false });
             }
 
-            this.columns.push({ beads, anchorX, ink, gravity, damping, breezePhase, breezeAmp });
+            this.columns.push({
+                beads, anchorX, gravity, damping, breezePhase, breezeAmp,
+                inkH: ink.h, inkS: ink.s, inkL: ink.l,
+                isTip: !!isTip,
+            });
         },
 
         // 玩家文位在 ranks 中的索引（書僮=0 … 大儒=14）
@@ -390,11 +464,6 @@
             if (!ranks) return 0;
             const idx = ranks.findIndex(r => r.name === this.rankName);
             return idx >= 0 ? idx : 0;
-        },
-
-        // 依玩家文位回傳珠簾條數（1~15）
-        _rankColumnCount: function () {
-            return Math.max(1, Math.min(15, this._rankIndex() + 1));
         },
 
         // 取得玩家目前文位名稱（供匾額與條數使用）
@@ -452,7 +521,57 @@
         _inkForSegment: function (seed) {
             // 以水墨為主：色相偏暖褐，明度在 18%~30% 間交錯
             const light = 18 + (seed % 3) * 6;
-            return `hsl(28, 22%, ${light}%)`;
+            return { h: 28, s: 22, l: light };
+        },
+
+        // 計算某顆珠子（字）與上一顆字之間的繩段轉折角度（度），
+        // 用於「符合文位範圍」珠簾的顏色變化判定；beads[i-2]→beads[i-1] 與
+        // beads[i-1]→beads[i] 兩段方向的夾角，i<2（第一個字，前面只有錨點）時回傳 null。
+        // ⚠️ 保留但目前未使用：相鄰兩段之間的相對轉折角通常很小（珠簾多半平滑彎曲、
+        //    很少突然折角），實測顏色變化幅度不足，畫面大多只會出現角度接近 0 的紅色。
+        //    改用 _absoluteAngleAt()（見下）以「該段相對垂直向下的絕對偏移角」判色，
+        //    變化幅度大得多，見 _colorForBead。
+        _bendAngleAt: function (beads, i) {
+            if (i < 2) return null;
+            const p0 = beads[i - 2], p1 = beads[i - 1], p2 = beads[i];
+            const a1 = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+            const a2 = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            let diff = (a2 - a1) * 180 / Math.PI;
+            while (diff > 180) diff -= 360;
+            while (diff < -180) diff += 360;
+            return diff;
+        },
+
+        // 計算某顆珠子（字）所在繩段的「絕對角度」：與垂直向下（重力方向，珠簾靜止
+        // 時的自然朝向）的偏移角度，而非與上一段的相對轉折角。珠簾整條受風彎曲時，
+        // 越靠末端的字偏離垂直方向越多，這個絕對偏移量遠比相鄰兩段的相對夾角更明顯，
+        // 能讓顏色隨珠簾擺動幅度有感地變化，而不是大多數時候都停在角度 0 附近。
+        _absoluteAngleAt: function (beads, i) {
+            if (i < 1) return null;
+            const p0 = beads[i - 1], p1 = beads[i];
+            const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI; // 90° = 垂直向下
+            let dev = angle - 90;
+            while (dev > 180) dev -= 360;
+            while (dev < -180) dev += 360;
+            return dev;
+        },
+
+        // 依該字繩段的絕對偏移角度決定顯示顏色（含透明度）：
+        //  - 角度在 ±ANGLE_THRESHOLD_DEG 內，或不符合文位範圍（unlocked=false）→ 維持原墨色
+        //  - 超出範圍 → 以「超出的角度量」當作色相：正向往橘色發展、負向往紫色發展
+        //  - 「提升文位」鼓勵珠簾（isTip）固定金褐色，不套用角度變色
+        _colorForBead: function (col, beads, i, unlocked, alpha) {
+            if (unlocked && !col.isTip) {
+                const theta = this._absoluteAngleAt(beads, i);
+                if (theta !== null && Math.abs(theta) > ANGLE_THRESHOLD_DEG) {
+                    let hue = theta > 0
+                        ? Math.min(theta - ANGLE_THRESHOLD_DEG, HUE_EXTRA_MAX)
+                        : Math.max(theta + ANGLE_THRESHOLD_DEG, -HUE_EXTRA_MAX);
+                    hue = ((hue % 360) + 360) % 360;
+                    return `hsla(${hue}, ${BEND_SAT}%, ${BEND_LIGHT}%, ${alpha})`;
+                }
+            }
+            return `hsla(${col.inkH}, ${col.inkS}%, ${col.inkL}%, ${alpha})`;
         },
 
         // ========================================================
@@ -578,27 +697,37 @@
             ctx.translate(this.panX, this.panY);
             ctx.scale(this.zoom, this.zoom);
 
-            // 珠簾細線（絲線）
+            // 目前匾額顯示/預覽中的文位：previewIndex+1 條珠簾視為「符合文位範圍」
+            const ranks = (window.ScoreManager && window.ScoreManager.ranks) || null;
+            const unlockedCount = this.previewIndex + 1;
+            // 是否正在預覽「非玩家本人」的文位 → 全部珠簾一律半透明，以示區別
+            const isPreviewingOther = ranks ? (ranks[this.previewIndex] && ranks[this.previewIndex].name !== this.rankName) : false;
+
             ctx.lineWidth = 1;
-            ctx.strokeStyle = 'hsla(30, 25%, 30%, 0.25)';
-            for (const col of this.columns) {
+            ctx.font = `${BEAD_FONT}px 'Noto Serif TC', serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let colIdx = 0; colIdx < this.columns.length; colIdx++) {
+                const col = this.columns[colIdx];
                 const beads = col.beads;
+                // 「提升文位」鼓勵珠簾：固定金褐色、永遠正常不透明，不受文位範圍/預覽影響
+                const unlocked = col.isTip ? true : (UNLOCK_RANK[colIdx] < unlockedCount);
+                // 符合文位範圍（且非預覽他人文位）→ 正常顯示；否則（超出範圍或正在預覽他人文位）→ 半透明
+                const alpha = col.isTip ? 1 : (isPreviewingOther ? LOCKED_ALPHA : (unlocked ? 1 : LOCKED_ALPHA));
+
+                // 珠簾細線（絲線），透明度隨該條珠簾狀態同步調整
+                ctx.strokeStyle = `hsla(30, 25%, 30%, ${0.25 * alpha})`;
                 ctx.beginPath();
                 ctx.moveTo(beads[0].x, beads[0].y);
                 for (let i = 1; i < beads.length; i++) ctx.lineTo(beads[i].x, beads[i].y);
                 ctx.stroke();
-            }
 
-            // 珠上文字
-            ctx.font = `${BEAD_FONT}px 'Noto Serif TC', serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            for (const col of this.columns) {
-                const beads = col.beads;
-                ctx.fillStyle = col.ink;
+                // 珠上文字：符合文位範圍者依繩段轉折角度變化色相，其餘維持原墨色
                 for (let i = 1; i < beads.length; i++) {
                     const b = beads[i];
                     if (!b.ch) continue;
+                    ctx.fillStyle = this._colorForBead(col, beads, i, unlocked, alpha);
                     ctx.fillText(b.ch, b.x, b.y);
                 }
             }
@@ -645,8 +774,10 @@
             this._roundRect(ctx, x + 6, y + 6, PLAQUE_W - 12, PLAQUE_H - 12, 8);
             ctx.stroke();
 
-            // 匾額文字＝玩家文位（橫排，依字數自動縮放以免超出匾額）
-            const rank = this.rankName || '書僮';
+            // 匾額文字＝目前顯示/預覽中的文位（橫排，依字數自動縮放以免超出匾額）；
+            // 點擊匾額可切換預覽（見 _togglePreviewRank），預設顯示玩家自己的文位
+            const ranks = (window.ScoreManager && window.ScoreManager.ranks) || null;
+            const rank = (ranks && ranks[this.previewIndex] && ranks[this.previewIndex].name) || this.rankName || '書僮';
             ctx.fillStyle = 'hsl(45, 82%, 62%)';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -702,8 +833,10 @@
             this.container.classList.remove('hidden');
             // 相機復位
             this.zoom = 1; this.panX = 0; this.panY = 0;
-            // 讀取玩家文位（決定匾額文字與珠簾條數）
+            // 讀取玩家文位（決定「符合文位範圍」的珠簾數量基準）
             this.rankName = this._effectiveRankName();
+            // 預覽索引預設＝玩家自己的文位；點擊匾額可切換至其他文位預覽（見 _togglePreviewRank）
+            this.previewIndex = this._rankIndex();
             this._gust = null;
             this._nextGustAt = performance.now() + 800;
             this.buildColumns();
