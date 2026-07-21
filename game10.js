@@ -70,6 +70,7 @@
         rainbowIndex: 0,
         gameStartTime: null,
 
+        // 動態載入 game10.css，避免重複載入
         loadCSS: function () {
             if (!document.getElementById('game10-css')) {
                 const link = document.createElement('link');
@@ -80,6 +81,7 @@
             }
         },
 
+        // 初始化遊戲：載入 CSS、建立 DOM、快取常用元素、綁定按鈕與輸入事件
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game10-container')) {
@@ -100,7 +102,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
-            // Message button handled by GameMessage
+            // 提示訊息按鈕已交由 GameMessage 元件統一處理，此處不需另外綁定
             document.getElementById('game10-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
@@ -110,6 +112,7 @@
             this.setupInput();
         },
 
+        // 動態產生遊戲畫面的 DOM 結構（分數列、控制按鈕、遊玩區域等），並註冊縮放回呼
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game10-container';
@@ -156,6 +159,7 @@
             }
         },
 
+        // 綁定滑鼠／觸控輸入：移動撞擊條、點擊發球，以及 Alt+A 切換 AI 自動模式熱鍵
         setupInput: function () {
             const handleMove = (e) => {
                 if (!this.isActive) return;
@@ -203,6 +207,7 @@
             });
         },
 
+        // 顯示難度選擇器，讓玩家重新選擇難度並開新局
         showDifficultySelector: function () {
             this.isActive = false;
             cancelAnimationFrame(this.animationFrameId);
@@ -230,6 +235,7 @@
             }
         },
 
+        // 根據目前模式（一般難度 / 關卡模式）更新難度標籤文字、顏色與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game10-diff-tag');
             const retryBtn = document.getElementById('game10-retryGame-btn');
@@ -256,6 +262,7 @@
             /* updateResponsiveLayout replaced */
         },
 
+        // 發射主球：設定初速度與往上約 75 度的隨機發射角度，並隱藏倒數計時
         launchBall: function () {
             if (this.balls.length === 0) return;
             const primaryBall = this.balls[0];
@@ -276,6 +283,7 @@
             this.countdown = 0;
         },
 
+        // 建立一顆新球（含 DOM 元素）並加入球群陣列，回傳球物件供後續操作
         createBall: function (x, y, dx, dy, isMoving = true, color = null) {
             const container = document.getElementById('game10-balls-container');
             if (!container) return null;
@@ -303,6 +311,7 @@
             return ball;
         },
 
+        // 對外進入點：初始化遊戲並顯示難度選擇器，選定後開始遊戲流程
         show: function () {
             this.init();
 
@@ -322,6 +331,7 @@
             }
         },
 
+        // 顯示遊戲容器並鎖定頁面捲動，延遲一小段時間等版面計算完成後才開新局
         startGameFlow: function () {
             const settings = this.difficultySettings[this.difficulty];
             this.maxMistakes = settings.balls;
@@ -339,17 +349,20 @@
             }, 100);
         },
 
+        // 隱藏首頁卡片與其他遊戲容器，避免與本遊戲畫面重疊
         hideOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = 'none';
             const game1 = document.getElementById('game1-container');
             if (game1) game1.classList.add('hidden');
         },
+        // 離開本遊戲時，還原顯示首頁卡片內容
         showOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = '';
         },
 
+        // 停止遊戲：關閉動畫迴圈、隱藏容器、還原頁面捲動狀態
         stopGame: function () {
             this.isActive = false;
             cancelAnimationFrame(this.animationFrameId);
@@ -361,6 +374,7 @@
             this.showOtherContents();
         },
 
+        // 重來本局：分數與失誤歸零，並將所有磚塊重設回初始血量與位置
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
@@ -385,6 +399,7 @@
             this.resetGameRound();
         },
 
+        // 開新局：重置分數、重新產生詩詞敵陣，並重置回合狀態（球、撞擊條等）
         startNewGame: function (levelIndex) {
             cancelAnimationFrame(this.animationFrameId);
             if (levelIndex !== undefined) {
@@ -400,11 +415,12 @@
             this.resetGameRound();
         },
 
+        // 關卡模式專用：關卡編號加一後開始下一關
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
-        //建立敵陣
+        //建立敵陣：依難度隨機取詩，將詩句文字轉換成磚塊陣列（含位置、血量等資訊）
         prepareChallenge: function () {
             const settings = this.difficultySettings[this.difficulty];
             // 隨機選取詩詞，傳入種子
@@ -492,6 +508,7 @@
             this.renderBricks();
         },
 
+        // 依 this.bricks 陣列資料，重新產生磚塊的 DOM 元素（外層負責定位，內層負責樣式與文字）
         renderBricks: function () {
             this.bricksContainer.innerHTML = '';
             this.bricks.forEach((b, i) => {
@@ -516,6 +533,7 @@
             });
         },
 
+        // 依最大失誤次數 (maxMistakes) 產生對應數量的愛心圖示
         renderHearts: function () {
             const hearts = document.getElementById('game10-hearts');
             if (!hearts) return;
@@ -528,6 +546,7 @@
             }
         },
 
+        // 依目前失誤次數 (mistakes)，將對應數量的愛心切換為「空心」狀態
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game10-hearts .heart');
             hearts.forEach((h, i) => {
@@ -541,6 +560,8 @@
             });
         },
 
+        // 重置單一回合狀態：撞擊條、球、倒數計時，並啟動遊戲主迴圈
+        // keepBricks 為 true 時，會將既有磚塊的血量與外觀一併重設（用於重來功能）
         resetGameRound: function (keepBricks = false) {
             this.isActive = true;
             this.gameStartTime = Date.now();
@@ -786,6 +807,7 @@
         },
 
         // --- AI 自動玩家核心邏輯 ---
+        // 預測最快落下的球會到達撞擊條的位置，計算撞擊條應移動的目標 X 座標 (this.ai.targetX)
         updateAI: function (dt, wRem, hRem) {
             if (this.ai.cooldown > 0) {
                 this.ai.cooldown -= dt;
@@ -973,6 +995,7 @@
             }
         },
 
+        // 處理磚塊被球擊中：扣血、加分、播放震動特效，血量歸零則判定為擊破
         handleBrickHit: function (brick, ball) {
             brick.hp--;
             // 擊中文字，根據window.ScoreManager.gameSettings['game10'].getPointA加分
@@ -1014,6 +1037,7 @@
             }
         },
 
+        // 檢查指定行的磚塊是否已全數擊破；若是，則加分並依剩餘行數產生額外的彩色小球獎勵
         checkRowClear: function (rowIdx, spawnX, spawnY) {
             const rowBricks = this.bricks.filter(b => b.row === rowIdx);
             const isCleared = rowBricks.every(b => b.isBroken);
@@ -1050,6 +1074,7 @@
             }
         },
 
+        // 處理球掉出畫面下方：移除該球，若所有球都掉光則計為一次失誤，並視情況重生球或判定遊戲結束
         handleBallDrop: function (idx) {
             const ball = this.balls[idx];
             if (!ball) return;
@@ -1105,6 +1130,7 @@
             }
         },
 
+        // 處理勝利流程：停用互動、播放得分動畫與煙火特效，動畫結束後呼叫 gameOver 顯示結算畫面
         handleWin: function () {
             this.isActive = false;
             cancelAnimationFrame(this.animationFrameId);
@@ -1116,7 +1142,7 @@
                 game: this,
                 difficulty: this.difficulty,
                 gameKey: 'game10',
-                timerContainerId: 'game10-bricks-container', // placeholder
+                timerContainerId: 'game10-bricks-container', // 佔位用參數（此遊戲無需計時器容器，沿用磚塊容器 ID）
                 scoreElementId: 'game10-score',
                 heartsSelector: '#game10-hearts .heart:not(.empty)',
                 onComplete: (finalScore) => {
@@ -1137,6 +1163,7 @@
             }
         },
 
+        // 遊戲結束處理（勝利或失敗皆會呼叫）：記錄戰績、播放音效、顯示結算訊息，並設定確認後的下一步行為
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
@@ -1199,6 +1226,7 @@
             }
         },
 
+        // 將撞擊條、球、磚塊的邏輯座標 (rem) 換算為畫面像素，套用到對應 DOM 元素上
         updateRender: function () {
             // Paddle
             if (this.paddleEl) {
@@ -1231,6 +1259,7 @@
             });
         },
 
+        // 於球移動路徑上產生短暫顯示的拖尾粒子特效（0.5 秒後自動移除）
         createTrailParticle: function (x, y) {
             const p = document.createElement('div');
             p.className = 'game10-trail-particle';
@@ -1242,6 +1271,7 @@
             }, 500);
         },
 
+        // 磚塊被擊破時，產生 6 顆向四周飛散的碎片粒子特效
         createShatterParticle: function (x, y) {
             for (let i = 0; i < 6; i++) {
                 const p = document.createElement('div');
@@ -1268,9 +1298,10 @@
             }
         },
 
+        // 依音效類型代稱，對應播放 SoundManager 既有的音效（本遊戲未自製專屬音效，故借用近似音效）
         playSound: function (type) {
             if (!window.SoundManager) return;
-            // Map our sounds to existing SoundManager if custom ones don't exist
+            // 將本遊戲自訂的音效類型，對應到既有 SoundManager 提供的音效函式
             switch (type) {
                 //case 'porcelain': window.SoundManager.playGuzheng(0); break; //撞牆
                 case 'porcelain': window.SoundManager.playMelodyNote(0, 0.3); break; //撞牆
@@ -1281,6 +1312,7 @@
             }
         },
 
+        // 過關勝利時，於指定座標產生 30 顆金黃色煙火粒子的慶祝特效
         createFirework: function (x, y) {
             for (let i = 0; i < 30; i++) {
                 const p = document.createElement('div');

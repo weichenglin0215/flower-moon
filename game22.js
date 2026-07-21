@@ -98,6 +98,7 @@
         },
 
         // ------------------------------------------------------------
+        // 動態載入本遊戲專屬 CSS（若尚未載入過才插入 <link>，避免重複載入）
         loadCSS: function () {
             if (!document.getElementById('game22-css')) {
                 const link = document.createElement('link');
@@ -108,6 +109,7 @@
             }
         },
 
+        // 初始化：載入 CSS、建立 DOM（若尚未建立）、快取常用元素、綁定按鈕事件
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game22-container')) {
@@ -136,6 +138,7 @@
             };
         },
 
+        // 建立遊戲主容器 DOM 結構（頂部資訊列、提示列、棋盤區、暫存區），並註冊縮放/定位回呼
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game22-container';
@@ -181,11 +184,13 @@
             }
         },
 
+        // 對外進入點：初始化並顯示難度選擇畫面
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 顯示難度／關卡選擇器，選定後套用計時設定並開始新局
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -214,6 +219,7 @@
             }
         },
 
+        // 依「一般難度模式」或「關卡挑戰模式」切換頂部標籤文字與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game22-diff-tag');
             const retryBtn = document.getElementById('game22-retryGame-btn');
@@ -235,10 +241,12 @@
             }
         },
 
+        // 進入遊戲時隱藏底層卡片列表，避免與遊戲畫面重疊
         hideOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = 'none';
         },
+        // 離開遊戲時恢復顯示底層卡片列表
         showOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = '';
@@ -262,6 +270,7 @@
             });
         },
 
+        // 停止遊戲：清除拖曳/計時器/提示計時器，隱藏容器並還原頁面捲動狀態
         stopGame: function () {
             this._clearDrag();
             this.isActive = false;
@@ -278,6 +287,7 @@
         // ------------------------------------------------------------
         // 開新局 / 重來 / 下一關
         // ------------------------------------------------------------
+        // 開新局：重置分數與歷史紀錄，重新抽詩、切割、打亂並啟動計時器與提示揭示
         startNewGame: function (levelIndex) {
             this._clearDrag();
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
@@ -300,6 +310,7 @@
             document.getElementById('game22-newGame-btn').disabled = false;
         },
 
+        // 重來：沿用同一首詩與同樣的切割結果，只重新打亂拼圖位置（不重新抽詩）
         retryGame: function () {
             this._clearDrag();
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
@@ -319,6 +330,7 @@
             document.getElementById('game22-newGame-btn').disabled = false;
         },
 
+        // 關卡模式專用：關卡編號 +1 後直接開新局
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -327,6 +339,8 @@
         // ------------------------------------------------------------
         // 題目準備：取詩 + 建立 expected 字陣 + 切割 + 打亂
         // ------------------------------------------------------------
+        // 準備本局題目：依難度抽一首符合行數/字數條件的詩、建立 expected 字元矩陣、
+        // 選定提示行、更新詩詞資訊列，最後呼叫切割與打亂
         prepareChallenge: function () {
             const s = this.difficultySettings[this.difficulty];
             const lines = s.gridLines;
@@ -398,6 +412,8 @@
         // ------------------------------------------------------------
         // 隨機多格形切割：以貪婪掃描方式覆蓋整個 expected 矩陣
         // ------------------------------------------------------------
+        // 將 expected 矩陣切割成多格形拼圖片：由左至右、由上至下掃描，
+        // 對每個尚未分配的格子隨機嘗試各種形狀，成功放入即建立一片，最終保底可用 1x1
         cutPieces: function () {
             const s = this.difficultySettings[this.difficulty];
             const rows = this.gridRows, cols = this.gridCols;
@@ -460,6 +476,7 @@
             }
         },
 
+        // 檢查以 (r,c) 為錨點放置指定形狀 cells 時，是否都落在棋盤範圍內且尚未被佔用（切割階段用）
         canPlace: function (occupied, r, c, cells) {
             const rows = occupied.length, cols = occupied[0].length;
             for (const [dr, dc] of cells) {
@@ -470,6 +487,7 @@
             return true;
         },
 
+        // 回傳陣列的隨機打亂複本（Fisher-Yates 洗牌法，不修改原陣列）
         shuffleCopy: function (arr) {
             const a = arr.slice();
             for (let i = a.length - 1; i > 0; i--) {
@@ -526,10 +544,12 @@
             }
         },
 
+        // 判斷是否所有拼圖片都剛好落在原始（正確）位置——用來避免打亂後意外變回已解答狀態
         allPiecesAtOrigin: function () {
             return this.pieces.every(p => !p.inHold && p.anchorRow === p.originRow && p.anchorCol === p.originCol);
         },
 
+        // 建立一個全為 null 的棋盤佔用狀態矩陣（gridRows × gridCols）
         makeEmptyGridState: function () {
             const g = [];
             for (let r = 0; r < this.gridRows; r++) {
@@ -540,6 +560,8 @@
             return g;
         },
 
+        // 檢查某片以 (r,c) 為錨點放上棋盤是否合法：需在範圍內、對應格非空格（expected 非 null）、
+        // 且未被其他片佔用（ignorePieceId 用於「忽略自己」的情境，例如同片重新試放）
         canPlacePieceOnGrid: function (piece, r, c, ignorePieceId) {
             for (const [dr, dc] of piece.cells) {
                 const rr = r + dr, cc = c + dc;
@@ -552,6 +574,7 @@
             return true;
         },
 
+        // 將指定片放置到棋盤上 (r,c) 錨點位置，更新片本身狀態與 gridState 佔用標記
         putPieceOnGrid: function (piece, r, c) {
             piece.inHold = false;
             piece.anchorRow = r;
@@ -561,6 +584,7 @@
             }
         },
 
+        // 將指定片從棋盤的 gridState 中移除（清空其佔用的格子），不影響片本身的錨點座標
         removePieceFromGrid: function (piece) {
             if (piece.inHold) return;
             for (const [dr, dc] of piece.cells) {
@@ -574,6 +598,7 @@
         // ------------------------------------------------------------
         // 渲染
         // ------------------------------------------------------------
+        // 一次重繪棋盤、暫存區、提示列，並在下一個 tick 更新計時圈（等待版面確定尺寸後再量測）
         renderAll: function () {
             this.renderGrid();
             this.renderHold();
@@ -581,6 +606,8 @@
             setTimeout(() => this.updateTimerRing(1), 0);
         },
 
+        // 重繪整個棋盤：先畫每格背景（含提示行高亮與已揭示提示字），
+        // 再依「彎曲片在底層、直排片在頂層」規則排序並畫出所有在棋盤上的拼圖片
         renderGrid: function () {
             const grid = this.gridEl;
             if (!grid) return;
@@ -743,11 +770,13 @@
             return el;
         },
 
+        // 依片的棋盤錨點座標（anchorRow/anchorCol）設定其 DOM 元素的 left/top 像素位置
         applyPiecePosition: function (el, piece) {
             el.style.left = (piece.anchorCol * CELL_PX) + 'px';
             el.style.top = (piece.anchorRow * CELL_PX) + 'px';
         },
 
+        // 重繪暫存區：清空後依 holdPieces 順序以縮小尺寸（HOLD_CELL_PX）畫出每片，並更新片數顯示
         renderHold: function () {
             const hold = this.holdEl;
             if (!hold) return;
@@ -762,6 +791,8 @@
             if (cnt) cnt.textContent = this.holdPieces.length + '/' + this.pieces.length;
         },
 
+        // 重繪上方提示列：已揭示字元正常顯示，未揭示的以底線佔位符呈現；
+        // 提示字全部揭示後解除詩名的 visibility 隱藏
         renderHint: function () {
             if (!this.hintEl) return;
             const len = this.hintLine.length;
@@ -888,6 +919,9 @@
         // ------------------------------------------------------------
         // 提交移動：寫入歷史、處理自動置換
         // ------------------------------------------------------------
+        // 提交「放到棋盤」的操作：檢查目標位置是否越界（越界則整片彈回原位），
+        // 找出與目標形狀重疊的既有片並移除，放置主片後為被擠走的片尋找最近空位（找不到則丟入暫存區），
+        // 最後寫入歷史紀錄、重繪並檢查是否已勝利
         commitMoveToGrid: function (piece, targetRow, targetCol, d) {
             const snapshot = this.snapshot();
             // 嘗試直接放到 (targetRow, targetCol)
@@ -936,6 +970,8 @@
             if (this.checkWin()) this.handleWin();
         },
 
+        // 提交「放到暫存區」的操作：若片原本在棋盤上，將其移除並加入暫存區並寫入歷史紀錄；
+        // 若片本來就在暫存區內移動，則視為無實際變化，僅重繪
         commitMoveToHold: function (piece, d) {
             const snapshot = this.snapshot();
             if (!piece.inHold) {
@@ -972,6 +1008,7 @@
         // ------------------------------------------------------------
         // 歷史/復原
         // ------------------------------------------------------------
+        // 擷取目前所有拼圖片的位置狀態（棋盤座標/是否在暫存區）與暫存區排列順序，供復原功能使用
         snapshot: function () {
             return {
                 pieces: this.pieces.map(p => ({
@@ -984,11 +1021,13 @@
             };
         },
 
+        // 將快照推入歷史堆疊，超過 HISTORY_LIMIT 步數上限時捨棄最舊的一筆
         pushHistory: function (snapshot) {
             this.history.push(snapshot);
             if (this.history.length > HISTORY_LIMIT) this.history.shift();
         },
 
+        // 依快照內容還原所有拼圖片的位置與暫存區狀態，並重建 gridState 佔用矩陣
         restoreSnapshot: function (snap) {
             const byId = new Map(this.pieces.map(p => [p.id, p]));
             this.gridState = this.makeEmptyGridState();
@@ -1011,6 +1050,7 @@
             this.holdPieces = snap.holdOrder.map(id => byId.get(id)).filter(Boolean);
         },
 
+        // 復原上一步操作：從歷史堆疊彈出最近一筆快照並還原、重繪
         undo: function () {
             if (!this.isActive) return;
             if (this.history.length === 0) return;
@@ -1022,6 +1062,8 @@
         // ------------------------------------------------------------
         // 勝利判定：逐格字元比對
         // ------------------------------------------------------------
+        // 檢查是否已完成拼圖：暫存區必須為空，且棋盤上每一格的實際字元都要與 expected 相符
+        // （逐格比對字元本身，而非比對「哪一片」在哪格，因此疊字情況也能正確判定過關）
         checkWin: function () {
             // 暫存區還有片 → 一定還沒贏
             if (this.holdPieces.length > 0) return false;
@@ -1044,6 +1086,8 @@
             return true;
         },
 
+        // 處理過關流程：停止計時、依片數加分、解鎖詩名顯示、播放金光逐格閃爍動畫與音效，
+        // 最後呼叫 ScoreManager 播放得分動畫並在完成後進入 gameOver(true, ...)
         handleWin: function () {
             if (!this.isActive) return;
             this.isActive = false;
@@ -1144,6 +1188,7 @@
         // ------------------------------------------------------------
         // 計時器
         // ------------------------------------------------------------
+        // 啟動倒數計時器：每 100ms 更新一次計時圈，時間歸零時停止計時並延遲觸發遊戲失敗結算
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -1162,6 +1207,8 @@
             }, 100);
         },
 
+        // 依剩餘時間比例（ratio：1=剛開始，0=時間到）更新計時圈 SVG 的外框尺寸、
+        // 虛線位移量（呈現讀秒效果）與顏色（隨時間流逝逐漸變紅變濃）
         updateTimerRing: function (ratio) {
             const rect = document.getElementById('game22-timer-path');
             const container = document.getElementById('game22-grid-container');
@@ -1183,6 +1230,9 @@
         },
 
         // ------------------------------------------------------------
+        // 遊戲結束統一處理：勝利或失敗都會走到這裡。
+        // 失敗時記錄遊戲紀錄（若有 SupabaseClient），並依模式決定顯示訊息與確認後的行為
+        // （關卡模式勝利 → 檢查是否解鎖成就 → 進下一關；一般模式 → 開新局；失敗 → 重來）
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

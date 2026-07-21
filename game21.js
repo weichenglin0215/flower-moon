@@ -111,6 +111,8 @@
         hintDelayHandle: null,
 
         // ------------------------------------------------------------
+        // 動態載入本遊戲專屬的 CSS（game21.css）；
+        // 若頁面已存在同 id 的 <link>，代表已載入過，直接略過避免重複插入。
         loadCSS: function () {
             if (!document.getElementById('game21-css')) {
                 const link = document.createElement('link');
@@ -121,6 +123,8 @@
             }
         },
 
+        // 初始化遊戲：載入 CSS、建立（或重用）DOM 結構，並綁定「重來／開新局／難度標籤」
+        // 三個按鈕的點擊事件。每次呼叫 show() 都會先執行本函式。
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game21-container')) {
@@ -144,6 +148,8 @@
             };
         },
 
+        // 建立遊戲的整體 DOM 骨架（頂部分數列、提示列、棋盤容器、計時外框 SVG），
+        // 只在第一次進入本遊戲時執行一次；並向外部的螢幕自適應模組註冊縮放/定位回呼。
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game21-container';
@@ -184,11 +190,14 @@
             }
         },
 
+        // 對外進入點：由主選單呼叫，開始初始化並顯示難度選擇畫面。
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 顯示難度選擇彈窗；玩家選定難度後套用對應的 difficultySettings，
+        // 更新畫面狀態並開始新的一局。若找不到 DifficultySelector 模組則直接開局（保底）。
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -216,6 +225,8 @@
             }
         },
 
+        // 依目前是「一般難度模式」或「關卡模式」，更新難度標籤文字/顏色，
+        // 並決定「開新局」按鈕是否顯示（關卡模式下不允許自由開新局，只能重來或進下一關）。
         updateUIForMode: function () {
             const diffTag = document.getElementById('game21-diff-tag');
             const retryBtn = document.getElementById('game21-retryGame-btn');
@@ -240,15 +251,19 @@
             }
         },
 
+        // 進入本遊戲全螢幕覆蓋層時，隱藏主頁面的卡片容器，避免背景內容穿透顯示。
         hideOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = 'none';
         },
+        // 離開本遊戲時，還原主頁面卡片容器的顯示（清除 inline style，交回 CSS 預設值）。
         showOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = '';
         },
 
+        // 停止遊戲並關閉覆蓋層：清除計時器與提示排程、把 hintSession 遞增使殘留
+        // 回呼失效，並還原頁面捲動與主內容顯示。
         stopGame: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -261,6 +276,8 @@
             this.showOtherContents();
         },
 
+        // 「重來」：沿用同一首謎題詩，只重新打亂非固定（非 fix）直棒的位置，
+        // 固定棒維持原位，計分歸零、重新啟動提示與計時器。
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
@@ -279,6 +296,8 @@
             document.getElementById('game21-newGame-btn').disabled = false;
         },
 
+        // 「開新局」：重新抽取一首謎題詩（呼叫 prepareChallenge 產生全新題目），
+        // 並重置分數、提示與計時器。若帶入 levelIndex 代表進入關卡模式的指定關卡。
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -299,6 +318,7 @@
             document.getElementById('game21-newGame-btn').disabled = false;
         },
 
+        // 關卡模式專用：關卡編號 +1 後直接開始下一局。
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -456,9 +476,11 @@
             this.renderGrid();
         },
 
+        // 去除標點符號與空白，只留下純文字（用於比對詩句長度與內容）。
         stripPunct: function (s) {
             return (s || '').replace(/[，。？！、：；「」『』\s]/g, '');
         },
+        // 回傳去除標點後的純文字長度。
         cleanLen: function (s) {
             return this.stripPunct(s).length;
         },
@@ -605,6 +627,7 @@
             return true;
         },
 
+        // 標準 Fisher-Yates 洗牌演算法：原地打亂陣列元素順序。
         shuffleInPlace: function (arr) {
             for (let i = arr.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -743,6 +766,9 @@
         // ⚠️ 重要：DOM 元素位置只由 currentCol 與 offset 推導；
         //    swap 後重新呼叫 applyBarPosition 即可，不再依賴 DOM 順序。
         // ------------------------------------------------------------
+        // 為單一直棒的 DOM 元素綁定 pointerdown/move/up/cancel 事件，
+        // 實作「左右換位（可跳過固定棒）」與「上下滑動（受最大/最小 offset 限制）」的拖曳邏輯，
+        // 放開時（onUp）才進行勝利判定，避免玩家用拖曳掃過正解取巧得分。
         attachDragHandlers: function (barEl, bar) {
             const onDown = (e) => {
                 if (!this.isActive) return;
@@ -850,6 +876,8 @@
         // ------------------------------------------------------------
         // 勝利判定：讀取黃框前 puzzleLength 欄的實際字元
         // ------------------------------------------------------------
+        // 勝利判定：依序讀出黃金橫批列前 puzzleLength 欄目前對齊的字元，
+        // 拼接後與 puzzleText（正解）完全相同才算過關。
         checkWin: function () {
             const candidate = [];
             for (let col = 0; col < this.puzzleLength; col++) {
@@ -862,6 +890,8 @@
             return candidate.join('') === this.puzzleText;
         },
 
+        // 過關處理：凍結所有直棒（禁止再拖曳）、停止計時與提示、依難度計算並加總分數、
+        // 逐欄播放「亮字」動畫與音效，最後交給 ScoreManager 播放勝利動畫並呼叫 gameOver(true)。
         handleWin: function () {
             if (!this.isActive) return;
             this.isActive = false;
@@ -1006,24 +1036,17 @@
             this.updateNoDropZoneVisibility();
         },
 
-        // ⚠️ 規格：若某答案棒「字數(charString.length)與上下位置(中央列字==targetChar)」都對，
-        //   則不論左右欄是否正確，都隱藏該答案欄的上下紅色警示區；
-        //   否則顯示，提醒玩家該欄的字數或上下位置有誤。
-        //   ⚠️ 判斷根據的是「該答案棒目前所在欄的正解位置」— 因為紅色區塊
-        //   建立時是綁在 puzzleColIdx（棒的正解欄），只要棒的上下對齊到位就等於解好那欄。
+        // ⚠️ 規格（防作弊修正）：紅色禁止放置區一旦顯示就必須「維持顯示」，
+        //   直到玩家開始新的一局或重來才會消失（見 renderGrid 重新建立為 hidden）。
+        //   舊版做法是依「該答案棒目前是否上下對齊正確」動態隱藏/顯示對應欄的紅色區，
+        //   等於變相告訴玩家「紅色消失＝這個位置是對的」，玩家只要任意拖曳測試
+        //   哪一欄的紅色會消失，就能直接找出正解位置，形同作弊捷徑。
+        //   因此改為：一旦觸發顯示（noDropZoneActive），全部紅色區一律持續顯示，
+        //   不再依任何棒的目前狀態動態隱藏。
         updateNoDropZoneVisibility: function () {
             if (!this.gridEl || !this.noDropZoneActive) return;
-            const correctCols = new Set();
-            this.bars.forEach(bar => {
-                if (bar.isDecoy) return;
-                // 上下位置正確 = 中央列字 === targetChar
-                const idx = MIDDLE_ROW - bar.offset;
-                if (idx === bar.targetIdx) correctCols.add(bar.puzzleColIdx);
-            });
             this.gridEl.querySelectorAll('.game21-no-drop-zone').forEach(el => {
-                const col = parseInt(el.dataset.col, 10);
-                if (correctCols.has(col)) el.classList.add('hidden');
-                else el.classList.remove('hidden');
+                el.classList.remove('hidden');
             });
         },
 
@@ -1043,6 +1066,8 @@
         // ------------------------------------------------------------
         // 計時器
         // ------------------------------------------------------------
+        // 啟動倒數計時器：每 100ms 更新一次計時外框（SVG 進度環），
+        // 時間歸零時停止提示排程並延遲 1 秒後判定為輸（時間到）。
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -1061,6 +1086,8 @@
             }, 100);
         },
 
+        // 更新棋盤外框的 SVG 計時進度環。ratio 為剩餘時間比例（1=滿、0=歸零）。
+        // mode==='win' 時改用勝利動畫的漸層金色樣式；一般模式則依剩餘時間由暗轉紅。
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game21-timer-path');
             const container = document.getElementById('game21-grid-container');
@@ -1092,6 +1119,9 @@
         },
 
         // ------------------------------------------------------------
+        // 遊戲結束處理：無論勝負皆會呼叫。win=true 表示過關；win=false 表示逾時失敗。
+        // 負責：失敗時視需求標示錯誤棒、記錄失敗場次、切換按鈕可用狀態，
+        // 並顯示結算訊息（GameMessage），依情境決定下一步（下一關/下一局/再試一次）。
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

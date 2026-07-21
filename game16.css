@@ -27,7 +27,7 @@
     z-index: 1000;
 }
 
-/* ── 頂部資訊列 ── */
+/* ── 頂部資訊列（分數、難度標籤、重來/開新局按鈕）── */
 .game16-header {
     display: flex;
     justify-content: space-between;
@@ -242,7 +242,7 @@
     width: 10px;
 }
 
-/* ── 主遊戲區（地洞陣列）── */
+/* ── 主遊戲區（地洞陣列，依 JS 動態設定 cols/rows 與 CSS 變數尺寸）── */
 .game16-area {
     flex: 1;
     display: flex;
@@ -350,7 +350,7 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-/* ── 洞口動畫 ── */
+/* ── 洞口動畫（字泡泡的升起／下沉關鍵影格）── */
 @keyframes game16-rise {
     0% {
         transform: translate(-50%, -50%) translateY(var(--pit-size, 72px));

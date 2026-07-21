@@ -50,6 +50,7 @@
         cluesRevealed: false,
         gameStartTime: null,
 
+        // 動態載入 game12.css（若尚未載入過），避免重複插入 <link>
         loadCSS: function () {
             if (!document.getElementById('game12-css')) {
                 const link = document.createElement('link');
@@ -60,6 +61,7 @@
             }
         },
 
+        // 初始化遊戲：載入 CSS、建立 DOM（若尚未建立），並快取容器與網格元素參照
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game12-container')) {
@@ -69,6 +71,8 @@
             this.gridArea = document.getElementById('game12-grid');
         },
 
+        // 建立遊戲整體 DOM 結構（分數列、控制按鈕、詩句題目區、答案翻牌網格），
+        // 並綁定重來/開新局/難度選擇等按鈕事件，只會執行一次
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game12-container';
@@ -138,11 +142,13 @@
             this.renderHearts();
         },
 
+        // 外部呼叫的遊戲進入點：初始化並顯示難度選擇畫面
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 顯示難度選擇器；使用者選定難度／關卡後更新 UI 並開始新遊戲
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -166,6 +172,7 @@
             }
         },
 
+        // 依「一般難度模式」或「關卡挑戰模式」切換難度標籤文字與按鈕顯示
         updateUIForMode: function () {
             const diffTag = document.getElementById('game12-diff-tag');
             const retryBtn = document.getElementById('game12-retryGame-btn');
@@ -184,6 +191,7 @@
             /* updateResponsiveLayout replaced */
         },
 
+        // 隱藏首頁卡片與其他遊戲的容器，避免與本遊戲畫面重疊
         hideOtherContents: function () {
             ['cardContainer', 'calendarCardContainer', 'game1-container', 'game2-container', 'game3-container', 'game4-container', 'game5-container', 'game6-container', 'game7-container', 'game8-container', 'game9-container', 'game10-container', 'game11-container'].forEach(id => {
                 const el = document.getElementById(id);
@@ -194,11 +202,13 @@
             });
         },
 
+        // 離開遊戲時還原首頁卡片顯示
         showOtherContents: function () {
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
         },
 
+        // 完全停止遊戲：清除計時器、隱藏容器、還原頁面捲動與其他內容顯示
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -223,6 +233,7 @@
             this.memoryTimerRef = null;
         },
 
+        // 開始全新一局：重置分數/錯誤次數/回合狀態，隨機選詩後初始化第一回合
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -263,11 +274,13 @@
             info.style.display = (this.difficulty === '小學' || revealed) ? '' : 'none';
         },
 
+        // 關卡模式過關後，進入下一關（關卡編號 +1 並重新開局）
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
+        // 重新挑戰同一首詩（沿用 currentPoem/隱藏字設定），僅重置分數與錯誤次數
         retryGame: function () {
             if (!this.currentPoem) return;
             // 啟用按鈕 (修正 Rule 3)
@@ -290,6 +303,9 @@
             this.updatePoemInfoVisibility(false);
         },
 
+        // 依難度設定隨機挑選一首合格詩詞，並依 hideMode 決定要隱藏第一句／第二句／兩句，
+        // 再依 minShow/maxShow 篩選每句要「保留提示」的字數模式，
+        // 最終將被隱藏的字組成 this.hiddenPositions（供玩家作答用），最多重試 100 次
         selectRandomPoem: function () {
             const settings = this.difficultySettings[this.difficulty];
             const processLine = (line, lineIdx) => {
@@ -374,6 +390,7 @@
             return false;
         },
 
+        // 初始化一個回合：重置作答進度、渲染題目、建立翻牌網格，並進入記憶階段
         initTurn: function (isRetry = false) {
             this.currentInputIndex = 0;
             this.isRevealed = false;
@@ -382,6 +399,8 @@
             this.startMemoryPhase();
         },
 
+        // 渲染詩句題目區：已作答正確的字顯示綠字，未作答的隱藏字顯示◎符號（或答案揭曉時顯示原字），
+        // 提示句（無隱藏字的句子）依 showDelay 設定延遲顯示；同時處理字體自動縮放與詩詞出處資訊
         renderQuestion: function () {
             const l1 = document.getElementById('game12-line1');
             const l2 = document.getElementById('game12-line2');
@@ -454,6 +473,9 @@
             };
         },
 
+        // 建立翻牌網格資料：將待答字（solutionChars）與干擾字（decoys）混合、洗牌，
+        // 並為每張牌配置座標、音階索引（由下而上、由左而右編號後對應 21 音循環）與隨機正面顏色；
+        // isRetry 為 true 且已有現成網格時則沿用舊資料，只重新渲染畫面
         setupGrid: function (isRetry) {
             const settings = this.difficultySettings[this.difficulty];
             const config = settings;
@@ -500,6 +522,7 @@
             this.renderGridDisplay(config.cols);
         },
 
+        // 依 currentGridChars 資料渲染實際的翻牌 DOM 元素，並設定出場動畫延遲與點擊事件
         renderGridDisplay: function (cols) {
             const container = document.getElementById('game12-grid');
             container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -592,6 +615,8 @@
             this.memoryTimerRef = memTimer;
         },
 
+        // 記憶階段結束後進入作答階段：依序（或一次性）蓋回所有字塊，
+        // 接著啟動總計時器，並顯示倒數框，允許玩家開始依序點擊答案字
         startActionPhase: async function () {
             const currentTurn = this.turnId;
             if (this.memoryTimerRef) clearInterval(this.memoryTimerRef);
@@ -643,6 +668,8 @@
             document.getElementById('game12-timer-ring').classList.remove('hidden');
         },
 
+        // 處理玩家點擊字塊：若點對目前該填的答案字則翻開計分並推進進度（全部答對即獲勝）；
+        // 若點錯則扣血、翻開錯字並震動警示，短暫延遲後重置作答進度並重新進入記憶階段
         handleTileClick: function (item, tileEl) {
             if (!this.isActive || !this.isPlayerPhase) return;
             if (tileEl.classList.contains('disabled') || tileEl.classList.contains('flipped')) return;
@@ -700,6 +727,7 @@
             }
         },
 
+        // 啟動作答總倒數計時器，每 50ms 更新一次剩餘比例並刷新計時環；時間到則呼叫 onComplete
         startTimer: function (seconds, onComplete) {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -735,6 +763,8 @@
             return fallback;
         },
 
+        // 更新計時環的 SVG 描邊顯示：一般模式顯示「消逝時間」（暗紅漸鮮紅），
+        // 勝利模式（mode='win'）則顯示「剩餘時間」的金黃色弧段並隨比例縮短
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game12-timer-path');
             const container = document.getElementById('game12-grid-container');
@@ -775,6 +805,7 @@
             }
         },
 
+        // 依難度的 maxMistakeCount 建立對應數量的紅心圖示（生命值）
         renderHearts: function () {
             const container = document.getElementById('game12-hearts');
             if (!container) return;
@@ -788,6 +819,7 @@
             }
         },
 
+        // 依目前錯誤次數，將已用完的紅心改為空心（♡）
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game12-hearts .fm-heart');
             hearts.forEach((h, i) => {
@@ -811,6 +843,8 @@
                 window.SoundManager.playOpenItem();
             }
         },
+        // 回合結束處理：勝利時觸發計分動畫、成就檢查、並依模式進入下一關或下一局；
+        // 失敗時記錄遊戲紀錄（分數 0）、播放失敗音效，並提供重試按鈕
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
@@ -894,10 +928,12 @@
             }
         },
 
+        // 通用延遲工具，回傳 Promise，供 async 函式中 await 使用以製造動畫節奏
         delay: function (ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         },
 
+        // 依文字長度動態縮小字體：超過 threshold 字數時，依比例縮小 baseFontSizeRem
         adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
             if (textLen > threshold) {
                 const newSize = baseFontSizeRem * (threshold / textLen);

@@ -181,6 +181,7 @@
     border: 2px solid hsla(0, 0%, 0%, 0.3);
     font-size: 100px;
     font-weight: bold;
+    /* 字型已由外層統一設定，此處保留註解供參考，不啟用 */
     /*font-family: 'Noto Serif TC', serif;*/
     color: #1a1a1a;
     cursor: pointer;
@@ -196,7 +197,7 @@
     filter: brightness(1.3);
 }
 
-/* 只能點擊最底下一行：非底部的禁用鼠標感 */
+/* 只能點擊最底下一行（active-row）：非目前作答行的按鈕禁用點擊事件並取消手指游標 */
 .ladder-row-14:not(.active-row) .ladder-btn-14 {
     cursor: default;
     pointer-events: none;
@@ -256,6 +257,7 @@
     /* 預設隱藏：JS 初始化前不顯示框線，避免閃爍 */
     stroke-dashoffset: 10000;
     /* 預設隱藏：offset=dasharray → 完全不可見 */
+    /* 過渡效果改由 JS（updateTimerRing）依情境動態套用，此處預設關閉以避免與 JS 控制衝突 */
     /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
 }
 

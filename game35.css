@@ -167,6 +167,7 @@
 }
 
 /* ---- 遊戲容器（計時框包圍） ---- */
+/* 內含故事卡、提問文字、候選首句卡，並疊加計時外框 SVG 於最上層 */
 .game35-game-wrapper {
     position: relative;
     width: 96%;
@@ -484,6 +485,7 @@
 }
 
 /* ---- 情境動畫疊層 ---- */
+/* 答對後顯示：全螢幕背景依場景換色 + 場景意象 emoji + 整首詩飛升動畫 */
 .game35-scene-overlay {
     position: absolute;
     top: 0;

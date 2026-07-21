@@ -7,10 +7,12 @@
    紅心副標）之樣式已抽至 theme_xuanzhi.css 的 .fm-* 共用區塊。
    本檔僅保留 .game13-area 及以下的遊戲區私有樣式。 */
 
+/* 通用隱藏工具類：用於整體遊戲容器初始隱藏 */
 .hidden {
     display: none !important;
 }
 
+/* 遊戲主要區域：垂直排列（題目區在上、答案按鈕池在下） */
 .game13-area {
     display: flex;
     flex: 1;
@@ -199,6 +201,7 @@
     }
 }
 
+/* 答案候選按鈕基本樣式（未答對／未答錯的預設狀態） */
 .ans-btn-13 {
     background: hsl(40, 50%, 88%);
     border: none;
@@ -239,16 +242,19 @@
     transform: scale(0.9);
 }
 
+/* 已停用（答對後鎖住）的按鈕：略降不透明度並停用滑鼠事件 */
 .ans-btn-13.disabled {
     opacity: 0.9;
     pointer-events: none;
 }
 
+/* 答對狀態：綠色背景 */
 .ans-btn-13.correct {
     background: hsl(145, 68%, 36%) !important;
     color: white !important;
 }
 
+/* 答錯狀態：紅色背景並觸發搖晃動畫提示 */
 .ans-btn-13.wrong {
     background: hsl(0, 80%, 60%) !important;
     color: white !important;

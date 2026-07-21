@@ -100,6 +100,7 @@
             }
         },
 
+        // ── 初始化：載入 CSS、若尚未建立 DOM 則建立，並取得容器參照 ──
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game28-container')) {
@@ -181,15 +182,18 @@
             };
         },
 
+        // ── 外部呼叫入口：顯示本遊戲（初始化後開啟難度選擇畫面） ──
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // ── 外部呼叫入口：隱藏本遊戲（等同 stopGame） ──
         hide: function () {
             this.stopGame();
         },
 
+        // ── 顯示難度／關卡選擇器，選擇完成後開始新的一局 ──
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -213,6 +217,7 @@
             }
         },
 
+        // ── 依目前模式（一般難度 / 關卡挑戰）更新標題列上難度標籤與按鈕顯示狀態 ──
         updateUIForMode: function () {
             const diffTag = document.getElementById('game28-diff-tag');
             const retryBtn = document.getElementById('game28-retryGame-btn');
@@ -240,6 +245,7 @@
             }
         },
 
+        // ── 隱藏遊戲選單等其他頁面內容，避免與本遊戲 overlay 重疊 ──
         hideOtherContents: function () {
             const els = ['cardContainer'];
             els.forEach(id => {
@@ -264,11 +270,13 @@
             if (el) el.style.display = '';
         },
 
+        // ── 重玩本局：沿用目前詩詞、重新生成盤面 ──
         retryGame: function () {
             if (!this.currentPoem) return;
             this.startGameProcess(true);
         },
 
+        // ── 開始新的一局：重新抽詩並生成盤面；levelIndex 有值代表切換至指定關卡 ──
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -284,6 +292,7 @@
             }
         },
 
+        // ── 關卡挑戰模式：進入下一關（關卡索引 +1 後重新開局） ──
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -829,6 +838,7 @@
                 w: cr.width / scale, h: cr.height / scale
             };
         },
+        // ── FX：在字牌位置噴灑同色系粒子特效（消除瞬間呼叫） ──
         spawnParticles: function (cellEl, count, hue) {
             const wrapper = document.getElementById('game28-board-wrapper');
             if (!wrapper) return;
@@ -852,6 +862,7 @@
                 setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 620);
             }
         },
+        // ── FX：「字魂」動畫 — 消除的詩字從盤面飛向對應進度字卡 ──
         spawnSoul: function (cellEl, ch) {
             const wrapper = document.getElementById('game28-board-wrapper');
             if (!wrapper) return;
@@ -1181,6 +1192,7 @@
             }, 1500);
         },
 
+        // ── 依剩餘提示次數更新提示按鈕文字與可用狀態 ──
         updateHintBtn: function () {
             const span = document.getElementById('game28-hint-count');
             if (span) span.textContent = `(${this.hintsLeft})`;
@@ -1233,6 +1245,7 @@
             svg.appendChild(pathEl);
         },
 
+        // ── 清空連線光帶 SVG 內容 ──
         clearPathSvg: function () {
             const svg = document.getElementById('game28-path-svg');
             if (svg) svg.innerHTML = '';
@@ -1285,6 +1298,7 @@
             }, 50);
         },
 
+        // ── 更新計時外環（矩形描邊）視覺：ratio 為剩餘時間比例；mode='win' 時改為過關漸亮動畫樣式 ──
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game28-timer-path');
             const wrapper = document.getElementById('game28-board-wrapper');

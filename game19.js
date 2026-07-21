@@ -108,6 +108,7 @@
         },
 
         // ── CSS 載入 ──────────────────────────────────────────────
+        // 動態插入 game19.css，避免重複載入（用 id 判斷是否已存在）
         loadCSS: function () {
             if (!document.getElementById('game19-css')) {
                 const link = document.createElement('link');
@@ -119,6 +120,7 @@
         },
 
         // ── 初始化 ────────────────────────────────────────────────
+        // 進場首次呼叫：載入樣式表，若尚未建立過 DOM 容器則建立並綁定事件
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game19-container')) {
@@ -129,6 +131,8 @@
         },
 
         // ── 建立 DOM ──────────────────────────────────────────────
+        // 組出整個遊戲覆蓋層（分數列、生命列、詩句提示欄、Canvas 遊戲區、底部提示），
+        // 並註冊 registerOverlayResize 回呼以配合全站的縮放/置中邏輯
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game19-container';
@@ -174,6 +178,8 @@
         },
 
         // ── 事件綁定 ──────────────────────────────────────────────
+        // 綁定按鈕點擊（重來/開新局/難度選擇），以及觸控/滑鼠拖曳操控砲台移動、
+        // 按住射擊，並額外處理獎勵選單顯示時的點擊選取
         bindEvents: function () {
             document.getElementById('game19-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -246,12 +252,15 @@
             }, { passive: true });
         },
 
+        // 依輸入的邏輯 X 座標移動玩家砲台，並限制在畫面左右邊界內（含 5px 邊距）
         movePlayer: function (targetX) {
             const half = this.player.width / 2;
             this.player.x = Math.max(half + 5, Math.min(this.canvasW - half - 5, targetX));
         },
 
         // ── 顯示難度選擇器 ────────────────────────────────────────
+        // 暫停遊戲並清除計時器，開啟難度選擇 UI；玩家選定後重設模式、
+        // 重新設定 Canvas 並開新局
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -271,6 +280,7 @@
             }
         },
 
+        // 依目前模式（一般難度 / 關卡挑戰模式）更新難度標籤文字、顏色與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game19-diff-tag');
             const newBtn = document.getElementById('game19-newGame-btn');
@@ -288,6 +298,8 @@
         },
 
         // ── 顯示 ──────────────────────────────────────────────────
+        // 遊戲入口：初始化 DOM、隱藏首頁介紹層，再開啟難度選擇器，
+        // 選定後顯示遊戲容器並開始新局
         show: function () {
             this.init();
             const intro = document.getElementById('introOverlay');
@@ -311,6 +323,7 @@
         },
 
         // ── Canvas 設定 ───────────────────────────────────────────
+        // 取得 canvas 元素與 2D 繪圖情境，並設定固定的邏輯畫布尺寸
         setupCanvas: function () {
             this.canvas = document.getElementById('game19-canvas');
             if (!this.canvas) return;
@@ -322,6 +335,8 @@
         },
 
         // ── 開新局 ────────────────────────────────────────────────
+        // 重置所有遊戲狀態（分數、生命、物件陣列），重新抽取一首新詩，
+        // 建立字排、渲染 UI，並啟動計時器與主迴圈
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.updateUIForMode();
@@ -356,6 +371,8 @@
         },
 
         // ── 重來（同首詩）─────────────────────────────────────────
+        // 與 startNewGame 類似，但不重新抽詩，沿用 this.poemChars 重建字排，
+        // 讓玩家重新挑戰同一首詩
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.score = 0;
@@ -387,6 +404,7 @@
             document.getElementById('game19-newGame-btn').disabled = false;
         },
 
+        // 重設玩家（砲台）狀態：位置、射擊計時、無敵幀、子彈陣列與各項強化等級
         resetPlayerState: function () {
             this.player.x = this.canvasW / 2;
             this.player.y = this.canvasH - 80; //玩家的y座標
@@ -555,6 +573,7 @@
             return arr;
         },
 
+        // 更新畫面上的詩詞資訊列（標題／朝代／作者），並綁定點擊開啟詩詞詳情對話框
         updatePoemInfo: function () {
             const el = document.getElementById('game19-poem-info');
             if (!el || !this.currentPoem) return;
@@ -566,6 +585,8 @@
         },
 
         // ── 詩句提示欄（同 game16 updateHint 寫法）────────────────
+        // 重繪整條詩句提示列：已完成字（done）、目前目標字（target，會自動捲動至可視範圍）、
+        // 尚未輪到的字（future），並在句末插入分隔空白
         updateHintBar: function () {
             const bar = document.getElementById('game19-hint-bar');
             if (!bar) return;
@@ -603,6 +624,8 @@
         },
 
         // ── 主迴圈 ────────────────────────────────────────────────
+        // 以 requestAnimationFrame 驅動的遊戲主迴圈：計算影格時間差 dt（上限 0.05 秒防止斷幀跳躍過大），
+        // 依序呼叫 update（邏輯更新）與 draw（畫面繪製）
         startLoop: function () {
             if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
             this.isActive = true;
@@ -618,12 +641,16 @@
             this.animFrameId = requestAnimationFrame(loop);
         },
 
+        // 停止主迴圈（取消 requestAnimationFrame 排程）
         stopGameLoop: function () {
             if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
             this.animFrameId = null;
         },
 
         // ── 更新邏輯 ──────────────────────────────────────────────
+        // 每影格呼叫一次，統籌所有遊戲物件的狀態更新：
+        // 字排下降與漂移、失敗判定、玩家射擊與子彈移動、混淆字投彈、
+        // 弧線特攻混淆字、粒子效果，最後執行碰撞檢測
         update: function (dt) {
             if (this.isPausedForPowerUp) return;
 
@@ -706,6 +733,7 @@
             this.checkCollisions();
         },
 
+        // 更新所有視覺粒子的位置與生命週期，生命歸零時從陣列移除
         updateParticles: function (dt) {
             for (let i = this.particles.length - 1; i >= 0; i--) {
                 const p = this.particles[i];
@@ -717,6 +745,7 @@
         },
 
         // ── 發射子彈 ──────────────────────────────────────────────
+        // 依 multiLevel（砲管數量）從砲台頂端同時發射多發子彈，並以等間距左右展開
         fireBullet: function () {
             const count = this.player.multiLevel;
             const spread = 14;
@@ -732,6 +761,7 @@
         },
 
         // ── 生成炸彈（最底排混淆字投彈）────────────────────────
+        // 從最底排的混淆字中隨機挑一個作為投彈來源，產生一顆帶輕微水平初速的炸彈
         spawnBomb: function (bottomRow) {
             const decoys = bottomRow.chars.map((c, idx) => ({ ...c, idx })).filter(c => !c.isCorrect);
             if (!decoys.length) return;
@@ -760,6 +790,8 @@
             if (window.SoundManager) window.SoundManager.playOpenItem();
         },
 
+        // 更新每個弧線特攻混淆字的飛行進度（沿三次貝茲曲線移動），
+        // 並依與玩家的距離動態調整投彈頻率與散射角度，飛行完畢（t>=1）後移除
         updateArcRaiders: function (dt) {
             const speed = 0.25; // 飛行速度（稍慢讓玩家有更長壓迫感）
             for (let i = this.arcRaiders.length - 1; i >= 0; i--) {
@@ -823,6 +855,9 @@
         },
 
         // ── 碰撞檢測 ──────────────────────────────────────────────
+        // 檢查玩家子彈是否擊中最底排的字（命中正確字則累積傷害使其膨脹，
+        // 集滿 maxHits 後觸發整排消除；命中混淆字則子彈被擋下無效果），
+        // 並檢查敵方炸彈是否擊中玩家（受無敵幀保護）
         checkCollisions: function () {
             const bottomRow = this.rows.find(r => r.active);
             if (!bottomRow) return;
@@ -884,6 +919,9 @@
         },
 
         // ── 消除最底排 ────────────────────────────────────────────
+        // 正確字集滿傷害後呼叫：將該排標記為非啟用、產生爆炸粒子效果、
+        // 推進詩句進度並更新提示列；若全部字排清空則判定勝利，
+        // 若消除的是句末字排則額外觸發三選一強化選單
         destroyBottomRow: function (row) {
             row.active = false;
             const correctIdx = row.chars.findIndex(c => c.isCorrect);
@@ -913,12 +951,15 @@
         },
 
         // ── 三選一獎勵 ────────────────────────────────────────────
+        // 暫停遊戲主邏輯並開啟三選一強化選單（快速發射／雙管齊發／炸彈護盾）
         triggerPowerUpScreen: function () {
             this.isPausedForPowerUp = true;
             this.powerUpChoices = ['快速發射', '雙管齊發', '炸彈護盾'];
             if (window.SoundManager) window.SoundManager.playJoyfulTriple();
         },
 
+        // 依點擊座標判斷選中哪張強化卡片（若「雙管齊發」已達上限則視為灰卡禁止點擊），
+        // 套用效果後關閉選單並恢復遊戲
         handlePowerUpClick: function (cx, cy) {
             if (!this.powerUpChoices.length) return;
             const boxW = 120, boxH = 155, gap = 20;
@@ -939,6 +980,8 @@
             }
         },
 
+        // 依選中的強化類型套用效果：射速倍率疊加（上限4x）、砲管數量+1（上限3）、
+        // 或延長無敵護盾時間
         applyPowerUp: function (type) {
             if (window.SoundManager) window.SoundManager.playConfirmItem();
             if (type === '快速發射') {
@@ -952,6 +995,8 @@
         },
 
         // ── 玩家受傷 ──────────────────────────────────────────────
+        // 扣除一條生命、觸發受傷閃紅與短暫無敵幀、產生紅色爆炸粒子，
+        // 生命歸零則觸發失敗流程
         handlePlayerHit: function () {
             this.lives--;
             this.player.hitTimer = 0.35;
@@ -963,6 +1008,7 @@
             if (this.lives <= 0) this.triggerFail('生命耗盡...');
         },
 
+        // 觸發失敗流程（字陣壓線或生命耗盡）：進入結束動畫狀態並延遲呼叫 gameOver
         triggerFail: function (reason) {
             if (this.isEnding) return;
             this.isEnding = true;
@@ -971,6 +1017,7 @@
         },
 
         // ── 取得字元中心 X 座標 ───────────────────────────────────
+        // 依該排字元數與目前漂移量計算指定索引字元的螢幕中心 X 座標（置中排列）
         getCharX: function (row, idx) {
             const charW = 44;
             const totalW = row.chars.length * charW;
@@ -979,6 +1026,7 @@
         },
 
         // ── 粒子生成 ──────────────────────────────────────────────
+        // 在指定位置產生 count 個朝隨機方向噴散的視覺粒子（用於命中、消除、受傷等特效）
         spawnParticles: function (x, y, color, count) {
             for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
@@ -988,6 +1036,9 @@
         },
 
         // ── 繪製 ──────────────────────────────────────────────────
+        // 每影格繪製整個畫面：清空畫布、畫背景漸層與受傷紅閃，
+        // 依序畫出字排、子彈、炸彈、弧線特攻、粒子、玩家砲台，
+        // 若正在選擇強化項目則疊加繪製選單畫面
         draw: function () {
             const ctx = this.ctx;
             if (!ctx) return;
@@ -1097,6 +1148,7 @@
             }
         },
 
+        // 繪製玩家所有子彈（金色光暈小圓點）
         drawBullets: function (ctx) {
             ctx.fillStyle = 'hsl(55, 90%, 80%)';
             ctx.shadowBlur = 4;
@@ -1109,6 +1161,7 @@
             ctx.shadowBlur = 0;
         },
 
+        // 繪製所有敵方炸彈（紅色帶光暈的圓形）
         drawBombs: function (ctx) {
             for (const bomb of this.bombs) {
                 ctx.fillStyle = 'hsl(0, 75%, 52%)';
@@ -1124,6 +1177,7 @@
             ctx.shadowBlur = 0;
         },
 
+        // 繪製所有弧線特攻混淆字（紅色發光文字）
         drawArcRaiders: function (ctx) {
             ctx.font = "bold 30px 'Noto Serif TC'";
             ctx.textAlign = 'center';
@@ -1137,6 +1191,7 @@
             ctx.shadowBlur = 0;
         },
 
+        // 繪製所有視覺粒子，依剩餘生命值調整透明度（漸漸淡出）
         drawParticles: function (ctx) {
             for (const p of this.particles) {
                 ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2.5));
@@ -1146,6 +1201,7 @@
             ctx.globalAlpha = 1.0;
         },
 
+        // 繪製玩家砲台本體、依多管等級繪製槍管，並在無敵幀期間繪製護盾光圈（含閃爍效果）
         drawPlayer: function (ctx) {
             const px = this.player.x;
             const py = this.player.y;
@@ -1183,6 +1239,8 @@
             }
         },
 
+        // 繪製三選一強化選單畫面：半透明遮罩 + 三張選項卡片（含名稱與效果說明），
+        // 「雙管齊發」達上限時該卡片以灰色樣式呈現並禁用
         drawPowerUpScreen: function (ctx) {
             // 半透明遮罩
             ctx.fillStyle = 'rgba(0,0,0,0.68)';
@@ -1232,6 +1290,8 @@
         },
 
         // ── 計時器 ────────────────────────────────────────────────
+        // 依詩詞字數與難度設定計算實際時限，每 100ms 更新剩餘時間與計時框，
+        // 時間耗盡時觸發失敗
         startTimer: function () {
             clearInterval(this.timerInterval);
             const settings = this.difficultySettings[this.difficulty];
@@ -1290,6 +1350,7 @@
             }
         },
 
+        // 依目前生命值重新繪製生命愛心列（實心愛心=剩餘，空心=已失去）
         renderHearts: function () {
             const el = document.getElementById('game19-hearts');
             if (!el) return;
@@ -1303,12 +1364,15 @@
             }
         },
 
+        // 將目前分數同步顯示到畫面上的分數看板
         updateScoreUI: function () {
             const el = document.getElementById('game19-score');
             if (el) el.textContent = this.score;
         },
 
         // ── 遊戲結束 ──────────────────────────────────────────────
+        // 停止計時器與主迴圈，依勝負記錄成績（失敗時上傳紀錄），
+        // 若勝利則播放得分動畫（並處理關卡模式的過關進度），最後顯示結算訊息視窗
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
@@ -1367,9 +1431,11 @@
             }
         },
 
+        // 隱藏遊戲（外部呼叫入口，實際邏輯委由 stopGame 處理）
         hide: function () { this.stopGame(); },
 
         // ⚠️ stopGame 必須主動隱藏 overlay：menu.js 全域清理只呼叫 stopGame()
+        // 停止遊戲：清除計時器與主迴圈、隱藏容器並還原全站 overlay 狀態
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);

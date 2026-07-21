@@ -181,12 +181,15 @@
             document.getElementById('game30-undo-btn').onclick = () => { this.useUndo(); };
         },
 
+        // ── 對外進入點：由選單呼叫，載入 CSS/DOM 後直接開啟難度選擇畫面 ──
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
+        // ── 對外離開點：等同呼叫 stopGame() 結束遊戲並隱藏 overlay ──
         hide: function () { this.stopGame(); },
 
+        // ── 開啟難度選擇彈窗：暫停目前遊戲並清除計時器，選定難度/關卡後才真正開新局 ──
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -210,6 +213,7 @@
             }
         },
 
+        // ── 依「一般難度模式」或「關卡挑戰模式」切換頂部標籤文字/顏色與按鈕顯示 ──
         updateUIForMode: function () {
             const diffTag = document.getElementById('game30-diff-tag');
             const retryBtn = document.getElementById('game30-retryGame-btn');
@@ -234,6 +238,7 @@
             }
         },
 
+        // ── 隱藏底層主選單卡片容器，避免與本遊戲 overlay 疊在一起 ──
         hideOtherContents: function () {
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = 'none';
@@ -250,11 +255,13 @@
             if (el) el.style.display = '';
         },
 
+        // ── 重來：沿用目前抽到的詩，重新生成牌山並重置狀態 ──
         retryGame: function () {
             if (!this.currentPoem) return;
             this.startGameProcess(true);
         },
 
+        // ── 開新局：可選擇指定關卡索引（關卡模式），重新抽詩後才進入局內流程 ──
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -269,6 +276,7 @@
             }
         },
 
+        // ── 關卡模式專用：關卡索引 +1 後直接開下一局 ──
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -749,6 +757,7 @@
             }
         },
 
+        // ── 暫存槽只剩 1 格空位時加上警示動畫（CSS class「warning」）並播放提示音 ──
         updateBufferWarning: function () {
             const el = document.getElementById('game30-buffer');
             const remain = this.bufferCapacity - this.buffer.length;
@@ -991,12 +1000,14 @@
             });
         },
 
+        // ── 更新「剩餘牌：N」文字：統計牌山中尚未被消除（removed=false）的牌數 ──
         updateProgressText: function () {
             const alive = this.tiles.filter(t => !t.removed).length;
             const el = document.getElementById('game30-progress-text');
             if (el) el.textContent = `剩餘牌：${alive}`;
         },
 
+        // ── 更新「順序加成 ×N（連 M）」文字：連續命中順序 ≥2 次才顯示實際倍率 ──
         updateBonusText: function () {
             const settings = this.difficultySettings[this.difficulty];
             const el = document.getElementById('game30-bonus-text');
@@ -1006,6 +1017,7 @@
         },
 
         // ── 飛分動畫 ──
+        // ── 在暫存槽正上方噴出「+分數」飄浮文字，短暫顯示後自動移除 DOM ──
         spawnFloatScore: function (gain, bonus) {
             const buf = document.getElementById('game30-buffer');
             if (!buf) return;

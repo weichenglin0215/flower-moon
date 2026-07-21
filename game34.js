@@ -40,6 +40,7 @@
             '研究所': { timeLimitRate: 15, poemMinRating: 3, maxMistakeCount: 3, questionCount: 20, candidateCount: 4, decoyType: 'sameAuthorClose', comboCap: 10 }
         },
 
+        // 動態載入 game34 專屬樣式表（避免重複插入）
         loadCSS: function () {
             if (!document.getElementById('game34-css')) {
                 const link = document.createElement('link');
@@ -50,6 +51,7 @@
             }
         },
 
+        // 初始化：載入樣式表並建立遊戲 DOM（若尚未建立），快取容器參照
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game34-container')) {
@@ -58,6 +60,8 @@
             this.container = document.getElementById('game34-container');
         },
 
+        // 建立遊戲整體 DOM 結構（標題列、生命值、連擊顯示、詩文卡與候選標題卡），
+        // 並綁定按鈕事件（重來、開新局、切換難度、朗誦）
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game34-container';
@@ -128,11 +132,13 @@
             };
         },
 
+        // 對外進入點：初始化並顯示難度選擇畫面
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 顯示難度選擇彈窗；選定難度後套用 UI 並開新局
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -157,6 +163,7 @@
             }
         },
 
+        // 依「一般難度模式」或「關卡模式」更新標題列文字、顏色與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game34-diff-tag');
             const retryBtn = document.getElementById('game34-retryGame-btn');
@@ -182,6 +189,7 @@
             }
         },
 
+        // 隱藏其他遊戲/主選單容器，避免疊加顯示衝突
         hideOtherContents: function () {
             const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container', 'game4-container', 'game5-container', 'game6-container', 'game7-container', 'game8-container', 'game33-container', 'game34-container'];
             els.forEach(id => {
@@ -193,6 +201,7 @@
             });
         },
 
+        // 停止遊戲：清除計時器、停止朗誦、隱藏 overlay 並還原頁面捲動狀態
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -207,11 +216,13 @@
             if (el) el.style.display = '';
         },
 
+        // 重玩本局：沿用同一批已生成的題目，重置分數與進度
         retryGame: function () {
             if (this.questions.length === 0) return;
             this.startGameProcess(true);
         },
 
+        // 開新局：可指定關卡索引（關卡模式），重新生成題目並啟動遊戲流程
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -226,11 +237,14 @@
             }
         },
 
+        // 進入下一關：關卡索引 +1 後開新局
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
+        // 啟動/重啟一局遊戲的共用流程：重置分數、連擊、生命值等狀態，
+        // 渲染首題、生命值圖示與計時圓框，並依難度設定開始倒數計時
         startGameProcess: function (isRetry) {
             this.isActive = true;
             this.gameStartTime = Date.now();
@@ -406,7 +420,8 @@
             return result;
         },
 
-        // 渲染當前題目
+        // 渲染當前題目：重置標題遮蔽動畫、顯示詩文本體、更新進度文字，
+        // 並依 candidates 動態產生候選標題按鈕
         renderQuestion: function () {
             if (this.currentQuestionIdx >= this.questions.length) return;
             const q = this.questions[this.currentQuestionIdx];
@@ -454,7 +469,8 @@
             this.locked = false;
         },
 
-        // 玩家點擊候選標題
+        // 玩家點擊候選標題：判斷對錯、更新分數/連擊/生命值、顯示出處與回饋，
+        // 並在延遲後（讓玩家有時間閱讀/聆聽）進入下一題或結束遊戲
         handleSelect: function (selectedTitle, btnEl) {
             if (!this.isActive || this.locked) return;
             this.locked = true;
@@ -583,6 +599,7 @@
             }
         },
 
+        // 停止目前朗誦中的語音（若有）
         stopSpeech: function () {
             try {
                 if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
@@ -592,6 +609,8 @@
             this._currentUtter = null;
         },
 
+        // 更新連擊顯示文字與倍率（依連擊數換算並受 comboCap 上限限制），
+        // 連擊數達 3 以上時觸發彈跳動畫
         updateComboDisplay: function () {
             const el = document.getElementById('game34-combo');
             if (!el) return;
@@ -610,6 +629,7 @@
             }
         },
 
+        // 依難度的 maxMistakeCount 渲染生命值愛心圖示（超過 10 顆則不顯示，避免版面爆版）
         renderHearts: function () {
             const container = document.getElementById('game34-hearts');
             if (!container) return;
@@ -624,6 +644,7 @@
             }
         },
 
+        // 依目前答錯次數，將對應數量的愛心圖示切換為空心（已消耗）
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game34-hearts .heart');
             hearts.forEach((h, i) => {
@@ -655,6 +676,8 @@
             }, 50);
         },
 
+        // 更新計時外框（矩形描邊）的顯示：依剩餘比例調整描邊偏移與顏色，
+        // mode='win' 時用於過關動畫（金色漸亮），一般模式則隨時間轉紅
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game34-timer-path');
             const wrapper = document.getElementById('game34-game-wrapper');
@@ -694,6 +717,8 @@
             }
         },
 
+        // 遊戲結束處理：記錄失敗局的遊戲紀錄（若非勝利）、停止計時與朗誦，
+        // 依勝負顯示對應訊息框，並處理關卡模式下的成就檢查與下一步操作
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

@@ -136,6 +136,7 @@
         },
 
         // ----------------- 初始化與 DOM ------------------
+        // 動態載入本遊戲專屬的 CSS 檔（game32.css），避免重複插入 <link>
         loadCSS: function () {
             if (!document.getElementById('game32-css')) {
                 const link = document.createElement('link');
@@ -146,6 +147,7 @@
             }
         },
 
+        // 遊戲初始化入口：載入樣式並在第一次執行時建立 DOM，之後只取得容器參照
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game32-container')) {
@@ -154,6 +156,7 @@
             this.container = document.getElementById('game32-container');
         },
 
+        // 建立整個遊戲畫面的 DOM 結構（頂部列、地圖階段、故事卡階段），並綁定按鈕事件
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game32-container';
@@ -252,15 +255,18 @@
             };
         },
 
+        // 對外開啟遊戲的入口（由選單呼叫）：先初始化 DOM，再顯示難度選擇畫面
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 對外關閉遊戲的入口（由選單呼叫）：停止遊戲並隱藏畫面
         hide: function () {
             this.stopGame();
         },
 
+        // 顯示難度選擇器；玩家選定難度／關卡後才會真正開始新的一局
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -283,6 +289,7 @@
             }
         },
 
+        // 依目前是「一般難度模式」或「關卡挑戰模式」更新頂部標籤與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game32-diff-tag');
             const retryBtn = document.getElementById('game32-retryGame-btn');
@@ -308,6 +315,7 @@
             }
         },
 
+        // 隱藏其他遊戲與主選單卡片容器，避免畫面重疊
         hideOtherContents: function () {
             const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container',
                          'game4-container', 'game5-container', 'game6-container', 'game7-container',
@@ -332,10 +340,12 @@
             if (el) el.style.display = '';
         },
 
+        // 重玩本局：沿用目前已選定的 roundLocations，重新計時與計分
         retryGame: function () {
             this.startGameProcess(true);
         },
 
+        // 開始新的一局：可傳入 levelIndex 指定進入關卡挑戰模式，否則依目前難度隨機出題
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -346,6 +356,7 @@
             this.startGameProcess(false);
         },
 
+        // 前往下一關：關卡編號 +1 後重新開局
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -369,6 +380,7 @@
             return x - Math.floor(x);
         },
 
+        // 實際啟動一局遊戲的共用流程：重置分數/進度/計時器並渲染地圖（retryGame 與 startNewGame 皆會呼叫）
         startGameProcess: function (isRetry) {
             this.isActive = true;
             this.gameStartTime = Date.now();
@@ -447,11 +459,13 @@
             });
         },
 
+        // 切換顯示：地圖階段（隱藏故事卡階段）
         showMapStage: function () {
             document.getElementById('game32-map-stage').classList.remove('hidden');
             document.getElementById('game32-story-stage').classList.add('hidden');
         },
 
+        // 切換顯示：故事卡＋詩文階段（隱藏地圖階段）
         showStoryStage: function () {
             document.getElementById('game32-map-stage').classList.add('hidden');
             document.getElementById('game32-story-stage').classList.remove('hidden');
@@ -546,6 +560,7 @@
             this.updateKeywordProgress();
         },
 
+        // 更新「已收集關鍵字」的進度文字，並依是否三詞皆集滿來啟用/停用返回地圖按鈕
         updateKeywordProgress: function () {
             const loc = this.roundLocations[this.currentLocationIdx];
             const collected = this.collectedKeywords;
@@ -659,6 +674,7 @@
             }
         },
 
+        // 更新頂部「尋寶進度 done/total」文字
         updateProgressText: function () {
             const total = this.roundLocations.length;
             const done = this.completedSet ? this.completedSet.size : 0;
@@ -683,6 +699,7 @@
             }, 100);
         },
 
+        // 依剩餘時間比例（ratio）繪製矩形計時外框；mode='win' 時改用過關動畫的漸層配色
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game32-timer-path');
             const wrapper = document.getElementById('game32-area');

@@ -21,6 +21,7 @@
     text-size-adjust: 100%;
 }
 
+/* 通用隱藏樣式：強制不顯示（!important 確保覆蓋其他 display 設定） */
 .hidden {
     display: none !important;
 }
@@ -37,6 +38,7 @@
     height: 50px;
 }
 
+/* 左上角分數顯示區 */
 .game21-score-board {
     color: hsl(45, 90%, 65%);
     font-size: 24px;
@@ -324,6 +326,7 @@
 }
 
 /* 字元 cell */
+/* 直棒中的單一字元格 */
 .game21-cell {
     display: flex;
     align-items: center;

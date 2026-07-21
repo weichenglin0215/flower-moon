@@ -90,6 +90,7 @@
         // ========================================================
         // 初始化
         // ========================================================
+        // ── 動態載入 game36.css（避免重複插入 <link>）──
         loadCSS: function () {
             if (!document.getElementById('game36-css')) {
                 const link = document.createElement('link');
@@ -100,6 +101,7 @@
             }
         },
 
+        // ── 遊戲初始化：載入 CSS、建立 DOM（若尚未建立）、綁定所有按鈕與轉輪事件 ──
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game36-container')) {
@@ -132,6 +134,7 @@
             this._setupGridMomentumScroll(document.getElementById('game36-grid-scroll'));
         },
 
+        // ── 建立遊戲整體 DOM 結構（頂部分數列、正確答案區、判定網格、詩句轉輪、手動輸入彈窗）並註冊縮放 ──
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game36-container';
@@ -197,11 +200,13 @@
         // ========================================================
         // 顯示 / 難度
         // ========================================================
+        // ── 對外進入點：初始化並顯示難度選擇畫面 ──
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // ── 顯示難度選擇彈窗，選定難度／關卡後才真正開新局 ──
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -225,6 +230,7 @@
             }
         },
 
+        // ── 依「一般難度模式」或「關卡模式」切換上方標籤文字與「開新局」按鈕顯示 ──
         updateUIForMode: function () {
             const diffTag = document.getElementById('game36-diff-tag');
             const newBtn = document.getElementById('game36-newGame-btn');
@@ -238,6 +244,7 @@
             }
         },
 
+        // ── 停止遊戲：清計時器、停轉輪動畫、隱藏遊戲畫面並還原頁面捲動狀態 ──
         stopGame: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -247,11 +254,13 @@
             document.body.classList.remove('overlay-active');
         },
 
+        // ── 對外隱藏介面（等同 stopGame）──
         hide: function () { this.stopGame(); },
 
         // ========================================================
         // 開局
         // ========================================================
+        // ── 開新局主流程：重置狀態 → 挑目標詩句 → 產生候選池 → 佈局網格與正確答案區 → 顯示規則彈窗後才開始計時與轉輪 ──
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) { this.currentLevelIndex = levelIndex; this.isLevelMode = true; }
@@ -323,6 +332,7 @@
             }
         },
 
+        // ── 進入下一關（關卡模式）：關卡序號 +1 後重新開局 ──
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -658,6 +668,7 @@
         // ========================================================
         // 轉輪
         // ========================================================
+        // ── 依 this.pool 重新產生轉輪項目 DOM（每句候選一個 div）──
         _renderReel: function () {
             const box = document.getElementById('game36-reel-items');
             box.innerHTML = '';
@@ -675,6 +686,7 @@
             box.appendChild(frag);
         },
 
+        // ── 依目前 reelPos（連續浮點值）重新計算每個候選項目的位置、縮放、透明度（越靠中央越大越清楚）──
         _updateReel: function () {
             const L = this.pool.length;
             if (!L) return;
@@ -698,15 +710,18 @@
             }
         },
 
+        // ── 啟動轉輪動畫迴圈（requestAnimationFrame 逐幀呼叫 _reelTick）──
         _startReelLoop: function () {
             if (this.reelRaf) return;
             const loop = () => { this._reelTick(); this.reelRaf = requestAnimationFrame(loop); };
             this.reelRaf = requestAnimationFrame(loop);
         },
+        // ── 停止轉輪動畫迴圈 ──
         _stopReelLoop: function () {
             if (this.reelRaf) { cancelAnimationFrame(this.reelRaf); this.reelRaf = null; }
         },
 
+        // ── 每幀更新轉輪：拖曳中不處理慣性；放開後依速度衰減滑動，速度趨近 0 時吸附至最近整數格 ──
         _reelTick: function () {
             if (!this._dragging) {
                 if (Math.abs(this.reelVel) > 0.0009) {
@@ -724,6 +739,7 @@
             this._updateReel();
         },
 
+        // ── 綁定轉輪的滑鼠／觸控事件（down/move/up），統一轉呼叫 _reelDown/_reelMove/_reelUp ──
         bindReel: function () {
             const reel = document.getElementById('game36-reel');
             reel.addEventListener('mousedown', (e) => { this._reelDown(e.clientY); });
@@ -741,6 +757,7 @@
             }, { passive: false });
         },
 
+        // ── 按下／觸碰開始：記錄起始座標與時間，清空速度，準備判斷是否為拖曳 ──
         _reelDown: function (y) {
             this._downY = this._lastY = y;
             this._downT = performance.now();
@@ -748,6 +765,7 @@
             this._startPos = this.reelPos;
             this.reelVel = 0;
         },
+        // ── 移動中：超過 TAP_MOVE_PX 視為拖曳，依位移量更新 reelPos 並估算瞬時速度（供放開後的慣性使用）──
         _reelMove: function (y) {
             const scale = window.stageScale || 1;
             const dyTotal = (y - this._downY) / scale;
@@ -758,6 +776,7 @@
                 this._lastY = y;
             }
         },
+        // ── 放開／觸碰結束：若曾拖曳過就不提交（保留慣性滑動）；否則視為單擊，交給 _handleTap 判斷點擊位置 ──
         _reelUp: function (y) {
             const dt = performance.now() - this._downT;
             const moved = Math.abs(y - this._downY);
@@ -795,6 +814,7 @@
         // ========================================================
         // 計時（僅影響分數，時間到不失敗）
         // ========================================================
+        // ── 啟動倒數計時（每 100ms 更新一次計時環；時間到只停止加成，不會判失敗）──
         _startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -827,6 +847,8 @@
             return fallback;
         },
 
+        // ── 更新計時外框 SVG 矩形的描邊長度與顏色；mode='win' 時為得分結算動畫（金色漸亮），
+        //    平時為倒數模式（朱紅色隨剩餘時間變化透明度）──
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game36-timer-path');
             const container = document.getElementById('game36-grid-viewport');
@@ -865,6 +887,8 @@
         // ========================================================
         // 詩詞資訊（依提示模式 / 勝利揭曉）
         // ========================================================
+        // ── 顯示詩詞資訊列：reveal=true 時（獲勝後）完整揭曉標題/朝代/作者並可點擊開詩詞詳情；
+        //    reveal=false 時依難度設定的 hint 類型只顯示局部提示或完全不顯示 ──
         _showPoemInfo: function (reveal) {
             const el = document.getElementById('game36-poem-info');
             if (!this.targetPoem) { el.textContent = ''; return; }
@@ -889,6 +913,7 @@
         // ========================================================
         // 勝利
         // ========================================================
+        // ── 猜中勝利：停用遊戲、揭曉詩詞資訊、播放得分動畫，動畫結束後進入 _gameOver ──
         _win: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -910,6 +935,7 @@
             }
         },
 
+        // ── 遊戲結束收尾：關卡模式先結算成就與解鎖，再顯示勝利訊息彈窗（依模式提供「下一關」或「下一局」按鈕）──
         _gameOver: function () {
             document.getElementById('game36-newGame-btn').disabled = false;
             const showMessage = () => {
@@ -941,6 +967,7 @@
         // ========================================================
         // 手動輸入彈窗
         // ========================================================
+        // ── 開啟手動輸入彈窗：先渲染上排「藍字提示」（各位置目前已知的藍字集合），再顯示輸入框並聚焦 ──
         _openManualDialog: function () {
             if (this.flipping || !this.isActive) return;
             this.manualOpen = true;
@@ -970,12 +997,14 @@
             setTimeout(() => input.focus(), 50);
         },
 
+        // ── 關閉手動輸入彈窗 ──
         _closeManualDialog: function () {
             this.manualOpen = false;
             const ov = document.getElementById('game36-manual-overlay');
             if (ov) ov.classList.add('hidden');
         },
 
+        // ── 提交手動輸入的答案：去除標點/空白後，多於 7 字只取前 7 字，交由 _submitGuess 走與轉輪相同的判定流程 ──
         _submitManualInput: function () {
             const input = document.getElementById('game36-manual-input');
             const raw = (input.value || '').trim();
@@ -1049,6 +1078,7 @@
         // ========================================================
         // 工具
         // ========================================================
+        // ── 去除詩句中的標點符號與空白，僅保留純文字（用於等長比對、生成候選池）──
         _strip: function (s) {
             return (s || '').replace(/[，。？！、：；「」『』\s]/g, '');
         },

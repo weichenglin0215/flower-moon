@@ -43,6 +43,7 @@
 
         // 常用字庫已移至 script.js 的 window.SharedDecoy 中
 
+        // 動態載入本遊戲專屬的 CSS 檔（game4.css），避免重複插入 <link>
         loadCSS: function () {
             if (!document.getElementById('game4-css')) {
                 const link = document.createElement('link');
@@ -53,6 +54,7 @@
             }
         },
 
+        // 遊戲初始化：載入樣式表、建立（若尚未建立）遊戲畫面 DOM，並綁定難度標籤點擊事件
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game4-container')) {
@@ -66,13 +68,15 @@
             };
         },
 
+        // 建立整個遊戲畫面的 DOM 結構（頂列分數/控制鈕、副標紅心與詩詞出處、
+        // 題目展示區、答案矩陣與計時圈），並綁定「重來」「開新局」按鈕事件
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game4-container';
             // game4-overlay 保留為本遊戲私有 hook；fm-overlay 承載共用外觀（詳見 theme_xuanzhi.css）
             div.className = 'game4-overlay fm-overlay hidden';
             div.innerHTML = `
-                <!-- 调试边框 -->
+                <!-- 除錯用邊框（開發階段用來檢視版面配置範圍，正式版不啟用） -->
                 <!-- <div class="debug-frame"></div> -->
                 <div class="fm-header">
                     <div class="fm-scoreboard">分數: <span id="game4-score">0</span></div>
@@ -132,11 +136,13 @@
             this.renderHearts();
         },
 
+        // 對外進入點：初始化遊戲並顯示難度選擇畫面
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 顯示難度選擇器，玩家選定難度／關卡後才正式開新局
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -163,6 +169,7 @@
             }
         },
 
+        // 依目前模式（一般難度模式 / 關卡挑戰模式）更新頂列的難度標籤文字與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game4-diff-tag');
             const retryBtn = document.getElementById('game4-retryGame-btn');
@@ -182,6 +189,7 @@
             /* updateResponsiveLayout replaced */
         },
 
+        // 進入本遊戲時，隱藏首頁卡片區與其他遊戲的容器，避免畫面重疊
         maskOtherContents: function () {
             ['cardContainer', 'game1-container', 'game2-container', 'game3-container'].forEach(id => {
                 const el = document.getElementById(id);
@@ -192,11 +200,13 @@
             });
         },
 
+        // 離開本遊戲時，恢復顯示首頁卡片容器
         showOtherContents: function () {
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
         },
 
+        // 停止遊戲：清除計時器、隱藏遊戲容器並恢復頁面捲動與其他內容顯示
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -208,6 +218,8 @@
             this.showOtherContents();
         },
 
+        // 重玩同一題：沿用目前的 this.currentPoem 與已生成的答案矩陣（gridChars），
+        // 但重設分數、錯誤次數、玩家輸入與計時器
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
@@ -251,6 +263,8 @@
             document.getElementById('game4-newGame-btn').disabled = false;
         },
 
+        // 開新局：重新隨機選一首詩詞（selectRandomPoem）、重新產生答案矩陣（renderGrid(false)），
+        // 並依難度設定重設計時、生命值與延遲顯示提示句等狀態。levelIndex 有帶入時代表進入指定關卡
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -311,11 +325,15 @@
             }
         },
 
+        // 關卡模式過關後，關卡編號 +1 並開始下一關
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
+        // 依難度設定的最低評分（poemMinRating）隨機挑選一首至少有兩句的詩詞，
+        // 並依 answerAtLine 設定決定要在第一行／第二行／兩行都挖空，
+        // 再從該行中隨機挑選最多 maxMaskCount 個字設為隱藏字（this.hiddenPositions）
         selectRandomPoem: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
@@ -339,6 +357,8 @@
             // 決定隱藏那些字
             this.hiddenPositions = [];
 
+            // 內部輔助函式：將一行詩句去除標點符號後，
+            // 回傳可挖空的候選字元清單（含每個字在原字串中的位置 originalIdx）
             const processLine = (line, lineNum) => {
                 // 過濾標點符號建立純字索引對應
                 const cleanChars = [];
@@ -380,12 +400,16 @@
             return true;
         },
 
+        // 依目前的隱藏字狀態（this.hiddenPositions）與玩家已輸入結果，
+        // 重新繪製題目兩行詩句（挖空字以「◎」或彩色字呈現對錯狀態），並更新詩詞出處資訊
         renderQuestion: function () {
             const l1 = document.getElementById('game4-line1');
             const l2 = document.getElementById('game4-line2');
             const info = document.getElementById('game4-info');
             const settings = this.difficultySettings[this.difficulty];
 
+            // 內部輔助函式：組出單一行詩句的 HTML，將挖空字依作答狀態
+            // （尚未作答／輸入中／答對／答錯／位置錯）套上對應樣式的 <span>
             const renderText = (lineText, lineNum) => {
                 let html = "";
                 // 找出該行被隱藏的索引
@@ -470,6 +494,9 @@
             };
         },
 
+        // 產生／重繪答案矩陣按鈕：依難度決定格數與欄數（gridConfigs），
+        // 首次進場（isRetry=false）時會把「正確答案字」與「干擾字」混合洗牌後放入矩陣，
+        // 重來時（isRetry=true）則沿用上一次已產生好的矩陣（this.currentGridChars）
         renderGrid: function (isRetry = false) {
             const container = document.getElementById('game4-grid');
             const gridConfigs = {
@@ -546,6 +573,9 @@
             this.updateTimerRing(1);
         },
 
+        // 處理玩家點擊答案矩陣中某個字。
+        // settings.singleCharReaction 為 true 時採「單字即時判斷對錯」模式（小學/中學難度）；
+        // 為 false 時採「整句一次性判斷」模式（高中以上難度），需集滿所有輸入才一起比對評分
         handleInput: function (char, btn) {
             if (!this.isActive) return;
             if (btn.classList.contains('disabled')) return;
@@ -650,6 +680,8 @@
             }
         },
 
+        // 啟動倒數計時：每 100ms 更新一次計時圈（updateTimerRing），
+        // 時間耗盡（ratio <= 0）時觸發遊戲失敗（gameOver(false, "時間到！")）
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -683,6 +715,9 @@
             return fallback;
         },
 
+        // 更新計時圈（SVG 矩形描邊）的長度與顏色。
+        // ratio: 剩餘時間比例（0~1）；mode='win' 時為過關後的「剩餘時間換算成分數」動畫，
+        // 顏色由暗紅漸變為金黃；一般計時模式下則由淺紅漸變為深紅表示時間流逝
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game4-timer-path');
             const container = document.getElementById('game4-grid-container');
@@ -723,6 +758,7 @@
             }
         },
 
+        // 依目前難度的最大錯誤次數（maxMistakeCount）產生對應數量的紅心圖示
         renderHearts: function () {
             const container = document.getElementById('game4-hearts');
             if (!container) return;
@@ -736,6 +772,7 @@
             }
         },
 
+        // 依目前已發生的錯誤次數（this.mistakeCount），將對應數量的紅心圖示改為空心
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game4-hearts .fm-heart');
             hearts.forEach((h, i) => {
@@ -749,6 +786,9 @@
             });
         },
 
+        // 遊戲結束處理（過關或失敗皆會呼叫）：
+        // 失敗時記錄本局遊玩紀錄（SupabaseClient.logGame），過關時播放得分動畫（ScoreManager.playWinAnimation）
+        // 並視情況檢查成就（關卡模式），最後統一透過 GameMessage 顯示結算訊息與下一步按鈕
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

@@ -141,6 +141,7 @@
             }
         },
 
+        // 初始化：載入 CSS、若尚未建立 DOM 則建立，並取得 container 參照
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game27-container')) {
@@ -235,11 +236,13 @@
             window.addEventListener('keydown', this.onKeyDown.bind(this));
         },
 
+        // 對外進入點：初始化並顯示難度選擇畫面
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 隱藏其他遊戲/卡片容器，避免與本遊戲的 overlay 疊在一起顯示
         hideOtherContents: function () {
             const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container',
                 'game4-container', 'game5-container', 'game6-container', 'game7-container',
@@ -319,11 +322,13 @@
             if (el) el.style.display = '';
         },
 
+        // 重來：沿用目前已抽出的詩，重新開始一局
         retryGame: function () {
             if (!this.currentPoem) return;
             this.startGameProcess(true);
         },
 
+        // 開新局：重新抽一首詩，成功才進入遊戲流程；失敗則提示並結束
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (this.selectRandomPoem()) {
@@ -334,6 +339,7 @@
             }
         },
 
+        // 挑戰模式：進入下一關（關卡索引 +1 後重新開新局）
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -372,6 +378,8 @@
             return true;
         },
 
+        // 開始一局遊戲的核心流程：重置分數/狀態、依難度設定棋盤尺寸與 canvas、
+        // 初始化空棋盤、設定時限並啟動計時器，最後進入第一句收集與 RAF 主迴圈
         startGameProcess: function (isRetry) {
             this.isActive = true;
             this.gameStartTime = Date.now();
@@ -786,6 +794,7 @@
         },
 
         // 當前句是否全部收集完成
+        // 檢查當前句所有目標字是否都已達到收集次數（每字 collectTarget 次）
         checkLineComplete: function () {
             for (const ch of this.currentLineChars) {
                 if ((this.collectProgress[ch] || 0) < this.collectTarget) return false;
@@ -932,6 +941,8 @@
             }
         },
 
+        // 每幀呼叫：依當前下落間隔（一般 fallInterval 或速降 softDropInterval）累加計時，
+        // 時間到就下落一格；若已鎖定或無磚塊則不動作
         tick: function (dt) {
             if (this.animLocked || !this.currentBrick) return;
             this.fallTimer += dt;
@@ -1093,6 +1104,7 @@
         },
 
         // ── 輸入：手勢 swipe ──
+        // 將滑鼠/觸控事件座標換算為 canvas 內部邏輯座標（考慮 CSS 縮放）
         getCanvasPoint: function (e) {
             const canvas = document.getElementById('game27-canvas');
             const rect = canvas.getBoundingClientRect();
@@ -1105,6 +1117,7 @@
             return { x: (cx - rect.left) * scaleX, y: (cy - rect.top) * scaleY };
         },
 
+        // 觸控/滑鼠按下：記錄起點座標，重置速降狀態
         onTouchStart: function (e) {
             if (!this.isActive) return;
             if (e.cancelable) e.preventDefault();
@@ -1181,6 +1194,7 @@
             }, 50);
         },
 
+        // 更新計時器矩形外框的描邊進度與顏色（ratio 越低顏色越紅、越緊張；mode='win' 時顯示過關金色動畫）
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game27-timer-path');
             const wrapper = document.getElementById('game27-board-wrapper');

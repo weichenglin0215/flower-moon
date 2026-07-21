@@ -1,4 +1,7 @@
 (function () {
+    // Game2「飛花令」主物件：以單例（singleton）模式管理整個小遊戲的
+    // 狀態、DOM 產生、事件綁定與遊戲流程控制。所有屬性與方法皆掛在
+    // 同一個物件上，最後透過 window.Game2 對外暴露。
     const Game2 = {
         isActive: false,
         difficulty: '小學',
@@ -38,6 +41,8 @@
             '研究所': { timeLimitRate: 1, poemMinRating: 3, maxMistakeCount: 1, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
         },
 
+        // 動態載入 game2.css：若頁面尚未載入過此樣式表，才建立 <link> 標籤插入 <head>，
+        // 避免重複載入同一份樣式。
         loadCSS: function () {
             if (!document.getElementById('game2-css')) {
                 const link = document.createElement('link');
@@ -48,6 +53,8 @@
             }
         },
 
+        // 初始化遊戲：載入樣式、若尚未建立遊戲 DOM 則建立，並快取常用節點的參考，
+        // 最後綁定難度標籤的點擊事件（點擊後開啟難度選擇器）。
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game2-container')) {
@@ -61,6 +68,9 @@
             };
         },
 
+        // 建立整個遊戲畫面的 DOM 結構（只會執行一次）：
+        // 包含頂部計分列、控制按鈕、主字選擇區、題目顯示區，以及答案矩陣（含計時圈）。
+        // 建立完成後掛到 document.body，並註冊響應式縮放回呼、綁定按鈕事件。
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game2-container';
@@ -133,6 +143,8 @@
             this.renderHearts();
         },
 
+        // 依 this.keywords 清單重繪主字（關鍵字）選擇按鈕列。
+        // 目前選中的關鍵字會加上 active 樣式；點擊切換關鍵字後，若遊戲進行中則立即重新開局。
         renderKeywords: function () {
             const container = document.getElementById('game2-keywords');
             container.innerHTML = '';
@@ -151,13 +163,17 @@
             });
         },
 
+        // 對外進入點：外部呼叫 Game2.show() 即可啟動本遊戲。
+        // 會先初始化 DOM，再顯示難度選擇器讓玩家挑選難度／關卡。
         show: function () {
             this.init();
 
-            // 显示难度选择器
+            // 顯示難度選擇器
             this.showDifficultySelector();
         },
 
+        // 停止遊戲：關閉計時器、隱藏遊戲容器、還原頁面捲動與其他內容的顯示狀態。
+        // 通常在玩家離開遊戲畫面（返回主頁）時呼叫。
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -170,15 +186,17 @@
             this.showOtherContents();
         },
 
+        // 開啟共用的難度選擇器元件，讓玩家選擇「小學～研究所」難度或指定關卡。
+        // 選定後的 callback 會設定難度／關卡模式，更新 UI，並開始新的一局。
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (window.GameMessage) window.GameMessage.hide();
 
-            // 隐藏主页和其他游戏
+            // 隱藏主頁和其他遊戲畫面，避免畫面重疊
             this.hideOtherContents();
 
-            // 使用全局难度选择器
+            // 使用全域共用的難度選擇器元件
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('飛花令', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
@@ -200,6 +218,9 @@
             }
         },
 
+        // 依「一般難度模式」或「關卡挑戰模式」更新頂部 UI：
+        // 難度標籤文字、開新局／重來按鈕的顯示與否、主字選擇區是否隱藏。
+        // 關卡模式下，關鍵字由關卡序號固定決定，不可讓玩家自由切換（避免破壞關卡確定性）。
         updateUIForMode: function () {
             const diffTag = document.getElementById('game2-diff-tag');
             const retryBtn = document.getElementById('game2-retryGame-btn');
@@ -226,28 +247,32 @@
             /* updateResponsiveLayout replaced */
         },
 
+        // 進入本遊戲時，隱藏主頁卡片容器與其他遊戲（game1、game3）的畫面，避免互相干擾。
         hideOtherContents: function () {
-            // 隐藏主页容器
+            // 隱藏主頁容器
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) {
                 cardContainer.style.display = 'none';
             }
 
-            // 隐藏其他游戏
+            // 隱藏其他遊戲
             const game1 = document.getElementById('game1-container');
             const game3 = document.getElementById('game3-container');
             if (game1) game1.classList.add('hidden');
             if (game3) game3.classList.add('hidden');
         },
 
+        // 離開本遊戲時，恢復主頁卡片容器的顯示。
         showOtherContents: function () {
-            // 恢复主页容器
+            // 恢復主頁容器
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) {
                 cardContainer.style.display = '';
             }
         },
 
+        // 「重來」：沿用目前已選定的詩詞（this.currentPoem）與隱藏字，
+        // 重設分數、失誤次數、輸入進度與計時器後重新開始本局，不重新抽題。
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
@@ -279,6 +304,10 @@
             document.getElementById('game2-newGame-btn').disabled = false;
         },
 
+        // 「開新局」：重新抽選一首符合條件的詩詞（呼叫 selectPoem），
+        // 重設分數／失誤／輸入進度，並依難度設定計算本局時限後啟動計時器。
+        // 若傳入 levelIndex，代表進入指定關卡的挑戰模式；若選詩失敗，
+        // 關卡模式下會自動跳到下一關，一般模式則提示玩家更換主字。
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -325,18 +354,23 @@
             document.getElementById('game2-newGame-btn').disabled = false;
         },
 
+        // 前進到下一關：關卡序號加一後直接開始新的一局。
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
 
+        // 核心選題邏輯：依目前難度與所選關鍵字，向全域詩詞庫抽出一組相鄰兩句（line1、line2），
+        // 並決定要隱藏（挖空）哪些字讓玩家作答。
+        // 回傳 true 表示成功選好詩詞並設定好 this.line1/this.line2/this.hiddenIndices/this.targetChars；
+        // 回傳 false 表示找不到符合條件的詩詞。
         selectPoem: function () {
             if (typeof POEMS === 'undefined') return false;
 
             const settings = this.difficultySettings[this.difficulty];
-            // 使用全域共用邏輯取得隨機詩詞
-            // 關鍵字模式下，傳入關鍵字。
+            // 使用全域共用邏輯（getSharedRandomPoem）取得隨機詩詞，
+            // 關鍵字模式（isLevelMode）下會額外傳入關卡序號，確保每關詩詞可重現。
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
                 2, 2, 8, 30,
@@ -428,6 +462,10 @@
             return true;
         },
 
+        // 重繪題目區（兩行詩句）：非答案行原樣顯示；答案行則依 hiddenIndices 挖空，
+        // 已答對的字顯示綠色（correct-char），尚未作答的字以「◎」佔位，
+        // 若 isRevealed 為 true（遊戲結束揭曉答案）則改以橘黃色顯示正確字（hidden-char）。
+        // 同時更新詩詞出處資訊（標題／朝代／作者）文字。
         renderQuestion: function () {
             const l1 = document.getElementById('game2-line1');
             const l2 = document.getElementById('game2-line2');
@@ -482,6 +520,11 @@
             info.style.display = (this.difficulty === '小學' || revealed) ? '' : 'none';
         },
 
+        // 產生答案矩陣（可點擊的字卡按鈕）：
+        // - isRetry 為 true 時沿用上一輪已產生的字卡（this.currentGridChars），確保重來時版面不變；
+        // - 否則將正確答案字（targetChars）與干擾字（decoys，優先透過 SharedDecoy 產生）
+        //   混合、隨機打亂後產生新的一組字卡。
+        // 每張卡片附帶出場動畫延遲，並綁定點擊事件呼叫 handleInput 進行答題判斷。
         renderGrid: function (isRetry = false) {
             const container = document.getElementById('game2-answer-grid');
             const settings = this.difficultySettings[this.difficulty];
@@ -545,6 +588,11 @@
             this.updateTimerRing(1);
         },
 
+        // 處理玩家點擊答案字卡：
+        // - 答對：卡片標記為已答對並鎖定，加分、推進輸入進度並重繪題目；
+        //   若所有目標字皆已答對，停止計時器並播放勝利動畫，動畫結束後呼叫 gameOver(true, ...)。
+        // - 答錯：卡片短暫閃紅、增加失誤次數並更新愛心顯示；
+        //   若失誤次數達到難度上限，呼叫 gameOver(false, ...) 結束本局。
         handleInput: function (char, btn) {
             if (!this.isActive) return;
 
@@ -591,6 +639,8 @@
             }
         },
 
+        // 啟動倒數計時器：以 100ms 為間隔輪詢已經過時間，換算成剩餘比例（ratio，1→0）
+        // 更新計時圈視覺（updateTimerRing）；ratio 歸零時視為時間到，判定本局失敗。
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -624,6 +674,10 @@
             return fallback;
         },
 
+        // 更新答案矩陣外圍的計時圈（SVG 矩形描邊）視覺效果。
+        // ratio：剩餘時間比例（1=剛開始，0=時間用盡）。
+        // mode 為 'win' 時代表播放勝利動畫，顯示黃色弧段隨剩餘時間縮短；
+        // 否則為一般倒數計時，顯示朱紅色弧段隨經過時間增長（顏色/透明度依主題 CSS 變數計算）。
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game2-timer-path');
             const container = document.getElementById('game2-answer-grid-container');
@@ -666,6 +720,8 @@
             }
         },
 
+        // 依難度設定的最大失誤次數（maxMistakeCount）產生對應數量的愛心圖示，
+        // 用於直觀顯示玩家還剩幾次答錯機會。
         renderHearts: function () {
             const hearts = document.getElementById('game2-hearts');
             if (!hearts) return;
@@ -679,6 +735,8 @@
             }
         },
 
+        // 依目前失誤次數（mistakeCount）更新愛心圖示：已消耗的愛心變為空心（♡），
+        // 其餘維持實心（♥）。
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game2-hearts .fm-heart');
             hearts.forEach((h, i) => {
@@ -692,6 +750,11 @@
             });
         },
 
+        // 結束本局：停用遊戲互動、清除計時器、揭曉答案。
+        // win=false 時，若已連線 Supabase，會記錄一筆失敗的遊戲紀錄（分數 0、本局耗時）；
+        // 過關的紀錄則由 ScoreManager.saveScore 負責寫入，此處不重複記錄。
+        // 最後依是否為關卡模式、是否過關，決定顯示的訊息框與「下一步」行為
+        // （關卡模式過關→下一關；一般模式過關→開新局；失敗→重來）。
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
@@ -757,6 +820,9 @@
             }
         },
 
+        // 依文字長度動態調整字級：若字數超過 threshold（門檻字數），
+        // 字級依比例縮小（threshold / textLen），避免過長詩句超出容器寬度；
+        // 未超過門檻則維持基準字級 baseFontSizeRem。
         adjustFontSize: function (element, textLen, threshold, baseFontSizeRem) {
             if (textLen > threshold) {
                 const newSize = baseFontSizeRem * (threshold / textLen);
@@ -767,9 +833,11 @@
         }
     };
 
+    // 將 Game2 物件掛到全域 window，供其他模組（如主頁選單）呼叫 Game2.show() 啟動遊戲。
     window.Game2 = Game2;
 
-    // 自動檢查是否需要啟動
+    // 自動檢查網址參數：若 URL 帶有 ?game=2，頁面載入後自動啟動本遊戲，
+    // 並清除該參數避免重新整理時重複觸發。
     if (new URLSearchParams(window.location.search).get('game') === '2') {
         setTimeout(() => {
             window.Game2.show();

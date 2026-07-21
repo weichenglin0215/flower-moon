@@ -7,6 +7,7 @@
    紅心副標、詩詞出處連結）之樣式已抽至 theme_xuanzhi.css 的 .fm-* 共用區塊。
    本檔僅保留 .game4-area 及以下的遊戲區私有樣式。 */
 
+/* 通用隱藏用 class：強制不顯示元素 */
 .hidden {
     display: none !important;
 }
@@ -156,6 +157,7 @@
     }
 }
 
+/* 答案矩陣中單一按鍵（可點選字）的預設樣式 */
 .game4-ans-btn {
     width: 66px;
     height: 66px;
@@ -200,7 +202,7 @@
     animation: game4-shake 0.4s;
 }
 
-/* .game4-message Styles Removed - Using Unified GameMessage Component */
+/* .game4-message 樣式已移除，改用統一的 GameMessage 元件 */
 
 @keyframes game4-shake {
 

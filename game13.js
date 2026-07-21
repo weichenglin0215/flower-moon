@@ -39,6 +39,7 @@
             '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 1, metaHideCount: 3, charHideCount: 9, metaDistractors: 2, charDistractors: 1 }
         },
 
+        // 動態載入本遊戲專屬的 CSS 檔（game13.css），避免重複插入 <link>
         loadCSS: function () {
             if (!document.getElementById('game13-css')) {
                 const link = document.createElement('link');
@@ -49,6 +50,7 @@
             }
         },
 
+        // 初始化遊戲：載入樣式表、建立（若尚未存在）DOM 結構、綁定難度標籤點擊事件
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game13-container')) {
@@ -57,12 +59,15 @@
             this.container = document.getElementById('game13-container');
             this.gameArea = document.getElementById('game13-area');
 
+            // 點擊難度標籤 → 播放音效並重新開啟難度選擇畫面
             document.getElementById('game13-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
             };
         },
 
+        // 建立本遊戲的整個 DOM 結構（外層容器、頂列分數/控制鈕、題目區、答案按鈕池）
+        // 只在頁面上尚無 #game13-container 時呼叫一次
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game13-container';
@@ -127,11 +132,13 @@
             };
         },
 
+        // 對外進入點：外部呼叫 Game13.show() 即可啟動本遊戲（初始化 + 顯示難度選擇畫面）
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 顯示難度選擇畫面；玩家選定難度後的 callback 會設定難度/關卡模式並開新局
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -166,6 +173,7 @@
             if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
         },
 
+        // 停止遊戲並隱藏遊戲畫面（清除計時器、還原頁面捲動狀態）
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -174,6 +182,7 @@
             document.body.classList.remove('overlay-active');
         },
 
+        // 開始全新一局：重置分數/錯誤次數、隨機選詩、產生題目與答案池，並啟動倒數計時
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
@@ -201,6 +210,7 @@
             }
         },
 
+        // 重來本題：沿用同一首詩與同一組候選按鈕，只重設作答狀態並重新洗牌按鈕位置
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (!this.currentPoem) return;
@@ -228,6 +238,8 @@
             this.startTimer();
         },
 
+        // 依目前難度設定，從共用詩詞庫隨機挑選一首符合條件（評分、行數、字數限制）的詩
+        // 成功則設定 this.currentPoem / this.lines 並回傳 true，失敗回傳 false
         selectRandomPoem: function () {
             const settings = this.difficultySettings[this.difficulty];
             const result = getSharedRandomPoem(settings.poemMinRating, 2, 2, 10, 40, "", this.isLevelMode ? this.currentLevelIndex : null, 'game13');
@@ -242,6 +254,8 @@
             return true;
         },
 
+        // 依難度設定產生本局題目：決定要隱藏哪些元數據（朝代/作者/詩名）與哪些詩句字元，
+        // 並產生對應的候選答案按鈕（含正確答案與干擾項），最後設定第一個待填的空格
         generateProblem: function () {
             const settings = this.difficultySettings[this.difficulty];
 
@@ -331,6 +345,8 @@
             this.refreshNextHole();
         },
 
+        // 從全部詩詞資料庫中，為指定的元數據類型（朝代/作者/詩名）隨機取一個「非正確答案」的干擾值
+        // 作者類型會先過濾掉只有單一作品的作者，避免干擾項過於冷門
         getRandomMetaDecoy: function (type, correctValue) {
             if (typeof POEMS === 'undefined') return "未知";
 
@@ -356,6 +372,8 @@
             return val;
         },
 
+        // 重新計算「下一個待填入的空格」：優先找尚未解出的元數據，其次才找尚未解出的詩句字元
+        // 若全部都已解出，則將 nextHole 設為 null
         refreshNextHole: function () {
             // 尋找第一個未解決的元數據洞
             const nextMetaIdx = this.hiddenMeta.findIndex(m => m.isHidden && !m.isSolved);
@@ -372,6 +390,8 @@
             this.nextHole = null; // 全都填完了
         },
 
+        // 依目前遊戲狀態重新繪製畫面：元數據方塊（朝代/作者/詩名）與詩句文字
+        // 注意：此函式不會重建答案按鈕池，只更新題目顯示區
         renderUI: function () {
             // 1. 渲染元數據區域
             const metaContainer = document.getElementById('game13-meta');
@@ -465,6 +485,7 @@
             this.packAnswerPool();
         },
 
+        // 依詩句長度調整字體大小：字數較多時縮小字體，避免超出顯示區域
         adjustFontSize: function (element, length) {
             if (!element) return;
             if (length <= 8) {
@@ -693,6 +714,9 @@
             shuffle(rows);
         },
 
+        // 處理玩家點擊某個候選答案按鈕：比對此答案是否能填入任何一個尚未解出的空格
+        // （元數據或詩句字元皆可能同時有多個相同的洞），命中則加分並更新畫面，
+        // 未命中則扣血並視難度決定按鈕是否可再次點擊
         handleInput: function (cand, btn) {
             if (!this.isActive) return;
 
@@ -756,6 +780,7 @@
             }
         },
 
+        // 啟動倒數計時器：每 100ms 更新一次計時環，時間耗盡則判定遊戲失敗
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -824,6 +849,7 @@
             }
         },
 
+        // 依目前難度的「最大允許錯誤次數」畫出對應數量的紅心圖示（生命值）
         renderHearts: function () {
             const container = document.getElementById('game13-hearts');
             if (!container) return;
@@ -837,6 +863,7 @@
             }
         },
 
+        // 依目前錯誤次數，將對應數量的紅心圖示切換為「空心」狀態
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game13-hearts .fm-heart');
             hearts.forEach((h, i) => {
@@ -850,6 +877,8 @@
             });
         },
 
+        // 結束本局遊戲：記錄結果（失敗時寫入 game_logs）、更新按鈕狀態，
+        // 並依勝負顯示對應訊息與後續動作（下一關 / 開新局 / 再試一次）
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

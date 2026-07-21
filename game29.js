@@ -72,12 +72,15 @@
         gameStartTime: null,
 
         // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
+        // 依字在目前句中的位置，取得固定色相值（同一字永遠同色，方便玩家辨識）
         getHueForChar: function (ch) {
             return window.TilePresentation.getHueForChar(ch, this.currentLineChars);
         },
+        // 依字取得完整配色物件（hue/sat/lum/textColor），供 UI 卡片與字球共用
         getColorForChar: function (ch) {
             return window.TilePresentation.getColorForChar(ch, this.currentLineChars);
         },
+        // 判斷此字是否為目前句要收集的目標字（true=目標字／false=非目標干擾字）
         isTargetChar: function (ch) {
             return this.currentLineChars.indexOf(ch) >= 0;
         },
@@ -262,6 +265,7 @@
             }
         },
 
+        // 對外隱藏介面：直接呼叫 stopGame() 統一收尾（停 RAF、隱藏 container）
         hide: function () { this.stopGame(); },
 
         // ⚠️ menu.js 全域清理只呼叫 stopGame()，必須隱藏 container 且停 RAF
@@ -276,11 +280,13 @@
             if (el) el.style.display = '';
         },
 
+        // 重來：沿用目前已抽好的詩，重新開始本局（不重新抽詩）
         retryGame: function () {
             if (!this.currentPoem) return;
             this.startGameProcess(true);
         },
 
+        // 開新局：重新抽一首詩，成功才進入遊戲流程；失敗則提示並收尾
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (this.selectRandomPoem()) {
@@ -291,6 +297,7 @@
             }
         },
 
+        // 挑戰模式過關後推進到下一關（關卡編號 +1），再走一次開新局流程
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -504,6 +511,7 @@
             this._prevProgressSnap = Object.assign({}, this.collectProgress);
         },
 
+        // 更新畫面上「下一顆／下下顆」預覽文字，依難度 previewCount 決定顯示幾顆（0=兩顆皆隱藏為問號，1=只顯示下一顆，2=兩顆都顯示）
         updateNextPreview: function () {
             const settings = this.difficultySettings[this.difficulty];
             const el = document.getElementById('game29-next-char');
@@ -568,10 +576,13 @@
             this.nextChar = this.pickPlayerChar();
         },
 
+        // 抽下下顆字，作為 pickNextChar 未來銜接用的備用字
         pickAfterNextChar: function () {
             this.afterNextChar = this.pickPlayerChar();
         },
 
+        // 玩家發射字的抽取邏輯：60% 機率優先抽「缺口字且長龍上也有」的字（利於消除），
+        // 30% 機率抽長龍上任一字，其餘走 fallback（長龍字 → 當前句字 → 預設「詩」字）
         pickPlayerChar: function () {
             const r = Math.random();
             const deficits = this.currentLineChars.filter(ch => (this.collectProgress[ch] || 0) < this.collectTarget);
@@ -595,6 +606,8 @@
         },
 
         // ── 點擊發射 ──
+        // 將滑鼠/觸控事件座標換算為 canvas 內部邏輯座標（480×600），
+        // 需扣除 canvas 在畫面上的實際顯示位置與縮放比例
         getCanvasPoint: function (e) {
             const canvas = document.getElementById('game29-canvas');
             const rect = canvas.getBoundingClientRect();
@@ -908,6 +921,7 @@
             }
         },
 
+        // 檢查目前句的每個目標字是否都已收集達 collectTarget 次數，全數達標才回傳 true
         isLineComplete: function () {
             for (const ch of this.currentLineChars) {
                 if ((this.collectProgress[ch] || 0) < this.collectTarget) return false;
@@ -1177,6 +1191,7 @@
             ctx.fillText(ch || '', x, y + R * 0.04);
         },
 
+        // 繪製正在飛行中的字球，含同色系尾焰（模擬飛出的殘影拖尾）
         drawFlyingBall: function (ctx) {
             const b = this.flyingBall;
             const flyHue = this.getHueForChar(b.char);
@@ -1194,6 +1209,7 @@
             this.drawBall(ctx, b.x, b.y, b.char, flyHue, this.isTargetChar(b.char));
         },
 
+        // 繪製中心發射台：水墨輪盤底座 + 依 launcherAngle 旋轉的刻紋/砲口 + 待發射字球
         drawLauncher: function (ctx) {
             const cx = this.centerX;
             const cy = this.centerY;
@@ -1250,6 +1266,8 @@
             }, 50);
         },
 
+        // 更新計時器外環 SVG 進度：依 ratio(0~1) 調整外框描邊的偏移量與顏色（越接近 0 越紅）；
+        // mode='win' 時改為過關動畫的金色漸亮效果
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game29-timer-path');
             const wrapper = document.getElementById('game29-board-wrapper');
@@ -1283,6 +1301,8 @@
         },
 
         // ── 遊戲結束 ──
+        // 統一收尾入口：win=true 表示過關成功，win=false 表示失敗（長龍抵達終點或時間到）。
+        // 依序處理：停止計時/RAF、失敗時記錄成績、播放結算動畫、彈出訊息框並綁定下一步（重試/下一關）
         gameOver: function (win, reason) {
             if (!this.isActive) return;
             this.isActive = false;

@@ -312,6 +312,9 @@
         },
 
         // ── 隨機選詩 ─────────────────────────────────────────────
+        // 依目前難度設定（評分下限、行數範圍、字數上限）向 script.js 取得一首隨機詩詞，
+        // 並將詩詞內容拆解成整字字串 fullPoemText，供後續逐字打靶使用。
+        // 回傳值：true 表示成功取得詩詞並更新畫面；false 表示取得失敗。
         selectRandomPoem: function () {
             if (typeof getSharedRandomPoem !== 'function') {
                 console.error('需要先載入 script.js');
@@ -341,6 +344,9 @@
         },
 
         // ── 建立地洞 DOM ─────────────────────────────────────────
+        // 依目前難度的 cols×rows 動態建立地洞格子，並計算地洞（pit）、
+        // 字泡泡（bubble）、字型大小等尺寸，透過 CSS 變數傳給樣式使用。
+        // 每個地洞會記錄自身狀態於 this.holes 陣列（state/char/timeout 等）。
         buildHoles: function () {
             const grid = document.getElementById('game16-holes-grid');
             grid.innerHTML = '';
@@ -436,6 +442,8 @@
         },
 
         // ── 判斷目標字是否為某句詩的第一個字 ───────────────────
+        // targetIdx：欲檢查的字在 fullPoemText 中的全域索引。
+        // 用途：hintMode='sentence-first' 時，只有每句的第一個字要顯示金色提示。
         isFirstOfSentence: function (targetIdx) {
             let count = 0;
             for (let l = 0; l < this.poemLines.length; l++) {
@@ -447,6 +455,8 @@
         },
 
         // ── 更新進度條 ───────────────────────────────────────────
+        // 根據 targetIndex（已完成字數）與 fullPoemText.length（總字數）
+        // 計算完成百分比，更新進度條寬度與文字顯示（若該元素存在）。
         updateProgress: function () {
             const total = this.fullPoemText.length;
             const done = this.targetIndex;
@@ -457,6 +467,8 @@
         },
 
         // ── 更新計時條 ───────────────────────────────────────────
+        // ratio：剩餘時間比例（0~1）。依比例決定計時條顏色（金→橙→紅），
+        // 比例低於 0.15 時加上 urgent 樣式（通常搭配閃爍等急迫視覺提示）。
         updateTimerBar: function (ratio) {
             const bar = document.getElementById('game16-timer-bar');
             const label = document.getElementById('game16-timer-label');
@@ -478,6 +490,8 @@
         },
 
         // ── 渲染生命值 ───────────────────────────────────────────
+        // 依目前難度的 maxHearts 產生對應數量的愛心圖示，
+        // 剩餘生命（this.hearts）以實心愛心表示，已扣除的以空心愛心表示。
         renderHearts: function () {
             const el = document.getElementById('game16-hearts');
             if (!el) return;
@@ -592,6 +606,9 @@
         },
 
         // ── 激活洞口（字從洞底升起）─────────────────────────────
+        // idx：地洞在 this.holes 陣列中的索引
+        // char：要顯示的字元
+        // type：'target'（主要正確字）| 'target-preview'（預覽正確字）| 'decoy'（混淆字）
         // stayDuration：此字的停留時間（ms），到期後自動縮回；正確字與混淆字皆適用
         // seqOffset：-1=混淆字，0=主要正確字，1+=預覽正確字（尚未輪到）
         activateHole: function (idx, char, type, stayDuration, seqOffset = -1) {
@@ -642,6 +659,8 @@
         },
 
         // ── 停用洞口（字縮回）───────────────────────────────────
+        // idx：地洞索引
+        // animClass：縮回時要套用的動畫類別，例如 'sink'（正常下沉）或 'fast-sink'（快速消失）
         deactivateHole: function (idx, animClass) {
             const hole = this.holes[idx];
             if (!hole) return;
@@ -690,6 +709,7 @@
         },
 
         // ── 點擊洞口 ─────────────────────────────────────────────
+        // idx：玩家點擊的地洞索引；依該洞目前的 state 分派到對應處理函式。
         onHoleClick: function (idx) {
             if (!this.isActive) return;
             const hole = this.holes[idx];
@@ -708,6 +728,8 @@
         },
 
         // ── 擊中正確字 ───────────────────────────────────────────
+        // idx：被擊中的地洞索引。負責播放音效與動畫、累計分數與連擊、
+        // 推進 targetIndex，並判斷是否升格預覽字或排程下一批目標字。
         hitCorrect: function (idx) {
             if (window.SoundManager) {
                 this.comboCount >= 4
@@ -791,6 +813,8 @@
         },
 
         // ── 將 seqOffset 最低的 target-preview 升格為主要目標 ────────
+        // 找出所有狀態為 'target-preview' 的地洞中 seqOffset 最小者（最接近輪到的），
+        // 將其升格為 'target' 並套用金色樣式。回傳值：是否成功升格（有找到可升格的洞）。
         promotePreviewTarget: function () {
             let bestHole = null;
             let bestOffset = Infinity;
@@ -817,6 +841,8 @@
         },
 
         // ── 擊中混淆字（或順序錯誤的預覽正確字）───────────────────
+        // idx：被誤擊的地洞索引。扣除一點生命、中斷連擊，並播放紅色閃爍與震動動畫；
+        // 若生命歸零則觸發遊戲結束（gameOver）。
         hitWrong: function (idx) {
             if (window.SoundManager) window.SoundManager.playFailure();
 
@@ -885,6 +911,8 @@
         },
 
         // ── 更新連擊倍率顯示 ─────────────────────────────────────
+        // 將 this.comboMultiplier 同步為目前連擊數（最小為 1），並更新畫面上的連擊數字；
+        // 連擊達 5 以上時加上特效樣式 class。
         updateCombo: function () {
             // 直接顯示真實連擊數，最低為 1（不會顯示 ×0）
             this.comboMultiplier = Math.max(1, this.comboCount);
@@ -905,12 +933,15 @@
         },
 
         // ── 取得每次正確擊打的基礎分 ─────────────────────────────
+        // 從全域 ScoreManager 讀取 game16 的分數設定（getPointA），若不存在則預設為 15 分。
         getPointA: function () {
             const s = window.ScoreManager && window.ScoreManager.gameSettings['game16'];
             return s ? (s.getPointA || 15) : 15;
         },
 
         // ── 浮動得分特效 ─────────────────────────────────────────
+        // idx：地洞索引；text：要顯示的浮動文字（例如 '+15'）。
+        // 建立一個短暫存在的文字元素，播放上飄淡出動畫後自動移除。
         showFloatingScore: function (idx, text) {
             const hole = this.holes[idx];
             if (!hole) return;
@@ -922,6 +953,9 @@
         },
 
         // ── 混亂期（地詩混亂期）─────────────────────────────────
+        // 目前所有難度的 frenzyInterval 都設為極大值（9999999ms），此函式實際上不會被觸發，
+        // 屬於保留功能：原設計會在混亂期間額外噴出多個混淆字，製造「字如雨下」的緊張感，
+        // 持續數秒後清空混淆字並排程下一次混亂期。
         startFrenzy: function () {
             if (!this.isActive) return;
             this.isFrenzy = true;
@@ -968,6 +1002,9 @@
         },
 
         // ── 遊戲結束 ─────────────────────────────────────────────
+        // win：是否獲勝（詩詞全部擊完為 true，生命歸零則為 false）
+        // reason：結束原因，用於顯示對應訊息，例如 'complete'（完成）、'heartless'（生命耗盡）
+        // 負責結算分數、寫入遊戲紀錄、播放結束動畫，並依模式決定下一步（下一關/下一局/重試）。
         gameOver: function (win, reason) {
             if (!this.isActive) return;
             this.isActive = false;

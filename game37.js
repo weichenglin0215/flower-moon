@@ -87,6 +87,7 @@
             }
         },
 
+        // 初始化遊戲：載入 CSS、建立 DOM（若尚未建立）、取得容器參照，並綁定各按鈕事件
         init: function () {
             this.loadCSS();
             if (!this.container) {
@@ -101,6 +102,8 @@
             document.getElementById('game37-diff-tag').onclick = () => this.showDifficultySelector();
         },
 
+        // 建立遊戲整體 DOM 結構（外殼 header／控制列／生命值列／遊戲區／歷程列），
+        // 並向共用的螢幕自適應模組註冊縮放回呼，讓 500x850 的邏輯舞台可依裝置比例縮放
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game37-container';
@@ -140,11 +143,13 @@
             this.renderHearts();
         },
 
+        // 對外進入點：初始化並直接跳出難度選擇視窗
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 開啟難度選擇器；玩家選定難度（或關卡）後記錄狀態並開始新的一局
         showDifficultySelector: function () {
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('步步為陣', (selectedLevel, levelIndex) => {
@@ -158,6 +163,8 @@
             }
         },
 
+        // 依「一般難度模式」或「關卡挑戰模式」更新難度標籤文字/顏色，
+        // 並在挑戰模式下隱藏「開新局」按鈕，避免玩家中途跳出挑戰流程
         updateUIForMode: function () {
             const diffTag = document.getElementById('game37-diff-tag');
             const newBtn = document.getElementById('game37-newGame-btn');
@@ -171,6 +178,7 @@
             if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
         },
 
+        // 強制中止遊戲：停用計時器、隱藏遊戲畫面與規則說明視窗
         stopGame: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -179,6 +187,8 @@
             if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
         },
 
+        // 開始全新一局：重置分數/錯誤次數/進度等所有狀態，重新挑選一首詩並建立階梯題目，
+        // 最後顯示開場規則說明（玩家按下確認才會真正開始計時，見 showStartMessage → gameStart）
         startNewGame: function () {
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
@@ -215,6 +225,8 @@
             }
         },
 
+        // 重玩同一首詩：沿用原本的 currentPoem 與 maxTimer，重置分數/錯誤次數/進度後直接開始計時
+        // （與 startNewGame 的差異：不重新選詩、不顯示規則說明視窗）
         retryGame: function () {
             if (!this.currentPoem) return;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -248,6 +260,8 @@
             }
         },
 
+        // 正式開始計時：記錄開始時間戳、顯示計時圓環，並啟動每秒更新一次的倒數計時器；
+        // 倒數歸零時判定遊戲失敗（時間到）
         gameStart: function () {
             this.isActive = true;
             this.startTime = Date.now();
@@ -267,6 +281,9 @@
             }, 1000);
         },
 
+        // 更新計時圓環（實際上是矩形描邊）的視覺進度：
+        // ratio 為剩餘時間比例（0~1）；mode='win' 時代表過關動畫的正向填色（金色漸層），
+        // 其餘情況為一般倒數的警示色（隨時間流逝由綠轉紅、由亮轉暗）
         updateTimerRing: function (ratio, mode) {
             const path = document.getElementById('game37-timer-path');
             const svg = document.getElementById('game37-timer-ring');
@@ -301,6 +318,8 @@
             }
         },
 
+        // 依當前難度設定，透過共用的隨機選詩函式挑選一首符合條件的詩詞，
+        // 並依總字數與難度時間倍率計算本局的倒數計時上限（maxTimer）
         selectPoem: function (settings) {
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
@@ -323,6 +342,9 @@
             return true;
         },
 
+        // 核心題目建構函式：將整首詩拆成一字一題的「階梯」（this.rows），
+        // 每一題依「句內第幾個字」決定答案宮格大小（getGridDims），並產生混淆字選項、
+        // 建立對應的 DOM 節點（但先不掛入畫面，只有當前題目才會被 renderCurrentRow 顯示）
         prepareLadder: function (settings) {
             const area = document.getElementById('game37-area');
             if (!area) return;
@@ -444,6 +466,8 @@
             area.appendChild(row.element);
         },
 
+        // 處理玩家點擊答案按鈕：判斷對錯、更新分數／生命值／歷程紀錄，
+        // 並在短暫延遲（讓玩家看清楚回饋色彩）後推進到下一題或結束遊戲
         handleBtnClick: function (selected, correct, index, btn, rowEl, optionCount) {
             if (!this.isActive || index !== this.currentIndex) return;
 
@@ -489,6 +513,7 @@
             }, 450);
         },
 
+        // 顯示開場規則說明視窗；玩家按下「開始佈陣」後才真正呼叫 gameStart 開始計時
         showStartMessage: function () {
             if (window.RuleNoteDialog) {
                 window.RuleNoteDialog.show({
@@ -512,6 +537,7 @@
             }
         },
 
+        // 重繪左側直排的「答題歷程」欄：已答對顯示綠字、答錯顯示紅字加粗、尚未作答顯示空心方框
         renderHistory: function () {
             if (!this.historyContainer) return;
             let html = '';
@@ -522,6 +548,7 @@
             this.historyContainer.innerHTML = html;
         },
 
+        // 依目前錯誤次數重繪生命值（愛心）列：剩餘生命顯示實心♥，已消耗的顯示空心♡
         renderHearts: function () {
             const container = document.getElementById('game37-hearts');
             if (!container) return;
@@ -535,10 +562,14 @@
             }
         },
 
+        // 生命值變動後的更新入口（目前實作即直接重繪整列愛心）
         updateHearts: function () {
             this.renderHearts();
         },
 
+        // 遊戲結束處理：停止計時、依勝負記錄/顯示結果訊息；
+        // 若獲勝且有 ScoreManager，會先播放獲勝動畫（含關卡完成判定與成就彈窗）才顯示結果視窗；
+        // 若失敗則上傳遊戲紀錄（分數以 0 計）並提供「再試一次」按鈕重玩同一首詩
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

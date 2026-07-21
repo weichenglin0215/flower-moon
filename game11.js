@@ -41,6 +41,7 @@
             '研究所': { poemMinRating: 2, maxMistakeCount: 14, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', minLines: 4, maxLines: 6, minChars: 28, maxChars: 35, slowFlipChars: 7, passChars: 12, revealStep: 3 }
         },
 
+        // 動態載入本遊戲專屬的 CSS 檔案（若尚未載入過才會插入 link 標籤）
         loadCSS: function () {
             if (!document.getElementById('game11-css')) {
                 const link = document.createElement('link');
@@ -51,6 +52,7 @@
             }
         },
 
+        // 初始化遊戲：載入 CSS、建立 DOM（若尚未建立）、綁定各按鈕的點擊事件
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game11-container')) {
@@ -67,13 +69,14 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.startNewGame();
             };
-            // Message button handled by GameMessage
+            // 訊息按鈕由 GameMessage 元件統一處理，此處不需另外綁定
             document.getElementById('game11-diff-tag').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
             };
         },
 
+        // 建立遊戲的整體 DOM 結構（外層容器、頂列分數/控制鈕、副標題列、遊戲區與網格），並註冊縮放回呼
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game11-container';
@@ -111,6 +114,7 @@
             }
         },
 
+        // 顯示難度選擇器：暫停目前遊戲與計時器，選擇完成後套用新難度並開始新局
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -139,6 +143,7 @@
             }
         },
 
+        // 依照目前是「一般難度模式」或「關卡模式」，更新難度標籤文字與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game11-diff-tag');
             const retryBtn = document.getElementById('game11-retryGame-btn');
@@ -157,6 +162,7 @@
             /* updateResponsiveLayout replaced */
         },
 
+        // 對外呼叫的進入點：初始化遊戲、隱藏首頁 IntroOverlay，並開啟難度選擇器（若無選擇器則直接開始遊戲流程）
         show: function () {
             this.init();
 
@@ -177,7 +183,7 @@
                         console.error("Invalid difficulty level selected:", selectedLevel);
                         return;
                     }
-                    this.maxMistakes = settings.maxMistakeCount; // Update maxMistakes based on selected difficulty
+                    this.maxMistakes = settings.maxMistakeCount; // 依照所選難度更新最大允許失誤次數
 
                     this.updateUIForMode();
 
@@ -194,6 +200,7 @@
             }
         },
 
+        // 無難度選擇器時的備用流程：直接顯示遊戲容器並延遲一小段時間後開始新局
         startGameFlow: function () {
             this.container.classList.remove('hidden');
             if (window.updateResponsiveLayout) {
@@ -204,15 +211,18 @@
             }, 100);
         },
 
+        // 隱藏主頁面的卡片容器，避免與本遊戲畫面重疊
         hideOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = 'none';
         },
+        // 還原主頁面卡片容器的顯示
         showOtherContents: function () {
             const cardContainer = document.getElementById('cardContainer');
             if (cardContainer) cardContainer.style.display = '';
         },
 
+        // 停止遊戲：關閉進行中狀態、清除所有計時器、隱藏遊戲容器並還原主頁面內容
         stopGame: function () {
             this.isActive = false;
             this.stopAllTimers();
@@ -222,6 +232,7 @@
             this.showOtherContents();
         },
 
+        // 停止所有計時器與動畫：取消計分動畫、遞增 turnId（讓進行中的非同步展示流程失效）、清除 interval
         stopAllTimers: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.turnId++;
@@ -229,6 +240,7 @@
             this.timerInterval = null;
         },
 
+        // 重玩同一首詩：重設分數與失誤次數，重新開始本輪遊戲（不重新抽詩）
         retryGame: function () {
             if (!this.currentPoem) return;
             this.isActive = true;
@@ -237,6 +249,7 @@
             this.resetGameRound(true);
         },
 
+        // 開始一場全新的遊戲：可選擇指定關卡索引（進入關卡模式），重設分數並準備新的挑戰
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -253,16 +266,18 @@
             }
         },
 
+        // 進入下一關：關卡索引 +1 並重新開始遊戲
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
+        // 準備本次挑戰：抽取符合難度條件的詩詞，並將詩詞文字隨機分配到網格各格子
         prepareChallenge: function () {
             const settings = this.difficultySettings[this.difficulty];
             this.maxMistakes = settings.maxMistakeCount;
 
-            // Generate Poem，傳入種子
+            // 產生詩詞題目，並傳入隨機種子（關卡模式下可依關卡索引產生固定題目）
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
                 2, 2, 8, 30, "",
@@ -284,24 +299,24 @@
             };
             this.updatePoemInfoVisibility(false);
 
-            // Extract pure chars up to maxChars available, but bounded by grid capacity
+            // 取出詩詞純文字，最多取 maxChars 個字，同時不超過網格總格數
             const rawChars = result.lines.join('').split('').slice(0, settings.maxChars);
             const numGrids = settings.rows * settings.cols;
 
             this.poemChars = [];
 
-            // Randomly map chars to unique grid indices
+            // 建立一組不重複的格子索引，準備隨機打亂後對應到每個字
             let availableIndices = [];
             for (let i = 0; i < numGrids; i++) availableIndices.push(i);
 
-            // Shuffle
+            // 使用 Fisher-Yates 演算法將格子索引隨機打亂
             for (let i = availableIndices.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
             }
 
             for (let i = 0; i < rawChars.length; i++) {
-                if (i >= numGrids) break; // Safe check
+                if (i >= numGrids) break; // 安全檢查：字數不應超過網格總格數
                 this.poemChars.push({
                     char: rawChars[i],
                     gridIdx: availableIndices[i]
@@ -370,6 +385,7 @@
             }
         },
 
+        // 依 maxMistakes 數量，重新產生對應數量的紅心圖示
         renderHearts: function () {
             const hearts = document.getElementById('game11-hearts');
             if (!hearts) return;
@@ -382,6 +398,7 @@
             }
         },
 
+        // 依目前失誤次數，更新紅心顯示為實心（未失誤）或空心（已失誤）
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game11-hearts .fm-heart');
             hearts.forEach((h, i) => {
@@ -395,6 +412,7 @@
             });
         },
 
+        // 重置本局遊戲狀態：清除計時器、重繪分數與紅心、重設目前輪次進度，並開始展示階段
         resetGameRound: function (isRetry = false) {
             this.stopAllTimers();
             this.gameStartTime = Date.now();
@@ -417,6 +435,7 @@
             this.startShowPhase();
         },
 
+        // 將所有格子統一設為翻開(isOpen=true)或蓋上(isOpen=false)狀態
         setAllTilesState: function (isOpen) {
             this.tiles.forEach(t => {
                 t.isOpen = isOpen;
@@ -498,6 +517,7 @@
         },
 
         // 處理字塊點擊事件
+        // 處理玩家點擊字塊：驗證是否點中目前應該點擊的目標格子，分派至正確/錯誤處理邏輯
         handleTileClick: function (idx) {
             if (!this.isActive || !this.isPlayerPhase) return;
 
@@ -519,6 +539,7 @@
             }
         },
 
+        // 處理點擊正確的情況：翻開字塊、依 feedback 設定決定是否蓋回前一格、加分並檢查本輪是否完成
         handleCorrectClick: function (idx) {
             const tile = this.tiles[idx];
             tile.el.classList.add('flipped');
@@ -543,7 +564,7 @@
             document.getElementById('game11-score').textContent = this.score;
             // 檢查是否完成所有回合
             if (this.playerProgress >= this.currentStep) {
-                // Round Complete
+                // 本輪完成
                 this.isPlayerPhase = false;
                 document.getElementById('game11-status').textContent = `第 ${this.currentStep} 輪，正確！`;
 
@@ -568,11 +589,11 @@
                 }, 1000);
             }
         },
-        // 處理錯誤點擊事件
+        // 處理錯誤點擊事件：播放錯誤動畫/音效、增加失誤次數，超過上限則遊戲結束，否則重新展示本輪
         handleWrongClick: function (idx) {
             const tile = this.tiles[idx];
 
-            // Error visual
+            // 錯誤視覺效果：先移除再重新加上 class 以重新觸發動畫
             tile.el.classList.remove('error');
             void tile.el.offsetWidth;
             tile.el.classList.add('error');
@@ -609,7 +630,7 @@
         delay: function (ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         },
-        // 處理勝利事件
+        // 處理勝利事件：翻開全部字塊、播放得分動畫，完成後進入遊戲結束流程
         handleWin: function () {
             this.isActive = false;
             this.gridContainer.classList.remove('is-player-phase');
@@ -637,6 +658,7 @@
             });
         },
         // 處理遊戲結束事件
+        // 處理遊戲結束事件（win=true 為勝利，false 為失敗）：寫入紀錄、更新按鈕狀態並顯示結果訊息
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

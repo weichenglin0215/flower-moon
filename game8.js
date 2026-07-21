@@ -127,7 +127,7 @@
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.showDifficultySelector();
             };
-            // Message button handled by GameMessage
+            // 訊息按鈕的行為交由 GameMessage 元件統一處理
 
             const gridWrapper = document.getElementById('game8-grid-wrapper');
             gridWrapper.addEventListener('mousedown', this.onDragStart.bind(this));
@@ -1123,29 +1123,29 @@
         },
 
         handlePhaseWin: function (phasesCompletedCount) {
-            // Apply visual classes for correct color
+            // 依照目前已完成的筆畫數量，計算本筆應套用的顏色 class
             let currentColorClass = `path-color-${(this.successfulStrokes.length % 8) + 1}`;
             let currentCellColorClass = `cell-color-${(this.successfulStrokes.length % 8) + 1}`;
 
-            // Commit to completed path visually
+            // 將這次拖曳的路徑正式轉換為「已完成」的視覺樣式
             for (let i = 0; i < this.currentPath.length; i++) {
                 const p = this.currentPath[i];
                 const el = this.gridElements[p.row][p.col];
-                // Remove potential current drawing colors
+                // 先移除拖曳過程中暫時套用的顏色 class，避免疊加殘留
                 for (let c = 1; c <= 8; c++) el.classList.remove(`cell-color-${c}`);
                 el.classList.remove('selected');
 
                 el.classList.add('permanent-selected');
                 el.classList.add(currentCellColorClass);
 
-                // Requirement: Bold only the first char
+                // 規則：一筆之中只有第一個字需要加粗標示筆畫起點
                 if (i === 0) el.classList.add('stroke-start');
                 else el.classList.remove('stroke-start');
 
                 this.completedTargetIndex++;
             }
 
-            // Save this stroke
+            // 將這次成功的路徑存入紀錄，供後續重繪 SVG 使用
             this.successfulStrokes.push([...this.currentPath]);
             /*分數計算：透過 getPointA(gameKey, difficulty) 取得已套用難度倍率的單格分數，
               內部以浮點累加避免每次 round 造成偏差，顯示時才 Math.floor */
@@ -1159,7 +1159,7 @@
             this.currentPhase += phasesCompletedCount;
             this.updateCompletedPath();
 
-            // Needs to be empty after handling phase logic
+            // 階段處理完畢後，必須清空目前路徑，準備下一次拖曳
             this.currentPath = [];
             this.updateCurrentPathDraw();
             this.updateProgressText();
@@ -1245,13 +1245,13 @@
             if (!completedPathEl) return;
             const svgLayer = completedPathEl.parentElement;
 
-            // clear old dynamically generated success paths
+            // 清除先前動態產生的已完成路徑 SVG 元素
             const paths = svgLayer.querySelectorAll('.game8-path.success-path');
             paths.forEach(p => p.remove());
 
             const colors = ['path-color-1', 'path-color-2', 'path-color-3', 'path-color-4', 'path-color-5', 'path-color-6', 'path-color-7', 'path-color-8'];
 
-            // Iterate over all successful strokes
+            // 依序走訪所有已成功完成的筆畫，逐一重新繪製
             this.successfulStrokes.forEach((stroke, index) => {
                 const dString = this.generateSvgPathString(stroke);
                 const colorClass = colors[index % colors.length];
@@ -1259,7 +1259,7 @@
                 const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 pathEl.setAttribute('d', dString);
 
-                // Add the class for the color and animation
+                // 加上對應的顏色與動畫 class
                 pathEl.setAttribute('class', `game8-path success-path ${colorClass}`);
 
                 svgLayer.insertBefore(pathEl, completedPathEl);
@@ -1351,7 +1351,7 @@
             if (!container) return;
             container.innerHTML = '';
             let max = this.difficultySettings[this.difficulty].maxMistakeCount;
-            if (max > 10) max = 0; // Don't show if unlimited
+            if (max > 10) max = 0; // 若錯誤次數上限過大（視同無限），則不顯示愛心
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
                 span.className = 'heart';

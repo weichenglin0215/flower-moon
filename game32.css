@@ -22,6 +22,7 @@
     box-sizing: border-box;
 }
 
+/* 隱藏整個遊戲畫面用（開始/結束遊戲時切換） */
 .game32-overlay.hidden {
     display: none !important;
 }
@@ -145,6 +146,7 @@
     align-items: center;
 }
 
+/* 隱藏單一階段（地圖階段或故事卡階段）用 */
 .game32-stage.hidden {
     display: none;
 }

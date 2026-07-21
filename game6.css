@@ -59,7 +59,7 @@
     color: hsl(45, 0%, 90%);
 }
 
-/* 紅心 Poetry Progress Bar (Top 10% area includes header) */
+/* 紅心與詩句進度列所在區塊（含頭部，佔畫面頂部約 10% 區域） */
 .game6-sub-header {
     display: flex;
     justify-content: center;

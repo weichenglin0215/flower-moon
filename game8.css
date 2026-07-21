@@ -444,7 +444,7 @@
     /*transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;*/
 }
 
-/* .game8-message Styles Removed - Using Unified GameMessage Component */
+/* .game8-message 樣式已移除，改用統一的 GameMessage 元件 */
 
 /* 文字預覽圓圈 (解決手指遮擋問題) */
 .game8-char-preview {

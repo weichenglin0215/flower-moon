@@ -22,6 +22,7 @@
     box-sizing: border-box;
 }
 
+/* 通用隱藏樣式：切換遊戲 overlay 顯示/隱藏用 */
 .hidden {
     display: none !important;
 }

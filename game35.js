@@ -216,11 +216,13 @@
             storyCard.addEventListener('scroll', () => this.onStoryScroll());
         },
 
+        // 對外進入點：外部呼叫 Game35.show() 啟動本遊戲
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 顯示難度選擇畫面，選定難度後才真正開始遊戲
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
@@ -245,6 +247,7 @@
             }
         },
 
+        // 依「一般難度模式」或「關卡挑戰模式」切換頂部按鈕文字與顏色
         updateUIForMode: function () {
             const diffTag = document.getElementById('game35-diff-tag');
             const retryBtn = document.getElementById('game35-retryGame-btn');
@@ -270,6 +273,7 @@
             }
         },
 
+        // 隱藏其他遊戲/選單容器，避免畫面疊在一起
         hideOtherContents: function () {
             const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container', 'game4-container', 'game5-container', 'game6-container', 'game7-container', 'game8-container', 'game33-container', 'game34-container', 'game35-container'];
             els.forEach(id => {
@@ -295,11 +299,14 @@
             if (el) el.style.display = '';
         },
 
+        // 重玩本局：沿用現有 this.questions（若尚未產生過題目則不動作）
         retryGame: function () {
             if (this.questions.length === 0) return;
             this.startGameProcess(true);
         },
 
+        // 開始新局：重新產生題目後才開始遊戲流程
+        // levelIndex：若有帶入，代表進入「關卡模式」的指定關卡
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
@@ -314,11 +321,14 @@
             }
         },
 
+        // 關卡模式下前進到下一關
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
+        // 初始化並開始一局遊戲的實際流程（分數、生命、計時器歸零並渲染首題）
+        // isRetry：是否為「重來」觸發（此參數目前僅供語意標記，流程相同）
         startGameProcess: function (isRetry) {
             this.isActive = true;
             this.gameStartTime = Date.now();
@@ -490,18 +500,21 @@
             return decoys;
         },
 
-        // 確定性洗牌：seed 為 null 時為純隨機
+        // 確定性洗牌（Fisher-Yates）：seed 為 null 時為純隨機（Math.random）
+        // 有帶 seed 時，用簡易線性同餘產生器（LCG）產生可重現的偽隨機序列，
+        // 讓相同關卡每次進入都抽到相同的題目與候選順序
         shuffleArray: function (arr, seed) {
             if (seed === null || seed === undefined) {
                 arr.sort(() => Math.random() - 0.5);
                 return;
             }
-            // 簡易 LCG 確定性隨機
+            // 簡易 LCG 確定性隨機：s 為目前狀態種子，每次呼叫 rand() 更新並回傳 0~1 亂數
             let s = seed >>> 0;
             const rand = () => {
                 s = (s * 1664525 + 1013904223) >>> 0;
                 return (s & 0x7fffffff) / 0x7fffffff;
             };
+            // 標準 Fisher-Yates 洗牌：從陣列尾端往前，逐一與隨機位置交換
             for (let i = arr.length - 1; i > 0; i--) {
                 const j = Math.floor(rand() * (i + 1));
                 const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
@@ -575,7 +588,8 @@
             this.locked = false;
         },
 
-        // 故事卡滑動 — 偵測是否到底
+        // 故事卡滑動事件處理 — 偵測捲動是否已到底部
+        // remain：距離捲動底部還剩多少像素，<=4 視為已讀完（保留誤差容忍值）
         onStoryScroll: function () {
             const storyCard = document.getElementById('game35-story-card');
             if (!storyCard) return;
@@ -588,6 +602,8 @@
             }
         },
 
+        // 更新畫面下方的「滑動讀完整故事」提示文字與樣式
+        // done=true 表示已讀完，顯示打勾提示；false 則顯示提醒滑動
         updateScrollHint: function (done) {
             const hint = document.getElementById('game35-scroll-hint');
             if (!hint) return;
@@ -780,6 +796,7 @@
             this._currentUtter = null;
         },
 
+        // 更新連擊顯示文字（含目前倍率與連擊數），連擊數達 3 以上時觸發彈跳動畫
         updateComboDisplay: function () {
             const el = document.getElementById('game35-combo');
             if (!el) return;
@@ -797,6 +814,8 @@
             }
         },
 
+        // 依難度的最大錯誤次數，渲染對應數量的愛心圖示（生命值）
+        // 若最大錯誤次數超過 10（理論上不會發生），則不顯示愛心，避免版面爆版
         renderHearts: function () {
             const container = document.getElementById('game35-hearts');
             if (!container) return;
@@ -811,6 +830,7 @@
             }
         },
 
+        // 依目前答錯次數（mistakeCount）更新愛心圖示：已用掉的愛心變成空心
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game35-hearts .heart');
             hearts.forEach((h, i) => {
@@ -825,6 +845,7 @@
         },
 
         // ---- 計時器 ----
+        // 啟動倒數計時：每 50ms 更新一次剩餘比例（ratio），歸零時判定時間到、遊戲結束
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -832,7 +853,7 @@
 
             this.timerInterval = setInterval(() => {
                 const elapsed = Date.now() - this.startTime;
-                const ratio = 1 - (elapsed / duration);
+                const ratio = 1 - (elapsed / duration); // 剩餘時間比例（1=剛開始，0=時間到）
                 if (ratio <= 0) {
                     this.updateTimerRing(0);
                     this.gameOver(false, '時間到！');
@@ -842,6 +863,8 @@
             }, 50);
         },
 
+        // 依剩餘時間比例（ratio）更新畫面周圍的計時外框（SVG 矩形描邊動畫）
+        // mode='win' 時為過關動畫的金色漸亮效果；否則為一般倒數的紅色漸深效果
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game35-timer-path');
             const wrapper = document.getElementById('game35-game-wrapper');

@@ -142,6 +142,7 @@
         // ================================================================
         // CSS 載入保護
         // ================================================================
+        // ── 動態載入 game15.css（若尚未載入過，避免重複插入 <link>）──
         loadCSS: function () {
             if (!document.getElementById('game15-css')) {
                 const link = document.createElement('link');
@@ -1398,6 +1399,7 @@
             // （手機改用畫布滑動；桌面改用鍵盤方向鍵）
         },
 
+        // ── 依滑動位移向量判斷主要方向（比較水平/垂直位移絕對值，取較大者為滑動方向）──
         processSwipe: function (dx, dy) {
             if (Math.abs(dx) >= Math.abs(dy)) {
                 this.tryChangeDirection(dx > 0 ? 1 : -1, 0);
@@ -1434,6 +1436,7 @@
             this.waitingForInput = false;   // 有了方向輸入，蛇開始移動
         },
 
+        // ── 費雪-耶茨（Fisher-Yates）洗牌演算法：回傳打亂順序後的新陣列副本 ──
         shuffleArray: function (array) {
             const a = [...array];
             for (let i = a.length - 1; i > 0; i--) {

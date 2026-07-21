@@ -141,6 +141,7 @@
             }
         },
 
+        // 初始化：載入 CSS、若尚未建立 DOM 則建立，並取得容器參考
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game26-container')) {
@@ -220,11 +221,13 @@
             window.addEventListener('touchend', this.onAimEnd.bind(this));
         },
 
+        // 對外進入點：初始化並顯示難度選擇畫面
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 隱藏主選單卡片與其他遊戲容器，避免畫面重疊
         hideOtherContents: function () {
             const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container',
                 'game4-container', 'game5-container', 'game6-container', 'game7-container',
@@ -265,6 +268,7 @@
             }
         },
 
+        // 依「一般難度模式」或「關卡挑戰模式」更新標籤文字、按鈕顯示與配色
         updateUIForMode: function () {
             const diffTag = document.getElementById('game26-diff-tag');
             const retryBtn = document.getElementById('game26-retryGame-btn');
@@ -290,6 +294,7 @@
             }
         },
 
+        // 外部呼叫的隱藏入口，實際邏輯委派給 stopGame
         hide: function () { this.stopGame(); },
 
         // ⚠️ menu.js 全域清理只呼叫 stopGame()，必須隱藏 container
@@ -304,11 +309,13 @@
             if (el) el.style.display = '';
         },
 
+        // 重來：沿用目前已抽取的詩詞，重新開始本局
         retryGame: function () {
             if (!this.currentPoem) return;
             this.startGameProcess(true);
         },
 
+        // 開新局：重新抽一首詩，再開始遊戲流程
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (this.selectRandomPoem()) {
@@ -319,6 +326,7 @@
             }
         },
 
+        // 挑戰模式過關後：關卡索引 +1，再開始下一關
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
@@ -358,6 +366,7 @@
             return true;
         },
 
+        // 遊戲主流程啟動：重置狀態、依難度設定計時／棋盤，並開始第一句收集
         startGameProcess: function (isRetry) {
             this.isActive = true;
             this.gameStartTime = Date.now();
@@ -554,6 +563,7 @@
         },
 
         // ── 蜂窩座標換算 ──
+        // 依（列, 欄）索引計算該蜂窩格在 canvas 上的中心座標（含下推偏移）
         getCellCenter: function (row, col) {
             const offsetX = (row % 2 === 1) ? this.bubbleR : 0;
             const x = this.boardOriginX + offsetX + col * this.bubbleR * 2;
@@ -600,6 +610,7 @@
         },
 
         // ── 瞄準輸入 ──
+        // 將滑鼠/觸控事件座標換算為 canvas 邏輯座標（480×720），供瞄準計算使用
         getCanvasPoint: function (e) {
             const canvas = document.getElementById('game26-canvas');
             const rect = canvas.getBoundingClientRect();
@@ -616,6 +627,7 @@
             return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
         },
 
+        // 按下/觸碰開始瞄準（若正有泡泡飛行中則不可再次瞄準）
         onAimStart: function (e) {
             if (!this.isActive || this.flyingBubble) return;
             if (e.cancelable) e.preventDefault();
@@ -624,12 +636,14 @@
             if (window.SoundManager && window.SoundManager.playOpenItem) window.SoundManager.playOpenItem();
         },
 
+        // 拖曳/滑動中持續更新瞄準角度
         onAimMove: function (e) {
             if (!this.isAiming || !this.isActive || this.flyingBubble) return;
             if (e.cancelable) e.preventDefault();
             this.updateAimAngle(e);
         },
 
+        // 放開/離開螢幕：結束瞄準並實際發射泡泡
         onAimEnd: function (e) {
             if (!this.isAiming || !this.isActive) return;
             this.isAiming = false;
@@ -638,6 +652,7 @@
             this.fireBubble();
         },
 
+        // 依目前輸入位置與發射台位置計算瞄準角度，並限制在 10°~170° 之間（避免打橫射不出去）
         updateAimAngle: function (e) {
             const p = this.getCanvasPoint(e);
             const dx = p.x - this.launcherX;
@@ -673,6 +688,7 @@
         },
 
         // ── RAF 主循環 ──
+        // 啟動 requestAnimationFrame 主迴圈：每幀依序執行 tick（邏輯）與 render（繪製）
         startRAF: function () {
             this.stopRAF();
             this.lastTickTime = performance.now();
@@ -687,6 +703,7 @@
             this.rafId = requestAnimationFrame(loop);
         },
 
+        // 停止 RAF 主迴圈（清除排程並歸零 rafId）
         stopRAF: function () {
             if (this.rafId) {
                 cancelAnimationFrame(this.rafId);
@@ -743,6 +760,7 @@
         },
 
         // 檢查飛行泡泡與既有泡泡的碰撞
+        // 檢查飛行中泡泡 b 是否與棋盤上任一存活泡泡距離小於兩倍半徑（即發生碰撞）
         checkBubbleCollision: function (b) {
             const minDist = this.bubbleR * 2 - 2;
             for (let r = 0; r < this.maxRows; r++) {
@@ -759,6 +777,7 @@
         },
 
         // 把飛行泡泡吸附到蜂窩格
+        // 飛行泡泡落地：吸附到最近格、判斷同字消除、墜落連鎖、分數與過關判定
         attachBubble: function (b) {
             const snap = this.snapToGrid(b.x, b.y);
             if (!snap) {
@@ -921,12 +940,14 @@
         },
 
         // 收集字（更新進度）
+        // 累加字 ch 的收集次數，並以 collectTarget 為上限（避免超收）
         collectChar: function (ch, times) {
             if (this.collectProgress[ch] !== undefined) {
                 this.collectProgress[ch] = Math.min(this.collectTarget, this.collectProgress[ch] + times);
             }
         },
 
+        // 判斷當前句所有目標字是否都已收集達標
         isLineComplete: function () {
             for (const ch of this.currentLineChars) {
                 if ((this.collectProgress[ch] || 0) < this.collectTarget) return false;
@@ -940,6 +961,7 @@
             this.checkPressureLineFail();
         },
 
+        // 取得目前棋盤上所有存活泡泡中最靠下方（Y 值最大）的座標，用於壓力線判定
         getLowestBubbleY: function () {
             let lowest = 0;
             for (let r = 0; r < this.maxRows; r++) {
@@ -992,6 +1014,7 @@
         },
 
         // 取分基數
+        // 取得本遊戲的分數基數 A（由 ScoreManager 統一設定管理，找不到則預設 30）
         getPointA: function () {
             return (window.ScoreManager && window.ScoreManager.gameSettings && window.ScoreManager.gameSettings.game26)
                 ? window.ScoreManager.gameSettings.game26.getPointA : 30;
@@ -1111,6 +1134,7 @@
         },
 
         // ── 渲染：canvas 2D 全繪 ──
+        // 每幀重繪整個畫面：壓力線 → 牆面泡泡 → 飛行泡泡 → 瞄準虛線 → 發射台
         render: function () {
             const canvas = document.getElementById('game26-canvas');
             if (!canvas) return;
@@ -1265,6 +1289,7 @@
         },
 
         // ── 計時器 ──
+        // 啟動倒數計時（每 50 毫秒更新一次計時環），時間到即判定失敗
         startTimer: function () {
             clearInterval(this.timerInterval);
             this.startTime = Date.now();
@@ -1314,6 +1339,7 @@
         },
 
         // ── 遊戲結束（勝/敗） ──
+        // 遊戲結束總處理：停止計時/RAF、記錄失敗紀錄、播放勝利動畫或直接顯示結算訊息
         gameOver: function (win, reason) {
             if (!this.isActive) return;
             this.isActive = false;

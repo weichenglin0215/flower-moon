@@ -14,16 +14,17 @@
         container: null,
         gameArea: null,
         historyContainer: null,
-        historyData: [], // { char, status, isSep }
-        timer: 120,
-        maxTimer: 120,
-        timerInterval: null,
-        startTime: null,
-        //timeMutiply:時間倍率
-        //poemMinRating:詩詞最低評分
-        //maxMistakeCount:最大錯誤次數
-        //minChars:最少字數
-        //maxChars:最多字數
+        historyData: [], // 歷程紀錄陣列，每筆格式為 { char: 該字, status: 狀態(waiting/correct/wrong), isSep: 是否為分隔符 }
+        timer: 120,       // 目前剩餘時間（秒）
+        maxTimer: 120,    // 本局總時限（秒），依詩詞字數與難度係數計算而來
+        timerInterval: null, // setInterval 的計時器 ID，用於倒數計時
+        startTime: null,     // 本局開始攀登的時間戳記（Date.now()），用於計算經過秒數
+        // 難度參數說明：
+        // timeMutiply：時間倍率，數值越小代表時間越緊迫
+        // poemMinRating：詩詞最低評分門檻，篩選出的詩詞須達到此評分以上
+        // maxMistakeCount：最大允許錯誤次數（生命值上限）
+        // minChars：詩詞最少字數
+        // maxChars：詩詞最多字數
         difficultySettings: {
             '小學': { timeMutiply: 1.2, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 20 },
             '中學': { timeMutiply: 1.1, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28 },
@@ -31,8 +32,9 @@
             '大學': { timeMutiply: 0.85, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56 },
             '研究所': { timeMutiply: 0.6, poemMinRating: 3, maxMistakeCount: 2, minChars: 28, maxChars: 120 }
         },
-        gameStartTime: null,
+        gameStartTime: null, // 本局實際開始遊玩的時間戳記，用於統計遊玩時長並寫入紀錄
 
+        // 初始化遊戲：建立 DOM（若尚未建立），取得容器參照並綁定按鈕事件
         init: function () {
             if (!this.container) {
                 this.createDOM();
@@ -46,6 +48,8 @@
             document.getElementById('game14-diff-tag').onclick = () => this.showDifficultySelector();
         },
 
+        // 動態建立遊戲畫面的 DOM 結構（僅執行一次），包含分數板、難度標籤、
+        // 計時圓環、遊戲主區域與歷程顯示區，並註冊縮放回呼以配合畫面自適應
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game14-container';
@@ -85,11 +89,13 @@
             this.renderHearts();
         },
 
+        // 顯示遊戲：先初始化，再彈出難度選擇視窗
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 開啟難度選擇器，玩家選定難度（或挑戰關卡）後套用設定並開始新局
         showDifficultySelector: function () {
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('步步驚心', (selectedLevel, levelIndex) => {
@@ -103,6 +109,8 @@
             }
         },
 
+        // 依目前模式（一般難度 / 關卡挑戰）更新難度標籤文字、顏色，
+        // 並決定「開新局」按鈕是否顯示
         updateUIForMode: function () {
             const diffTag = document.getElementById('game14-diff-tag');
             const newBtn = document.getElementById('game14-newGame-btn');
@@ -116,6 +124,7 @@
             if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
         },
 
+        // 停止遊戲：清除計時器、隱藏遊戲畫面與規則說明彈窗
         stopGame: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -124,6 +133,8 @@
             if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
         },
 
+        // 開新局：重置分數、錯誤次數、時間等所有狀態，重新選詩並準備階梯，
+        // 最後顯示開始提示訊息（一般模式或挑戰下一關都會呼叫此函式）
         startNewGame: function () {
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
@@ -162,6 +173,8 @@
             }
         },
 
+        // 重來：沿用同一首詩重新開始（不重新選詩），重置分數與生命值，
+        // 並直接進入遊戲（不顯示規則說明）
         retryGame: function () {
             if (!this.currentPoem) return;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -196,6 +209,8 @@
             }
         },
 
+        // 正式開始計時與遊戲互動：記錄開始時間，每秒更新剩餘時間顯示與
+        // 計時圓環，時間歸零則觸發遊戲結束（失敗）
         gameStart: function () {
             this.isActive = true;
             this.startTime = Date.now();
@@ -213,6 +228,9 @@
             }, 1000);
         },
 
+        // 更新計時圓環的視覺呈現。
+        // ratio：時間比例（0~1）；mode：'win' 時顯示勝利動畫（黃色弧段從紅色結束點縮短），
+        // 其餘情況顯示一般倒數效果（暗紅漸變為鮮紅，隨時間增長）
         updateTimerRing: function (ratio, mode) {
             const path = document.getElementById('game14-timer-path');
             const svg = document.getElementById('game14-timer-ring');
@@ -250,6 +268,8 @@
             }
         },
 
+        // 依難度設定的評分與字數範圍，透過共用函式隨機抽取一首詩，
+        // 並依總字數與時間倍率計算本局的總時限（maxTimer）
         selectPoem: function (settings) {
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
@@ -273,6 +293,9 @@
             return true;
         },
 
+        // 準備「階梯」畫面：清除舊的階梯行，更新計時器與詩詞資訊顯示，
+        // 並依詩句每個字產生對應的按鈕列（首字為單選直接點擊，
+        // 其餘字為「正確字＋混淆字」二選一，隨機分配左右邊並避免連續同側過久）
         prepareLadder: function (settings) {
             // 清理舊的階梯行
             const area = document.getElementById('game14-area');
@@ -367,8 +390,10 @@
             this.renderHistory();
         },
 
+        // 更新階梯各行的 3D 視覺位置：目前作答行置中最大，
+        // 已過的行往上、往後縮小淡出，未來的行則隱藏於下方
         updateLayout: function () {
-            const rowHeight = 7.0; // rem
+            const rowHeight = 7.0; // 每行的基準高度（rem 單位，用於計算堆疊位移）
 
             this.rows.forEach((row, idx) => {
                 const offset = idx - this.currentIndex;
@@ -402,6 +427,9 @@
             });
         },
 
+        // 處理玩家點擊按鈕：判斷答對／答錯，更新分數、生命值與歷程紀錄，
+        // 答錯次數達上限則直接判定遊戲失敗；否則短暫延遲後前進至下一行，
+        // 若已是最後一行則判定遊戲勝利
         handleBtnClick: function (selected, correct, index, btn, rowEl) {
             if (!this.isActive || index !== this.currentIndex) return;
 
@@ -444,6 +472,7 @@
             }, 100);
         },
 
+        // 顯示開場規則說明彈窗，玩家確認後才正式開始計時（gameStart）
         showStartMessage: function () {
             if (window.RuleNoteDialog) {
                 window.RuleNoteDialog.show({
@@ -467,6 +496,8 @@
             }
         },
 
+        // 依 historyData 重新渲染左側直排的歷程顯示：
+        // 尚未作答顯示「□」，已作答則顯示實際文字並套用對應顏色 class
         renderHistory: function () {
             if (!this.historyContainer) return;
             let html = '';
@@ -477,6 +508,7 @@
             this.historyContainer.innerHTML = html;
         },
 
+        // 依目前錯誤次數與生命上限，重新渲染紅心圖示（實心♥為剩餘生命，空心♡為已消耗）
         renderHearts: function () {
             const container = document.getElementById('game14-hearts');
             if (!container) return;
@@ -490,10 +522,14 @@
             }
         },
 
+        // 生命值變動後的重繪入口（實際邏輯由 renderHearts 統一處理）
         updateHearts: function () {
             this.renderHearts();
         },
 
+        // 遊戲結束處理：紀錄失敗局的遊玩紀錄（成功局由 ScoreManager 負責記錄），
+        // 依勝負決定按鈕啟用狀態，並在確認後進入下一局（勝利：下一關或開新局；失敗：重來）；
+        // 若勝利則先播放得分動畫，動畫結束後才顯示結算訊息（並檢查是否有成就達成）
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;

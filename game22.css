@@ -20,6 +20,7 @@
     text-size-adjust: 100%;
 }
 
+/* 通用隱藏 class：強制不顯示（用於整個遊戲覆蓋層的顯示/隱藏切換） */
 .hidden {
     display: none !important;
 }
@@ -186,6 +187,7 @@
     pointer-events: none;
 }
 
+/* 計時圈路徑：stroke-dasharray/dashoffset 由 JS 依剩餘時間比例動態計算，呈現讀秒效果 */
 #game22-timer-path {
     fill: none;
     stroke: hsl(0, 50%, 22%);
@@ -245,6 +247,7 @@
     z-index: 50;
 }
 
+/* 暫存區內的拼圖片：改為相對定位以配合 flex 排列，且不啟用位移動畫（避免加入/移除時跳動） */
 .game22-piece.hold {
     position: relative;
     flex-shrink: 0;

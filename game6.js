@@ -100,12 +100,14 @@
         enemyDirection: 1, // 1 向右, -1 向左
         currentEnemySpeed: 0,
 
+        // 初始化遊戲：僅在容器尚未建立時，建立 DOM 並綁定事件（避免重複初始化）
         init: function () {
             if (this.container) return;
             this.createDOM();
             this.bindEvents();
         },
 
+        // 建立遊戲畫面所需的 DOM 結構（頭部資訊列、進度條、canvas 戰鬥區、底部提示等）
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game6-container';
@@ -156,6 +158,7 @@
             this.ctx = this.canvas.getContext('2d');
         },
 
+        // 綁定所有互動事件：按鈕點擊、拖曳移動玩家（觸控/滑鼠）、寶箱點擊選取
         bindEvents: function () {
             document.getElementById('game6-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -236,6 +239,7 @@
             }, { passive: true });
         },
 
+        // 移動玩家至目標 X 座標，並限制在畫布範圍內（左右各留 margin 邊界）
         movePlayer: function (targetX) {
             if (this.isPausedForPowerUp) return; // 暫停時不能移動
             const margin = 10;
@@ -244,6 +248,7 @@
             this.player.x = Math.max(minX, Math.min(maxX, targetX));
         },
 
+        // 處理玩家點擊寶箱的判定：檢查點擊座標是否落在任一寶箱範圍內，命中則套用強化效果
         handleChestClick: function (x, y) {
             const boxSizeWidth = this.ui.powerUpBoxSizeWidth * this.u;
             const boxSizeHeight = this.ui.powerUpBoxSizeHeight * this.u;
@@ -258,6 +263,7 @@
             }
         },
 
+        // 顯示難度選擇畫面：暫停目前遊戲，讓玩家重新挑選難度/關卡後再開新局
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -286,6 +292,7 @@
             }
         },
 
+        // 根據目前模式（關卡模式 / 一般難度模式）更新頂部標籤文字、顏色與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game6-diff-tag');
             const retryBtn = document.getElementById('game6-retryGame-btn');
@@ -312,6 +319,7 @@
             /* updateResponsiveLayout replaced */
         },
 
+        // 遊戲入口：初始化並顯示難度選擇器，選定後開始新的一局
         show: function () {
             this.init();
 
@@ -325,7 +333,7 @@
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('詩陣侵略', (level, levelIndex) => {
                     this.difficulty = level;
-                    this.isLevelMode = (levelIndex !== undefined); // Set isLevelMode here too
+                    this.isLevelMode = (levelIndex !== undefined); // 此處同步設定是否為關卡模式
                     this.currentLevelIndex = levelIndex || 1;
                     const settings = this.difficultySettings[level];
                     if (!settings) return;
@@ -333,7 +341,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden'; // Add this line
+                    document.body.style.overflow = 'hidden'; // 隱藏頁面捲軸，避免遊戲期間背景可捲動
                     document.body.classList.add('overlay-active');
                     this.setupCanvas();
                     /* updateResponsiveLayout replaced */
@@ -342,6 +350,7 @@
             }
         },
 
+        // 設定畫布尺寸與基礎單位（rem），並初始化玩家的像素尺寸與起始位置
         setupCanvas: function () {
             this.canvas.width = 500;
             this.canvas.height = 680; //850-上下介面的高度
@@ -355,12 +364,13 @@
             this.player.x = this.canvas.width / 2;
         },
 
+        // 開始新的一局遊戲：重置分數/狀態、載入新詩詞、啟動遊戲迴圈與計時器
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
                 this.currentLevelIndex = levelIndex;
                 this.isLevelMode = true;
-            } else if (!this.isLevelMode) { // If not explicitly starting a level, and not already in level mode, reset to default difficulty
+            } else if (!this.isLevelMode) { // 若非明確指定關卡，且目前也不在關卡模式，則重設關卡索引為 1
                 // 移除強制重置為小學的邏輯，保留使用者在選單中選定的難度
                 this.currentLevelIndex = 1;
             }
@@ -382,11 +392,13 @@
             document.getElementById('game6-newGame-btn').disabled = false;
         },
 
+        // 進入下一關：關卡索引 +1 後開始新的一局
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
+        // 重新挑戰同一題目：保留目前的詩詞（loadLevel 傳入 true），其餘狀態重置
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.score = 0;
@@ -405,6 +417,7 @@
             document.getElementById('game6-newGame-btn').disabled = false;
         },
 
+        // 重置遊戲執行狀態：清空敵人/子彈/掩體/粒子等陣列，並重設玩家的強化等級
         resetGameStates: function () {
             this.isActive = true;
             this.isPausedForPowerUp = false;
@@ -426,6 +439,7 @@
             if (window.GameMessage) window.GameMessage.hide();
         },
 
+        // 依難度設定挑選詩詞並建立敵人陣列，同時建立掩體（石碑陣）；isRetry 為 true 時沿用同一首詩
         loadLevel: function (isRetry) {
             const settings = this.difficultySettings[this.difficulty];
             const minRating = settings.poemMinRating || 4; // Use poemMinRating from settings
@@ -489,6 +503,7 @@
             }
         },
 
+        // 依詩詞內容產生敵人（每個字為一個敵人單位），依照行數設定血量並排列座標
         createEnemies: function (poem, lineStart) {
             const settings = this.difficultySettings[this.difficulty];
             const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -544,6 +559,7 @@
             this.updateProgressUI();
         },
 
+        // 更新頂部詩句進度顯示區（尚未擊殺的字顯示為半透明，已擊殺的字會加上 collected 樣式變金色）
         updateProgressUI: function () {
             const progress = document.getElementById('game6-progress');
             const settings = this.difficultySettings[this.difficulty];
@@ -579,6 +595,7 @@
             }
         },
 
+        // 啟動主遊戲迴圈（以 requestAnimationFrame 驅動），每幀計算 dt 後依序呼叫 update 與 draw
         startLoop: function () {
             if (this.requestID) cancelAnimationFrame(this.requestID);
             this.lastTime = performance.now();
@@ -593,6 +610,8 @@
             this.requestID = requestAnimationFrame(loop);
         },
 
+        // 每幀更新遊戲邏輯：處理玩家射擊、子彈/敵人子彈移動、敵人移動與轉向、碰撞檢測、寶箱拾取等
+        // 參數 dt：本幀與上一幀的時間差（秒），用於使物件移動速度不受幀率影響
         update: function (dt) {
             const settings = this.difficultySettings[this.difficulty];
 
@@ -767,6 +786,7 @@
             }
         },
 
+        // 檢查各類碰撞：玩家子彈 vs 敵人／掩體，以及敵人子彈 vs 掩體／玩家，並處理對應的傷害與效果
         checkCollisions: function () {
             // 玩家子彈 vs 敵人
             for (let i = this.player.bullets.length - 1; i >= 0; i--) {
@@ -903,6 +923,7 @@
             }
         },
 
+        // 銷毀敵人：從陣列移除、依行數加成計分、更新進度 UI；若整列清空則觸發寶箱，全滅則觸發勝利
         destroyEnemy: function (idx, e) {
             this.enemies.splice(idx, 1);
             // 敵人死亡得分按行數加成
@@ -941,6 +962,7 @@
             }
         },
 
+        // 產生三種強化寶箱（快速發射／多重發射／穿透攻擊），置於畫面中央供玩家點擊選取
         spawnPowerUps: function () {
             const types = ['Swift', 'Multi-shot', 'Pierce'];
             const spacing = this.canvas.width / 4;
@@ -952,6 +974,7 @@
             // 移除延遲，直接顯示讓玩家點擊
         },
 
+        // 套用玩家選取的強化效果（提升對應等級），並解除暫停、修正時間差避免 dt 突增
         applyPowerUp: function (type) {
             if (window.SoundManager) window.SoundManager.playSuccess();
             // 玩家強化效果
@@ -966,6 +989,7 @@
             this.lastTime = performance.now(); // 修正時間差
         },
 
+        // 處理玩家被敵人子彈擊中：扣血（增加錯誤次數）、觸發受傷閃爍效果，達到上限則觸發失敗
         handlePlayerHit: function () {
             if (window.SoundManager) window.SoundManager.playFailure();
             this.mistakeCount++;
@@ -976,6 +1000,7 @@
             }
         },
 
+        // 觸發失敗結算動畫：播放爆炸粒子效果後，延遲呼叫 gameOver(false, reason) 顯示失敗訊息
         triggerFailAnimation: function (reason) {
             if (this.isEnding) return;
             this.isEnding = true;
@@ -995,10 +1020,12 @@
             }, 1500);
         },
 
+        // 判斷兩個矩形（x,y 為左上角座標，w,h 為寬高）是否相交，用於碰撞檢測
         rectIntersect: function (x1, y1, w1, h1, x2, y2, w2, h2) {
             return x2 < x1 + w1 && x2 + w2 > x1 && y2 < y1 + h1 && y2 + h2 > y1;
         },
 
+        // 每幀繪製整個畫面：掩體、敵人文字、粒子特效、子彈、玩家、寶箱選擇介面與狀態文字
         draw: function () {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -1121,6 +1148,7 @@
             this.ctx.fillText(`速 ${(1.0 + this.player.swiftLevel * 0.5).toFixed(1)}x | 彈 ${this.player.multiShotLevel} | 穿 ${this.player.pierceLevel}`, 10, this.canvas.height - 10);
         },
 
+        // 啟動倒數計時器：依敵人字數 × 難度時間倍率計算總時限，每 100ms 更新一次剩餘時間與外框動畫
         startTimer: function () {
             clearInterval(this.timerInterval);
             const settings = this.difficultySettings[this.difficulty];
@@ -1142,6 +1170,7 @@
             }, 100);
         },
 
+        // 更新畫面外框的計時進度條樣式（SVG 矩形邊框），ratio 為剩餘時間比例，mode='win' 時顯示勝利收尾動畫
         updateTimerRing: function (ratio, mode) {
             const rect = document.getElementById('game6-timer-path');
             if (!rect) return;
@@ -1174,6 +1203,7 @@
             }
         },
 
+        // 依剩餘錯誤次數繪製紅心圖示（已用掉的錯誤次數顯示為空心）
         renderHearts: function () {
             const container = document.getElementById('game6-hearts');
             if (!container) return;
@@ -1188,11 +1218,13 @@
             }
         },
 
+        // 將目前分數更新到畫面上的得分顯示元素
         updateScoreUI: function () {
             const el = document.getElementById('game6-score');
             if (el) el.textContent = this.score;
         },
 
+        // 遊戲結束處理：停止計時與動畫迴圈，依勝負記錄戰績（失敗時寫入 game_logs），並顯示結算訊息
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
@@ -1262,6 +1294,7 @@
             }
         },
 
+        // 強制停止遊戲：清除計時器與動畫請求，隱藏遊戲容器並還原頁面滾動狀態
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);

@@ -73,12 +73,14 @@
             '研究所': { timeLimitRate: 2, poemMinRating: 2, maxMistakeCount: 1, g: 0.7, jump: 16.0, width: 50, maxDist: 200, heightVar: 600, move: true, speed: 180, minChars: 28, maxChars: 70, stopOnLand: false }
         },
 
+        // 初始化遊戲：若容器已存在則不重複建立，否則建立 DOM 並綁定事件
         init: function () {
             if (this.container) return;
             this.createDOM();
             this.bindEvents();
         },
 
+        // 建立遊戲畫面所需的 DOM 結構（背景層、計分板、生命值、畫布等），並掛載到 body
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game7-container';
@@ -142,6 +144,7 @@
             path.style.strokeDashoffset = 0;
         },
 
+        // 綁定所有按鈕、畫布觸控/滑鼠事件與視窗縮放事件
         bindEvents: function () {
             document.getElementById('game7-retryGame-btn').onclick = (e) => {
                 e.stopPropagation();
@@ -182,6 +185,7 @@
             });
         },
 
+        // 顯示難度選擇器；使用者選擇難度或關卡後才開始建立畫布與遊戲內容
         showDifficultySelector: function () {
             this.isActive = false;
             if (window.GameMessage) window.GameMessage.hide();
@@ -209,6 +213,7 @@
             }
         },
 
+        // 依「關卡模式」或「一般難度模式」更新難度標籤文字/顏色，以及重來/開新局按鈕的顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game7-diff-tag');
             const retryBtn = document.getElementById('game7-retryGame-btn');
@@ -235,11 +240,13 @@
             /* updateResponsiveLayout replaced */
         },
 
+        // 對外進入點：初始化後直接顯示難度選擇器
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
+        // 停止遊戲：取消動畫循環、隱藏容器並還原頁面捲動狀態
         stopGame: function () {
             this.isActive = false;
             if (this.requestID) cancelAnimationFrame(this.requestID);
@@ -252,6 +259,7 @@
             document.body.style.overflow = '';
         },
 
+        // 依容器實際尺寸設定畫布大小，並將鳥重置到左側固定水平位置
         setupCanvas: function () {
             const area = document.querySelector('.game7-area');
             this.canvas.width = area.offsetWidth;
@@ -264,6 +272,7 @@
             this.bird.color = "hsl(210, 100%, 50%)"; //起始藍色
         },
 
+        // 顯示開始前的規則說明對話框，並啟動渲染循環讓背景先動起來
         showStartMessage: function () {
             this.state = 'START';
             if (window.RuleNoteDialog) {
@@ -345,6 +354,7 @@
             document.getElementById('game7-newGame-btn').disabled = false;
         },
 
+        // 開新局：重置遊戲狀態（換一首新詩），並顯示規則摘要
         newGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame(false, levelIndex);
@@ -357,11 +367,14 @@
             }, 50);
         },
 
+        // 過關後進入下一關：關卡索引加一並重新開局
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.newGame();
         },
 
+        // 依目前難度設定，隨機（或依關卡種子）挑選一首符合字數/星等條件的詩詞，
+        // 並將其拆解為去標點的單字陣列（poemChars），作為方塊要顯示的文字來源
         loadPoem: function () {
             if (typeof POEMS !== 'undefined') {
                 const settings = this.difficultySettings[this.difficulty];
@@ -415,6 +428,7 @@
             }
         },
 
+        // 建立起始平台（"起"字方塊，鳥的出發點），並預先生成 5 個後續文字方塊
         createInitialBlock: function () {
             const settings = this.difficultySettings[this.difficulty];
             const size = settings.width;
@@ -441,6 +455,8 @@
             }
         },
 
+        // 在最後一個方塊之後，依難度設定的水平間距與高度變異，生成下一個文字方塊
+        // （若已生成到詩詞最後一字則不再生成；最後一字方塊會標記為 isGoal 終點平台）
         spawnNextBlock: function () {
             if (!this.poemChars || this.poemChars.length === 0) return;
             const settings = this.difficultySettings[this.difficulty];
@@ -486,6 +502,7 @@
             this.blocks.push(block);
         },
 
+        // 正式開始遊戲：關閉提示對話框、記錄開始時間並啟動主循環
         startGame: function () {
             if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
             if (window.GameMessage) window.GameMessage.hide();
@@ -497,6 +514,7 @@
             this.startLoop();
         },
 
+        // 玩家點擊/觸控觸發跳躍：給鳥一個向上的瞬間速度，並播放對應音效
         jump: function () {
             if (window.SoundManager && window.SoundManager.melodyPlayer) {
                 window.SoundManager.melodyPlayer.playNextNote();
@@ -510,6 +528,7 @@
             }
         },
 
+        // 啟動主要動畫循環（requestAnimationFrame），每禎計算時間差 dt 後依序呼叫 update 與 draw
         startLoop: function () {
             if (this.requestID) cancelAnimationFrame(this.requestID);
             this.lastTime = performance.now();
@@ -524,6 +543,7 @@
             this.requestID = requestAnimationFrame(loop);
         },
 
+        // 每禎更新：處理雲朵、鳥的物理運動、倒數計時、方塊移動、掉落/錯過/碰撞判定與相機跟隨
         update: function (dt) {
             // 在任何活躍狀態下都更新雲朵，讓背景有動態感
             this.updateClouds(dt);
@@ -595,6 +615,8 @@
             }
         },
 
+        // 檢查是否有方塊被鳥飛越而未降落（錯過），錯過終點平台會進入 GOAL_MISSED 特殊處理，
+        // 錯過一般方塊則扣一次生命，並在生命耗盡時觸發遊戲結束
         checkSkippedBlocks: function () {
             // 如果鳥已經飛過方塊的右緣，且該方塊未著陸，則視為錯過
             const birdLeft = this.bird.x - this.bird.width / 2;
@@ -625,6 +647,7 @@
             });
         },
 
+        // 檢測鳥（簡化為橢圓底部）是否降落在某個方塊頂部邊緣，命中則呼叫 landOn 處理著陸
         checkCollision: function () {
             const bx = this.bird.x;
             const by = this.bird.y + 15; // 橢圓形底部 (半長軸 22.5, 半短軸 15)
@@ -653,6 +676,8 @@
             }
         },
 
+        // 處理鳥降落在指定方塊上的邏輯：依難度設定決定是否停留（stopOnLand），
+        // 若不停留則方塊變為穿透狀態並讓鳥繼續飛行，同時呼叫 processHit 計分
         landOn: function (block) {
             //this.bird.y = block.y - this.bird.height / 2; // 取消鳥的y軸修正
             this.bird.vy = 0;
@@ -676,6 +701,7 @@
             }
         },
 
+        // 標記方塊為已擊中：累加分數、記錄命中狀態，若為終點方塊則觸發勝利結算
         processHit: function (block) {
             block.isLanded = true;
             if (block.index >= 0) {
@@ -688,6 +714,8 @@
             }
         },
 
+        // 處理鳥墜落（掉出畫面底部）的死亡流程：先播放墜落特寫（DYING），
+        // 1.5 秒後扣血；若生命耗盡則遊戲結束，否則回到最後一個成功著陸的方塊（存檔點）重新出發
         handleDeath: function () {
             if (window.SoundManager) window.SoundManager.playFailure();
             this.state = 'DYING';
@@ -737,6 +765,7 @@
             }, 1500);
         },
 
+        // 依剩餘時間比例更新畫面上的計時圓環進度（SVG stroke-dashoffset）
         updateTimerUI: function () {
             const path = document.getElementById('game7-timer-path');
             if (!path) return;
@@ -746,6 +775,7 @@
             path.style.strokeDashoffset = perimeter * (progress - 1);
         },
 
+        // 回到起點重新開始本關：清空所有方塊、重新生成起始平台，並重置命中狀態
         resetLevelToLastCheckpoint: function () {
             // 重置塊的狀態，讓玩家可以重新開始飛行
             this.charIndex = 0;
@@ -754,6 +784,8 @@
             this.hitStatus = new Array(this.poemChars.length).fill(0);
         },
 
+        // 每禎繪製：依相機位移畫出雲朵、所有文字方塊（含錯過/終點/已降落等不同顏色狀態）與鳥，
+        // 並在錯過終點平台時顯示提示文字
         draw: function () {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.ctx.save();
@@ -843,6 +875,7 @@
             }
         },
 
+        // 繪製鳥的圖形（橢圓身體、擺動翅膀、眼睛與鳥嘴），依旋轉角度呈現俯衝/爬升姿態
         drawBird: function () {
             const b = this.bird;
             this.ctx.save();
@@ -876,6 +909,7 @@
             this.ctx.restore();
         },
 
+        // 初始化雲朵粒子：在畫布可視範圍及右側預先產生一批雲，作為背景裝飾
         initClouds: function () {
             this.particles = [];
             for (let i = 0; i < 40; i++) {
@@ -888,6 +922,7 @@
             }
         },
 
+        // 每禎更新雲朵位置：移除飛出畫面左側的雲，並在右側持續補充新雲，讓雲海持續向左飄移
         updateClouds: function (dt) {
             // 刪除超過螢幕左方的雲 (提高執行效率)
             this.particles = this.particles.filter(p => p.x - this.cameraX > -p.size * 2);
@@ -907,6 +942,7 @@
             });
         },
 
+        // 依進度切換背景時段樣式（早晨/午後/傍晚），time 相同時不重複切換以避免動畫重啟
         setBg: function (time) {
             if (this.bgTime === time) return;
             this.bgTime = time;
@@ -934,6 +970,8 @@
             return html;
         },
 
+        // 遊戲結束處理：依勝負分別寫入紀錄（失敗時直接記 log，勝利則由 ScoreManager 結算動畫負責），
+        // 並顯示結果訊息框（含「下一關/下一局」或「再試一次」按鈕）
         gameOver: function (isWin, message) {
             this.isActive = false;
             this.isWin = isWin;
@@ -1006,6 +1044,7 @@
             }
         },
 
+        // 重來本局：維持同一首詩詞重新開始（isRetry = true），並延遲重啟動畫循環
         retryGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame(true); // 傳入 true 表示維持同一首詩
@@ -1017,6 +1056,7 @@
             }, 50);
         },
 
+        // 更新畫面上的分數顯示文字
         updateScoreUI: function () {
             document.getElementById('game7-score').textContent = '得分：' + this.score;
         },
@@ -1028,6 +1068,7 @@
             this.updateTimerUI();
         },
 
+        // 依目前難度的最大錯誤次數與已犯錯次數，繪製生命值愛心圖示（實心/空心）
         renderHearts: function () {
             const container = document.getElementById('game7-hearts');
             if (!container) return;
@@ -1042,8 +1083,10 @@
         }
     };
 
+    // 將 Game7 物件掛載到全域，供其他模組（如選單、路由）呼叫 window.Game7.show()
     window.Game7 = Game7;
 
+    // 若網址帶有 ?game=7 參數，頁面載入後自動開啟本遊戲，並清除網址參數避免重整時重複觸發
     if (new URLSearchParams(window.location.search).get('game') === '7') {
         setTimeout(() => {
             if (window.Game7) window.Game7.show();
