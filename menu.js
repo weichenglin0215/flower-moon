@@ -57,6 +57,7 @@
         { page: 'wordcloud', label: '文字雲', image: 'images/Menu/文字雲_Menu256.jpg' },
         { page: 'zhexianren', label: '詩詞珠簾', image: 'images/Menu/詩詞珠簾_Menu256.jpg' },
         { page: 'suiyuean', label: '隨遇而安', image: 'images/Menu/隨遇而安_Menu256.jpg' },
+        { page: 'yichichunshui', label: '一池春水', image: 'images/Menu/一池春水_Menu256.png' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
@@ -341,6 +342,12 @@
             }
         } catch (e) { console.warn('[Menu] 隱藏隨遇而安失敗', e); }
 
+        try {
+            if (window.YiChiChunShui && typeof window.YiChiChunShui.stopGame === 'function') {
+                window.YiChiChunShui.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏一池春水失敗', e); }
+
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
             if (window.LeaderboardDialog && typeof window.LeaderboardDialog.hide === 'function') {
@@ -621,6 +628,10 @@
                     case 'suiyuean':
                         if (window.SuiYuEAn) window.SuiYuEAn.show();
                         else window.location.href = 'index.html?page=suiyuean';
+                        break;
+                    case 'yichichunshui':
+                        if (window.YiChiChunShui) window.YiChiChunShui.show();
+                        else window.location.href = 'index.html?page=yichichunshui';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();
