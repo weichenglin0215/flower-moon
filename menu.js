@@ -31,6 +31,7 @@
         { page: 'game3', label: '字爬梯', image: 'images/Menu/字爬梯_Menu256.jpg' },
         { page: 'game14', label: '步步驚心', image: 'images/Menu/步步驚心_Menu256.jpg' },
         { page: 'game37', label: '步步為陣', image: 'images/Menu/步步為陣_Menu256.jpg' },
+        { page: 'game38', label: '推枰成詩', image: 'images/Menu/推枰成詩_Menu256.jpg' },
         { page: 'game5', label: '詩詞精靈', image: 'images/Menu/詩詞小精靈_Menu256.jpg' },
         { page: 'game6', label: '詩陣侵略', image: 'images/Menu/詩陣侵略_Menu256.jpg' },
         { page: 'game19', label: '詩碟狂襲', image: 'images/Menu/詩碟狂襲_Menu256.jpg' },
@@ -58,11 +59,189 @@
         { page: 'zhexianren', label: '詩詞珠簾', image: 'images/Menu/詩詞珠簾_Menu256.jpg' },
         { page: 'suiyuean', label: '隨遇而安', image: 'images/Menu/隨遇而安_Menu256.jpg' },
         { page: 'yichichunshui', label: '一池春水', image: 'images/Menu/一池春水_Menu256.png' },
+        { page: 'tuiqiao', label: '詩仙推敲', image: 'images/Menu/詩仙推敲_Menu256.png' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
         { page: 'fullscreen', label: '全螢幕', image: 'images/Menu/全螢幕_Menu256.jpg' },
     ];
+
+    // ============================================================
+    // 【手指觸控特效對照表】煙火 / 彩色煙霧
+    // ------------------------------------------------------------
+    // 手指點擊或拖曳畫面時，全站有兩個獨立的覆蓋層特效模組：
+    //
+    //   firework（煙火）  → touchInk.js  ：在接觸點噴出大量彩色粒子並緩緩飄落
+    //   smoke（彩色煙霧）→ waterFlow.js ：WebGL 流體，拖曳出會迴旋擴散的彩色染料
+    //
+    // 兩者預設都是 true（全部出現）。某些畫面（例如水波紋、珠簾等本身就是滿版
+    // 視覺效果的頁面）會被這些特效干擾，把該列改成 false 即可單獨關掉。
+    //
+    //   例：'yichichunshui': { firework: false, smoke: false },   ← 兩個都關
+    //       'wordcloud':     { firework: false, smoke: true  },   ← 只關煙火
+    //
+    // ⚠️ 清單中沒有列到的頁面，一律視為兩個特效都開啟（見 DEFAULT_TOUCH_EFFECT）。
+    // ============================================================
+    const DEFAULT_TOUCH_EFFECT = { firework: true, smoke: true };
+
+    const TOUCH_EFFECTS = {
+        // ── 主頁面 ────────────────────────────  煙火            彩色煙霧
+        'calendar': { firework: true, smoke: true },
+        'cards': { firework: true, smoke: true },
+
+        // ── 遊戲類 ───────────────────────────────────────────────────────
+        'game1': { firework: true, smoke: true },   // 慢思快選
+        'game2': { firework: true, smoke: true },   // 飛花令
+        'game3': { firework: true, smoke: true },   // 字爬梯
+        'game4': { firework: true, smoke: true },   // 眾裡尋他
+        'game5': { firework: true, smoke: true },   // 詩詞精靈
+        'game6': { firework: true, smoke: true },   // 詩陣侵略
+        'game7': { firework: true, smoke: true },   // 青鳥雲梯
+        'game8': { firework: true, smoke: true },   // 一筆裁詩
+        'game9': { firework: true, smoke: true },   // 詩韻鎖扣
+        'game10': { firework: true, smoke: true },   // 擊石鳴詩
+        'game11': { firework: true, smoke: true },   // 翻墨識蹤
+        'game12': { firework: true, smoke: true },   // 疏影橫斜
+        'game13': { firework: true, smoke: true },   // 人事時地
+        'game14': { firework: true, smoke: true },   // 步步驚心
+        'game15': { firework: true, smoke: true },   // 墨韻游龍
+        'game16': { firework: true, smoke: true },   // 打地詩
+        'game17': { firework: true, smoke: true },   // 青蛙過河
+        'game19': { firework: true, smoke: true },   // 詩碟狂襲
+        'game20': { firework: true, smoke: true },   // 丟三落一
+        'game21': { firework: true, smoke: true },   // 橫批成詩
+        'game22': { firework: true, smoke: true },   // 詩詞拼圖
+        'game23': { firework: true, smoke: true },   // 縱橫集句
+        'game24': { firework: true, smoke: true },   // 三字成珠
+        'game25': { firework: true, smoke: true },   // 連珠拾字
+        'game26': { firework: true, smoke: true },   // 投珠破句
+        'game27': { firework: true, smoke: true },   // 詩磚壘塔
+        'game28': { firework: true, smoke: true },   // 兩心相印
+        'game29': { firework: true, smoke: true },   // 字龍盤環
+        'game30': { firework: true, smoke: true },   // 層巒疊翠
+        'game31': { firework: true, smoke: true },   // 詩眼覓蹤
+        'game32': { firework: true, smoke: true },   // 尋詩地圖
+        'game33': { firework: true, smoke: true },   // 作者是誰
+        'game34': { firework: true, smoke: true },   // 猜猜詩題
+        'game35': { firework: true, smoke: true },   // 詩人心情
+        'game36': { firework: true, smoke: true },   // 轉輪覓詩
+        'game37': { firework: true, smoke: true },   // 步步為陣
+        'game38': { firework: true, smoke: true },   // 推枰成詩
+
+        // ── 舒壓／視覺療癒類 ──────────────────────────────────────────────
+        'wordcloud': { firework: true, smoke: true },   // 文字雲
+        'zhexianren': { firework: true, smoke: true },   // 詩詞珠簾
+        'suiyuean': { firework: true, smoke: true },   // 隨遇而安
+        'yichichunshui': { firework: true, smoke: true },   // 一池春水
+        'tuiqiao': { firework: true, smoke: true },   // 詩仙推敲
+
+        // ── 資料類 ───────────────────────────────────────────────────────
+        'achievements': { firework: true, smoke: true },   // 成就紀錄
+        'leaderboard': { firework: true, smoke: true },   // 群英榜
+        'author-biography': { firework: true, smoke: true },   // 名人列傳
+        'collection': { firework: true, smoke: true },   // 江南小院
+        'poem-data': { firework: true, smoke: true },   // 詩詞資料
+
+        // ── 其他（對話框／動作）───────────────────────────────────────────
+        'about': { firework: true, smoke: true },   // 關於花月
+        'qrcode': { firework: true, smoke: true },   // QR Code
+        'fullscreen': { firework: true, smoke: true },   // 全螢幕
+    };
+
+    // ── 「目前在哪一頁」的偵測用對照（與上面的設定表無關，不需要動）──
+    // ⚠️ 為什麼需要偵測：玩家用頁面自己的 ✕ 關掉遊戲／舒壓頁時**不會**經過 switchPage，
+    //    若只在切頁時套用設定，離開該頁後特效就會一直卡在錯誤的開關狀態。因此每次
+    //    pointerdown 都先判斷「現在真正顯示的是哪一頁」再套用對應設定。
+
+    // (a) 有固定容器 id 的頁面。遊戲一律是 gameXX-container，只需列出命名不同的。
+    const PAGE_CONTAINER_ID = {
+        'wordcloud': 'wordcloud-container',
+        'zhexianren': 'zhexianren-container',
+        'suiyuean': 'suiyuean-container',
+        'yichichunshui': 'yichichunshui-container',
+        'tuiqiao': 'tuiqiao-container',
+        'author-biography': 'authorBioPage',
+    };
+    Object.keys(TOUCH_EFFECTS).forEach(function (page) {
+        if (/^game\d+$/.test(page)) PAGE_CONTAINER_ID[page] = page + '-container';
+    });
+
+    // (b) 資料類對話框沒有固定 id（class 命名各異），但都把根元素掛在模組的 .overlay 上，
+    //     且該 DOM 是第一次開啟時才建立（沒開過 → 取不到 → 自然視為未顯示）。
+    //     ⚠️ 只認 .overlay 這一個屬性：例如 CollectionDialog 另外還有 .canvas／.toast，
+    //        它們即使在對話框關閉時 display 仍是 block，一併檢查會誤判成「正在顯示」。
+    const PAGE_MODULE_OVERLAY = {
+        'achievements': 'AchievementDialog',
+        'leaderboard': 'LeaderboardDialog',
+        'collection': 'CollectionDialog',
+    };
+
+    // switchPage 記錄的頁面：偵測不到任何 overlay 時（日曆、卡片…）以這個值為準。
+    let currentPage = 'calendar';
+
+    /** 取得某頁的特效設定（未列出者一律採用預設值＝兩個都開） */
+    function getTouchEffect(page) {
+        return TOUCH_EFFECTS[page] || DEFAULT_TOUCH_EFFECT;
+    }
+
+    /** 元素是否真的顯示中：先用便宜的 class 判斷，通過才做 getComputedStyle */
+    function isElementShown(el) {
+        if (!el || el.nodeType !== 1) return false;
+        if (el.classList.contains('hidden')) return false;
+        return getComputedStyle(el).display !== 'none';
+    }
+
+    /**
+     * 判斷目前實際顯示的是哪一頁。
+     * 任何 overlay 處於顯示狀態就以它為準（涵蓋用 ✕ 關閉、直接開新頁等所有路徑）；
+     * 都沒有顯示時才退回 switchPage 記錄的頁面。
+     */
+    function detectActivePage() {
+        for (const page in PAGE_CONTAINER_ID) {
+            if (isElementShown(document.getElementById(PAGE_CONTAINER_ID[page]))) return page;
+        }
+        for (const page in PAGE_MODULE_OVERLAY) {
+            const mod = window[PAGE_MODULE_OVERLAY[page]];
+            if (mod && isElementShown(mod.overlay)) return page;
+        }
+        // ⚠️ 沒有任何 overlay 在顯示，但 currentPage 卻是個 overlay 類型的頁面
+        //    → 代表玩家剛用該頁自己的 ✕ 關掉它、已經回到日曆了。
+        //    少了這一段，關閉頁面後特效會一直沿用該頁的設定而回不來。
+        if (PAGE_CONTAINER_ID[currentPage] || PAGE_MODULE_OVERLAY[currentPage]) return 'calendar';
+        return currentPage;
+    }
+
+    /** 依對照表開關兩個特效模組 */
+    function applyTouchEffects(page) {
+        const cfg = getTouchEffect(page);
+        try {
+            if (window.TouchInk) {
+                if (cfg.firework) window.TouchInk.enable();
+                else window.TouchInk.disable();
+            }
+        } catch (e) { console.warn('[Menu] 切換煙火特效失敗', e); }
+        try {
+            if (window.WaterFlow) {
+                if (cfg.smoke) window.WaterFlow.enable();
+                else window.WaterFlow.disable();
+            }
+        } catch (e) { console.warn('[Menu] 切換彩色煙霧特效失敗', e); }
+    }
+
+    // 每次手指按下前先確認目前頁面並套用設定。
+    // ⚠️ 必須用 capture 階段：touchInk.js／waterFlow.js 都是在 window 的 bubble 階段
+    //    監聽 pointerdown，capture 會先跑，才來得及在它們生成粒子之前開關。
+    window.addEventListener('pointerdown', function () {
+        applyTouchEffects(detectActivePage());
+    }, true);
+
+    // 供外部（或除錯）使用
+    window.MenuTouchEffects = {
+        table: TOUCH_EFFECTS,
+        apply: applyTouchEffects,
+        detect: detectActivePage,
+        get: getTouchEffect,
+    };
 
     // 等待 DOM 載入完成
     if (document.readyState === 'loading') {
@@ -112,6 +291,7 @@
                 img.src = item.image;
                 img.alt = item.label;
                 img.className = 'menu-item-img';
+                img.draggable = false; // 禁止原生圖片拖曳（避免拖曳選單時圖片被拖出變半透明幽靈圖）
                 // 圖片載入失敗時顯示佔位色塊
                 img.onerror = function () {
                     imgWrapper.classList.add('menu-item-img-placeholder');
@@ -295,7 +475,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37', 'Game38'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -347,6 +527,12 @@
                 window.YiChiChunShui.stopGame();
             }
         } catch (e) { console.warn('[Menu] 隱藏一池春水失敗', e); }
+
+        try {
+            if (window.TuiQiao && typeof window.TuiQiao.stopGame === 'function') {
+                window.TuiQiao.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏詩仙推敲失敗', e); }
 
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
@@ -434,6 +620,10 @@
         function switchPage(pageName) {
             console.log(`[Menu] 嘗試切換頁面: ${pageName}`);
             closeMenu();
+
+            // 記錄目前頁面並立即套用該頁的煙火／彩色煙霧設定（見檔案上方 TOUCH_EFFECTS）
+            currentPage = pageName;
+            applyTouchEffects(pageName);
 
             // 這些頁面只是覆蓋在現有遊戲/日曆/卡片上，不可摧毀底下狀態
             const SKIP_CLEANUP_PAGES = ['about', 'poem-data', 'fullscreen', 'qrcode',
@@ -613,6 +803,10 @@
                         if (window.Game37) window.Game37.show();
                         else window.location.href = 'index.html?game=37';
                         break;
+                    case 'game38':
+                        if (window.Game38) window.Game38.show();
+                        else window.location.href = 'index.html?game=38';
+                        break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();
                         else window.location.href = 'index.html?page=author-bio';
@@ -632,6 +826,10 @@
                     case 'yichichunshui':
                         if (window.YiChiChunShui) window.YiChiChunShui.show();
                         else window.location.href = 'index.html?page=yichichunshui';
+                        break;
+                    case 'tuiqiao':
+                        if (window.TuiQiao) window.TuiQiao.show();
+                        else window.location.href = 'index.html?page=tuiqiao';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();
@@ -693,7 +891,7 @@
         menuOverlay.addEventListener('click', closeMenu);
 
         // ----------------------------------------
-        // 拖曳捲動支援（滑鼠 + 觸控）
+        // 拖曳捲動支援（滑鼠 + 觸控，含慣性滑動）
         // ----------------------------------------
         let dragStartY = 0;
         let dragStartScrollTop = 0;
@@ -701,40 +899,102 @@
         let hasDragged = false;          // 是否真的有位移（用來區分「點擊」與「拖曳」）
         const DRAG_THRESHOLD = 5;        // 超過幾 px 才算拖曳
 
+        // 慣性滑動相關狀態
+        let lastY = 0;
+        let lastTime = 0;
+        let velocity = 0;                // px / ms
+        let momentumRAF = null;
+        const FRICTION = 0.985;           // 每影格衰減係數，越接近 1 滑越遠
+        const MIN_VELOCITY = 0.02;       // 低於此速度停止慣性
+
+        function stopMomentum() {
+            if (momentumRAF) {
+                cancelAnimationFrame(momentumRAF);
+                momentumRAF = null;
+            }
+        }
+
+        function startMomentum() {
+            stopMomentum();
+            function step() {
+                velocity *= FRICTION;
+                if (Math.abs(velocity) < MIN_VELOCITY) {
+                    momentumRAF = null;
+                    return;
+                }
+                menuPanel.scrollTop += velocity * 16; // 以約一影格 16ms 換算位移
+                // 觸底/觸頂即停止，避免在邊界持續嘗試捲動造成抖動
+                if (menuPanel.scrollTop <= 0 || menuPanel.scrollTop >= menuPanel.scrollHeight - menuPanel.clientHeight) {
+                    momentumRAF = null;
+                    return;
+                }
+                momentumRAF = requestAnimationFrame(step);
+            }
+            momentumRAF = requestAnimationFrame(step);
+        }
+
+        function dragMoveTo(clientY) {
+            const now = performance.now();
+            const dy = dragStartY - clientY;
+            if (Math.abs(dy) > DRAG_THRESHOLD) hasDragged = true;
+            menuPanel.scrollTop = dragStartScrollTop + dy;
+
+            const dt = now - lastTime;
+            if (dt > 0) {
+                // 瞬時速度（px/ms），用來作為放開後的慣性初速
+                velocity = (clientY - lastY) === 0 ? velocity : -(clientY - lastY) / dt;
+            }
+            lastY = clientY;
+            lastTime = now;
+        }
+
         // 滑鼠拖曳
         menuPanel.addEventListener('mousedown', (e) => {
+            stopMomentum();
             isDragging = true;
             hasDragged = false;
             dragStartY = e.clientY;
             dragStartScrollTop = menuPanel.scrollTop;
+            lastY = e.clientY;
+            lastTime = performance.now();
+            velocity = 0;
             menuPanel.style.cursor = 'grabbing';
             menuPanel.style.userSelect = 'none';
         });
 
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            const dy = dragStartY - e.clientY;
-            if (Math.abs(dy) > DRAG_THRESHOLD) hasDragged = true;
-            menuPanel.scrollTop = dragStartScrollTop + dy;
+            dragMoveTo(e.clientY);
         });
 
         document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
             isDragging = false;
             menuPanel.style.cursor = '';
             menuPanel.style.userSelect = '';
+            startMomentum();
         });
 
         // 觸控拖曳
+        // 注意：touchmove 必須用 { passive: false } 並呼叫 preventDefault()，
+        // 否則瀏覽器原生捲動會與這裡手動設定的 scrollTop 同時作用，造成畫面上下抖動。
         menuPanel.addEventListener('touchstart', (e) => {
+            stopMomentum();
             hasDragged = false;
             dragStartY = e.touches[0].clientY;
             dragStartScrollTop = menuPanel.scrollTop;
+            lastY = e.touches[0].clientY;
+            lastTime = performance.now();
+            velocity = 0;
         }, { passive: true });
 
         menuPanel.addEventListener('touchmove', (e) => {
-            const dy = dragStartY - e.touches[0].clientY;
-            if (Math.abs(dy) > DRAG_THRESHOLD) hasDragged = true;
-            menuPanel.scrollTop = dragStartScrollTop + dy;
+            e.preventDefault(); // 阻止原生捲動，避免與手動 scrollTop 互相干擾造成抖動
+            dragMoveTo(e.touches[0].clientY);
+        }, { passive: false });
+
+        menuPanel.addEventListener('touchend', () => {
+            startMomentum();
         }, { passive: true });
 
         // ----------------------------------------

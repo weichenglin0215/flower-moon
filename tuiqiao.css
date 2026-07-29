@@ -1,0 +1,664 @@
+/* ============================================================================
+ * tuiqiao.css — 詩仙推敲（自動推盤成詩．視覺療癒頁）樣式
+ * 慣例：所有 class 加 tuiqiao- 前綴（李白 SVG 內部用 tq- 前綴）；
+ *       overlay 掛於 body 並由 JS 同步 stage 縮放。
+ * ========================================================================== */
+
+.tuiqiao-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 500px;
+    height: 850px;
+    overflow: hidden;
+    z-index: 20000;
+    background:
+        radial-gradient(ellipse at 50% 22%, hsl(212, 34%, 20%) 0%, hsl(214, 40%, 12%) 55%, hsl(216, 45%, 7%) 100%);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Noto Serif TC', serif;
+}
+
+.tuiqiao-overlay.hidden {
+    display: none;
+}
+
+/* ── 標題列 ─────────────────────────────────────────────── */
+.tuiqiao-header {
+    position: absolute;
+    top: 22px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    pointer-events: none;
+}
+
+.tuiqiao-title {
+    font-size: 26px;
+    letter-spacing: 8px;
+    color: hsl(42, 72%, 82%);
+    text-shadow: 0 2px 10px hsla(42, 80%, 50%, 0.35);
+}
+
+.tuiqiao-poem-meta {
+    margin-top: 8px;
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: hsla(42, 40%, 88%, 0.6);
+    /* ⚠️ 必須單行＋省略號：詩題長度差很多（例如蘇軾那首標題有 20 幾個字），
+       換行後會往下擠到盤面第一列上，把字擋住。 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 18px;
+    box-sizing: border-box;
+}
+
+.tuiqiao-close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 22px;
+    color: hsl(42, 60%, 85%);
+    background: hsla(214, 40%, 22%, 0.6);
+    border: 1px solid hsla(42, 60%, 70%, 0.32);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 20030;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.tuiqiao-close:hover {
+    background: hsla(214, 40%, 34%, 0.85);
+    transform: scale(1.08);
+}
+
+/* ── 盤面 ───────────────────────────────────────────────── */
+.tuiqiao-stage-area {
+    position: absolute;
+    inset: 0;
+}
+
+.tuiqiao-board {
+    position: absolute;
+    border-radius: 14px;
+}
+
+/* 底板凹槽 */
+.tuiqiao-slot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 9px;
+    background: hsla(214, 40%, 6%, 0.55);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55);
+}
+
+/* 方塊：外層只負責定位（JS 用 transform:translate 控制格位移動）。
+   ⚠️ 必須拆成外層(定位) + 內層(視覺) 兩層：開局的「由小放大」進場動畫要對
+   scale 做 transform 動畫，若和定位共用同一個 transform 屬性，兩者會互相
+   覆蓋（JS 設定的 translate 會被動畫的 transform 蓋掉，或反過來動畫失效）。 */
+.tuiqiao-tile {
+    position: absolute;
+    left: 0;
+    top: 0;
+    will-change: transform;
+}
+
+/* 方塊內層：沿用三字成珠的圓角方塊視覺語彙（單色底＋內光澤＋投影） */
+.tuiqiao-tile-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-weight: 900;
+    border-radius: 9px;
+    color: var(--tq-text);
+    background: hsl(var(--tq-h), var(--tq-s), var(--tq-l));
+    border: 1px solid hsla(var(--tq-h), 60%, 25%, 0.7);
+    box-shadow:
+        0 3px 6px rgba(0, 0, 0, 0.45),
+        inset 0 1px 2px hsla(0, 0%, 100%, 0.6);
+    text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);
+    position: relative;
+    transform-origin: center center;
+}
+
+/* 上方光澤 */
+.tuiqiao-tile-inner::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 10%;
+    right: 10%;
+    height: 28%;
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.45) 0%, hsla(0, 0%, 100%, 0) 100%);
+    border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+    pointer-events: none;
+}
+
+/* 開局進場：由小放大到正確尺寸，依畫面「左上→右下」順序一個一個出現
+   （JS 依此順序設定 animation-delay，見 tuiqiao.js 的 _playEntrance）。 */
+.tuiqiao-tile-inner.tuiqiao-tile-appear {
+    animation: tuiqiao-tile-grow var(--tq-appear-dur, 0.42s) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes tuiqiao-tile-grow {
+    from {
+        transform: scale(0);
+        filter: brightness(0.5);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+/* 方塊剛好落在正確位置：金光一閃
+   ⚠️ 選到 .tuiqiao-tile-inner（而非外層 .tuiqiao-tile 本身）：視覺樣式都在內層。
+   三個選擇器（landed / line-done / all-done）的組合特異度都高於進場動畫，播放期間
+   會蓋過進場動畫沒錯，但這只是「暫時蓋過」——tuiqiao-tile-appear 這個 class 本身
+   還在元素上。實測發現：landed 等 class 被移除、蓋過的規則失效的瞬間，瀏覽器偵測到
+   生效中的 animation 值變了，會把底下還在的進場動畫重新播放一次，導致每次方塊落
+   到正確位置、金光閃完後又無端縮放一次。因此 tuiqiao.js 的 _playEntrance 在動畫
+   真正播完（animationend）時就把 tuiqiao-tile-appear 移除，不能只靠特異度蓋過。 */
+.tuiqiao-tile.landed .tuiqiao-tile-inner {
+    animation: tuiqiao-landed 0.52s ease-out;
+    z-index: 5;
+}
+
+@keyframes tuiqiao-landed {
+    0% {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 2px hsla(0, 0%, 100%, 0.6);
+    }
+
+    35% {
+        box-shadow: 0 0 16px 5px hsla(45, 100%, 68%, 0.9), inset 0 1px 3px hsla(0, 0%, 100%, 0.9);
+    }
+
+    100% {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 2px hsla(0, 0%, 100%, 0.6);
+    }
+}
+
+/* 整句完成：逐字彈跳＋金邊 */
+.tuiqiao-tile.line-done .tuiqiao-tile-inner {
+    animation: tuiqiao-line-done 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 6;
+}
+
+@keyframes tuiqiao-line-done {
+
+    0%,
+    100% {
+        filter: none;
+    }
+
+    30% {
+        filter: brightness(1.55) saturate(1.3) drop-shadow(0 0 10px hsla(45, 100%, 70%, 0.95));
+    }
+}
+
+/* 全部完成：整個盤面呼吸發光 */
+.tuiqiao-board.all-done .tuiqiao-tile-inner {
+    animation: tuiqiao-all-done 2.4s ease-in-out infinite;
+}
+
+@keyframes tuiqiao-all-done {
+
+    0%,
+    100% {
+        filter: brightness(1) drop-shadow(0 0 0 transparent);
+    }
+
+    50% {
+        filter: brightness(1.25) drop-shadow(0 0 9px hsla(45, 100%, 70%, 0.6));
+    }
+}
+
+/* 完成時標題列的金色提示（不覆蓋盤面） */
+.tuiqiao-poem-meta.done {
+    color: hsl(45, 95%, 78%);
+    text-shadow: 0 0 12px hsla(45, 100%, 65%, 0.75);
+    animation: tuiqiao-meta-done 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes tuiqiao-meta-done {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ── 下方控制面板 ───────────────────────────────────────── */
+.tuiqiao-panel {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    padding: 10px 16px 18px;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, hsla(214, 45%, 8%, 0) 0%, hsla(214, 45%, 8%, 0.9) 40%);
+    z-index: 20025;
+}
+
+.tuiqiao-progress-wrap {
+    position: relative;
+    height: 16px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    background: hsla(214, 40%, 4%, 0.6);
+    overflow: hidden;
+}
+
+.tuiqiao-progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    border-radius: 8px;
+    background: linear-gradient(90deg, hsl(196, 70%, 45%), hsl(45, 85%, 60%));
+    transition: width 0.25s linear;
+}
+
+.tuiqiao-progress-text {
+    position: absolute;
+    inset: 0;
+    line-height: 16px;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: hsla(45, 60%, 95%, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.tuiqiao-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.tuiqiao-row-label {
+    flex: 0 0 auto;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: hsla(42, 40%, 85%, 0.65);
+}
+
+.tuiqiao-btn-group {
+    display: flex;
+    gap: 6px;
+    flex: 1 1 auto;
+}
+
+.tuiqiao-chip {
+    flex: 1 1 0;
+    padding: 6px 2px;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 13px;
+    line-height: 1.25;
+    color: hsla(42, 45%, 90%, 0.75);
+    background: hsla(214, 38%, 20%, 0.75);
+    border: 1px solid hsla(42, 50%, 70%, 0.22);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, border-color 0.2s;
+}
+
+.tuiqiao-chip-narrow {
+    flex: 0 0 44px;
+}
+
+.tuiqiao-chip-sub {
+    display: block;
+    font-size: 10px;
+    opacity: 0.6;
+    letter-spacing: 0;
+}
+
+.tuiqiao-chip:hover {
+    background: hsla(214, 38%, 30%, 0.9);
+}
+
+.tuiqiao-chip:active {
+    transform: scale(0.95);
+}
+
+.tuiqiao-chip.active {
+    color: hsl(45, 95%, 82%);
+    background: linear-gradient(180deg, hsla(210, 45%, 34%, 0.95), hsla(214, 45%, 22%, 0.95));
+    border-color: hsla(45, 80%, 70%, 0.7);
+    box-shadow: 0 0 10px hsla(45, 80%, 60%, 0.3);
+}
+
+.tuiqiao-action-btn {
+    flex: 0 0 auto;
+    padding: 7px 14px;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: hsl(45, 90%, 85%);
+    background: linear-gradient(180deg, hsla(28, 55%, 34%, 0.95), hsla(24, 55%, 22%, 0.95));
+    border: 1px solid hsla(45, 70%, 70%, 0.45);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.tuiqiao-action-btn:hover {
+    box-shadow: 0 0 12px hsla(45, 80%, 60%, 0.45);
+}
+
+.tuiqiao-action-btn:active {
+    transform: scale(0.95);
+}
+
+/* ============================================================================
+ * 二頭身李白
+ * 三層結構：.tuiqiao-libai（定位）→ -flip（左右翻面）→ -lunge（推動的前傾動作）
+ * 分層的原因：三種 transform 混在同一個元素上會互相覆蓋。
+ * ========================================================================== */
+.tuiqiao-libai {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 12;
+    pointer-events: none;
+    will-change: transform;
+    /* 讓李白明確地「浮在盤面前方」，不會和方塊糊在一起 */
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.55));
+}
+
+.tuiqiao-libai.hidden {
+    display: none;
+}
+
+.tuiqiao-libai-flip,
+.tuiqiao-libai-lunge {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.tuiqiao-libai svg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* 瞬間移動：淡入＋放大一下（不走路，直接出現在下一個推動位置） */
+.tuiqiao-libai.teleport {
+    animation: tuiqiao-teleport 0.13s ease-out;
+}
+
+@keyframes tuiqiao-teleport {
+    0% {
+        opacity: 0;
+        filter: brightness(2.2);
+    }
+
+    60% {
+        opacity: 1;
+        filter: brightness(1.3);
+    }
+
+    100% {
+        opacity: 1;
+        filter: none;
+    }
+}
+
+/* ── 配色 ── */
+.tq-shadow {
+    fill: rgba(0, 0, 0, 0.32);
+}
+
+.tq-head {
+    fill: hsl(35, 60%, 88%);
+    stroke: hsl(28, 40%, 62%);
+    stroke-width: 1.5;
+}
+
+.tq-hat {
+    fill: hsl(220, 18%, 20%);
+}
+
+.tq-robe {
+    fill: hsl(205, 55%, 62%);
+    stroke: hsl(208, 45%, 42%);
+    stroke-width: 1.5;
+}
+
+.tq-robe-shade {
+    fill: hsla(208, 45%, 40%, 0.35);
+}
+
+.tq-collar {
+    fill: hsl(45, 60%, 94%);
+}
+
+.tq-belt {
+    fill: hsl(28, 60%, 42%);
+}
+
+.tq-gourd {
+    fill: hsl(35, 70%, 55%);
+    stroke: hsl(28, 55%, 35%);
+    stroke-width: 1.2;
+}
+
+.tq-blush {
+    fill: hsla(2, 80%, 70%, 0.5);
+}
+
+.tq-eye {
+    fill: hsl(220, 25%, 15%);
+}
+
+.tq-eye-hl {
+    fill: #fff;
+}
+
+.tq-eyes-effort path {
+    fill: none;
+    stroke: hsl(220, 25%, 15%);
+    stroke-width: 3.4;
+    stroke-linecap: round;
+}
+
+.tq-mouth {
+    fill: hsl(2, 55%, 42%);
+}
+
+.tq-beard {
+    fill: hsla(220, 12%, 35%, 0.55);
+}
+
+.tq-arm {
+    fill: none;
+    /* 比袍子亮一階，手臂才不會和身體糊成一團看不出在推 */
+    stroke: hsl(203, 62%, 72%);
+    stroke-width: 11;
+    stroke-linecap: round;
+}
+
+.tq-hand {
+    fill: hsl(35, 62%, 90%);
+    stroke: hsl(26, 45%, 55%);
+    stroke-width: 1.8;
+}
+
+/* ── 手臂姿勢切換：依推動方向只顯示一組 ── */
+.tq-arms {
+    display: none;
+}
+
+.tuiqiao-libai[data-pose="side"] .tq-arms-side,
+.tuiqiao-libai[data-pose="up"] .tq-arms-up,
+.tuiqiao-libai[data-pose="down"] .tq-arms-down {
+    display: block;
+}
+
+/* 平時圓眼，使力時瞇成 ^ ^ */
+.tq-eyes-effort {
+    display: none;
+}
+
+.tuiqiao-libai.pushing .tq-eyes-open {
+    display: none;
+}
+
+.tuiqiao-libai.pushing .tq-eyes-effort {
+    display: block;
+}
+
+/* ── 推動時的前傾／使力動作（依方向不同） ── */
+.tuiqiao-libai[data-dir="right"].pushing .tuiqiao-libai-lunge,
+.tuiqiao-libai[data-dir="left"].pushing .tuiqiao-libai-lunge {
+    animation: tuiqiao-push-side var(--tq-push-dur, 0.26s) ease-out;
+}
+
+.tuiqiao-libai[data-dir="up"].pushing .tuiqiao-libai-lunge {
+    animation: tuiqiao-push-up var(--tq-push-dur, 0.26s) ease-out;
+}
+
+.tuiqiao-libai[data-dir="down"].pushing .tuiqiao-libai-lunge {
+    animation: tuiqiao-push-down var(--tq-push-dur, 0.26s) ease-out;
+}
+
+/* 注意：left 方向由外層 scaleX(-1) 翻面，因此同一組位移即可同時服務左右 */
+@keyframes tuiqiao-push-side {
+    0% {
+        transform: translateX(-8%) rotate(-4deg);
+    }
+
+    40% {
+        transform: translateX(9%) rotate(7deg) scaleY(0.94);
+    }
+
+    100% {
+        transform: translateX(4%) rotate(2deg);
+    }
+}
+
+@keyframes tuiqiao-push-up {
+    0% {
+        transform: translateY(9%) scaleY(0.9);
+    }
+
+    40% {
+        transform: translateY(-8%) scaleY(1.06);
+    }
+
+    100% {
+        transform: translateY(-3%);
+    }
+}
+
+@keyframes tuiqiao-push-down {
+    0% {
+        transform: translateY(-9%) scaleY(1.05);
+    }
+
+    40% {
+        transform: translateY(8%) scaleY(0.9);
+    }
+
+    100% {
+        transform: translateY(3%);
+    }
+}
+
+/* ── 使力汗滴 ── */
+.tq-effort {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.tq-sweat {
+    position: absolute;
+    width: 7%;
+    height: 10%;
+    border-radius: 50% 50% 50% 0;
+    background: hsla(196, 90%, 78%, 0.9);
+    opacity: 0;
+    transform: rotate(-45deg);
+}
+
+.tq-sweat-1 {
+    left: 6%;
+    top: 8%;
+}
+
+.tq-sweat-2 {
+    right: 8%;
+    top: 2%;
+}
+
+.tuiqiao-libai.pushing .tq-sweat-1 {
+    animation: tuiqiao-sweat 0.5s ease-out;
+}
+
+.tuiqiao-libai.pushing .tq-sweat-2 {
+    animation: tuiqiao-sweat 0.5s ease-out 0.08s;
+}
+
+@keyframes tuiqiao-sweat {
+    0% {
+        opacity: 0;
+        transform: rotate(-45deg) translate(0, 0) scale(0.5);
+    }
+
+    35% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: rotate(-45deg) translate(-40%, -90%) scale(1.15);
+    }
+}
+
+/* ── 完成時的歡呼 ── */
+.tuiqiao-libai.cheering .tuiqiao-libai-lunge {
+    animation: tuiqiao-cheer 0.75s ease-in-out infinite;
+}
+
+.tuiqiao-libai.cheering .tq-eyes-open {
+    display: none;
+}
+
+.tuiqiao-libai.cheering .tq-eyes-effort {
+    display: block;
+}
+
+@keyframes tuiqiao-cheer {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(-3deg);
+    }
+
+    50% {
+        transform: translateY(-16%) rotate(3deg);
+    }
+}

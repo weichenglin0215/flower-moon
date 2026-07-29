@@ -70,7 +70,11 @@ const ScoreManager = {
         'game34': { base: 100, heart: 10, time: 0, getPointA: 1 }, //猜猜詩題（標題配對）
         'game35': { base: 100, heart: 10, time: 0, getPointA: 1 }, //詩人心情（情境推理）
         'game36': { base: 100, heart: 0, time: 0.5, getPointA: 0 }, //轉輪覓詩（Wordle 推理，無紅心，時限只給時間加成）
-        'game37': { base: 100, heart: 10, time: 2, getPointA: 3 } //步步為陣（getPointA 會再依當前宮格邊長倍增，見 game37.js handleBtnClick）
+        'game37': { base: 100, heart: 10, time: 2, getPointA: 3 }, //步步為陣（getPointA 會再依當前宮格邊長倍增，見 game37.js handleBtnClick）
+        'game38': {
+            base: 100, heart: 0, time: 5, getPointA: 2, getPointB: 20,
+            getPointAMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 }
+        } //推枰成詩（無紅心機制；getPointA 為方塊落到正確位置的即時得分，getPointB 為整句完成的額外獎勵）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別

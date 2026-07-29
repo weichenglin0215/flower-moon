@@ -1,0 +1,174 @@
+/* =========================================
+   Game38《推枰成詩》樣式
+   ----------------------------------------
+   外殼（overlay/資訊列/控制鈕/難度標籤/計時框）一律用 theme_dark.css 的
+   .fmd-* 共用 class，這裡只寫核心玩法區（棋盤與方塊），全部加 game38- 前綴。
+   方塊視覺沿用《三字成珠》(game24) 的圓角方塊語彙：單色底＋內光澤＋投影。
+   ========================================= */
+
+/* ⚠️ .fmd-area 本身是 flex-direction:column，預設沒有 justify-content，
+   子元素會靠齊容器頂端；棋盤沒有把整個 .fmd-area 填滿高度（尤其小盤面）時，
+   剩餘空間全部留在下方，視覺上整個盤面會偏上方。這裡只在 game38 自己的
+   overlay 範圍內加 justify-content:center，讓棋盤真正垂直置中，不影響其他
+   同樣共用 .fmd-area 的遊戲（例如 game24 需要 info-bar 靠上排列的版面）。 */
+#game38-container .fmd-area {
+    justify-content: center;
+}
+
+.game38-board-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game38-board {
+    position: relative;
+}
+
+/* 方塊：外層只負責定位（JS 用 transform:translate 控制格位移動）。
+   拆成外層(定位) + 內層(視覺) 兩層，理由同 tuiqiao.js：進場動畫要對 scale 做
+   transform 動畫，若跟定位共用同一個 transform 屬性會互相打架。 */
+.game38-tile {
+    position: absolute;
+    left: 0;
+    top: 0;
+    cursor: default;
+    will-change: transform;
+}
+
+.game38-tile.adjacent {
+    cursor: pointer;
+}
+
+.game38-tile-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-weight: 900;
+    border-radius: 9px;
+    color: var(--g38-text);
+    background: hsl(var(--g38-h), var(--g38-s), var(--g38-l));
+    border: 1px solid hsla(var(--g38-h), 60%, 25%, 0.7);
+    box-shadow:
+        0 3px 6px rgba(0, 0, 0, 0.45),
+        inset 0 1px 2px hsla(0, 0%, 100%, 0.6);
+    text-shadow: 0 1px 0 hsla(0, 0%, 100%, 0.35);
+    position: relative;
+    transform-origin: center center;
+    transition: box-shadow 0.2s, filter 0.2s;
+}
+
+/* 上方光澤 */
+.game38-tile-inner::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 10%;
+    right: 10%;
+    height: 28%;
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.45) 0%, hsla(0, 0%, 100%, 0) 100%);
+    border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+    pointer-events: none;
+}
+
+/* 緊鄰空格、可點擊推動的方塊：柔和的金色呼吸光暈，提示玩家能點哪裡 */
+.game38-tile.adjacent .game38-tile-inner {
+    animation: game38-adjacent-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes game38-adjacent-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 2px hsla(0, 0%, 100%, 0.6), 0 0 0 hsla(45, 100%, 65%, 0);
+    }
+
+    50% {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 2px hsla(0, 0%, 100%, 0.6), 0 0 10px 2px hsla(45, 100%, 65%, 0.65);
+    }
+}
+
+/* 無效點擊（不緊鄰空格）：左右輕晃提示。
+   ⚠️ 動畫必須套在內層 .game38-tile-inner，不能套在外層 .game38-tile：
+   外層的 transform 是 JS 用來定位格子座標的（translate），若動畫也搶著改
+   外層的 transform，動畫期間會直接蓋掉目前的格位、把方塊瞬移到錯的地方。 */
+.game38-tile.shake .game38-tile-inner {
+    animation: game38-shake 0.26s ease-in-out;
+}
+
+@keyframes game38-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-4px);
+    }
+
+    75% {
+        transform: translateX(4px);
+    }
+}
+
+/* 開局進場：由小放大到正確尺寸，依畫面左上→右下順序一個一個出現 */
+.game38-tile-inner.game38-tile-appear {
+    animation: game38-tile-grow var(--g38-appear-dur, 0.36s) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes game38-tile-grow {
+    from {
+        transform: scale(0);
+        filter: brightness(0.5);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+/* 方塊剛好落在正確位置：金光一閃
+   ⚠️ 選到 .game38-tile-inner（而非外層本身）：視覺樣式都在內層，且此選擇器
+   組合特異度高於進場動畫；動畫播完由 JS 的 animationend 移除 appear class，
+   避免「暫時蓋過又復活」重播縮放的殘留 bug（同 tuiqiao.js 的修正經驗）。 */
+.game38-tile.landed .game38-tile-inner {
+    animation: game38-landed 0.46s ease-out;
+    z-index: 5;
+}
+
+@keyframes game38-landed {
+    0% {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 2px hsla(0, 0%, 100%, 0.6);
+    }
+
+    35% {
+        box-shadow: 0 0 16px 5px hsla(45, 100%, 68%, 0.9), inset 0 1px 3px hsla(0, 0%, 100%, 0.9);
+    }
+
+    100% {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45), inset 0 1px 2px hsla(0, 0%, 100%, 0.6);
+    }
+}
+
+/* 整句完成：逐字彈跳＋金邊 */
+.game38-tile.line-done .game38-tile-inner {
+    animation: game38-line-done 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 6;
+}
+
+@keyframes game38-line-done {
+
+    0%,
+    100% {
+        filter: none;
+    }
+
+    30% {
+        filter: brightness(1.55) saturate(1.3) drop-shadow(0 0 10px hsla(45, 100%, 70%, 0.95));
+    }
+}
