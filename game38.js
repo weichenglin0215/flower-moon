@@ -67,6 +67,13 @@
         difficulty: '小學',
         score: 0,
         isWin: false,
+        // ── 關卡挑戰模式 ──
+        // ⚠️ 關卡挑戰只要求「同一關永遠出同一道題目（同一首詩）」，並不要求盤面的
+        //    打亂方式完全相同。因此只有取詩需要用關卡序號當種子做確定性選取，
+        //    倒推法打亂仍舊用 Math.random()，每次挑戰同一關的盤面會不一樣，
+        //    但要背的詩、要拼的字完全相同 —— 這才是關卡挑戰真正要固定的東西。
+        isLevelMode: false,
+        currentLevelIndex: 1,
 
         // ── 詩詞與棋盤 ──
         currentPoem: null,
@@ -231,8 +238,8 @@
         // 隱藏其他頁面 overlay，避免畫面疊加（涵蓋既有遊戲清單）
         hideOtherContents: function () {
             const els = [];
-            for (let i = 1; i <= 37; i++) els.push('game' + i + '-container');
-            els.push('cardContainer', 'tuiqiao-container', 'yichichunshui-container',
+            for (let i = 1; i <= 39; i++) { if (i !== 38) els.push('game' + i + '-container'); }
+            els.push('cardContainer', 'tuiqiao-container', 'zhuluo-container', 'yichichunshui-container',
                 'suiyuean-container', 'zhexianren-container', 'wordcloud-container');
             els.forEach(id => {
                 const el = document.getElementById(id);
@@ -250,8 +257,12 @@
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
-                window.DifficultySelector.show('推枰成詩', (selectedLevel) => {
+                // ⚠️ callback 必須接兩個參數：一般難度模式只會傳 selectedLevel，
+                //    關卡挑戰（LevelSelector）則會多傳一個全域關卡序號 levelIndex。
+                window.DifficultySelector.show('推枰成詩', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
@@ -265,12 +276,16 @@
 
         updateUIForMode: function () {
             const diffTag = document.getElementById('game38-diff-tag');
+            const newBtn = document.getElementById('game38-newGame-btn');
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
             if (diffTag) {
-                diffTag.textContent = this.difficulty;
+                // 關卡挑戰模式下標籤改顯示關卡編號，底色仍用該關所屬難度的顏色
+                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
                 diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                 diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
             }
+            // 關卡挑戰時隱藏「開新局」：該關的題目是固定的，換一局沒有意義
+            if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
         },
 
         hide: function () { this.stopGame(); },
@@ -291,14 +306,59 @@
             this.startGameProcess();
         },
 
-        startNewGame: function () {
+        startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (levelIndex !== undefined) {
+                this.currentLevelIndex = levelIndex;
+                this.isLevelMode = true;
+            }
             if (this.selectRandomPoem()) {
                 this.startGameProcess();
             } else {
                 alert('載入詩詞失敗。');
                 this.stopGame();
             }
+        },
+
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
+        /**
+         * 關卡序號 → 詩詞池索引的確定性換算。
+         *
+         * 用 Lehmer 線性同餘產生器（16807 / 2147483647，與 script.js 的
+         * getSharedRandomPoem 同一套）產生亂數，種子混入 gameKey 與難度，
+         * 確保「不同遊戲」「不同難度」的同一個關卡序號不會撞題。
+         *
+         * ⚠️ 這裡刻意「先把整個詩詞池洗成一個固定順序，再依關卡序號取第 N 個」，
+         *    而不是直接用種子算出一個索引。因為後者只是獨立取樣，會有生日問題：
+         *    研究所有 150 關、候選池 161 首，獨立取樣下預期只會出現約 100 首不同的
+         *    詩，等於有三分之一的關卡跟別關拿到一模一樣的題目——關卡挑戰就失去意義。
+         *    改成取「洗過牌的第 N 張」之後，只要同一難度的關卡數不超過池子大小，
+         *    每一關的題目都保證不重複。各難度的關卡數（20/30/50/50/150）在編號上是
+         *    連續的區段，所以直接用全域關卡序號取模就能達到這個效果。
+         */
+        _levelPoemIndex: function (poolLen, gameKey, difficulty, levelIndex) {
+            const key = gameKey + '|' + difficulty;
+            let h = 0;
+            for (let i = 0; i < key.length; i++) {
+                h = (h << 5) - h + key.charCodeAt(i);
+                h |= 0;
+            }
+            let s = (Math.abs(h) % 2147483646) + 1;
+            for (let k = 0; k < 8; k++) s = (s * 16807) % 2147483647;   // 預熱
+            const rand = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+
+            // Fisher–Yates：同一組 (gameKey, difficulty) 永遠洗出同一個順序
+            const order = new Array(poolLen);
+            for (let i = 0; i < poolLen; i++) order[i] = i;
+            for (let i = poolLen - 1; i > 0; i--) {
+                const j = Math.floor(rand() * (i + 1));
+                const t = order[i]; order[i] = order[j]; order[j] = t;
+            }
+            return order[(Math.max(1, Number(levelIndex)) - 1) % poolLen];
         },
 
         // ========================================================
@@ -338,6 +398,9 @@
                 const lines = [];
                 while (lines.length < need) lines.push(base[lines.length % base.length]);
                 picked = { poem: { id: 0, title: '靜夜思', dynasty: '唐', author: '李白' }, lines: lines };
+            } else if (this.isLevelMode) {
+                // 關卡挑戰：同一關永遠取到同一首詩（見 _levelPoemIndex 註解）
+                picked = pool[this._levelPoemIndex(pool.length, 'game38', this.difficulty, this.currentLevelIndex)];
             } else {
                 picked = pool[Math.floor(Math.random() * pool.length)];
             }
@@ -363,6 +426,8 @@
         startGameProcess: function () {
             this.isActive = true;
             this.gameStartTime = Date.now();
+            // ⚠️ 每一局都要重跑：進入下一關之後標籤上的關卡編號才會跟著更新
+            this.updateUIForMode();
             this.updateUIForMode();
             this.score = 0;
             this.moveCount = 0;
@@ -786,7 +851,11 @@
                 if (window.SoundManager) window.SoundManager.playFailure();
             }
 
-            const onConfirm = () => { if (win) this.startNewGame(); else this.retryGame(); };
+            const onConfirm = () => {
+                if (!win) { this.retryGame(); return; }
+                if (this.isLevelMode) this.startNextLevel();
+                else this.startNewGame();
+            };
 
             const showMessage = (finalScore) => {
                 if (window.GameMessage) {
@@ -794,10 +863,22 @@
                         isWin: win,
                         score: win ? (finalScore || this.score) : 0,
                         reason: win ? '' : (typeof reason === 'string' ? reason : '步數用盡'),
-                        btnText: win ? '下一局' : '再試一次',
+                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
                         onConfirm: onConfirm
                     });
                 }
+            };
+
+            // 關卡挑戰過關：登錄通關紀錄，若因此解鎖成就則先跳成就彈窗再顯示結算
+            const recordLevelAndShow = (finalScore) => {
+                if (win && this.isLevelMode && window.ScoreManager) {
+                    const achId = window.ScoreManager.completeLevel('game38', this.difficulty, this.currentLevelIndex);
+                    if (achId && window.AchievementDialog && window.AchievementDialog.showInstantAchievementPop) {
+                        window.AchievementDialog.showInstantAchievementPop(achId, 'game38', this.currentLevelIndex, () => showMessage(finalScore));
+                        return;
+                    }
+                }
+                showMessage(finalScore);
             };
 
             if (win && window.ScoreManager) {
@@ -816,7 +897,7 @@
                     heartsSelector: '.game38-no-hearts', // 本作無紅心機制 —— 用永不命中的 selector
                     onComplete: (finalScore) => {
                         this.score = finalScore;
-                        showMessage(finalScore);
+                        recordLevelAndShow(finalScore);
                     }
                 });
             } else {

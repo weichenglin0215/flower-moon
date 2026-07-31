@@ -1,0 +1,42 @@
+/* =========================================
+   Game39《彈珠成詩》樣式
+   ----------------------------------------
+   外殼（overlay／資訊列／控制鈕／難度標籤／彈珠數外框）一律沿用 theme_dark.css
+   的 .fmd-* 共用 class，此處只定義本作私有、且必須加 game39- 前綴的部分。
+   玩法主體（台面、干擾棒、珠子、粒子、發射箭頭）全部畫在 <canvas> 內，
+   因此這個檔案很短——這是刻意的，不是漏寫。
+   ========================================= */
+
+/* 遊戲區垂直置中（.fmd-area 預設靠上，彈珠台比較矮時會偏高）
+   ⚠️ 必須限定在 game39 底下，否則會影響其他共用 .fmd-area 的遊戲（如 game24）。 */
+#game39-container .fmd-area {
+    justify-content: center;
+}
+
+.game39-board-wrapper {
+    position: relative;
+    padding: 6px;
+    border-radius: 16px;
+    /* 木框：呼應實體童玩的檜木外框 */
+    background: linear-gradient(155deg, hsl(30, 40%, 42%) 0%, hsl(26, 42%, 28%) 45%, hsl(24, 45%, 20%) 100%);
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 hsla(40, 60%, 78%, 0.35);
+}
+
+#game39-canvas {
+    display: block;
+    width: 460px;
+    height: 640px;
+    border-radius: 11px;
+    box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.6);
+    /* ⚠️ 必須關掉瀏覽器的預設觸控手勢：發射操作是「按住往上拖曳」，
+       若不關閉，手機上會被判定成捲動頁面，力道永遠拉不滿。 */
+    touch-action: none;
+    cursor: pointer;
+}
+
+/* 剩餘彈珠數字：沿用 fmd-moves-label 的位置，只調整字距 */
+#game39-balls-label {
+    letter-spacing: 1px;
+}

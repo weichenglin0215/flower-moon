@@ -32,6 +32,7 @@
         { page: 'game14', label: '步步驚心', image: 'images/Menu/步步驚心_Menu256.jpg' },
         { page: 'game37', label: '步步為陣', image: 'images/Menu/步步為陣_Menu256.jpg' },
         { page: 'game38', label: '推枰成詩', image: 'images/Menu/推枰成詩_Menu256.jpg' },
+        { page: 'game39', label: '彈珠成詩', image: 'images/Menu/彈珠成詩_Menu256.jpg' },
         { page: 'game5', label: '詩詞精靈', image: 'images/Menu/詩詞小精靈_Menu256.jpg' },
         { page: 'game6', label: '詩陣侵略', image: 'images/Menu/詩陣侵略_Menu256.jpg' },
         { page: 'game19', label: '詩碟狂襲', image: 'images/Menu/詩碟狂襲_Menu256.jpg' },
@@ -60,6 +61,7 @@
         { page: 'suiyuean', label: '隨遇而安', image: 'images/Menu/隨遇而安_Menu256.jpg' },
         { page: 'yichichunshui', label: '一池春水', image: 'images/Menu/一池春水_Menu256.png' },
         { page: 'tuiqiao', label: '詩仙推敲', image: 'images/Menu/詩仙推敲_Menu256.png' },
+        { page: 'zhuluo', label: '珠落玉盤', image: 'images/Menu/珠落玉盤_Menu256.png' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
@@ -127,6 +129,7 @@
         'game36': { firework: true, smoke: true },   // 轉輪覓詩
         'game37': { firework: true, smoke: true },   // 步步為陣
         'game38': { firework: true, smoke: true },   // 推枰成詩
+        'game39': { firework: true, smoke: true },   // 彈珠成詩
 
         // ── 舒壓／視覺療癒類 ──────────────────────────────────────────────
         'wordcloud': { firework: true, smoke: true },   // 文字雲
@@ -134,6 +137,7 @@
         'suiyuean': { firework: true, smoke: true },   // 隨遇而安
         'yichichunshui': { firework: true, smoke: true },   // 一池春水
         'tuiqiao': { firework: true, smoke: true },   // 詩仙推敲
+        'zhuluo': { firework: true, smoke: true },   // 珠落玉盤
 
         // ── 資料類 ───────────────────────────────────────────────────────
         'achievements': { firework: true, smoke: true },   // 成就紀錄
@@ -160,6 +164,7 @@
         'suiyuean': 'suiyuean-container',
         'yichichunshui': 'yichichunshui-container',
         'tuiqiao': 'tuiqiao-container',
+        'zhuluo': 'zhuluo-container',
         'author-biography': 'authorBioPage',
     };
     Object.keys(TOUCH_EFFECTS).forEach(function (page) {
@@ -475,7 +480,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37', 'Game38'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37', 'Game38', 'Game39'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -533,6 +538,12 @@
                 window.TuiQiao.stopGame();
             }
         } catch (e) { console.warn('[Menu] 隱藏詩仙推敲失敗', e); }
+
+        try {
+            if (window.ZhuLuo && typeof window.ZhuLuo.stopGame === 'function') {
+                window.ZhuLuo.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏珠落玉盤失敗', e); }
 
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
@@ -807,6 +818,10 @@
                         if (window.Game38) window.Game38.show();
                         else window.location.href = 'index.html?game=38';
                         break;
+                    case 'game39':
+                        if (window.Game39) window.Game39.show();
+                        else window.location.href = 'index.html?game=39';
+                        break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();
                         else window.location.href = 'index.html?page=author-bio';
@@ -830,6 +845,10 @@
                     case 'tuiqiao':
                         if (window.TuiQiao) window.TuiQiao.show();
                         else window.location.href = 'index.html?page=tuiqiao';
+                        break;
+                    case 'zhuluo':
+                        if (window.ZhuLuo) window.ZhuLuo.show();
+                        else window.location.href = 'index.html?page=zhuluo';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();

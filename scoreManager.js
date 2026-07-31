@@ -74,7 +74,12 @@ const ScoreManager = {
         'game38': {
             base: 100, heart: 0, time: 5, getPointA: 2, getPointB: 20,
             getPointAMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 }
-        } //推枰成詩（無紅心機制；getPointA 為方塊落到正確位置的即時得分，getPointB 為整句完成的額外獎勵）
+        }, //推枰成詩（無紅心機制；getPointA 為方塊落到正確位置的即時得分，getPointB 為整句完成的額外獎勵）
+        'game39': {
+            base: 100, heart: 0, time: 4, getPointA: 4, getPointB: 40,
+            getPointAMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 },
+            getPointBMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 }
+        } //彈珠成詩（無紅心機制；time 換算的是「剩餘彈珠數」，getPointA 為一字歸位、getPointB 為整句完成）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
