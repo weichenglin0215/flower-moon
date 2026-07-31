@@ -47,9 +47,9 @@
 
 .zhuluo-poem-meta {
     margin-top: 4px;
-    font-size: 14px;
+    font-size: 20px;
     letter-spacing: 2px;
-    color: hsla(42, 40%, 88%, 0.6);
+    color: hsla(42, 40%, 88%, 1.0);
     /* ⚠️ 必須單行＋省略號：詩題長度落差極大，換行會往下擠壓到畫布 */
     white-space: nowrap;
     overflow: hidden;

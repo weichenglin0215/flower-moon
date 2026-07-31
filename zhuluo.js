@@ -48,9 +48,9 @@
     // =====================================================================
 
     /** ⭐ 珠子落入「錯誤」格子後，停留在格底不動的時間（毫秒） */
-    const WRONG_HOLD_MS = 1000;
+    const WRONG_HOLD_MS = 300;
     /** ⭐ 停留結束後，縮小消失所花的時間（毫秒） */
-    const WRONG_FADE_MS = 500;
+    const WRONG_FADE_MS = 200;
 
     const STAGE_W = 500, STAGE_H = 850;
     /** canvas 的邏輯尺寸（與 CSS 的顯示尺寸一致，1:1 對應，不另做 DPR 放大） */
@@ -58,24 +58,25 @@
 
     const BIN_COUNT = 7;           // 收納格固定七格
     const BALL_R_MAX = 29;         // 對齊 game26 小學難度的泡泡半徑
-    const PEG_R = 6;               // 干擾棒（圓頭）半徑
-    const PEG_ROWS = 4;            // 干擾棒共四排（依參考圖）
     /**
-     * ⚠️ 同排干擾棒的水平間距是這個模擬最敏感的參數。
-     * 通道寬 = PEG_SPACING - 2×PEG_R，必須明顯大於球徑（2×29 = 58），否則球會
-     * 「楔」在兩根棒子中間下不來，接著後面的球一顆一顆疊上去，整台就塞住了
-     * （實測 78 時完全癱瘓：400 秒只落定 1 個字）。這裡取 108 → 通道 96、
-     * 淨空間 38px，球既會被打得東倒西歪、又一定過得去。
+     * ⭐ 珠子縮放比例。
+     * 干擾棒改成「以格寬為間距」的交錯格子之後（見 _layout），同排相鄰棒子的通道
+     * 淨寬 = 格寬 − 2×棒半徑 = 66.9 − 10 = 56.9px，比原本 58px 的球徑還窄，球會
+     * 直接卡死在兩根棒子中間。縮到 85% 後球徑 49.3px，左右各留 3.8px 餘裕，
+     * 既過得去又仍然會被打得東倒西歪。（90% 時只剩 2.3px 餘裕，實測仍會卡。）
      */
-    const PEG_SPACING = 108;
-    const WALL_BUMP_R = 15;        // 側牆導珠塊（半圓）半徑
+    const BALL_SCALE = 0.85;
+    const PEG_R = 5;               // 干擾棒（圓頭）半徑
+    const WALL_BUMP_R = 13;        // 側牆導珠塊（半圓）半徑
+    /** 收納格隔板的半厚度（實心擋板，珠子跨不過去；見 _collideDividers） */
+    const DIVIDER_HW = 3;
     const PEG_FIELD_TOP = 96;      // 干擾棒區起始 y
     /** 安全閥：一顆球最多在台面上飛這麼久，超過就強制消失（正常情況不該發生） */
     const BALL_TTL_MS = 14000;
     const SPAWN_Y = 42;            // 珠子出生高度
 
     const GRAVITY = 0.62;          // 重力（px / frame²）
-    const REST_PEG = 0.46;         // 撞干擾棒的彈性係數
+    const REST_PEG = 0.62;         // 撞干擾棒的彈性係數（調高＝彈得更兇、落點更難預測）
     const REST_WALL = 0.42;        // 撞牆的彈性係數
     const REST_BALL = 0.25;        // 球對球的彈性係數（偏低：位置修正本身會灌能量，太彈會抖個不停）
     /** 法線速度低於這個值就視為「靜置接觸」而非撞擊（見 _collidePegs 的長註解） */
@@ -384,7 +385,9 @@
             this.colW = CW / BIN_COUNT;
             const rByHeight = Math.floor((CH * 0.50 - 8) / (2 * rows));
             const rByWidth = Math.floor(this.colW / 2 - 4);
-            this.ballR = Math.max(12, Math.min(BALL_R_MAX, rByHeight, rByWidth));
+            // ⚠️ 最後再乘上 BALL_SCALE：干擾棒的通道寬是由格寬決定的固定值，
+            //    球必須小於通道才過得去（理由見 BALL_SCALE 註解）。
+            this.ballR = Math.max(10, Math.min(BALL_R_MAX, rByHeight, rByWidth) * BALL_SCALE);
 
             const binH = rows * this.ballR * 2 + 8;
             this.binTop = CH - binH;
@@ -396,48 +399,45 @@
             //    比 58px 的球徑還窄——球一衝到邊上就永久楔死在牆與棒之間，該字位
             //    因為「同時只發一顆球」的規則從此再也不發球，整台就這樣停擺。
             //    因此改成：先算出合法的圓心可用範圍，再把棒子平均擺進去。
+            // ══════════════════════════════════════════════════════════════
+            // 干擾棒：以「收納格寬度」為間距的交錯格子（依《珠落玉盤軌道》標記）
+            // ══════════════════════════════════════════════════════════════
+            //  ⭐ 這是實體彈珠台的經典排法，兩種排交替出現：
+            //      · 隔板排 (divider row)：棒子對齊每一片隔板的正上方（6 根）
+            //      · 格心排 (centre row) ：棒子對齊每一格的正中央（5 根）＋兩側牆導珠塊
+            //    最底下那一排剛好落在格口，也就是隔板本身的圓頭——所以隔板圓頭
+            //    不是額外加的東西，它本來就是這個格子的最後一排。
+            //
+            //  ⭐ 為什麼這樣排是對的：格心排在上、隔板排在下，球被格心排打散之後，
+            //    下一排的棒子正好站在隔板上方，等於替每一格做出一個漏斗口，把球
+            //    導進格子而不是擋在格口。早期版本的棒子位置與格子完全無關，曾經
+            //    出現「某一排的棒子正好站在正中央那格的正上方」而把整格封死的慘況。
+            //
+            //  ⚠️ 通道淨寬 = 格寬 − 2×棒半徑 = 66.9 − 10 = 56.9px，比原本 58px 的
+            //    球徑還窄，球會直接卡死。因此球半徑統一乘上 BALL_SCALE（0.85）：
+            //    球徑 49.3px，左右各留 3.8px 餘裕，既過得去又會被打得東倒西歪。
             this.pegs = [];
-            //    ⚠️ 側牆上有半圓導珠塊（見下方），所以「牆」的實際位置是 x = WALL_BUMP_R
-            //       而不是 x = 0，計算最外側棒子的位置時必須把它算進去，否則牆邊那條
-            //       通道又會比球徑窄、球照樣楔死。
-            const minGap = this.ballR * 2 + 12;          // 通道淨寬（球徑再留 12px 餘裕）
-            const lo = WALL_BUMP_R + minGap + PEG_R;     // 最外側棒子的圓心 x 下限
-            const hi = CW - WALL_BUMP_R - minGap - PEG_R;// 上限
-            const span = Math.max(0, hi - lo);
-            const minCenterGap = minGap + PEG_R * 2;     // 同排相鄰棒子的圓心距下限
-            const nA = Math.max(2, Math.floor(span / minCenterGap) + 1);
-            const stepX = span / (nA - 1);
-
-            // ⚠️ 最後一排干擾棒與格口之間必須留下「至少一個球徑」的自由散開區。
-            //    否則球在最後一排被打偏之後，還來不及橫向移動就進格，落點會被最後
-            //    一排的棒子位置硬生生決定。
-            const fieldBottom = this.binTop - this.ballR * 2 - 16;
-            const gapY = (fieldBottom - PEG_FIELD_TOP) / (PEG_ROWS - 1);
-            for (let row = 0; row < PEG_ROWS; row++) {
-                const y = PEG_FIELD_TOP + row * gapY;
-                if (row % 2 === 0) {
-                    for (let i = 0; i < nA; i++) this.pegs.push({ x: lo + i * stepX, y: y, flash: 0 });
+            const LEVELS = 5;                                  // 交錯格子的層數（最後一層＝格口）
+            const gapY = (this.binTop - PEG_FIELD_TOP) / (LEVELS - 1);
+            for (let lv = 0; lv < LEVELS; lv++) {
+                const y = PEG_FIELD_TOP + lv * gapY;
+                if (lv % 2 === 0) {
+                    // 隔板排：對齊每一片隔板（最後一層剛好就是格口的隔板圓頭）
+                    for (let i = 1; i < BIN_COUNT; i++) {
+                        this.pegs.push({ x: i * this.colW, y: y, flash: 0, divider: (lv === LEVELS - 1) });
+                    }
                 } else {
-                    // 奇數排錯開半格（兩端各少一根，維持與側牆的安全距離）
-                    for (let i = 0; i < nA - 1; i++) this.pegs.push({ x: lo + (i + 0.5) * stepX, y: y, flash: 0 });
+                    // 格心排：對齊每一格中央，但最外側兩格改用側牆導珠塊
+                    // （若在最外格中央也放棒子，牆與棒之間的縫隙比球徑還窄，會卡珠）
+                    for (let i = 1; i < BIN_COUNT - 1; i++) {
+                        this.pegs.push({ x: (i + 0.5) * this.colW, y: y, flash: 0 });
+                    }
+                    // 側牆導珠塊（半圓，圓心正好落在牆上）：背後沒有縫隙、不可能卡珠，
+                    // 又能把貼著牆下來的球推回台面中央，避免兩側形成無障礙的直落通道。
+                    this.pegs.push({ x: 0, y: y, flash: 0, wall: true, r: WALL_BUMP_R });
+                    this.pegs.push({ x: CW, y: y, flash: 0, wall: true, r: WALL_BUMP_R });
                 }
-                // ⚠️ 側牆導珠塊（半圓，圓心正好落在牆上）：
-                //    上面算出來的安全距離讓最外側的棒子離牆很遠，等於在兩側各留了
-                //    一條「完全沒有障礙物」的直落通道，球一飄到邊上就一路直墜到最
-                //    外側那格。五言時最外兩格是沒有底的空格，於是大量球白白漏光
-                //    （實測命中率只剩 0.039，遠低於均勻分布的 1/7）。改成在牆上做
-                //    凸起的半圓導珠塊：它背後沒有縫隙、不可能卡珠，又能把貼著牆
-                //    下來的球推回台面中央。
-                this.pegs.push({ x: 0, y: y, flash: 0, wall: true, r: WALL_BUMP_R });
-                this.pegs.push({ x: CW, y: y, flash: 0, wall: true, r: WALL_BUMP_R });
             }
-            // ⚠️⚠️ 隔板圓頭「不」加入碰撞清單（只在 _drawBins 畫出來）。
-            //    一開始把它們也當成干擾棒，結果是災難性的：一格只有 66.9px 寬，
-            //    但球要避開兩側隔板圓頭就必須離圓心各 35px（球半徑 29 ＋ 圓頭 6），
-            //    等於需要 70px 才進得去——比格子本身還寬。實測正中央那一格因此
-            //    「完全封死」：294 顆球裡一顆都沒進去，該字位永遠是 0/4，整首詩
-            //    當然永遠拼不完。改成單純以「跨過格口那一瞬間的 x」決定落入哪格，
-            //    再由 _resolveBins 把球平順地吸到格子中央，視覺上就是掉進格子裡。
         },
 
         _updateMeta: function () {
@@ -586,6 +586,7 @@
                     b.y += b.vy * h;
                     this._collideWalls(b);
                     this._collidePegs(b);
+                    this._collideDividers(b);
                 }
                 this._collideBalls();
                 this._resolveBins(now);
@@ -630,10 +631,51 @@
             if (b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * REST_WALL; }
         },
 
+        /**
+         * ⭐ 收納格之間的隔板：從格口一路延伸到台底的實心擋板，珠子絕對跨不過去。
+         *
+         * 先前隔板只是「畫出來的木條」，實際擋住珠子的是 _resolveBins 裡「跨過格口
+         * 時鎖定格號、之後把 x 夾在該格範圍內」的邏輯——功能上雖然也跨不過去，但那是
+         * 瞬間的位置修正，珠子在格口附近會有一瞬間壓在隔板上、甚至看起來像從隔板中間
+         * 穿過去。改成真正的碰撞之後，珠子會實實在在地撞在隔板上彈開。
+         *
+         * 幾何上把隔板當成「垂直的膠囊」（線段 + 半徑），線段由格口延伸到台底。
+         * ⚠️ 淨寬檢查：格寬 66.9 − 2×隔板半厚 6 = 60.9px，大於球徑 49.3px，
+         *    球進得去也不會卡在隔板與隔板之間。
+         */
+        _collideDividers: function (b) {
+            if (b.y + b.r < this.binTop) return;      // 還沒到格口高度
+            const hw = DIVIDER_HW;
+            for (let i = 1; i < BIN_COUNT; i++) {
+                const x = i * this.colW;
+                const dx = b.x - x;
+                const rr = b.r + hw;
+                if (Math.abs(dx) > rr) continue;
+                // 線段上離球心最近的點（超出兩端就取端點，形成圓角）
+                const cy = clamp(b.y, this.binTop, CH);
+                const dy = b.y - cy;
+                const d = Math.hypot(dx, dy);
+                if (d >= rr) continue;
+                let nx, ny;
+                if (d === 0) { nx = (dx >= 0 ? 1 : -1); ny = 0; }
+                else { nx = dx / d; ny = dy / d; }
+                b.x += nx * (rr - d);
+                b.y += ny * (rr - d);
+                const vn = b.vx * nx + b.vy * ny;
+                if (vn < 0) {
+                    b.vx -= (1 + REST_WALL) * vn * nx;
+                    b.vy -= (1 + REST_WALL) * vn * ny;
+                }
+            }
+        },
+
         _collidePegs: function (b) {
             // 正在從無底空格漏下去的珠子不再與任何東西互動（見 _collideBalls 註解）
             if (b.passThrough) return;
             for (const p of this.pegs) {
+                // ⚠️ 隔板圓頭（最後一排）只在球還沒進格時有效：球一旦鎖定了格子就
+                //    由 _resolveBins 接手把它吸到格中央，此時再撞隔板只會打架。
+                if (p.divider && b.bin >= 0) continue;
                 const dx = b.x - p.x, dy = b.y - p.y;
                 const rr = b.r + (p.r || PEG_R);
                 if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
@@ -1055,7 +1097,7 @@
             ctx.save();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = `900 ${Math.floor(r * 1.0)}px "Noto Serif TC", serif`;
+            ctx.font = `900 ${Math.floor(r * 1.5)}px "Noto Serif TC", serif`;
             for (let c = 0; c < this.CHARS; c++) {
                 const bin = this._binOf(c);
                 const cx = this._binCx(bin);
@@ -1063,7 +1105,7 @@
                     const s = this.LINES - 1 - k;
                     if (this.placed[c] > s) continue;   // 已經被真珠子蓋住了，不必畫底圖
                     // 底圖字帶一點該字位的顏色，暗示「這一格是紅／黃／綠……的家」
-                    ctx.fillStyle = `hsla(${this.hues[c]}, 45%, 34%, 0.30)`;
+                    ctx.fillStyle = `hsla(${this.hues[c]}, 72%, 34%, 0.66)`;
                     ctx.fillText(this.poemLines[k][c], cx, this._slotCy(s) + r * 0.04);
                 }
             }
@@ -1073,20 +1115,15 @@
             ctx.save();
             for (let i = 1; i < BIN_COUNT; i++) {
                 const x = i * this.colW;
-                const gr = ctx.createLinearGradient(x - 3, 0, x + 3, 0);
-                gr.addColorStop(0, 'hsl(30, 40%, 58%)');
-                gr.addColorStop(0.45, 'hsl(36, 48%, 84%)');
-                gr.addColorStop(1, 'hsl(28, 40%, 48%)');
+                // ⚠️ 寬度必須與 DIVIDER_HW 的碰撞厚度一致，玩家看到的擋板才等於
+                //    實際擋住珠子的擋板（畫得比碰撞窄會看起來像穿模）。
+                const gr = ctx.createLinearGradient(x - DIVIDER_HW, 0, x + DIVIDER_HW, 0);
+                gr.addColorStop(0, 'hsl(28, 42%, 46%)');
+                gr.addColorStop(0.45, 'hsl(36, 50%, 88%)');
+                gr.addColorStop(1, 'hsl(26, 42%, 38%)');
                 ctx.fillStyle = gr;
-                ctx.fillRect(x - 3, this.binTop, 6, CH - this.binTop);
-                // 圓頭
-                ctx.beginPath();
-                ctx.arc(x, this.binTop, 4, 0, Math.PI * 2);
-                ctx.fillStyle = 'hsl(36, 48%, 80%)';
-                ctx.fill();
-                ctx.strokeStyle = 'hsla(26, 45%, 30%, 0.6)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                ctx.fillRect(x - DIVIDER_HW, this.binTop, DIVIDER_HW * 2, CH - this.binTop);
+                // 圓頭不在這裡畫：它已經是干擾棒格子的最後一排，交給 _drawPegs 畫
             }
             // 台底橫木（只畫在有底的格子下面）
             for (let c = 0; c < this.CHARS; c++) {
@@ -1194,7 +1231,7 @@
 
             // 字（textBaseline middle + 微下偏補中文字視覺基線）
             ctx.fillStyle = 'hsl(220, 30%, 14%)';
-            ctx.font = `900 ${Math.floor(r * 1.05)}px "Noto Serif TC", serif`;
+            ctx.font = `900 ${Math.floor(r * 1.33)}px "Noto Serif TC", serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(b.ch || '', b.x, b.y + r * 0.04);
