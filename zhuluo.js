@@ -48,9 +48,9 @@
     // =====================================================================
 
     /** ⭐ 珠子落入「錯誤」格子後，停留在格底不動的時間（毫秒） */
-    const WRONG_HOLD_MS = 300;
+    const WRONG_HOLD_MS = 250;
     /** ⭐ 停留結束後，縮小消失所花的時間（毫秒） */
-    const WRONG_FADE_MS = 200;
+    const WRONG_FADE_MS = 150;
 
     const STAGE_W = 500, STAGE_H = 850;
     /** canvas 的邏輯尺寸（與 CSS 的顯示尺寸一致，1:1 對應，不另做 DPR 放大） */
@@ -100,9 +100,9 @@
 
     /** 速度預設：scale 同時影響物理步進與發球間隔 */
     const SPEED_PRESETS = {
-        slow: { label: '慢', scale: 0.70, emitMs: 900 },
-        normal: { label: '正常', scale: 1.00, emitMs: 520 },
-        fast: { label: '快', scale: 1.45, emitMs: 330 },
+        slow: { label: '慢', scale: 0.50, emitMs: 900 },
+        normal: { label: '正常', scale: 0.75, emitMs: 600 },
+        fast: { label: '快', scale: 1.00, emitMs: 300 },
     };
     const DEFAULT_SPEED = 'normal';
 

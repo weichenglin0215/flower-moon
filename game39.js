@@ -42,8 +42,8 @@
     'use strict';
 
     // ── 可調參數（錯誤落點的停留／消失秒數，與舒壓頁一致）──
-    const WRONG_HOLD_MS = 1000;
-    const WRONG_FADE_MS = 500;
+    const WRONG_HOLD_MS = 250;
+    const WRONG_FADE_MS = 150;
 
     // ── 畫布與版面（邏輯像素）──
     // ⚠️ CH 是「填滿遊戲區」反推出來的固定值：舞台 850 −頂部資訊列 50 −副標 36
