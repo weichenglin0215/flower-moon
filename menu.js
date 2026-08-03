@@ -85,73 +85,73 @@
     //
     // ⚠️ 清單中沒有列到的頁面，一律視為兩個特效都開啟（見 DEFAULT_TOUCH_EFFECT）。
     // ============================================================
-    const DEFAULT_TOUCH_EFFECT = { firework: true, smoke: true };
+    const DEFAULT_TOUCH_EFFECT = { firework: false, smoke: false };
 
     const TOUCH_EFFECTS = {
         // ── 主頁面 ────────────────────────────  煙火            彩色煙霧
-        'calendar': { firework: true, smoke: true },
-        'cards': { firework: true, smoke: true },
+        'calendar': { firework: false, smoke: true },
+        'cards': { firework: false, smoke: true },
 
         // ── 遊戲類 ───────────────────────────────────────────────────────
-        'game1': { firework: true, smoke: true },   // 慢思快選
-        'game2': { firework: true, smoke: true },   // 飛花令
-        'game3': { firework: true, smoke: true },   // 字爬梯
-        'game4': { firework: true, smoke: true },   // 眾裡尋他
-        'game5': { firework: true, smoke: true },   // 詩詞精靈
-        'game6': { firework: true, smoke: true },   // 詩陣侵略
-        'game7': { firework: true, smoke: true },   // 青鳥雲梯
-        'game8': { firework: true, smoke: true },   // 一筆裁詩
-        'game9': { firework: true, smoke: true },   // 詩韻鎖扣
-        'game10': { firework: true, smoke: true },   // 擊石鳴詩
-        'game11': { firework: true, smoke: true },   // 翻墨識蹤
-        'game12': { firework: true, smoke: true },   // 疏影橫斜
-        'game13': { firework: true, smoke: true },   // 人事時地
-        'game14': { firework: true, smoke: true },   // 步步驚心
-        'game15': { firework: true, smoke: true },   // 墨韻游龍
-        'game16': { firework: true, smoke: true },   // 打地詩
-        'game17': { firework: true, smoke: true },   // 青蛙過河
-        'game19': { firework: true, smoke: true },   // 詩碟狂襲
-        'game20': { firework: true, smoke: true },   // 丟三落一
-        'game21': { firework: true, smoke: true },   // 橫批成詩
-        'game22': { firework: true, smoke: true },   // 詩詞拼圖
-        'game23': { firework: true, smoke: true },   // 縱橫集句
-        'game24': { firework: true, smoke: true },   // 三字成珠
-        'game25': { firework: true, smoke: true },   // 連珠拾字
-        'game26': { firework: true, smoke: true },   // 投珠破句
-        'game27': { firework: true, smoke: true },   // 詩磚壘塔
-        'game28': { firework: true, smoke: true },   // 兩心相印
-        'game29': { firework: true, smoke: true },   // 字龍盤環
-        'game30': { firework: true, smoke: true },   // 層巒疊翠
-        'game31': { firework: true, smoke: true },   // 詩眼覓蹤
-        'game32': { firework: true, smoke: true },   // 尋詩地圖
-        'game33': { firework: true, smoke: true },   // 作者是誰
-        'game34': { firework: true, smoke: true },   // 猜猜詩題
-        'game35': { firework: true, smoke: true },   // 詩人心情
-        'game36': { firework: true, smoke: true },   // 轉輪覓詩
-        'game37': { firework: true, smoke: true },   // 步步為陣
-        'game38': { firework: true, smoke: true },   // 推枰成詩
-        'game39': { firework: true, smoke: true },   // 彈珠成詩
+        'game1': { firework: false, smoke: false },   // 慢思快選
+        'game2': { firework: false, smoke: false },   // 飛花令
+        'game3': { firework: false, smoke: false },   // 字爬梯
+        'game4': { firework: false, smoke: false },   // 眾裡尋他
+        'game5': { firework: false, smoke: false },   // 詩詞精靈
+        'game6': { firework: false, smoke: false },   // 詩陣侵略
+        'game7': { firework: false, smoke: false },   // 青鳥雲梯
+        'game8': { firework: false, smoke: false },   // 一筆裁詩
+        'game9': { firework: false, smoke: false },   // 詩韻鎖扣
+        'game10': { firework: false, smoke: false },   // 擊石鳴詩
+        'game11': { firework: false, smoke: false },   // 翻墨識蹤
+        'game12': { firework: false, smoke: false },   // 疏影橫斜
+        'game13': { firework: false, smoke: false },   // 人事時地
+        'game14': { firework: false, smoke: false },   // 步步驚心
+        'game15': { firework: false, smoke: false },   // 墨韻游龍
+        'game16': { firework: true, smoke: false },   // 打地詩
+        'game17': { firework: true, smoke: false },   // 青蛙過河
+        'game19': { firework: false, smoke: false },   // 詩碟狂襲
+        'game20': { firework: false, smoke: false },   // 丟三落一
+        'game21': { firework: false, smoke: false },   // 橫批成詩
+        'game22': { firework: false, smoke: false },   // 詩詞拼圖
+        'game23': { firework: false, smoke: false },   // 縱橫集句
+        'game24': { firework: false, smoke: false },   // 三字成珠
+        'game25': { firework: false, smoke: false },   // 連珠拾字
+        'game26': { firework: false, smoke: false },   // 投珠破句
+        'game27': { firework: false, smoke: false },   // 詩磚壘塔
+        'game28': { firework: false, smoke: false },   // 兩心相印
+        'game29': { firework: false, smoke: false },   // 字龍盤環
+        'game30': { firework: false, smoke: false },   // 層巒疊翠
+        'game31': { firework: false, smoke: false },   // 詩眼覓蹤
+        'game32': { firework: false, smoke: false },   // 尋詩地圖
+        'game33': { firework: false, smoke: false },   // 作者是誰
+        'game34': { firework: false, smoke: false },   // 猜猜詩題
+        'game35': { firework: false, smoke: false },   // 詩人心情
+        'game36': { firework: false, smoke: false },   // 轉輪覓詩
+        'game37': { firework: false, smoke: false },   // 步步為陣
+        'game38': { firework: false, smoke: false },   // 推枰成詩
+        'game39': { firework: false, smoke: false },   // 彈珠成詩
 
         // ── 舒壓／視覺療癒類 ──────────────────────────────────────────────
-        'wordcloud': { firework: true, smoke: true },   // 文字雲
-        'zhexianren': { firework: true, smoke: true },   // 詩詞珠簾
-        'suiyuean': { firework: true, smoke: true },   // 隨遇而安
-        'yichichunshui': { firework: true, smoke: true },   // 一池春水
-        'tuiqiao': { firework: true, smoke: true },   // 詩仙推敲
-        'zhuluo': { firework: true, smoke: true },   // 珠落玉盤
-        'qianzhu': { firework: true, smoke: true },   // 千珠成字
+        'wordcloud': { firework: false, smoke: true },   // 文字雲
+        'zhexianren': { firework: false, smoke: true },   // 詩詞珠簾
+        'suiyuean': { firework: false, smoke: true },   // 隨遇而安
+        'yichichunshui': { firework: false, smoke: true },   // 一池春水
+        'tuiqiao': { firework: false, smoke: true },   // 詩仙推敲
+        'zhuluo': { firework: false, smoke: true },   // 珠落玉盤
+        'qianzhu': { firework: false, smoke: true },   // 千珠成字
 
         // ── 資料類 ───────────────────────────────────────────────────────
-        'achievements': { firework: true, smoke: true },   // 成就紀錄
-        'leaderboard': { firework: true, smoke: true },   // 群英榜
-        'author-biography': { firework: true, smoke: true },   // 名人列傳
-        'collection': { firework: true, smoke: true },   // 江南小院
-        'poem-data': { firework: true, smoke: true },   // 詩詞資料
+        'achievements': { firework: false, smoke: true },   // 成就紀錄
+        'leaderboard': { firework: false, smoke: true },   // 群英榜
+        'author-biography': { firework: false, smoke: true },   // 名人列傳
+        'collection': { firework: false, smoke: true },   // 江南小院
+        'poem-data': { firework: false, smoke: true },   // 詩詞資料
 
         // ── 其他（對話框／動作）───────────────────────────────────────────
-        'about': { firework: true, smoke: true },   // 關於花月
-        'qrcode': { firework: true, smoke: true },   // QR Code
-        'fullscreen': { firework: true, smoke: true },   // 全螢幕
+        'about': { firework: false, smoke: true },   // 關於花月
+        'qrcode': { firework: false, smoke: true },   // QR Code
+        'fullscreen': { firework: false, smoke: true },   // 全螢幕
     };
 
     // ── 「目前在哪一頁」的偵測用對照（與上面的設定表無關，不需要動）──

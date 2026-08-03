@@ -53,14 +53,14 @@
     const CW = 460;                 // 收納格區是正方形，邊長 = CW（同時也是畫布寬度）
     const CH = 650;                 // 畫布總高（上方留給干擾棒／推手方塊，下方是收納格區）
     const PEG_FIELD_TOP = 40; //干擾棒區上方的留空（球從這個高度以上的出生區落下，先留一小段空白才進入第一排棒子）
-    const SPAWN_Y = 20;             // 球的出生高度（球心 y 座標，越小越靠近畫布最上緣）
+    const SPAWN_Y = 0;             // 球的出生高度（球心 y 座標，越小越靠近畫布最上緣）
 
     const PEG_R = 4;                 // 干擾棒（圓形）半徑
     const PEG_LANE_W = 30;          // ⚠️ 干擾棒的欄距與收納格的欄距（colW）無關，
     //    固定寬度，理由見 _layout 註解。
     const BALL_TTL_MS = 9000;       // 安全閥：一顆球最多允許在「尚未落入任何欄位」的狀態下飛這麼久（毫秒），超過就強制判定落點，避免永遠卡在半空
 
-    const GRAVITY = 0.2;            // 重力加速度（每個物理子步施加在 vy 上的量，數值越大球掉得越快）
+    const GRAVITY = 0.25;            // 重力加速度（每個物理子步施加在 vy 上的量，數值越大球掉得越快）
     /** 原始基準反彈係數（未調整前的數值，只用來換算下面的預設值，不在碰撞
      *  程式碼裡直接使用——實際碰撞一律讀 `QianZhu.restPeg` / `restWall` /
      *  `restBall`，控制台可隨時 `QianZhu.restPeg = 1.5` 即時調整，不必重整
@@ -82,6 +82,11 @@
 
     /** 全部落定後，隔多久自動換下一個字（毫秒） */
     const AUTO_NEXT_MS = 7000;
+
+    /** 開局倒數計時：每個數字（3、2、1）佔用的毫秒數，前半停留滿版、後半縮小消失。
+     *  3 個數字 = COUNTDOWN_DIGIT_MS × 3 的總時長，倒數期間不發球。 */
+    const COUNTDOWN_DIGIT_MS = 1000;
+    const COUNTDOWN_TOTAL_MS = COUNTDOWN_DIGIT_MS * 3;
 
     const SPEED_PRESETS = {
         // label：按鈕顯示文字；emitMs：兩次發球之間至少間隔多久（毫秒），數字越小發球越密集；
@@ -163,6 +168,7 @@
         rafId: null,              // requestAnimationFrame 的 id，關閉頁面時要用它取消動畫迴圈
         lastFrameAt: 0,           // 上一幀的時間戳記（用來算 dt）
         lastEmitAt: 0,            // 上一次發球的時間戳記（用來配合 SPEED_PRESETS 的 emitMs 控制發球節奏）
+        countdownStart: 0,        // 本輪開局倒數計時的起始時間戳記（倒數 3、2、1 期間不發球）
         lastPegSoundAt: 0,        // 上一次播放撞棒音效的時間戳記（節流用，避免密集碰撞時疊音）
         seq: 0,                   // 球的流水號產生器（每顆球的 id 依序遞增）
 
@@ -448,17 +454,22 @@
             this._updateProgress();
 
             this.lastFrameAt = performance.now();
+            this.countdownStart = performance.now();   // 每一輪開局都先跑 3、2、1 倒數，倒數完才開始發球
             if (!this.rafId) this._loop();
         },
 
         /**
          * 版面計算：收納格區固定是「邊長 = CW」的正方形（每格 CW/N 寬）。
-         * ⚠️ 干擾棒的欄距刻意「不」跟著 N 縮放（固定 PEG_LANE_W），理由：
-         *    N=100 時單一收納格只有 4.6px 寬，若干擾棒也照這個間距排列，
-         *    棒子半徑得小於 1px 才塞得下、形同虛設。干擾棒的任務只是在球
-         *    真正落底前製造隨機左右散射，跟收納格多細沒有關係，因此用固定
-         *    的物理尺寸（約 30px 一欄）排列，球的半徑（依 N 縮小）永遠遠小於
-         *    這個通道，不會卡珠。
+         *
+         * ⭐ 干擾棒的欄距（laneW）依「球的實際半徑」等比例縮放，而不是固定值：
+         *    - 球越大（格數越少，如 N=25，球半徑 ≈7.7px）→ 欄距要放寬，否則
+         *      偏移排（第 2、4 排）最靠牆的那根棒子跟側牆之間的空隙塞不下一
+         *      顆球，球會被牆與棒子左右夾住卡死。
+         *    - 球越小（格數越多，如 N=100）→ 欄距可縮短，維持足夠的散射密度。
+         *    以「格數 50」為基準校準（該檔公認正常、不卡）：基準球半徑 refR，
+         *    對應欄距 = PEG_LANE_W；其餘格數依 ballR/refR 等比例放大或縮小。
+         *    如此每一檔的「棒與棒、棒與牆之間的空隙」相對球徑都維持一致比例，
+         *    任何格數都不會卡珠。
          */
         _layout: function () {
             const N = this.gridN;
@@ -466,10 +477,12 @@
             this.binTop = CH - CW;
             this.ballR = clamp(this.cellSize * 0.42, 1.1, 14);
 
-            const cols = Math.max(4, Math.floor(CW / PEG_LANE_W));
+            const refR = (CW / DEFAULT_GRID) * 0.42;          // 格數 50 時的球半徑基準
+            const laneTarget = PEG_LANE_W * (this.ballR / refR);
+            const cols = Math.max(4, Math.round(CW / laneTarget));
             this.laneW = CW / cols;
             this.pegs = [];
-            const rows = clamp(this.pegRows, 2, 8);
+            const rows = clamp(this.pegRows, 0, 8);
             // ⚠️ 最上面一排固定在 PEG_FIELD_TOP，往下用「rows 等分」而非
             //    「rows-1 等分」計算間距，讓最後一排跟收納格上緣之間也留出
             //    一整格空間，不會緊貼著收納區造成球一過最後一排就立刻被
@@ -487,7 +500,13 @@
                 }
             }
 
-            this.pusher = { x: CW / 2, y: this.binTop - this.ballR * 2.4, dir: 1, r: this.ballR };
+            // ⭐ 寬度放大成球半徑的 3 倍（原本 2 倍的 150%）、高度縮減 2px：寬一點
+            //   才能在畫面正中央有效攔住、推動圓球；矮一點則是當推手正好停在
+            //   螢幕左右兩側邊緣時，讓緊貼側牆的球有機會直接「翻過」推手頂端，
+            //   不會被推手夾在牆與推手之間硬擠。
+            const pusherHW = this.ballR * 2.0;
+            const pusherHH = Math.max(1, this.ballR + 3);
+            this.pusher = { x: CW / 2, y: this.binTop - this.ballR * 2.4, dir: 1, r: this.ballR, hw: pusherHW, hh: pusherHH };
         },
 
         _updateMeta: function () {
@@ -549,31 +568,29 @@
             for (const b of this.balls) if (b.state === 'fly' || b.state === 'settling') live++;
             if (live >= this.maxLive) return;
 
-            this.lastEmitAt = now;
             const N = this.gridN;
-            let spawned = 0;
-            while (spawned < this.batchSize && this.spawnedCount < this.totalCount && live < this.maxLive) {
-                let minP = Infinity;
-                for (let c = 0; c < N; c++) {
-                    if (this.inFlight[c] >= COL_CONCURRENCY || this.colCount[c] >= N) continue;
-                    const p = this.colCount[c] + this.inFlight[c];
-                    if (p < minP) minP = p;
-                }
-                if (minP === Infinity) break; // 所有欄位都已滿或已達同時在路上的上限（理論上等於全部完成）
-                const candidates = [];
-                for (let c = 0; c < N; c++) {
-                    if (this.inFlight[c] >= COL_CONCURRENCY || this.colCount[c] >= N) continue;
-                    if (this.colCount[c] + this.inFlight[c] === minP) candidates.push(c);
-                }
-                const col = candidates[Math.floor(Math.random() * candidates.length)];
-                const slot = this.colCount[col] + this.inFlight[col];   // 這一欄接下來（由下往上算）第幾格
-                const row = N - 1 - slot;
-                const color = (this.bitmap[row] || [])[col] || 'white';
-                this._spawnBall(col, color, now);
-                this.inFlight[col]++;
-                this.spawnedCount++;
-                live++; spawned++;
+            // ⭐ 一次只發「一顆」球：每經過一段 emitMs（依速度檔位）才生一顆，
+            //   球是一顆一顆接連掉下來的，不再一口氣整排一起生成、整排一起落。
+            let minP = Infinity;
+            for (let c = 0; c < N; c++) {
+                if (this.inFlight[c] >= COL_CONCURRENCY || this.colCount[c] >= N) continue;
+                const p = this.colCount[c] + this.inFlight[c];
+                if (p < minP) minP = p;
             }
+            if (minP === Infinity) return; // 所有欄位都已滿或已達同時在路上的上限
+            const candidates = [];
+            for (let c = 0; c < N; c++) {
+                if (this.inFlight[c] >= COL_CONCURRENCY || this.colCount[c] >= N) continue;
+                if (this.colCount[c] + this.inFlight[c] === minP) candidates.push(c);
+            }
+            const col = candidates[Math.floor(Math.random() * candidates.length)];
+            const slot = this.colCount[col] + this.inFlight[col];   // 這一欄接下來（由下往上算）第幾格
+            const row = N - 1 - slot;
+            const color = (this.bitmap[row] || [])[col] || 'white';
+            this._spawnBall(col, color, now);
+            this.inFlight[col]++;
+            this.spawnedCount++;
+            this.lastEmitAt = now;
         },
 
         _spawnBall: function (targetCol, color, now) {
@@ -584,9 +601,11 @@
                 bornAt: now,
                 color: color,
                 targetCol: targetCol,
-                x: clamp(cx + rnd(-this.cellSize * 0.7, this.cellSize * 0.7), r + 1, CW - r - 1),
+                //x: clamp(cx + rnd(-this.cellSize * 0.7, this.cellSize * 0.7), r + 1, CW - r - 1), 
+                x: clamp(cx + rnd(-this.cellSize * 0.3, this.cellSize * 0.3), r + 1, CW - r - 1), //關閉生成時偏向左右位置。
                 y: SPAWN_Y,
-                vx: rnd(-0.8, 0.8),
+                //vx: rnd(-0.8, 0.8), 
+                vx: rnd(-0.3, 0.3), //關閉生成時產生偏向左右的力量，讓球垂直往下。
                 vy: 0,
                 r: r,
                 state: 'fly',       // fly → settling → (settled，隨即從陣列移除)
@@ -611,23 +630,59 @@
             const preset = SPEED_PRESETS[this.speedKey] || SPEED_PRESETS[DEFAULT_SPEED];
             dt *= preset.scale;
 
-            if (!this.finished) this._tryEmit(now);
-            this._updatePusher(dt);
-            this._step(dt, now);
+            const counting = (now - this.countdownStart) < COUNTDOWN_TOTAL_MS;
+            if (!counting) {
+                if (!this.finished) this._tryEmit(now);
+                this._updatePusher(dt);
+                this._step(dt, now);
+            }
             this._stepEffects(dt);
             this._draw();
+            if (counting) this._drawCountdown(now);
 
-            if (this.finished && this.finishedAt && now - this.finishedAt > AUTO_NEXT_MS) {
+            if (!counting && this.finished && this.finishedAt && now - this.finishedAt > AUTO_NEXT_MS) {
                 this.newRound();
             }
         },
 
+        /** 開局倒數計時：在收集區正中畫出超大的 3 → 2 → 1。每個數字先以幾乎
+         *  佈滿收集區的尺寸停留半秒，再於半秒內縮小到消失，接著換下一個數字。 */
+        _drawCountdown: function (now) {
+            const elapsed = now - this.countdownStart;
+            const idx = clamp(Math.floor(elapsed / COUNTDOWN_DIGIT_MS), 0, 2);
+            const digit = 3 - idx;
+            const t = (elapsed - idx * COUNTDOWN_DIGIT_MS) / COUNTDOWN_DIGIT_MS;  // 0~1
+            // 前半（0~0.5）維持滿版；後半（0.5~1）由 1 縮到 0。
+            const scale = t < 0.5 ? 1 : Math.max(0, 1 - (t - 0.5) / 0.5);
+            if (scale <= 0) return;
+
+            const cx = CW / 2, cy = this.binTop + CW / 2;
+            const ctx = this.ctx;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.scale(scale, scale);
+            ctx.globalAlpha = Math.min(1, scale * 0.5 + 0.15);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `700 ${Math.floor(CW * 0.66)}px "Noto TC", "Microsoft JhengHei"`;
+            ctx.fillStyle = 'hsla(28, 60%, 30%, 0.92)';
+            ctx.strokeStyle = 'hsla(40, 55%, 96%, 0.9)';
+            ctx.lineWidth = CW * 0.02;
+            ctx.strokeText(String(digit), 0, 0);
+            ctx.fillText(String(digit), 0, 0);
+            ctx.restore();
+        },
+
+        /** ⚠️ 移動到畫面左右兩側盡頭時，先讓推手完全移出畫面外再反方向移回，
+         *   避免推手在貼著邊牆的瞬間反向，造成球被夾在推手與側牆之間產生
+         *   不自然的擠壓。 */
         _updatePusher: function (dt) {
             if (!this.pusherEnabled || !this.pusher) return;
             const p = this.pusher;
             p.x += p.dir * this.pusherSpeed * dt;
-            if (p.x < p.r) { p.x = p.r; p.dir = 1; }
-            if (p.x > CW - p.r) { p.x = CW - p.r; p.dir = -1; }
+            const off = (p.hw || p.r) * 2.0;
+            if (p.x < -off) { p.x = -off; p.dir = 1; }
+            if (p.x > CW + off) { p.x = CW + off; p.dir = -1; }
         },
 
         _step: function (dt, now) {
@@ -646,10 +701,15 @@
                         const sp = Math.hypot(b.vx, b.vy);
                         if (sp > MAX_SPEED) { b.vx *= MAX_SPEED / sp; b.vy *= MAX_SPEED / sp; }
                     } else {
-                        // 已鎖定欄位：只做「水平吸附到欄中心＋垂直落到定位」，
-                        // 不再參與任何碰撞（理由見檔頭大註解）。
-                        const cx = this._colCx(b.bin);
-                        b.vx = clamp((cx - b.x) * 0.3, -MAX_SPEED, MAX_SPEED);
+                        // 已鎖定欄位：⛔ 絕對不對球施加任何水平「歸位／吸附」力。
+                        //    球只在自己實際落入的那一欄裡，靠重力自然往下落到該欄
+                        //    目前最上面的空位高度（restY）後停住——就是「掉下來、疊
+                        //    上去」而已。水平位置永遠維持它跨進格口當下的實際 x，
+                        //    不做任何橫向搬移。
+                        //    （先前這裡有一段 `b.vx = (cx - b.x)*0.3` 的水平吸附力，
+                        //    正是「球在收集區自己橫向跑去空格、還穿過已存在的球」的
+                        //    元兇，已整段刪除。）
+                        b.vx = 0;
                     }
                     b.x += b.vx * h;
                     b.y += b.vy * h;
@@ -658,7 +718,7 @@
                         this._collideWalls(b);
                         this._collidePegs(b);
                         if (this.pusherEnabled) this._collidePusher(b);
-                        this._collideFullColumnCap(b);
+                        this._collideCollectionTop(b);
                         // ⚠️ restPeg 若被調到 1.0 以上（反彈力超過 100%），碰撞會「灌
                         //    能量」進系統：如果只在子步開頭夾一次速度上限，同一子步
                         //    內連續撞到好幾根棒子仍可能越滾越快、球直接穿透棒子或牆。
@@ -687,12 +747,22 @@
                         if (b.stuck > 16) { b.vx += rnd(-4, 4); b.vy += 3; b.stuck = 0; }
                     } else b.stuck = 0;
 
-                    if (now - b.bornAt > BALL_TTL_MS) this._lockBall(b, now); // 安全閥：強制落定，不遺失球
+                    // 安全閥：球太久還沒落定，多半是卡在收集區頂端檯面上一直對
+                    // 不準狹窄的開口。⛔ 絕不「就地把它算成落定」——那會讓根本沒
+                    // 進格子的球被灌進完成數，畫面假完成（正是這個 bug 的元兇）。
+                    // 改成給它一股隨機橫向擾動＋往上一點，讓它脫離卡點、繼續被推手
+                    // 沿檯面掃過某個開口正上方時自己掉進去。純物理擾動，不指定要去
+                    // 哪一欄，也不搬移它到任何定點。
+                    if (now - b.bornAt > BALL_TTL_MS) {
+                        b.vx += rnd(-3.5, 3.5);
+                        b.vy -= 1.5;
+                        b.bornAt = now;   // 重置計時，避免每一幀都在擾動
+                    }
 
                     b.trail.push(b.x, b.y);
-                    if (b.trail.length > TRAIL_LEN * 2) b.trail.splice(0, 2);
+                    if (b.trail.length > TRAIL_LEN * 4) b.trail.splice(0, 4);
                 } else if (b.trail.length) {
-                    b.trail.splice(0, 2);
+                    b.trail.splice(0, 4);
                 }
             }
 
@@ -762,24 +832,81 @@
             }
         },
 
-        /** 收納區頂端左右來回移動的推手方塊：把卡在格口附近的球往兩側推開 */
+        /** ⭐ 推手是「尖角朝上」的三角形，碰撞判定必須也用同一個三角形（圓對
+         *  三角形的最近點碰撞），不能再用長方形／圓形近似——否則畫的是三角
+         *  形、判定卻是別的形狀，球會停在看不見的方框頂邊上（就是先前「球停
+         *  在三角形頂端」的錯誤）。三角形碰撞完全不是效能問題：全場只有一個
+         *  推手，一次碰撞只是對三條邊各做一次「點到線段最近點」，跟每幀要跑
+         *  上萬顆球的干擾棒／球對球碰撞比起來微不足道。
+         *
+         *  三角形頂點（apex 在上）：A=(px, py-hh)、B=(px-hw, py+hh)、
+         *  C=(px+hw, py+hh)。球從斜邊 AB／AC 滑落到兩側，就是「中央能推、
+         *  邊緣讓球翻過去」想要的效果，靠三角形的斜面本身自然達成。
+         *
+         *  ⚠️ 反彈用「相對速度」（把推手自身的移動速度算進去）而不是額外再加
+         *  一股人工推力：移動中的斜面撞到球時，正確的物理是以（球速−推手速）
+         *  的法線分量做反射，推手因此自然把自己的移動量傳給球，力道恰好等於
+         *  推手在動，不會多也不會累加。先前另外硬加一股 carry 力（無論是一次
+         *  到位或逐步逼近）都是無中生有的力，才會出現球被瞬間灌速、自己暴衝
+         *  進收納區的現象，這裡整段拿掉。 */
         _collidePusher: function (b) {
             const p = this.pusher;
             if (!p) return;
-            const dx = b.x - p.x, dy = b.y - p.y;
-            const rr = b.r + p.r;
-            if (Math.abs(dx) > rr || Math.abs(dy) > rr) return;
-            const d = Math.hypot(dx, dy);
-            if (d >= rr || d === 0) return;
-            const nx = dx / d, ny = dy / d;
-            b.x += nx * (rr - d);
-            b.y += ny * (rr - d);
-            const vn = b.vx * nx + b.vy * ny;
-            if (vn < 0) {
-                b.vx -= (1 + this.restWall) * vn * nx;
-                b.vy -= (1 + this.restWall) * vn * ny;
+            const hw = p.hw || p.r, hh = p.hh || p.r;
+            const ax = p.x, ay = p.y - hh;            // apex（上）
+            const bx = p.x - hw, by = p.y + hh;       // 左下
+            const cx2 = p.x + hw, cy2 = p.y + hh;     // 右下
+
+            // 快速剔除：球離推手外接矩形都還很遠就直接跳過
+            if (b.x < bx - b.r || b.x > cx2 + b.r || b.y < ay - b.r || b.y > cy2 + b.r) return;
+
+            // 球心對三角形三條邊各取最近點，挑距離最小者
+            const seg = (px, py, x1, y1, x2, y2) => {
+                const ex = x2 - x1, ey = y2 - y1;
+                const len2 = ex * ex + ey * ey || 1;
+                let t = ((px - x1) * ex + (py - y1) * ey) / len2;
+                t = t < 0 ? 0 : (t > 1 ? 1 : t);
+                const qx = x1 + t * ex, qy = y1 + t * ey;
+                const ddx = px - qx, ddy = py - qy;
+                return { qx, qy, d2: ddx * ddx + ddy * ddy };
+            };
+            let best = seg(b.x, b.y, ax, ay, bx, by);
+            const s2 = seg(b.x, b.y, ax, ay, cx2, cy2);
+            if (s2.d2 < best.d2) best = s2;
+            const s3 = seg(b.x, b.y, bx, by, cx2, cy2);
+            if (s3.d2 < best.d2) best = s3;
+
+            // 判斷球心是否在三角形內部（同號測試）
+            const sign = (px, py, x1, y1, x2, y2) => (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
+            const d1 = sign(b.x, b.y, ax, ay, bx, by);
+            const dd2 = sign(b.x, b.y, bx, by, cx2, cy2);
+            const dd3 = sign(b.x, b.y, cx2, cy2, ax, ay);
+            const hasNeg = d1 < 0 || dd2 < 0 || dd3 < 0;
+            const hasPos = d1 > 0 || dd2 > 0 || dd3 > 0;
+            const inside = !(hasNeg && hasPos);
+
+            let nx, ny;
+            if (inside) {
+                // 球心穿進三角形內部（極少見）：直接往正上方推出，球都是從上方
+                // 落下，往上推最安全。
+                nx = 0; ny = -1;
+                b.y = ay - b.r;
+            } else {
+                const d = Math.sqrt(best.d2);
+                if (d >= b.r || d === 0) return;      // 沒接觸
+                nx = (b.x - best.qx) / d;
+                ny = (b.y - best.qy) / d;
+                b.x += nx * (b.r - d);
+                b.y += ny * (b.r - d);
             }
-            b.vx += p.dir * this.pusherSpeed * 0.6;
+
+            // 以「球速 − 推手速度」的法線分量做反射（推手只往水平移動）
+            const pvx = p.dir * this.pusherSpeed;
+            const rvn = (b.vx - pvx) * nx + b.vy * ny;
+            if (rvn < 0) {
+                b.vx -= (1 + this.restWall) * rvn * nx;
+                b.vy -= (1 + this.restWall) * rvn * ny;
+            }
         },
 
         /** 球對球彈性碰撞：只有還在飛（尚未鎖定欄位）的球才需要參與 */
@@ -814,39 +941,38 @@
         },
 
         /**
-         * ⭐ 修正「球穿過已放滿的直條」的物理錯誤。
+         * ⭐ 收集區頂端的「開口閘門」——這就是傳統小彈珠機台收集區的簡化模型。
          *
-         *   先前的做法：球一旦碰到收納區上緣（`y + r >= binTop`），就直接查
-         *   它當下 x 落在哪一欄；若那一欄已經滿了，就在 `_lockBall` 裡悄悄把
-         *   它「導」去最近還有空位的欄，於是畫面上會看到球直接無視已經疊
-         *   滿的那一整條、瞬間換到別的欄落下——這在物理上完全說不通，看起
-         *   來就是穿透。
+         *   真實機台的收集區有一排直條隔板，把落下的彈珠排成工整的直條。這頁
+         *   為了效能沒有真的做隔板的物理碰撞，改成：把收集區的「頂端」當成一
+         *   片實心的檯面，只在每一欄（預設 50 欄）規畫好的落點正上方各開一個
+         *   「洞」。一顆球唯有同時滿足：
+         *     (1) 它正對準某一欄的洞口（球心離該欄中心在一個球徑內），且
+         *     (2) 那一欄還有空位，
+         *   才能從那個洞落進收集區；否則頂端就是一片擋住它的實心平面，球會
+         *   停在檯面上（維持 fly 狀態，繼續受重力＋碰撞＋推手支配），被推手
+         *   沿著檯面推動，直到剛好滑到某個洞口正上方，才「自己」掉進去。
          *
-         *   正確做法：已經放滿的那一欄，頂端（`binTop`）要當成一片實心平面
-         *   擋住球，讓球像疊在最上面那顆球頭上一樣停在那裡（真正判斷「停」
-         *   還是「彈」沿用跟撞棒相同的 `CONTACT_V` 門檻與 `restWall` 反彈係
-         *   數）。球仍然維持 `fly` 狀態，並不會被鎖定欄位，所以會繼續正常
-         *   參與這一頁其他的碰撞：後續飛來的球撞上它（`_collideBalls`）、或
-         *   收納區正上方來回移動的推手方塊掃到它（`_collidePusher`）都會把
-         *   它推開；一旦它被推到還沒放滿的欄位上方，這裡的判斷就不再擋
-         *   住它，會自然掉下去正常落定。
+         *   ⚠️ 全程沒有任何程式主動把球橫向搬去某一欄——球要不要落入、落入
+         *   哪一欄，完全由它自己在檯面上被推到哪個洞口上方決定。這正是把「橫
+         *   向對位」變成一道『閘門條件』（要對準才放行）、而不是一段『把球拉
+         *   過去』的動畫，兩者是完全不同的東西。
          */
-        _collideFullColumnCap: function (b) {
+        _collideCollectionTop: function (b) {
+            const capY = this.binTop;
+            if (b.y + b.r < capY) return;          // 還沒到收集區頂端
             const N = this.gridN;
             const col = clamp(Math.floor(b.x / this.cellSize), 0, N - 1);
-            if (this.colCount[col] < N) return;   // 這一欄還有空位，不需要擋
-            const capY = this.binTop;
-            if (b.y + b.r < capY) return;          // 還沒碰到頂端
-            // ⚠️ 這裡故意留一點點餘量（0.05），避免卡回去的高度剛好等於
-            //    `_resolvePositions` 判斷「跨過格口」的門檻，導致同一子步
-            //    馬上又被判定成落入格口、繞過這個擋板直接鎖定欄位。
+            const center = (col + 0.5) * this.cellSize;
+            const openingHalf = b.r;               // 洞口半寬＝球徑：球心要落在欄中心一個球徑內才對得準
+            const aligned = Math.abs(b.x - center) <= openingHalf;
+            if (aligned && this.colCount[col] < N) return;  // 對準空欄洞口 → 放行，交給 _resolvePositions 落定
+            // 否則收集區頂端是一片實心檯面，擋住球（停／彈的判斷沿用撞牆那套）。
+            // ⚠️ 留一點餘量（0.05），避免卡回去的高度剛好等於 `_resolvePositions`
+            //    判斷「跨過格口」的門檻，導致同一子步又被判成落入、繞過閘門。
             b.y = capY - b.r - 0.05;
             if (b.vy > 0) {
-                if (b.vy > CONTACT_V) {
-                    b.vy = -b.vy * this.restWall;   // 真的撞上去：依撞牆的反彈係數彈開一點
-                } else {
-                    b.vy = 0;                        // 幾乎是輕輕靠上去：直接停住，靜置在頂端
-                }
+                b.vy = (b.vy > CONTACT_V) ? -b.vy * this.restWall : 0;
             }
         },
 
@@ -858,51 +984,44 @@
                     if (b.y + b.r >= this.binTop) this._lockBall(b, now);
                     continue;
                 }
-                // ⚠️ 這是「收納區左右兩端、最上兩層常重疊」的 bug 根源：欄位已滿
-                //   時 `_lockBall` 會把球導到別的欄（可能離目前 x 位置很遠），但
-                //   這裡先前只檢查「垂直有沒有到 restY」就直接定住——球的水平
-                //   還在慢慢滑向新欄位中心的路上，垂直卻可能已經先到達目標高度
-                //   （尤其是快收尾時多數欄位已滿，導到很遠的欄變得很常見，
-                //   越晚填滿的最上面幾層、以及常被當作備援目標的邊欄／角落，
-                //   因此最容易出現「球還沒滑到定位就先烘進畫面」，跟旁邊欄位
-                //   或同欄其他球的位置重疊）。必須同時確認水平也已經滑到欄
-                //   中心，才算真正落定；垂直到達後先卡住高度、繼續等水平收斂。
-                if (b.y >= b.restY) b.y = b.restY;
-                const cx = this._colCx(b.bin);
-                if (b.y >= b.restY && Math.abs(b.x - cx) < 0.4) {
-                    b.x = cx; b.vx = 0; b.vy = 0;
+                // 已通過洞口閘門鎖定欄位的球：在 `_lockBall` 進來時就已對齊欄
+                // 中心（x），這裡只需等它靠重力垂直落到該欄的空位高度 restY，
+                // 到了就定住。全程純垂直，沒有任何橫向搬移。
+                if (b.y >= b.restY) {
+                    b.y = b.restY; b.vx = 0; b.vy = 0;
                     this._settleBall(b);
                 }
             }
         },
 
         /**
-         * 鎖定球最終落在哪一欄：以真實 x 座標決定。
+         * 球跨進格口時鎖定它「落在哪一欄」：純粹用它當下真實的 x 座標決定
+         * （`floor(x / cellSize)`），⛔ 不論任何情況都不把球導去別的欄、也不
+         *  搬移它的 x——「導欄」正是先前球會自己橫向飛去別欄、穿過已存在的球
+         *  的元兇，已徹底移除。
          *
-         * ⚠️ 下面「該欄已滿就導去最近空位」這段，正常情況下已經不會被觸發到
-         *   ——已經放滿的欄，球在真正跨進格口之前就會先被 `_collideFullColumnCap`
-         *   擋在頂端（見該函式的大註解），不會走到這裡來。這段只當作安全網保
-         *   留：唯一還可能繞過擋板的情況是 `BALL_TTL_MS` 安全閥強制落定（球
-         *   飛太久，直接呼叫這裡而不經過正常的碰撞流程），此時仍要確保
-         *   N×N 顆球最終剛好放滿、不多不少，不能真的漏接。
+         *  一顆球能走到這裡，代表它剛通過收集區頂端的洞口閘門
+         *  （`_collideCollectionTop`）：它一定對準了某個「還有空位的欄」的開口。
+         *  萬一極少數邊界情況下它上方那欄其實已滿，就「不鎖」，把它退回頂端
+         *  檯面繼續當在飛的球，交給推手把它推到還有空位的開口上方再落。
          */
         _lockBall: function (b, now) {
-            this.inFlight[b.targetCol] = Math.max(0, this.inFlight[b.targetCol] - 1);
             const N = this.gridN;
-            let col = clamp(Math.floor(b.x / this.cellSize), 0, N - 1);
+            const col = clamp(Math.floor(b.x / this.cellSize), 0, N - 1);
             if (this.colCount[col] >= N) {
-                let found = -1;
-                for (let d = 1; d < N && found < 0; d++) {
-                    const l = col - d, r = col + d;
-                    if (l >= 0 && this.colCount[l] < N) found = l;
-                    else if (r < N && this.colCount[r] < N) found = r;
-                }
-                if (found >= 0) col = found;
+                b.y = this.binTop - b.r - 0.05;
+                if (b.vy > 0) b.vy = 0;
+                return;
             }
+            this.inFlight[b.targetCol] = Math.max(0, this.inFlight[b.targetCol] - 1);
             b.bin = col;
             b.state = 'settling';
             b.stackIndex = this.colCount[col];
             this.colCount[col]++;
+            // 球是通過洞口閘門才進來的，球心本就已在該欄中心一個球徑內，這裡把
+            // x 對齊到欄中心只是一個 ≤ 球徑的瞬間對位（不是把球從遠處拉過來的
+            // 橫向動畫），讓它接著純粹垂直落到 restY 定位、排成工整的直條。
+            b.x = (col + 0.5) * this.cellSize;
             b.restY = this._slotCy(b.stackIndex);
             // ⚠️ 這裡「不」預先算對不對、也不先決定顏色——欄位與層數只是物理
             //   落點決定的事實，但球在真正落到定位之前，玩家看到的應該還是
@@ -989,15 +1108,19 @@
             ctx.fillStyle = g;
             ctx.fillRect(0, 0, CW, CH);
 
+            // 收納區直條格分隔線：只畫在收納區內、畫在每兩欄球之間（欄數 N 條
+            // 分隔線之間留 N-1 條），視覺上像球落入直條格子中；落下區（干擾棒
+            // 那一段）不再畫任何直線。
             ctx.save();
             ctx.globalAlpha = 0.10;
             ctx.strokeStyle = 'hsl(28, 45%, 42%)';
             ctx.lineWidth = 1.2;
-            for (let i = 0; i < 9; i++) {
-                const x = (i + 0.5) * (CW / 9);
+            const N = this.gridN;
+            for (let i = 1; i < N; i++) {
+                const x = i * this.cellSize;
                 ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.bezierCurveTo(x + 14, CH * 0.3, x - 14, CH * 0.7, x + 4, CH);
+                ctx.moveTo(x, this.binTop);
+                ctx.lineTo(x, CH);
                 ctx.stroke();
             }
             ctx.restore();
@@ -1023,17 +1146,22 @@
             }
         },
 
+        /** 推手畫成三角形（尖角朝上），寬度是球半徑的 3 倍、高度較矮，尺寸
+         *  對應 `_layout` 裡算好的 hw/hh，碰撞判定（`_collidePusher`）也是用
+         *  同一組 hw/hh 的長方形範圍，畫面與物理範圍互相一致。 */
         _drawPusher: function (ctx) {
             const p = this.pusher;
             if (!p) return;
-            const r = p.r;
+            const hw = p.hw || p.r, hh = p.hh || p.r;
             ctx.save();
             ctx.fillStyle = 'hsla(210, 70%, 55%, 0.85)';
             ctx.strokeStyle = 'hsla(210, 80%, 30%, 0.9)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.roundRect ? ctx.roundRect(p.x - r, p.y - r, r * 2, r * 2, r * 0.3)
-                : ctx.rect(p.x - r, p.y - r, r * 2, r * 2);
+            ctx.moveTo(p.x, p.y - hh);
+            ctx.lineTo(p.x + hw, p.y + hh);
+            ctx.lineTo(p.x - hw, p.y + hh);
+            ctx.closePath();
             ctx.fill();
             ctx.stroke();
             ctx.restore();
@@ -1041,6 +1169,7 @@
 
         _drawTrails: function (ctx) {
             ctx.save();
+            /* 關閉顯示拖尾效果
             ctx.lineCap = 'round';
             for (const b of this.balls) {
                 if (b.state === 'settled') continue;
@@ -1053,11 +1182,12 @@
                     ctx.beginPath();
                     ctx.moveTo(t[(i - 1) * 2], t[(i - 1) * 2 + 1]);
                     ctx.lineTo(t[i * 2], t[i * 2 + 1]);
-                    ctx.strokeStyle = `hsla(${hue}, 60%, 60%, ${0.30 * a})`;
+                    ctx.strokeStyle = `hsla(${hue}, 60%, 60%, ${0.80 * a})`;
                     ctx.lineWidth = b.r * 0.8 * a;
                     ctx.stroke();
                 }
             }
+            */
             ctx.restore();
         },
 
