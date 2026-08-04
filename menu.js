@@ -63,6 +63,7 @@
         { page: 'tuiqiao', label: '詩仙推敲', image: 'images/Menu/詩仙推敲_Menu256.png' },
         { page: 'zhuluo', label: '珠落玉盤', image: 'images/Menu/珠落玉盤_Menu256.png' },
         { page: 'qianzhu', label: '千珠成字', image: 'images/Menu/千珠成字_Menu256.png' },
+        { page: 'chousi', label: '抽絲剝繭', image: 'images/Menu/抽絲剝繭_Menu256.png' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRCode_Menu256.jpg' },
@@ -140,6 +141,7 @@
         'tuiqiao': { firework: false, smoke: true },   // 詩仙推敲
         'zhuluo': { firework: false, smoke: true },   // 珠落玉盤
         'qianzhu': { firework: false, smoke: true },   // 千珠成字
+        'chousi': { firework: false, smoke: true },   // 抽絲剝繭
 
         // ── 資料類 ───────────────────────────────────────────────────────
         'achievements': { firework: false, smoke: true },   // 成就紀錄
@@ -168,6 +170,7 @@
         'tuiqiao': 'tuiqiao-container',
         'zhuluo': 'zhuluo-container',
         'qianzhu': 'qianzhu-container',
+        'chousi': 'chousi-container',
         'author-biography': 'authorBioPage',
     };
     Object.keys(TOUCH_EFFECTS).forEach(function (page) {
@@ -554,6 +557,12 @@
             }
         } catch (e) { console.warn('[Menu] 隱藏千珠成字失敗', e); }
 
+        try {
+            if (window.ChouSi && typeof window.ChouSi.stopGame === 'function') {
+                window.ChouSi.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏抽絲剝繭失敗', e); }
+
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
             if (window.LeaderboardDialog && typeof window.LeaderboardDialog.hide === 'function') {
@@ -862,6 +871,10 @@
                     case 'qianzhu':
                         if (window.QianZhu) window.QianZhu.show();
                         else window.location.href = 'index.html?page=qianzhu';
+                        break;
+                    case 'chousi':
+                        if (window.ChouSi) window.ChouSi.show();
+                        else window.location.href = 'index.html?page=chousi';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();
