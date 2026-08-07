@@ -1,390 +1,256 @@
 /* =========================================
-   遊戲33：作者是誰 (Author-Verse Match) 樣式
+   遊戲33：作者是誰（多線索推理 + 直條答案）
+   ----------------------------------------
+   ⚠️ 介面「上半部」（overlay 背景、頂列、分數、控制鈕、難度標籤、紅心副標）
+   之樣式取自 theme_xuanzhi.css 的 .fm-* 共用區塊；
+   計時外環／計時框統一使用 .fm-timer-ring / .fm-timer-path。
+   本檔僅保留 .game33-area 及其以下的遊戲區私有樣式（米色宣紙風格）。
+   ⚠️ 本遊戲不使用 fm-poem-info（線索橫跨多首詩，顯示單一出處會誤導玩家）。
    ========================================= */
 
-.game33-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    margin: 0;
-    /* 對齊 game4：冷暗藍漸層舞台背景 */
-    background: radial-gradient(circle at center, hsl(210, 30%, 25%) 0%, hsl(0, 0%, 5%) 100%);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    color: hsl(40, 50%, 80%);
-    font-family: 'Noto Serif TC', serif;
-    overflow: hidden;
-    box-sizing: border-box;
-}
-
-.game33-overlay.hidden {
+/* 顯示／隱藏控制 */
+.hidden {
     display: none !important;
 }
 
-/* ---- Header ---- */
-.game33-header {
-    padding: 2px 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 10;
-    width: 100%;
-    height: 50px;
+/* 本遊戲的副標列只有紅心（無詩詞出處），改為置中顯示 */
+.game33-overlay .fm-sub-header {
+    justify-content: center;
 }
 
-.game33-score-board {
-    color: hsl(50, 70%, 60%);
-    font-size: 24px;
-    font-weight: bold;
-    padding-left: 50px;
-}
-
-.game33-controls {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-
-.game33-controls .nav-btn {
-    padding: 0px 10px;
-    background: hsl(0, 60%, 25%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.3);
-    color: hsl(45, 80%, 70%);
-    border-radius: 12px;
-    font-size: 20px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.game33-controls .nav-btn:hover {
-    background: hsl(0, 60%, 50%);
-    color: hsl(45, 80%, 90%);
-}
-
-.game33-controls .nav-btn:disabled {
-    background: hsl(0, 0%, 50%);
-    color: hsl(45, 0%, 90%);
-}
-
-.game33-difficulty-tag {
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-size: 20px;
-    color: hsl(45, 30%, 85%);
-    border: 0.6px solid hsla(40, 100%, 80%, 0.1);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.game33-difficulty-tag:hover {
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
-    filter: brightness(1.5);
-}
-
-/* ---- Sub Header (心心 + 連擊) ---- */
-.game33-sub-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 9;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    width: 100%;
-    height: 40px;
-    padding: 0 16px;
-    box-sizing: border-box;
-}
-
-.hearts {
-    display: flex;
-    gap: 2px;
-}
-
-.heart {
-    color: hsl(4, 90%, 60%);
-    font-size: 32px;
-}
-
-.heart.empty {
-    opacity: 0.9;
-}
-
-.game33-combo {
-    color: hsl(0, 80%, 65%);
-    font-size: 20px;
-    font-weight: bold;
-    transition: transform 0.2s;
-}
-
-@keyframes comboPop {
-    0% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.6);
-        color: hsl(45, 100%, 60%);
-    }
-
-    100% {
-        transform: scale(1);
-    }
-}
-
-.game33-combo.combo-pop {
-    animation: comboPop 0.6s ease;
-}
-
-/* ---- 主遊戲區 ---- */
+/* 主區域 */
 .game33-area {
     display: flex;
     flex: 1;
     flex-direction: column;
-    position: relative;
-    padding: 6px;
-    width: 100%;
-    align-items: center;
-    box-sizing: border-box;
-}
-
-.game33-info {
-    text-align: center;
-    width: 100%;
-    padding: 2px;
-    color: hsl(40, 50%, 80%);
-    min-height: 40px;
-}
-
-.poem-info {
-    font-size: 20px;
-    color: hsl(40, 50%, 80%);
-    text-align: center;
-    white-space: nowrap;
     overflow: hidden;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-}
-
-.game33-progress-text {
-    font-size: 20px;
-    font-weight: bold;
-    letter-spacing: 4px;
-    color: hsl(36, 80%, 55%);
-    margin-bottom: 4px;
-}
-
-/* ---- 遊戲容器（計時框包圍） ---- */
-.game33-game-wrapper {
     position: relative;
-    width: 96%;
-    flex: 1;
-    background: transparent;
+    padding: 0px;
+    width: 100%;
+}
+
+/* ---------- 題目區（線索卡列表） ---------- */
+.game33-question-area {
+    width: 100%;
+    padding: 6px 10px 0 10px;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: flex-start;
-    padding: 10px;
+    color: var(--fm-ink, #2e241b);
+}
+
+.game33-clue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+/* 線索卡：⚠️ 刻意做成「宣紙箋條」而非按鈕 —
+   無圓角陰影、無 hover、左側朱砂細線 + 底部虛線，與可點擊的答案直條明確區別 */
+.game33-clue-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    padding: 2px 10px 2px 0;
+    background: linear-gradient(90deg,
+            var(--fm-veil, hsla(38, 50%, 31%, 0.06)) 0%,
+            transparent 70%);
+    border-left: 10px solid var(--fm-cinnabar, hsl(6, 63%, 46%));
+    border-bottom: 1px dashed var(--fm-hairline, hsla(38, 50%, 31%, 0.16));
+    border-radius: 0;
+    box-shadow: none;
+    cursor: default;
+}
+
+/* 左方色塊依線索類別區分：朝代=朱紅、詩名=靛藍、詩句=青碧
+   （data-type 由 game33.js renderClues() 寫入） */
+.game33-clue-card[data-type="朝代"] {
+    border-left-color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+}
+
+.game33-clue-card[data-type="詩名"] {
+    border-left-color: var(--fm-hint-text, hsl(221, 39%, 29%));
+}
+
+.game33-clue-card[data-type="詩句"] {
+    border-left-color: var(--fm-celadon, hsl(150, 37%, 40%));
+}
+
+/* 尚未翻開的線索卡：保留版面高度但不顯示內容，避免翻牌時整列跳動 */
+.game33-clue-card.game33-clue-hidden {
+    visibility: hidden;
+}
+
+/* 線索類別標籤（朝代／詩名／詩句） */
+.game33-clue-label {
+    flex: 0 0 auto;
+    width: 60px;
+    padding: 2px 0;
+    text-align: center;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--fm-ink-faint, hsl(35, 38%, 39%));
+    border-right: 1px solid var(--fm-hairline, hsla(38, 50%, 31%, 0.16));
+}
+
+/* 線索內容（字級由 JS 依字數設定） */
+.game33-clue-text {
+    flex: 1 1 auto;
+    font-weight: bold;
+    letter-spacing: 4px;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    color: var(--fm-ink, #2e241b);
+    text-shadow: var(--fm-text-shadow, 0 1px 2px hsla(38, 50%, 31%, 0.18));
+}
+
+/* ⚠️ 線索卡（題目橫條）出場動畫：上下翻動放大（scaleY 0 → 1），
+   手法比照 game1 答案卡的翻轉；與答案直條的左右翻轉互相區別。每張 0.5s。 */
+.game33-clue-card.game33-clue-flip {
+    transform-origin: center center;
+    animation: game33-clue-flip 0.5s ease-out both;
+}
+
+@keyframes game33-clue-flip {
+    from {
+        filter: brightness(0.66);
+        transform: scaleY(0.0);
+    }
+
+    to {
+        filter: brightness(1);
+        transform: scaleY(1);
+    }
+}
+
+/* ---------- 答案區 ---------- */
+.game33-answer-area {
+    padding-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    flex: 1;
+    align-self: center;
+    width: 96%;
+    max-width: 96%;
+}
+
+.game33-answer-grid-container {
+    position: relative;
+    padding: 8px;
+    border-radius: 20px;
+    width: 100%;
     box-sizing: border-box;
 }
 
-/* 計時器外環 SVG */
-#game33-timer-ring {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 5;
-    display: none;
+/* 計時器外環／計時框：樣式取自 theme_xuanzhi.css 的 .fm-timer-ring / .fm-timer-path
+   （朱紅→金黃即時色由 game33.js updateTimerRing 逐格插值）。*/
+
+/* 答案網格：⚠️ 由左至右的「直條方格」（與一般由上至下的橫條不同） */
+.game33-answer-grid {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+    height: 240px;
 }
 
-#game33-timer-path {
-    fill: none;
-    stroke: hsl(0, 50%, 22%);
-    stroke-width: 10px;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-dasharray: 10000;
-    stroke-dashoffset: 10000;
-}
-
-/* ---- 詩句卡（羊皮紙質感） ---- */
-.game33-question-box {
-    margin-top: 30px;
-    width: 90%;
-    max-width: 420px;
-    padding: 20px 16px;
-    background: linear-gradient(135deg, hsla(45, 60%, 92%, 1) 0%, hsla(40, 50%, 86%, 1) 100%);
-    border: 2px solid hsl(30, 50%, 40%);
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 0 30px hsla(35, 60%, 75%, 0.5);
-    text-align: center;
-    position: relative;
-    z-index: 6;
-}
-
-.game33-question-title {
-    font-size: 16px;
-    color: hsl(20, 50%, 30%);
-    margin-bottom: 12px;
-    letter-spacing: 4px;
-}
-
-.game33-verse {
-    color: hsl(0, 0%, 8%);
-    font-family: 'KaiTi', '標楷體', 'Noto Serif TC', serif;
-    font-weight: bold;
-}
-
-.game33-verse-line {
-    font-size: 32px;
-    line-height: 1.6;
+/* 單一答案直條：文字直書（vertical-rl），寬度由 flex 均分 */
+.game33-ans-col {
+    flex: 1 1 0;
+    min-width: 0;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 2px;
+    background: var(--fm-paper-card, #fbf5e6);
+    color: var(--fm-ink, #2e241b);
+    border: 3px solid var(--fm-border, #d8c193);
+    border-radius: 12px;
     letter-spacing: 6px;
-    /* 毛筆字陰影感 */
-    text-shadow: 1px 1px 0 hsla(30, 50%, 40%, 0.3);
-}
-
-/* ---- 候選詩人按鈕區 ---- */
-.game33-candidates {
-    margin-top: 24px;
-    width: 95%;
-    display: grid;
-    gap: 10px;
-    z-index: 6;
-}
-
-.game33-candidates.cols-4 {
-    grid-template-columns: repeat(2, 1fr);
-}
-
-.game33-candidates.cols-6 {
-    grid-template-columns: repeat(3, 1fr);
-}
-
-.game33-candidates.cols-8 {
-    grid-template-columns: repeat(4, 1fr);
-}
-
-.game33-cand-btn {
-    padding: 12px 6px;
-    background: linear-gradient(135deg, hsla(45, 30%, 92%, 1) 0%, hsla(40, 25%, 84%, 1) 100%);
-    color: hsl(0, 0%, 10%);
-    border: 2px solid hsl(30, 40%, 50%);
-    border-radius: 6px;
-    font-family: 'KaiTi', '標楷體', serif;
-    font-size: 22px;
     font-weight: bold;
-    letter-spacing: 2px;
+    /* button 不會繼承 .fm-overlay 的字體，需明確指定 */
+    font-family: inherit;
     cursor: pointer;
-    transition: all 0.15s ease;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    box-shadow: var(--fm-shadow-btn, 0 4px 5px rgba(120, 90, 40, 0.22));
+    overflow: hidden;
 }
 
-.game33-cand-btn:hover:not(:disabled) {
-    transform: translateY(-2px) scale(1.03);
-    box-shadow: 0 0 12px hsl(45, 90%, 65%);
-    background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 80%, 1) 100%);
+.game33-ans-col:hover:not(:disabled) {
+    border-color: var(--fm-border-strong, #b98e50);
+    background: #fffdf3;
+    transform: scale(1.03);
 }
 
-.game33-cand-btn:active {
-    transform: scale(0.97);
+.game33-ans-col:disabled {
+    cursor: default;
+    transform: none;
+    opacity: 0.75;
 }
 
-/* 答對：綠色 + ✓ */
-.game33-cand-btn.correct {
-    background: hsl(140, 70%, 50%) !important;
-    color: white !important;
-    border-color: hsl(140, 70%, 30%) !important;
-    animation: correctPop 0.5s ease;
+/* ⚠️ 答案直條出場動畫：左右翻動（scaleX 0 → 1），沿用 game1 答案卡翻轉效果；
+   動畫延遲由 JS 壓進 0~0.5 秒之間，直條再多也不拖長整體出場時間。
+   ⚠️ 必須宣告在 .correct / .wrong 之前，否則答錯時的 shake 動畫會被此規則蓋掉。 */
+.game33-ans-col.game33-ans-appear {
+    transform-origin: center center;
+    animation: game33-ans-flip 0.5s ease-out both;
 }
 
-.game33-cand-btn.correct::after {
-    content: ' ✓';
-    color: white;
-}
-
-@keyframes correctPop {
-    0% {
-        transform: scale(1);
+@keyframes game33-ans-flip {
+    from {
+        filter: brightness(0.66);
+        transform: scaleX(0.0);
     }
 
-    40% {
-        transform: scale(1.25);
-    }
-
-    100% {
-        transform: scale(1.1);
+    to {
+        filter: brightness(1);
+        transform: scaleX(1);
     }
 }
 
-/* 答錯：紅色 + ✗ */
-.game33-cand-btn.wrong {
-    background: hsl(0, 90%, 60%) !important;
-    color: white !important;
-    border-color: hsl(0, 90%, 40%) !important;
-    animation: wrongShake 0.4s ease;
+.game33-ans-col.correct {
+    background: var(--fm-correct-bg, #e4f0e2);
+    border-color: var(--fm-correct-border, #7cbf93);
+    color: var(--fm-correct-text, #245c3c);
+    opacity: 1;
 }
 
-.game33-cand-btn.wrong::after {
-    content: ' ✗';
-    color: white;
+.game33-ans-col.wrong {
+    background: var(--fm-wrong-bg, #f9e3df);
+    border-color: var(--fm-wrong-border, #dd8a80);
+    color: var(--fm-wrong-text, #8a2b20);
+    animation: shake 0.5s;
 }
 
-@keyframes wrongShake {
+/* 抖動動畫（沿用 game1 設計） */
+@keyframes shake {
 
     0%,
     100% {
         transform: translateX(0);
     }
 
-    25% {
-        transform: translateX(-6px);
+    20% {
+        transform: translateX(-4px);
     }
 
-    75% {
-        transform: translateX(6px);
-    }
-}
-
-/* 正確答案閃光（答錯時提示） */
-.game33-cand-btn.flash-correct {
-    animation: flashCorrect 1s ease infinite;
-    border-color: hsl(45, 90%, 65%) !important;
-}
-
-@keyframes flashCorrect {
-
-    0%,
-    100% {
-        box-shadow: 0 0 6px hsl(45, 90%, 65%);
-        background: linear-gradient(135deg, hsla(45, 80%, 90%, 1) 0%, hsla(40, 70%, 80%, 1) 100%);
+    40% {
+        transform: translateX(4px);
     }
 
-    50% {
-        box-shadow: 0 0 24px hsl(45, 100%, 70%), 0 0 40px hsl(45, 100%, 60%);
-        background: linear-gradient(135deg, hsla(45, 100%, 80%, 1) 0%, hsla(40, 100%, 70%, 1) 100%);
+    60% {
+        transform: translateX(-4px);
     }
-}
 
-/* ---- 答錯小提示 ---- */
-.game33-feedback {
-    margin-top: 14px;
-    padding: 8px 14px;
-    background: hsla(0, 50%, 20%, 0.85);
-    color: hsl(45, 80%, 80%);
-    border: 1px solid hsl(45, 60%, 40%);
-    border-radius: 6px;
-    font-size: 18px;
-    text-align: center;
-    z-index: 6;
-}
-
-.game33-feedback.hidden {
-    display: none;
+    80% {
+        transform: translateX(4px);
+    }
 }

@@ -66,7 +66,10 @@ const ScoreManager = {
         'game30': { base: 100, heart: 10, time: 3, getPointA: 1 }, //層巒疊翠（麻將疊疊）
         'game31': { base: 100, heart: 10, time: 3, getPointA: 15 }, //詩眼覓蹤（字詞替換）
         'game32': { base: 100, heart: 10, time: 0, getPointA: 1 }, //尋詩地圖（地圖故事）
-        'game33': { base: 100, heart: 10, time: 0, getPointA: 1 }, //作者是誰（風格辨識）
+        'game33': {
+            base: 50, heart: 30, time: 1, getPointA: 25,
+            getPointAMul: { '小學': 0.66, '中學': 1.0, '高中': 1.25, '大學': 2.0, '研究所': 3.0 } //作者是誰（每張未翻開的線索卡 × getPointA，越早猜中分數越高）
+        },
         'game34': { base: 100, heart: 10, time: 0, getPointA: 1 }, //猜猜詩題（標題配對）
         'game35': { base: 100, heart: 10, time: 0, getPointA: 1 }, //詩人心情（情境推理）
         'game36': { base: 100, heart: 0, time: 0.5, getPointA: 0 }, //轉輪覓詩（Wordle 推理，無紅心，時限只給時間加成）

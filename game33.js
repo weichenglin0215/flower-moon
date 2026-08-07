@@ -1,74 +1,64 @@
 /* =========================================
-   遊戲33：作者是誰 (Author-Verse Match)
-   風格辨識訓練 — 螢幕中央顯示一句詩，玩家點擊正確詩人姓名
+   遊戲33：作者是誰 (Who Wrote These?)
+   ----------------------------------------
+   玩法：題目區依倒數時間逐一「上下翻出」最多 8 張線索卡
+        （朝代 / 詩名 / 詩句，詩名與詩句取自同一位作者的「多首」不同詩詞，
+          彼此之間沒有連貫性），評價越高（越有名）的線索越晚出現，
+        讓玩家在越早的階段猜中作者可獲得越高分數。
+   答案區：以「由左至右的直條方格」呈現候選詩人姓名（最多 7 條），
+        開局即依序左右翻開；外框為 SVG 倒數計時框。
+   介面風格：比照 game20「丟三落一」（宣紙淺色 fm-* 共用主題）。
+   ⚠️ 本遊戲不顯示 fm-poem-info（線索可能來自多首詩，顯示單一出處會造成誤解）。
    ========================================= */
 (function () {
-    // 內建詩人朝代映射表（約 40 位常見詩人 / 詞人）
-    // 未來可擴展為「同朝代同風格」分群（目前以朝代為主，註記 TODO）
-    const AUTHOR_DYNASTY = {
-        // 唐
-        '李白': '唐', '杜甫': '唐', '王維': '唐', '孟浩然': '唐',
-        '白居易': '唐', '李商隱': '唐', '杜牧': '唐', '王昌齡': '唐',
-        '高適': '唐', '岑參': '唐', '韋應物': '唐', '柳宗元': '唐',
-        '韓愈': '唐', '劉禹錫': '唐', '元稹': '唐', '李賀': '唐',
-        '賀知章': '唐', '王勃': '唐', '張九齡': '唐', '陳子昂': '唐',
-        // 宋
-        '蘇軾': '宋', '李清照': '宋', '辛棄疾': '宋', '陸游': '宋',
-        '王安石': '宋', '歐陽修': '宋', '范仲淹': '宋', '柳永': '宋',
-        '楊萬里': '宋', '黃庭堅': '宋', '秦觀': '宋', '晏殊': '宋',
-        '晏幾道': '宋', '周邦彥': '宋', '姜夔': '宋', '朱熹': '宋',
-        '蘇轍': '宋', '文天祥': '宋',
-        // 魏晉南北朝 / 漢
-        '陶淵明': '晉', '曹操': '漢', '曹植': '漢',
-        // 元明清
-        '馬致遠': '元', '關漢卿': '元', '唐寅': '明', '于謙': '明',
-        '納蘭性德': '清', '鄭板橋': '清', '龔自珍': '清'
-    };
-
-    // 依朝代分組（用於高中以上難度抽同朝代干擾項）
-    const DYNASTY_GROUPS = {};
-    Object.keys(AUTHOR_DYNASTY).forEach(name => {
-        const dyn = AUTHOR_DYNASTY[name];
-        if (!DYNASTY_GROUPS[dyn]) DYNASTY_GROUPS[dyn] = [];
-        DYNASTY_GROUPS[dyn].push(name);
-    });
-    const ALL_AUTHORS = Object.keys(AUTHOR_DYNASTY);
-
     const Game33 = {
+        // ---- 基本狀態 ----
         isActive: false,
         difficulty: '小學',
         currentLevelIndex: 1,
         isLevelMode: false,
+
+        // ---- 計時與計分 ----
+        timer: 30,
+        maxTimer: 30,
+        timerInterval: null,
+        startTime: null,
         score: 0,
         mistakeCount: 0,
+        maxMistakeCount: 3,
 
-        // --- 遊戲狀態 ---
-        questions: [],          // 題目陣列：{ poem, verse, correctAuthor, candidates[] }
-        currentQuestionIdx: 0,  // 當前題目索引
-        combo: 0,               // 連擊數
-        maxCombo: 0,            // 本局最高連擊
-        locked: false,          // 答題後鎖定避免重複點
+        // ---- 題目資料 ----
+        correctAuthor: '',      // 本局正解詩人
+        clues: [],              // 線索卡陣列 {type:'朝代'|'詩名'|'詩句', text, rating}
+        revealedCount: 0,       // 已翻開的線索卡數量
+        revealTimeouts: [],     // 線索卡逐一翻開的計時器控制代碼
+        revealInterval: 2,      // 每張線索卡的間隔秒數（= 總時間 / 10）
+        candidates: [],         // 候選詩人姓名陣列
 
-        // --- 計時器 ---
-        timer: 0,
-        timerInterval: null,
-        startTime: 0,
-        maxTimer: 0,
+        // ---- DOM 參考 ----
+        container: null,
+        gameArea: null,
         gameStartTime: null,
 
-        // 5 難度設定（依企劃書 §7）
-        // timeLimitRate 每題秒數；questionCount 局內題數；candidateCount 候選詩人數
-        // decoyType: crossDynasty / sameDynastyDiffStyle / sameDynastySameStyle / sameStyleWithFake
-        // comboCap 連擊倍率封頂
+        // ---- 難度設定 ----
+        // timeLimit:       時間限制（秒），線索卡間隔 = timeLimit / 10
+        //                  （例：20 秒 → 開局翻第一張，之後每 2 秒翻一張）
+        // poemMinRating:   線索的最低評價門檻；線索由此評價開始，逐步往高評價揭露
+        //                  （例：高中為 4 → 先出現評價 4 的詩句，再 5，再 6/7）
+        // maxMistakeCount: 最大錯誤次數
+        // answerCount:     答案直條數量（小學 2／中學 3／高中 5／大學 6／研究所 7）
+        // clueCount:       題目線索卡上限（最多 8 張；作者詩詞不足時允許少於此數）
         difficultySettings: {
-            '小學': { timeLimitRate: 30, poemMinRating: 6, maxMistakeCount: 5, questionCount: 10, candidateCount: 4, decoyType: 'crossDynasty', comboCap: 2 },
-            '中學': { timeLimitRate: 25, poemMinRating: 5, maxMistakeCount: 5, questionCount: 12, candidateCount: 4, decoyType: 'crossDynasty', comboCap: 3 },
-            '高中': { timeLimitRate: 20, poemMinRating: 4, maxMistakeCount: 4, questionCount: 15, candidateCount: 6, decoyType: 'sameDynastyDiffStyle', comboCap: 3 },
-            '大學': { timeLimitRate: 15, poemMinRating: 3, maxMistakeCount: 3, questionCount: 18, candidateCount: 8, decoyType: 'sameDynastySameStyle', comboCap: 5 },
-            '研究所': { timeLimitRate: 10, poemMinRating: 3, maxMistakeCount: 3, questionCount: 20, candidateCount: 8, decoyType: 'sameStyleWithFake', comboCap: 10 }
+            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 1, answerCount: 3, clueCount: 8 },
+            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 2, answerCount: 4, clueCount: 8 },
+            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerCount: 5, clueCount: 8 },
+            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerCount: 6, clueCount: 8 },
+            '研究所': { timeLimit: 10, poemMinRating: 3, maxMistakeCount: 1, answerCount: 7, clueCount: 8 }
         },
 
-        // 動態載入本遊戲專屬 CSS（僅載入一次，避免重複插入 <link>）
+        // ------------------------------------------------------------
+        // CSS 載入防護 — 避免在非 index.html 環境下 CSS 失效
+        // ------------------------------------------------------------
         loadCSS: function () {
             if (!document.getElementById('game33-css')) {
                 const link = document.createElement('link');
@@ -79,62 +69,13 @@
             }
         },
 
-        // 初始化遊戲：載入 CSS 並建立（若尚未建立）遊戲主 DOM 容器
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game33-container')) {
                 this.createDOM();
             }
             this.container = document.getElementById('game33-container');
-        },
-
-        // 建立遊戲畫面的 DOM 結構（標題列、計時外環、詩句卡、候選按鈕區等），並綁定按鈕事件
-        createDOM: function () {
-            const div = document.createElement('div');
-            div.id = 'game33-container';
-            div.className = 'game33-overlay hidden';
-            div.innerHTML = `
-                <div class="game33-header">
-                    <div class="game33-score-board">分數: <span id="game33-score">0</span></div>
-                    <div class="game33-controls">
-                        <button class="game33-difficulty-tag" id="game33-diff-tag">小學</button>
-                        <button id="game33-retryGame-btn" class="nav-btn">重來</button>
-                        <button id="game33-newGame-btn" class="nav-btn">開新局</button>
-                    </div>
-                </div>
-                <div class="game33-sub-header">
-                    <div id="game33-hearts" class="hearts"></div>
-                    <div id="game33-combo" class="game33-combo">連擊 ×1</div>
-                </div>
-                <div class="game33-area">
-                    <div class="game33-info">
-                        <div id="game33-poem-info" class="poem-info"></div>
-                        <div id="game33-progress-text" class="game33-progress-text"></div>
-                    </div>
-                    <div id="game33-game-wrapper" class="game33-game-wrapper">
-                        <svg id="game33-timer-ring">
-                            <rect id="game33-timer-path" x="3" y="3"></rect>
-                        </svg>
-                        <div class="game33-question-box">
-                            <div class="game33-question-title">這句詩是誰寫的？</div>
-                            <div id="game33-verse" class="game33-verse"></div>
-                        </div>
-                        <div id="game33-candidates" class="game33-candidates"></div>
-                        <div id="game33-feedback" class="game33-feedback hidden"></div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(div);
-            if (window.registerOverlayResize) {
-                window.registerOverlayResize((r) => {
-                    div.style.left = r.left + 'px';
-                    div.style.top = r.top + 'px';
-                    div.style.width = 500 + 'px';
-                    div.style.height = 850 + 'px';
-                    div.style.transform = 'scale(' + r.scale + ')';
-                    div.style.transformOrigin = 'top left';
-                });
-            }
+            this.gameArea = document.getElementById('game33-area');
 
             document.getElementById('game33-retryGame-btn').onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -150,420 +91,621 @@
             };
         },
 
-        // 對外進入點：初始化遊戲並顯示難度選擇畫面
+        // ------------------------------------------------------------
+        // 建立 DOM（掛 document.body，避免 #stage 的 transform 雙重縮放）
+        // 版面比照 game20：fm-header / fm-sub-header / 遊戲區 / 答案區
+        // ⚠️ 刻意不放 fm-poem-info（線索橫跨多首詩）
+        // ------------------------------------------------------------
+        createDOM: function () {
+            const div = document.createElement('div');
+            div.id = 'game33-container';
+            div.className = 'game33-overlay fm-overlay hidden';
+            div.innerHTML = `
+                <div class="fm-header">
+                    <div class="fm-scoreboard">分數: <span id="game33-score">0</span></div>
+                    <div class="fm-controls">
+                        <button class="fm-difficulty-tag" id="game33-diff-tag" data-level="小學">小學</button>
+                        <button id="game33-retryGame-btn" class="fm-nav-btn">重來</button>
+                        <button id="game33-newGame-btn" class="fm-nav-btn">開新局</button>
+                    </div>
+                </div>
+                <div class="fm-sub-header">
+                    <div id="game33-hearts" class="fm-hearts"></div>
+                </div>
+                <div id="game33-area" class="game33-area">
+                    <!-- 題目區：最多 8 張線索卡，隨倒數逐一上下翻出 -->
+                    <div class="game33-question-area">
+                        <div id="game33-clue-list" class="game33-clue-list">
+                            <!-- 由 renderClues() 注入 -->
+                        </div>
+                    </div>
+
+                    <!-- 答案區：SVG 計時邊框 + 由左至右的直條答案 -->
+                    <div class="game33-answer-area">
+                        <div id="game33-answer-grid-container" class="game33-answer-grid-container">
+                            <svg id="game33-timer-ring" class="fm-timer-ring">
+                                <rect id="game33-timer-path" class="fm-timer-path" x="4" y="4"></rect>
+                            </svg>
+                            <div id="game33-answer-grid" class="game33-answer-grid">
+                                <!-- 由 renderAnswers() 注入 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(div);
+
+            if (window.registerOverlayResize) {
+                window.registerOverlayResize((r) => {
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = '500px';
+                    div.style.height = '850px';
+                    div.style.transform = 'scale(' + r.scale + ')';
+                    div.style.transformOrigin = 'top left';
+                });
+            }
+            this.renderHearts();
+        },
+
         show: function () {
             this.init();
             this.showDifficultySelector();
         },
 
-        // 顯示難度／關卡選擇器；玩家選定後才正式開始新的一局
         showDifficultySelector: function () {
             this.isActive = false;
-            clearInterval(this.timerInterval);
+            this.clearAllTimers();
             if (window.GameMessage) window.GameMessage.hide();
             this.hideOtherContents();
 
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('作者是誰', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
+                    // 挑戰關卡模式判定：levelIndex 有值即為關卡模式
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
 
-                    this.updateUIForMode();
+                    const settings = this.difficultySettings[selectedLevel];
+                    this.maxTimer = settings.timeLimit;
+                    this.timer = settings.timeLimit;
+                    this.maxMistakeCount = settings.maxMistakeCount;
 
+                    this.updateUIForMode();
                     this.container.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('overlay-active');
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
+            } else {
+                this.container.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                document.body.classList.add('overlay-active');
+                this.startNewGame();
             }
         },
 
-        // 依「自由難度模式」或「關卡挑戰模式」更新標題列的難度標籤與按鈕顯示狀態
         updateUIForMode: function () {
             const diffTag = document.getElementById('game33-diff-tag');
             const retryBtn = document.getElementById('game33-retryGame-btn');
             const newBtn = document.getElementById('game33-newGame-btn');
-            const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
+            // 難度標籤顏色由 theme_xuanzhi.css 依 data-level 套色，JS 只負責文字與屬性同步
+            if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {
-                if (diffTag) {
-                    diffTag.textContent = this.difficulty;
-                    diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
-                    diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
-                }
+                if (diffTag) diffTag.textContent = this.difficulty;
                 if (newBtn) newBtn.style.display = 'inline-block';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             }
         },
 
-        // 開啟本遊戲畫面前，先隱藏主選單卡片與其他遊戲的容器，避免畫面重疊
         hideOtherContents: function () {
-            const els = ['cardContainer', 'game1-container', 'game2-container', 'game3-container', 'game4-container', 'game5-container', 'game6-container', 'game7-container', 'game8-container', 'game33-container'];
-            els.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    if (id === 'cardContainer') el.style.display = 'none';
-                    else el.classList.add('hidden');
-                }
-            });
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) cardContainer.style.display = 'none';
         },
 
-        // 停止遊戲：清除計時器、隱藏本遊戲畫面並還原主選單卡片顯示（供全域清理呼叫）
+        showOtherContents: function () {
+            const cardContainer = document.getElementById('cardContainer');
+            if (cardContainer) cardContainer.style.display = '';
+        },
+
+        // 清除倒數計時與所有線索卡的翻牌排程
+        clearAllTimers: function () {
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            this.timerInterval = null;
+            this.revealTimeouts.forEach(t => clearTimeout(t));
+            this.revealTimeouts = [];
+        },
+
+        // ⚠️ 必須在此隱藏 overlay：menu.js 全域清理只呼叫 stopGame()
         stopGame: function () {
             this.isActive = false;
-            clearInterval(this.timerInterval);
-            // ⚠️ 必須隱藏 overlay：menu.js 全域清理只呼叫 stopGame()
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
+            this.clearAllTimers();
+            if (this.container) this.container.classList.add('hidden');
             document.body.style.overflow = '';
             document.body.classList.remove('overlay-active');
-            const el = document.getElementById('cardContainer');
-            if (el) el.style.display = '';
+            this.showOtherContents();
         },
 
-        // 重玩本局：沿用已生成的題目陣列，重新開始計分與計時
+        // ------------------------------------------------------------
+        // 重來：沿用同一位作者與線索，重新計分、重新洗牌答案位置
+        // ------------------------------------------------------------
         retryGame: function () {
-            if (this.questions.length === 0) return;
-            this.startGameProcess(true);
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (!this.correctAuthor) return;
+            this.clearAllTimers();
+            this.isActive = true;
+            this.score = 0;
+            this.mistakeCount = 0;
+            this.gameStartTime = Date.now();
+            this.renderHearts();
+            document.getElementById('game33-score').textContent = this.score;
+            if (window.GameMessage) window.GameMessage.hide();
+
+            // ⚠️ 重來時把答案重新洗牌，避免玩家靠「上次答錯的位置」直接排除
+            this.shuffleInPlace(this.candidates);
+
+            this.renderClues();
+            this.renderAnswers();
+            this.scheduleClueReveals();
+            this.startTimer();
+            document.getElementById('game33-retryGame-btn').disabled = false;
+            document.getElementById('game33-newGame-btn').disabled = false;
         },
 
-        // 開始全新一局：可帶入 levelIndex 進入指定關卡（挑戰模式），否則依目前難度隨機出題
+        // ------------------------------------------------------------
+        // 開新局：重新抽作者與線索
+        // ------------------------------------------------------------
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
                 this.currentLevelIndex = levelIndex;
                 this.isLevelMode = true;
             }
-            if (this.generateQuestions()) {
-                this.startGameProcess(false);
-            } else {
+            this.clearAllTimers();
+            this.updateUIForMode();
+
+            const settings = this.difficultySettings[this.difficulty];
+            this.maxTimer = settings.timeLimit;
+            this.timer = settings.timeLimit;
+            this.maxMistakeCount = settings.maxMistakeCount;
+
+            this.isActive = true;
+            this.score = 0;
+            this.mistakeCount = 0;
+            this.renderHearts();
+            document.getElementById('game33-score').textContent = this.score;
+            if (window.GameMessage) window.GameMessage.hide();
+            this.gameStartTime = Date.now();
+
+            if (!this.prepareChallenge()) {
                 alert('載入詩詞失敗。');
                 this.stopGame();
+                return;
             }
+
+            this.renderClues();
+            this.renderAnswers();
+            this.scheduleClueReveals();
+            this.startTimer();
+            document.getElementById('game33-retryGame-btn').disabled = false;
+            document.getElementById('game33-newGame-btn').disabled = false;
         },
 
-        // 過關後推進至下一關卡編號，並開始新局
         startNextLevel: function () {
             this.currentLevelIndex++;
             this.startNewGame();
         },
 
-        // 重置本局狀態（分數、失誤數、連擊、題號）並渲染第一題、啟動計時器
-        startGameProcess: function (isRetry) {
-            this.isActive = true;
-            this.gameStartTime = Date.now();
-            this.updateUIForMode();
-            this.score = 0;
-            this.mistakeCount = 0;
-            this.combo = 0;
-            this.maxCombo = 0;
-            this.currentQuestionIdx = 0;
-            this.locked = false;
-
-            document.getElementById('game33-score').textContent = this.score;
-            if (window.GameMessage) window.GameMessage.hide();
-
-            const settings = this.difficultySettings[this.difficulty];
-            this.renderHearts();
-            this.updateComboDisplay();
-
-            // 顯示當前題目
-            this.renderQuestion();
-
-            document.getElementById('game33-retryGame-btn').disabled = false;
-            document.getElementById('game33-newGame-btn').disabled = false;
-
-            // 時限 = questionCount × timeLimitRate
-            if (settings.timeLimitRate > 0) {
-                this.maxTimer = Math.ceil(settings.questionCount * settings.timeLimitRate);
-                this.timer = this.maxTimer;
-                document.getElementById('game33-timer-ring').style.display = 'block';
-                this.startTimer();
-            } else {
-                document.getElementById('game33-timer-ring').style.display = 'none';
-            }
+        // ------------------------------------------------------------
+        // 亂數產生器：挑戰模式用關卡序號當種子（確定性），自由模式用 Math.random
+        // ------------------------------------------------------------
+        makeRng: function (seed) {
+            if (seed === null || seed === undefined) return Math.random;
+            let t = (seed * 2654435761) >>> 0;
+            return function () {
+                t = (t + 0x6D2B79F5) >>> 0;
+                let r = Math.imul(t ^ (t >>> 15), 1 | t);
+                r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+                return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+            };
         },
 
-        // 生成本局所有題目 — 每題抽一首詩、隨機選一句（或對聯）、生成候選詩人
-        generateQuestions: function () {
-            if (typeof getSharedRandomPoem !== 'function') {
-                console.error("需要先載入 script.js 中的 getSharedRandomPoem 函數");
-                return false;
-            }
+        // ------------------------------------------------------------
+        // 題目準備：挑一位作者 → 從他的「多首」詩詞蒐集線索 → 生成候選姓名
+        // ------------------------------------------------------------
+        prepareChallenge: function () {
+            if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
-            this.questions = [];
+            const rng = this.makeRng(this.isLevelMode ? (this.currentLevelIndex * 7919 + 33) : null);
 
-            for (let q = 0; q < settings.questionCount; q++) {
-                // 每題使用不同 seed 確保挑戰模式可重現但題目不同
-                const seed = this.isLevelMode ? (this.currentLevelIndex * 100 + q) : null;
-                // 抽 2~10 行、字數 5~56，最低 rating 由難度決定
-                const result = getSharedRandomPoem(
-                    settings.poemMinRating, 2, 10, 5, 56,
-                    "", seed, 'game33_' + q
-                );
-                if (!result) continue;
+            // 依作者彙整詩詞（排除無作者、或作者僅一首詩者，確保線索能跨多首詩）
+            // ⚠️ 排除「佚名」、「西鄙人」、「無名氏」：代表作者不詳，不能拿來當正解或干擾項
+            const byAuthor = {};
+            POEMS.forEach(p => {
+                const a = (p.author || '').trim();
+                if (!a || a === '佚名' || a === '西鄙人' || a === '無名氏' || !p.content || p.content.length === 0) return;
+                if (!byAuthor[a]) byAuthor[a] = [];
+                byAuthor[a].push(p);
+            });
 
-                const poem = result.poem;
-                const author = (poem.author || '').trim();
-                if (!author) continue;
-
-                // 隨機抽取一句（或一聯）做為題目
-                const lines = result.lines;
-                // 若行數 >= 2 隨機決定顯示「單句」或「兩句聯」
-                const useTwoLines = (lines.length >= 2 && Math.random() < 0.6);
-                let verseLines;
-                if (useTwoLines) {
-                    // 從偶數位置抽兩句連續對聯
-                    const maxStart = lines.length - 2;
-                    const startIdx = Math.floor(Math.random() * (maxStart + 1));
-                    verseLines = [lines[startIdx], lines[startIdx + 1]];
-                } else {
-                    const idx = Math.floor(Math.random() * lines.length);
-                    verseLines = [lines[idx]];
-                }
-
-                const candidates = this.generateDecoyAuthors(author, settings);
-
-                this.questions.push({
-                    poem: poem,
-                    verseLines: verseLines,
-                    correctAuthor: author,
-                    candidates: candidates
-                });
+            // 候選作者：至少 2 首詩，且至少有一首達到本難度的評價門檻
+            let authors = Object.keys(byAuthor).filter(a =>
+                byAuthor[a].length >= 2 &&
+                byAuthor[a].some(p => (p.rating || 0) >= settings.poemMinRating)
+            );
+            // 降級保護：門檻過嚴時放寬為「至少 2 首詩」
+            if (authors.length === 0) {
+                authors = Object.keys(byAuthor).filter(a => byAuthor[a].length >= 2);
             }
+            if (authors.length === 0) return false;
 
-            return this.questions.length > 0;
+            const author = authors[Math.floor(rng() * authors.length)];
+            this.correctAuthor = author;
+            const authorPoems = byAuthor[author];
+            const dynasty = authorPoems[0].dynasty || '';
+
+            // ---- 蒐集線索（評價越高＝越有名，之後會排在越後面） ----
+            const clues = this.collectClues(authorPoems, dynasty, settings, rng);
+            if (clues.length < 2) return false;
+            this.clues = clues;
+
+            // ---- 生成候選詩人（正解 + 干擾項；優先同朝代，避免用朝代直接排除） ----
+            this.candidates = this.generateCandidates(author, dynasty, byAuthor, settings.answerCount, rng);
+
+            this.revealedCount = 0;
+            // 線索間隔：總時間 / 10（例：20 秒 → 2 秒一張）
+            this.revealInterval = this.maxTimer / 10;
+            return true;
         },
 
-        // 生成候選詩人陣列（含正確答案 + 干擾項）
-        generateDecoyAuthors: function (correctAuthor, settings) {
-            const count = settings.candidateCount;
-            const decoyType = settings.decoyType;
-            const correctDyn = AUTHOR_DYNASTY[correctAuthor] || null;
+        // ------------------------------------------------------------
+        // 蒐集線索卡（8 格＝1 格朝代 + 7 格詩名／詩句）：
+        //   ① 「朝代」1 格 — ⚠️ 插入位置隨機，避免玩家看到「固定第一格」的規律
+        //   ② 依配額分配其餘 7 格：詩名約佔 1/3（2 格）、詩句約佔 2/3（5 格），
+        //      詩句資訊量較低、較適合當主要線索，故佔多數但不會獨佔全部。
+        //   ③ 詩句優先「每首詩各取 1 句」讓線索分散於多首詩；不足才從其餘詩句補。
+        //   ④ 任一類數量不足時，改由另一類遞補，盡量湊滿 8 格；兩類皆用盡才允許少於 8 格。
+        //   ⑤ 最後一律以評價由低到高排序，讓玩家越晚越容易猜出；朝代插入後不破壞其餘相對順序。
+        // ------------------------------------------------------------
+        collectClues: function (authorPoems, dynasty, settings, rng) {
+            const needCount = settings.clueCount - 1;   // 扣掉「朝代」那一格
+            const minRating = settings.poemMinRating;
+            // 配額：詩名約 1/3、詩句約 2/3（needCount=7 → 詩名 2、詩句 5）
+            const titleQuota = Math.max(1, Math.round(needCount / 3));
+            const lineQuota = needCount - titleQuota;
 
-            let pool = [];
-            if (decoyType === 'crossDynasty' || !correctDyn) {
-                // 跨朝代：全池隨機
-                pool = ALL_AUTHORS.filter(n => n !== correctAuthor);
-            } else if (decoyType === 'sameDynastyDiffStyle') {
-                // 同朝代不同風格（簡化：同朝代其他人）
-                pool = (DYNASTY_GROUPS[correctDyn] || []).filter(n => n !== correctAuthor);
-                // 不足則補跨朝代
-                if (pool.length < count - 1) {
-                    const extra = ALL_AUTHORS.filter(n => n !== correctAuthor && !pool.includes(n));
-                    pool = pool.concat(extra);
-                }
-            } else if (decoyType === 'sameDynastySameStyle') {
-                // 同朝代同風格（TODO: 未來擴展風格分群；目前同朝代隨機）
-                pool = (DYNASTY_GROUPS[correctDyn] || []).filter(n => n !== correctAuthor);
-                if (pool.length < count - 1) {
-                    const extra = ALL_AUTHORS.filter(n => n !== correctAuthor && !pool.includes(n));
-                    pool = pool.concat(extra);
-                }
-            } else if (decoyType === 'sameStyleWithFake') {
-                // 同朝代同風格 + 1 位偽托（不同朝代的大家）
-                pool = (DYNASTY_GROUPS[correctDyn] || []).filter(n => n !== correctAuthor);
-                // 強制混入 1 位他朝代偽托
-                const otherDynasties = Object.keys(DYNASTY_GROUPS).filter(d => d !== correctDyn);
-                if (otherDynasties.length > 0) {
-                    const fakeDyn = otherDynasties[Math.floor(Math.random() * otherDynasties.length)];
-                    const fakeCandidates = DYNASTY_GROUPS[fakeDyn].filter(n => n !== correctAuthor);
-                    if (fakeCandidates.length > 0) {
-                        const fake = fakeCandidates[Math.floor(Math.random() * fakeCandidates.length)];
-                        pool.unshift(fake); // 確保偽托進入
-                    }
-                }
-                if (pool.length < count - 1) {
-                    const extra = ALL_AUTHORS.filter(n => n !== correctAuthor && !pool.includes(n));
-                    pool = pool.concat(extra);
-                }
+            // ---- 詩名候選池：優先達到評價門檻者，不足則放寬取全部 ----
+            const allTitles = authorPoems.map(p => ({
+                type: '詩名', text: p.title, rating: p.rating || 0, poemId: p.id
+            }));
+            let titlePool = allTitles.filter(t => t.rating >= minRating);
+            if (titlePool.length < titleQuota) titlePool = allTitles.slice();
+            this.shuffleInPlace(titlePool, rng);
+
+            // ---- 詩句候選池：分兩層，第一層「每首詩各取 1 句」，第二層為其餘詩句 ----
+            const linesTier1 = [];   // 每首詩代表句（線索分散於多首詩）
+            const linesTier2 = [];   // 同一首詩的其餘詩句（不足時才動用）
+            authorPoems.forEach(p => {
+                const withRating = (p.content || []).map((line, idx) => ({
+                    type: '詩句',
+                    text: line,
+                    rating: (p.line_ratings && p.line_ratings[idx] !== undefined) ? p.line_ratings[idx] : 0,
+                    poemId: p.id
+                }));
+                if (withRating.length === 0) return;
+                // 優先從達到門檻的詩句中挑代表句；沒有達標者才從全部詩句挑
+                const qualified = withRating.filter(l => l.rating >= minRating);
+                const source = qualified.length > 0 ? qualified : withRating;
+                const rep = source[Math.floor(rng() * source.length)];
+                linesTier1.push(rep);
+                withRating.forEach(l => { if (l !== rep) linesTier2.push(l); });
+            });
+            this.shuffleInPlace(linesTier1, rng);
+            this.shuffleInPlace(linesTier2, rng);
+            // 第二層同樣讓達標的詩句排前面，維持「評價高的線索留到後面才用完」的品質
+            linesTier2.sort((a, b) => (b.rating >= minRating ? 1 : 0) - (a.rating >= minRating ? 1 : 0));
+            const linePool = linesTier1.concat(linesTier2);
+
+            // ---- 依配額取用，任一類不足則由另一類遞補 ----
+            const takeTitles = Math.min(titleQuota, titlePool.length);
+            const takeLines = Math.min(lineQuota, linePool.length);
+            const pool = titlePool.slice(0, takeTitles).concat(linePool.slice(0, takeLines));
+
+            let shortfall = needCount - pool.length;
+            if (shortfall > 0 && linePool.length > takeLines) {
+                // 詩名不夠 → 多拿詩句
+                const extra = linePool.slice(takeLines, takeLines + shortfall);
+                pool.push(...extra);
+                shortfall -= extra.length;
+            }
+            if (shortfall > 0 && titlePool.length > takeTitles) {
+                // 詩句不夠 → 多拿詩名
+                pool.push(...titlePool.slice(takeTitles, takeTitles + shortfall));
             }
 
-            // 洗牌 + 取 (count - 1) 位干擾
-            pool.sort(() => Math.random() - 0.5);
-            const decoys = pool.slice(0, count - 1);
+            // 依評價由低到高排序（同分則隨機）
+            pool.sort((a, b) => (a.rating - b.rating) || (rng() - 0.5));
+            const picked = pool.slice(0, needCount);
+            // 「朝代」插入隨機位置（不固定在第一格），插入後不打亂其餘線索的低→高評價順序
+            const dynastyClue = { type: '朝代', text: dynasty, rating: -1 };
+            const insertAt = Math.floor(rng() * (picked.length + 1));
+            picked.splice(insertAt, 0, dynastyClue);
+            return picked;
+        },
 
-            // 與正確答案合併並洗牌
-            const result = [correctAuthor, ...decoys];
-            result.sort(() => Math.random() - 0.5);
+        // ------------------------------------------------------------
+        // 候選詩人：正解 + 干擾項
+        //   優先同朝代（避免玩家用「朝代」線索直接刷掉一半選項），不足才跨朝代補滿
+        // ------------------------------------------------------------
+        generateCandidates: function (correctAuthor, dynasty, byAuthor, count, rng) {
+            const all = Object.keys(byAuthor).filter(a => a !== correctAuthor);
+            const sameDyn = all.filter(a => (byAuthor[a][0].dynasty || '') === dynasty);
+            const others = all.filter(a => (byAuthor[a][0].dynasty || '') !== dynasty);
+
+            this.shuffleInPlace(sameDyn, rng);
+            this.shuffleInPlace(others, rng);
+
+            const decoys = sameDyn.concat(others).slice(0, Math.max(0, count - 1));
+            const result = [correctAuthor].concat(decoys);
+            this.shuffleInPlace(result, rng);
             return result;
         },
 
-        // 渲染當前題目的詩句與候選按鈕（同時重置出處顯示、進度文字與答題鎖定狀態）
-        renderQuestion: function () {
-            if (this.currentQuestionIdx >= this.questions.length) return;
-            const q = this.questions[this.currentQuestionIdx];
-
-            // 詩句卡（隱藏作者與標題避免暴露答案）
-            const verseEl = document.getElementById('game33-verse');
-            verseEl.innerHTML = q.verseLines.map(l => `<div class="game33-verse-line">${l}</div>`).join('');
-
-            // 出處先隱藏，答完才顯示
-            const infoEl = document.getElementById('game33-poem-info');
-            infoEl.textContent = '出處：？？？';
-            infoEl.onclick = null;
-            infoEl.style.cursor = 'default';
-            infoEl.style.textDecoration = 'none';
-
-            // 進度
-            const settings = this.difficultySettings[this.difficulty];
-            document.getElementById('game33-progress-text').textContent =
-                `第 ${this.currentQuestionIdx + 1} / ${settings.questionCount} 題`;
-
-            // 候選按鈕
-            const candWrap = document.getElementById('game33-candidates');
-            candWrap.innerHTML = '';
-            candWrap.classList.remove('cols-4', 'cols-6', 'cols-8');
-            candWrap.classList.add('cols-' + q.candidates.length);
-            q.candidates.forEach(name => {
-                const btn = document.createElement('button');
-                btn.className = 'game33-cand-btn';
-                btn.textContent = name;
-                btn.dataset.author = name;
-                btn.onclick = () => this.handleSelect(name, btn);
-                candWrap.appendChild(btn);
-            });
-
-            // 隱藏 feedback
-            const fb = document.getElementById('game33-feedback');
-            fb.classList.add('hidden');
-            fb.textContent = '';
-
-            this.locked = false;
+        shuffleInPlace: function (arr, rng) {
+            const rand = rng || Math.random;
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(rand() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
         },
 
-        // 玩家點擊候選詩人：判定對錯、更新分數與連擊、顯示詩詞出處，
-        // 答對加分並累計連擊倍率；答錯扣心並標示正解，失誤達上限則結束遊戲；
-        // 最後延遲 1 秒後自動進入下一題或結算本局
-        handleSelect: function (selectedAuthor, btnEl) {
-            if (!this.isActive || this.locked) return;
-            this.locked = true;
+        // ------------------------------------------------------------
+        // 題目區渲染：先建立所有線索卡（皆為未翻開狀態）
+        // ------------------------------------------------------------
+        renderClues: function () {
+            const list = document.getElementById('game33-clue-list');
+            list.innerHTML = '';
+            this.revealedCount = 0;
 
-            const q = this.questions[this.currentQuestionIdx];
-            const isCorrect = (selectedAuthor === q.correctAuthor);
+            this.clues.forEach((clue, i) => {
+                const card = document.createElement('div');
+                // ⚠️ 線索卡刻意不使用按鈕外觀（無立體陰影、雙線描邊 + 標籤），與可點擊的答案直條做出區別
+                card.className = 'game33-clue-card game33-clue-hidden';
+                card.dataset.index = i;
+                // 左方色塊依線索類別上色（朝代=朱紅／詩名=靛藍／詩句=青碧），由 CSS 依此屬性套色
+                card.dataset.type = clue.type;
+                const size = this.clueFontSize(clue.text.length);
+                card.innerHTML = `
+                    <span class="game33-clue-label">${clue.type}</span>
+                    <span class="game33-clue-text" style="font-size:${size}px;">${clue.text}</span>
+                `;
+                list.appendChild(card);
+            });
+        },
 
-            // 顯示出處
-            const infoEl = document.getElementById('game33-poem-info');
-            infoEl.textContent = `${q.poem.title} / ${q.poem.dynasty} / ${q.poem.author}`;
-            infoEl.style.cursor = 'pointer';
-            infoEl.style.textDecoration = 'underline';
-            infoEl.onclick = () => {
-                if (window.SoundManager) window.SoundManager.playOpenItem();
-                if (window.openPoemDialogById) window.openPoemDialogById(q.poem.id);
-            };
+        // 線索文字字級：字數越多字級越小，避免超出卡片寬度（整體已放大為原本的 110%）
+        clueFontSize: function (len) {
+            if (len <= 9) return 37;
+            if (len <= 11) return 33;
+            if (len <= 13) return 29;
+            if (len <= 15) return 24;
+            return 20;
+        },
 
-            if (isCorrect) {
-                btnEl.classList.add('correct');
-                this.combo++;
-                if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+        // ------------------------------------------------------------
+        // 線索卡翻牌排程：開局立刻翻第一張，之後每 revealInterval 秒翻一張
+        // （⚠️ 作者詩詞不足時線索少於 8 張，屬允許狀況）
+        // ------------------------------------------------------------
+        scheduleClueReveals: function () {
+            this.revealTimeouts.forEach(t => clearTimeout(t));
+            this.revealTimeouts = [];
+            this.clues.forEach((clue, i) => {
+                const delayMs = i * this.revealInterval * 1000;
+                const t = setTimeout(() => this.revealClue(i), delayMs);
+                this.revealTimeouts.push(t);
+            });
+        },
 
-                // 連擊倍率
-                const settings = this.difficultySettings[this.difficulty];
-                let multi = 1;
-                if (this.combo >= 10) multi = 5;
-                else if (this.combo >= 5) multi = 3;
-                else if (this.combo >= 3) multi = 2;
-                multi = Math.min(multi, settings.comboCap);
+        // 翻開第 i 張線索卡（上下翻動放大：scaleY 0 → 1，比照 game1 答案卡的翻轉手法）
+        revealClue: function (i) {
+            if (!this.isActive) return;
+            const card = document.querySelector(`#game33-clue-list .game33-clue-card[data-index="${i}"]`);
+            if (!card) return;
+            card.classList.remove('game33-clue-hidden');
+            card.classList.add('game33-clue-flip');
+            this.revealedCount = Math.max(this.revealedCount, i + 1);
+            if (window.SoundManager) window.SoundManager.playOpenItem();
+        },
 
-                const basePts = (window.ScoreManager && window.ScoreManager.gameSettings.game33)
-                    ? window.ScoreManager.gameSettings.game33.getPointA : 50;
-                const points = basePts * multi;
-                this.score += points;
-                document.getElementById('game33-score').textContent = this.score;
+        // ------------------------------------------------------------
+        // 答案區渲染：由左至右的直條方格（文字直書），開局依序左右翻開
+        // ------------------------------------------------------------
+        renderAnswers: function () {
+            const grid = document.getElementById('game33-answer-grid');
+            grid.innerHTML = '';
+            // 重置 SVG 計時邊框大小
+            setTimeout(() => this.updateTimerRing(1), 0);
 
-                this.updateComboDisplay();
+            const N = this.candidates.length;
+            this.candidates.forEach((name, i) => {
+                const col = document.createElement('button');
+                col.className = 'game33-ans-col game33-ans-appear';
+                col.dataset.author = name;
+                // 直條寬度隨數量壓縮，字級同步縮小（7 條時最窄）
+                col.style.fontSize = this.answerFontSize(N, name.length) + 'px';
+                col.textContent = name;
+                // ⚠️ 出場動畫：所有直條的啟動時機一律壓進 0~0.5 秒之間（比照 game1）
+                const delay = (N > 1) ? (i / (N - 1)) * 0.5 : 0;
+                col.style.animationDelay = delay.toFixed(3) + 's';
+                col.addEventListener('click', () => this.handleChoice(name, col));
+                grid.appendChild(col);
+            });
+        },
 
+        // 直條字級：依直條數量（寬度）與姓名長度決定
+        answerFontSize: function (colCount, nameLen) {
+            let size = colCount <= 2 ? 56
+                : colCount <= 3 ? 50
+                    : colCount <= 5 ? 42
+                        : colCount <= 6 ? 38
+                            : 34;
+            if (nameLen >= 4) size = Math.floor(size * 0.8);
+            return size;
+        },
+
+        // ------------------------------------------------------------
+        // 判定：答對進入勝利動畫；答錯扣紅心並停用該直條
+        // ------------------------------------------------------------
+        handleChoice: function (name, col) {
+            if (!this.isActive) return;
+            if (col.disabled || col.classList.contains('wrong')) return;
+
+            if (name === this.correctAuthor) {
                 if (window.SoundManager) window.SoundManager.playSuccess();
-            } else {
-                btnEl.classList.add('wrong');
-                this.combo = 0;
-                this.updateComboDisplay();
+                col.classList.add('correct');
+                this.clearAllTimers();
 
-                // 標示正確答案
-                const allBtns = document.querySelectorAll('#game33-candidates .game33-cand-btn');
-                allBtns.forEach(b => {
-                    if (b.dataset.author === q.correctAuthor) {
-                        b.classList.add('flash-correct');
+                // 越早猜中（翻出的線索卡越少）分數越高
+                // ⚠️ 必須透過 ScoreManager.getPointA(gameKey, difficulty) 取得，
+                //    直接讀 gameSettings.game33.getPointA 會使 getPointAMul 難度倍率失效
+                const basePts = (window.ScoreManager && window.ScoreManager.getPointA)
+                    ? window.ScoreManager.getPointA('game33', this.difficulty) : 50;
+                const unrevealed = Math.max(0, this.clues.length - this.revealedCount);
+                // 浮點累計（getPointAMul 可能為小數），顯示時才無條件捨去
+                this.score += basePts * (unrevealed + 1);
+                document.getElementById('game33-score').textContent = Math.floor(this.score);
+
+                // 通關前先禁用按鈕，防止連點刷分
+                document.getElementById('game33-retryGame-btn').disabled = true;
+                document.getElementById('game33-newGame-btn').disabled = true;
+                document.querySelectorAll('#game33-answer-grid .game33-ans-col').forEach(b => b.disabled = true);
+
+                ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game33',
+                    timerContainerId: 'game33-answer-grid-container',
+                    scoreElementId: 'game33-score',
+                    heartsSelector: '#game33-hearts .fm-heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        this.score = finalScore;
+                        this.gameOver(true, '');
                     }
                 });
-
-                // 底部提示
-                const fb = document.getElementById('game33-feedback');
-                fb.textContent = `這句其實是 ${q.correctAuthor} 寫的`;
-                fb.classList.remove('hidden');
-
+            } else {
+                if (window.SoundManager) window.SoundManager.playFailure();
+                col.classList.add('wrong');
+                col.disabled = true;
                 this.mistakeCount++;
                 this.updateHearts();
-
-                if (window.SoundManager) window.SoundManager.playFailure();
-
-                const maxM = this.difficultySettings[this.difficulty].maxMistakeCount;
-                if (this.mistakeCount >= maxM) {
-                    setTimeout(() => this.gameOver(false, '失誤過多'), 1000);
-                    return;
+                if (this.mistakeCount >= this.maxMistakeCount) {
+                    this.clearAllTimers();
+                    this.disableAllAnswers();
+                    setTimeout(() => this.gameOver(false, "失誤過多！"), 1500);
                 }
             }
+        },
 
-            // 1 秒鎖定後進下一題
-            setTimeout(() => {
-                this.currentQuestionIdx++;
-                if (this.currentQuestionIdx >= this.questions.length) {
-                    this.gameOver(true, '');
+        // 失敗時：⚠️ 不劇透正解，僅停用所有直條
+        disableAllAnswers: function () {
+            document.querySelectorAll('#game33-answer-grid .game33-ans-col').forEach(b => b.disabled = true);
+        },
+
+        // ------------------------------------------------------------
+        // 計時器（SVG 邊框倒數，與 game20 相同實作）
+        // ------------------------------------------------------------
+        startTimer: function () {
+            clearInterval(this.timerInterval);
+            this.startTime = Date.now();
+            const duration = this.maxTimer * 1000;
+            this.timerInterval = setInterval(() => {
+                const elapsed = Date.now() - this.startTime;
+                const ratio = 1 - (elapsed / duration);
+                if (ratio <= 0) {
+                    this.updateTimerRing(0);
+                    this.clearAllTimers();
+                    this.disableAllAnswers();
+                    setTimeout(() => this.gameOver(false, "時間到！"), 1500);
                 } else {
-                    this.renderQuestion();
+                    this.updateTimerRing(ratio);
                 }
-            }, 1000);
+            }, 100);
         },
 
-        // 更新畫面上的連擊顯示文字與倍率，連擊數達 3 以上時觸發彈出動畫特效
-        updateComboDisplay: function () {
-            const el = document.getElementById('game33-combo');
-            if (!el) return;
-            const settings = this.difficultySettings[this.difficulty];
-            let multi = 1;
-            if (this.combo >= 10) multi = 5;
-            else if (this.combo >= 5) multi = 3;
-            else if (this.combo >= 3) multi = 2;
-            multi = Math.min(multi, settings ? settings.comboCap : 10);
-            el.textContent = `連擊 ×${multi}（${this.combo}）`;
+        /**
+         * 讀取計時框的基準色（來源：theme_xuanzhi.css 的 --fm-timer-* 變數）。
+         * 解析失敗時回退到 fallback，確保計時框仍有可見顏色。
+         */
+        getTimerBaseColor: function (varName, fallback) {
+            try {
+                const raw = getComputedStyle(document.documentElement)
+                    .getPropertyValue(varName).trim();
+                const m = raw.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i);
+                if (m) return { h: parseFloat(m[1]), s: parseFloat(m[2]), l: parseFloat(m[3]) };
+            } catch (e) { /* 忽略解析錯誤，改用後備色 */ }
+            return fallback;
+        },
 
-            // 連擊 >= 3 時彈出特效
-            if (this.combo >= 3) {
-                el.classList.remove('combo-pop');
-                void el.offsetWidth; // 重新觸發動畫
-                el.classList.add('combo-pop');
+        updateTimerRing: function (ratio, mode) {
+            const rect = document.getElementById('game33-timer-path');
+            const container = document.getElementById('game33-answer-grid-container');
+            if (!rect || !container) return;
+            const w = container.offsetWidth;
+            const h = container.offsetHeight;
+            const svg = document.getElementById('game33-timer-ring');
+            svg.setAttribute('width', w);
+            svg.setAttribute('height', h);
+            const rw = w - 8;
+            const rh = h - 8;
+            if (rw < 0 || rh < 0) return;
+            rect.setAttribute('width', rw);
+            rect.setAttribute('height', rh);
+            const perimeter = (rw + rh) * 2;
+            rect.style.strokeDasharray = perimeter;
+            if (mode === 'win') {
+                // 勝利動畫：金黃弧段順時針縮短
+                const clamped = Math.max(0, Math.min(1, ratio));
+                rect.style.transition = 'stroke 0.3s ease';
+                rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
+                rect.style.strokeDashoffset = clamped * perimeter;
+                const base = this.getTimerBaseColor('--fm-timer-gold', { h: 45, s: 95, l: 70 });
+                const lum = Math.max(25, Math.round(base.l - 15 + 20 * clamped));
+                rect.style.stroke = `hsl(${base.h}, ${base.s}%, ${lum}%)`;
+            } else {
+                // 正常倒數：朱紅由淡轉濃
+                rect.style.transition = '';
+                rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
+                const elapsed = 1 - Math.max(0, Math.min(1, ratio));
+                const base = this.getTimerBaseColor('--fm-timer-red', { h: 0, s: 90, l: 50 });
+                const alpha = Math.round(5 + 45 * elapsed);
+                rect.style.stroke = `hsla(${base.h}, ${base.s}%, ${base.l}%, ${alpha}%)`;
             }
         },
 
-        // 依當前難度的最大失誤次數，於畫面上繪製對應數量的愛心圖示（上限 10 顆，超過則不顯示）
+        // ------------------------------------------------------------
+        // 紅心渲染與更新
+        // ------------------------------------------------------------
         renderHearts: function () {
-            const container = document.getElementById('game33-hearts');
-            if (!container) return;
-            container.innerHTML = '';
-            let max = this.difficultySettings[this.difficulty].maxMistakeCount;
-            if (max > 10) max = 0;
+            const hearts = document.getElementById('game33-hearts');
+            if (!hearts) return;
+            hearts.innerHTML = '';
+            const max = this.difficultySettings[this.difficulty].maxMistakeCount;
             for (let i = 0; i < max; i++) {
                 const span = document.createElement('span');
-                span.className = 'heart';
+                span.className = 'fm-heart';
                 span.textContent = '♥';
-                container.appendChild(span);
+                hearts.appendChild(span);
             }
         },
 
-        // 依目前累計失誤次數，將對應數量的愛心圖示切換為「已失去」的空心樣式
         updateHearts: function () {
-            const hearts = document.querySelectorAll('#game33-hearts .heart');
+            const hearts = document.querySelectorAll('#game33-hearts .fm-heart');
             hearts.forEach((h, i) => {
                 if (i < this.mistakeCount) {
                     h.classList.add('empty');
@@ -575,71 +717,15 @@
             });
         },
 
-        // 啟動計時器
-        startTimer: function () {
-            clearInterval(this.timerInterval);
-            this.startTime = Date.now();
-            const duration = this.maxTimer * 1000;
-
-            this.timerInterval = setInterval(() => {
-                const elapsed = Date.now() - this.startTime;
-                const ratio = 1 - (elapsed / duration);
-                if (ratio <= 0) {
-                    this.updateTimerRing(0);
-                    this.gameOver(false, '時間到！');
-                } else {
-                    this.updateTimerRing(ratio);
-                }
-            }, 50);
-        },
-
-        // 依剩餘時間比例（ratio）繪製計時外環的進度與顏色；
-        // mode 為 'win' 時使用過關動畫的填色邏輯，其餘（一般倒數）則依剩餘時間由綠轉紅
-        updateTimerRing: function (ratio, mode) {
-            const rect = document.getElementById('game33-timer-path');
-            const wrapper = document.getElementById('game33-game-wrapper');
-            const svg = document.getElementById('game33-timer-ring');
-            if (!rect || !wrapper || !svg) return;
-
-            let w = wrapper.offsetWidth;
-            let h = wrapper.offsetHeight;
-            if (w === 0 || h === 0) {
-                const rectBox = wrapper.getBoundingClientRect();
-                w = rectBox.width;
-                h = rectBox.height;
-            }
-            if (w === 0) return;
-
-            svg.setAttribute('width', w);
-            svg.setAttribute('height', h);
-            svg.style.display = 'block';
-
-            rect.setAttribute('width', w - 6);
-            rect.setAttribute('height', h - 6);
-
-            const perimeter = (w - 6 + h - 6) * 2;
-            rect.style.strokeDasharray = perimeter;
-
-            if (mode === 'win') {
-                const clamped = Math.max(0, Math.min(1, ratio));
-                rect.style.transition = 'stroke 0.3s ease';
-                rect.style.strokeDasharray = `${clamped * perimeter}, ${(1 - clamped) * perimeter}`;
-                rect.style.strokeDashoffset = clamped * perimeter;
-                rect.style.stroke = `hsl(45, 95%, ${Math.round(55 + 20 * clamped)}%)`;
-            } else {
-                rect.style.transition = '';
-                rect.style.strokeDashoffset = perimeter * Math.max(0, Math.min(1, ratio));
-                const elapsed = 1 - Math.max(0, Math.min(1, ratio));
-                rect.style.stroke = `hsl(0, ${Math.round(50 + 40 * elapsed)}%, ${Math.round(22 + 32 * elapsed)}%)`;
-            }
-        },
-
-        // 結算本局：停用互動、依勝負記錄戰績（輸局才記錄到 Supabase）、
-        // 播放過關動畫（若獲勝）、檢查成就並顯示結算訊息視窗，
-        // 依「關卡模式／自由難度模式」決定下一步是進下一關、開新局或重試
+        // ------------------------------------------------------------
+        // 結算：勝利→關卡推進；失敗→記錄 LOG、可重試
+        // ------------------------------------------------------------
         gameOver: function (win, reason) {
             this.isActive = false;
             this.isWin = win;
+            this.clearAllTimers();
+
+            // 失敗時補寫 game_logs；勝利時 ScoreManager.saveScore 會自動處理
             if (!win && window.SupabaseClient) {
                 const durationS = this.gameStartTime
                     ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
@@ -651,7 +737,6 @@
                     durationS: durationS
                 });
             }
-            clearInterval(this.timerInterval);
 
             if (win) {
                 document.getElementById('game33-retryGame-btn').disabled = true;
@@ -670,57 +755,38 @@
                 }
             };
 
-            const showMessage = (finalScore) => {
+            const showMessage = () => {
                 if (window.GameMessage) {
                     window.GameMessage.show({
                         isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "風格未識！"),
+                        score: win ? this.score : 0,
+                        reason: win ? "" : reason,
                         btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
                         onConfirm: onConfirm
                     });
                 }
             };
 
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game33', this.difficulty, this.currentLevelIndex);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game33', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
+            if (win && this.isLevelMode && window.ScoreManager) {
+                const achId = window.ScoreManager.completeLevel('game33', this.difficulty, this.currentLevelIndex);
+                if (achId && window.AchievementDialog) {
+                    window.AchievementDialog.showInstantAchievementPop(achId, 'game33', this.currentLevelIndex, showMessage);
                 } else {
-                    showMessage(finalScore);
+                    showMessage();
                 }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game33',
-                    timerContainerId: 'game33-game-wrapper',
-                    scoreElementId: 'game33-score',
-                    heartsSelector: '#game33-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
             } else {
-                checkAchievementsAndShow();
+                showMessage();
             }
         }
     };
 
     window.Game33 = Game33;
 
+    // URL 自動啟動：嚴格比對防止 game=3 與 game=33 衝突
     if (new URLSearchParams(window.location.search).get('game') === '33') {
         setTimeout(() => {
             if (window.Game33) window.Game33.show();
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, newUrl);
+            window.history.replaceState({}, document.title, window.location.pathname);
         }, 50);
     }
 })();
