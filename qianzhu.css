@@ -169,6 +169,10 @@
 }
 
 .qianzhu-chip {
+    /* ⚠️ 固定寬度（.qianzhu-chip-narrow 的 flex-basis）在 content-box 底下不含
+       padding／border，實際渲染寬度會比宣告值多出約 6px；三顆一排乘起來就足以
+       把同一列的下一個元素擠出去、造成視覺重疊。改 border-box 讓寬度所見即所得。 */
+    box-sizing: border-box;
     padding: 5px 2px;
     font-family: 'Noto Serif TC', serif;
     font-size: 15px;
@@ -201,8 +205,10 @@
 }
 
 .qianzhu-action-btn {
-    flex: 1 1 auto;
-    padding: 3px 8px;
+    /* 固定寬度（依內容自然撐開），不要用 flex-grow 撐滿剩餘空間——
+       否則旁邊按鈕再窄，這顆也會被硬拉成一整條，參考 zhuluo-action-btn 的做法。 */
+    flex: 0 0 auto;
+    padding: 6px 16px;
     font-family: 'Noto Serif TC', serif;
     font-size: 16px;
     letter-spacing: 2px;

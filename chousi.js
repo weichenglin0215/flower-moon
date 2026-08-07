@@ -75,14 +75,14 @@
     const SPEED_PRESETS = {
         // stepMs：每講完一句推理旁白後，停多久才開始打標記（讓觀眾讀完）
         // markMs：連續打標記時，每一格之間間隔多久
-        slow: { label: '慢', stepMs: 1500, markMs: 170 },
-        normal: { label: '正常', stepMs: 850, markMs: 95 },
-        fast: { label: '快', stepMs: 420, markMs: 45 },
+        slow: { label: '慢', stepMs: 3000, markMs: 400 },
+        normal: { label: '正常', stepMs: 1500, markMs: 200 },
+        fast: { label: '快', stepMs: 500, markMs: 50 },
     };
     const DEFAULT_SPEED = 'normal';
 
     const SAY_MS = 240;                   // 旁白本身出現前的極短停頓
-    const AUTO_NEXT_MS = 6500;            // 全部推完後，隔多久自動換下一題
+    const AUTO_NEXT_MS = 5000;            // 全部推完後，隔多久自動換下一題
     const FLASH_MS = 420;                 // 每個標記剛打上去時的擴散圓環持續時間
 
     const GEN_SLICE_MS = 60;              // 出題時每個 setTimeout 分片最多跑多久（毫秒），超過就讓出主執行緒
@@ -236,12 +236,12 @@
                     <div class="chousi-row">
                         <span class="chousi-row-label">盤面</span>
                         <div id="chousi-grid-group" class="chousi-btn-group"></div>
-                        <span class="chousi-row-label">最小區塊</span>
-                        <div id="chousi-min-group" class="chousi-btn-group"></div>
-                    </div>
-                    <div class="chousi-row">
                         <span class="chousi-row-label">速度</span>
                         <div id="chousi-speed-group" class="chousi-btn-group"></div>
+                    </div>
+                    <div class="chousi-row">
+                        <span class="chousi-row-label">最小區塊</span>
+                        <div id="chousi-min-group" class="chousi-btn-group"></div>
                         <button id="chousi-pause" class="chousi-action-btn">暫停</button>
                         <button id="chousi-again" class="chousi-action-btn">換一題</button>
                     </div>
@@ -641,7 +641,12 @@
             const kindName = { row: '橫行', col: '直列', reg: '色區' };
             const unitHasBomb = u => u.cells.some(i => bomb[i]);
             const candOf = u => u.cells.filter(i => cand[i] && !bomb[i]);
-            const nameOf = u => (u.kind === 'reg' ? `第 ${u.idx + 1} 色區` : `第 ${u.idx + 1} ${kindName[u.kind]}`);
+            // ⚠️ 「第 3 色區」對玩家來說毫無意義——盤面上沒有編號，只有顏色。
+            //   附上顏色名稱（用跟繪圖時同一套色相公式反查），旁白才能跟玩家眼睛
+            //   看到的東西對上。
+            const nameOf = u => (u.kind === 'reg'
+                ? `第 ${u.idx + 1} 色區（${this._hueName(this._hueOf(N, u.idx))}）`
+                : `第 ${u.idx + 1} ${kindName[u.kind]}`);
 
             /** 放下一顆炸彈，並把它「宣告的地盤」（同行／同列／同色區／周圍八格）全部排除 */
             const placeBomb = (i, rule, desc) => {
@@ -847,15 +852,37 @@
             setTimeout(() => this._genTick(token, minCells), 0);
         },
 
+        /** 色相分配：用一個與 N 互質的步幅打散，避免編號相近的色區顏色也相近。
+         *  抽出成獨立函式，因為 `_humanSolve` 的旁白也要用同一套公式反推顏色
+         *  名稱（見 `_hueName`），兩處算出來的色相不能有絲毫差異。 */
+        _hueOf: function (N, g) {
+            const stride = Math.floor(N / 2);
+            return ((g * stride) % N) * (360 / N) + 14;
+        },
+
+        /** 把色相角度換成玩家看得懂的顏色名稱。⚠️ 只需要粗略對得上人眼直覺
+         *  （棋盤本身是 hsl(hue,60%,62%) 的中高彩度色塊），不必是精確的色彩學
+         *  分界；區間邊界取在人眼公認的顏色轉換點附近即可。 */
+        _hueName: function (deg) {
+            const h = ((deg % 360) + 360) % 360;
+            if (h < 15 || h >= 345) return '紅';
+            if (h < 45) return '橙';
+            if (h < 70) return '黃';
+            if (h < 100) return '黃綠';
+            if (h < 160) return '綠';
+            if (h < 200) return '青';
+            if (h < 255) return '藍';
+            if (h < 290) return '靛';
+            return '紫';
+        },
+
         _onPuzzleReady: function (p) {
             this.generating = false;
             this.puzzle = p;
             const N = p.N;
 
-            // 色相分配：用一個與 N 互質的步幅打散，避免編號相近的色區顏色也相近
-            const stride = Math.floor(N / 2);
             this.hues = new Array(N);
-            for (let g = 0; g < N; g++) this.hues[g] = ((g * stride) % N) * (360 / N) + 14;
+            for (let g = 0; g < N; g++) this.hues[g] = this._hueOf(N, g);
 
             // 把推理步驟展開成「一個一個打標記」的微動作佇列
             const sp = SPEED_PRESETS[this.speedKey];
@@ -1062,8 +1089,11 @@
             const r = (i / N) | 0, c = i % N, g = owner[i];
             ctx.save();
             // 一層一層疊上去，重疊處（例如行列交會、色區與九宮格相交）自然更深，
-            // 剛好強調出「被吃得最兇」的地方
-            ctx.fillStyle = 'hsla(0, 88%, 48%, 0.15)';
+            // 剛好強調出「被吃得最兇」的地方。
+            // ⚠️ 不畫外框：只用半透明色塊表達「這些格子確定沒有炸彈」，紅色框線
+            //   會跟色塊搶注意力、也容易被誤認成別的意思（例如跟「可能有炸彈」
+            //   的焦點框混淆）。透明度提高到 0.6 讓紅色區域本身就夠醒目。
+            ctx.fillStyle = 'hsla(0, 88%, 66%, 0.66)'; //「確定炸彈」
             ctx.fillRect(0, r * cs, BOARD_PX, cs);            // 整條橫行
             ctx.fillRect(c * cs, 0, cs, BOARD_PX);            // 整條直列
             for (let k = 0; k < N * N; k++) {                 // 所屬色區
@@ -1073,12 +1103,6 @@
             const r0 = Math.max(0, r - 1), c0 = Math.max(0, c - 1);
             const r1 = Math.min(N - 1, r + 1), c1 = Math.min(N - 1, c + 1);
             ctx.fillRect(c0 * cs, r0 * cs, (c1 - c0 + 1) * cs, (r1 - r0 + 1) * cs);   // 九宮格
-
-            ctx.strokeStyle = 'hsla(0, 90%, 44%, 0.8)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(1, r * cs + 1, BOARD_PX - 2, cs - 2);
-            ctx.strokeRect(c * cs + 1, 1, cs - 2, BOARD_PX - 2);
-            ctx.strokeRect(c0 * cs + 1.5, r0 * cs + 1.5, (c1 - c0 + 1) * cs - 3, (r1 - r0 + 1) * cs - 3);
             ctx.restore();
         },
 
@@ -1186,8 +1210,8 @@
                     this._drawMaybe(ctx, c * cs + cs / 2, r * cs + cs / 2, cs, 0.62);
                 }
                 ctx.strokeStyle = `hsla(0, 88%, 52%, ${a.toFixed(3)})`;
-                ctx.lineWidth = 3;
-                ctx.strokeRect(c * cs + 2.5, r * cs + 2.5, cs - 5, cs - 5);
+                ctx.lineWidth = 6;   // 加粗至原本（3px）的 200%，讓「可能有炸彈」的當下焦點更顯眼
+                ctx.strokeRect(c * cs + 3, r * cs + 3, cs - 6, cs - 6);
             }
             ctx.restore();
         },

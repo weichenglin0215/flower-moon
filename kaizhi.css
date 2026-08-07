@@ -1,12 +1,14 @@
 /* ============================================================================
- * chousi.css — 抽絲剝繭（色區推理．舒壓觀想頁）樣式
+ * kaizhi.css — 開枝散葉（色塊推理．舒壓觀想頁）樣式
  * ----------------------------------------------------------------------------
- * 慣例：所有 class 加 chousi- 前綴；外殼視覺語彙沿用 qianzhu.css / zhuluo.css
+ * 慣例：所有 class 加 kaizhi- 前綴；外殼視覺語彙沿用 chousi.css / qianzhu.css
  * （深藍墨底＋金黃字＋圓角木質面板），棋盤主體全部畫在 <canvas> 上。
  * ⚠️ 一律使用 px（不用 rem）：整個 overlay 由 registerOverlayResize 統一縮放。
+ * ⚠️ 版面尺寸與字級沿用《抽絲剝繭》調校過的數值（旁白 22px、副標 20px、
+ *   圖例 14px、旁白框高 120px），兩頁看起來才是同一套介面。
  * ========================================================================== */
 
-.chousi-overlay {
+.kaizhi-overlay {
     position: fixed;
     left: 0;
     top: 0;
@@ -22,12 +24,12 @@
     font-family: 'Noto Serif TC', serif;
 }
 
-.chousi-overlay.hidden {
+.kaizhi-overlay.hidden {
     display: none;
 }
 
 /* ── 標題 ───────────────────────────────────────────────────────────── */
-.chousi-header {
+.kaizhi-header {
     position: absolute;
     top: 12px;
     left: 0;
@@ -37,21 +39,21 @@
     z-index: 20020;
 }
 
-.chousi-title {
+.kaizhi-title {
     font-size: 24px;
     letter-spacing: 8px;
     color: hsl(42, 72%, 82%);
     text-shadow: 0 2px 10px hsla(42, 80%, 50%, 0.35);
 }
 
-.chousi-subtitle {
+.kaizhi-subtitle {
     margin-top: 5px;
     font-size: 20px;
     letter-spacing: 0.5px;
     color: hsla(42, 40%, 88%, 0.72);
 }
 
-.chousi-close {
+.kaizhi-close {
     position: absolute;
     top: 10px;
     right: 14px;
@@ -69,13 +71,13 @@
     transition: background 0.2s, transform 0.2s;
 }
 
-.chousi-close:hover {
+.kaizhi-close:hover {
     background: hsla(214, 40%, 34%, 0.85);
     transform: scale(1.08);
 }
 
 /* ── 棋盤（木框＋畫布）─────────────────────────────────────────────── */
-.chousi-canvas-frame {
+.kaizhi-canvas-frame {
     position: absolute;
     left: 14px;
     top: 84px;
@@ -90,7 +92,7 @@
         inset 0 1px 0 hsla(40, 60%, 78%, 0.35);
 }
 
-#chousi-canvas {
+#kaizhi-canvas {
     display: block;
     width: 460px;
     height: 460px;
@@ -98,11 +100,11 @@
     box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.6);
 }
 
-.chousi-canvas-frame.chousi-all-done {
-    animation: chousi-frame-glow 1.8s ease-in-out infinite;
+.kaizhi-canvas-frame.kaizhi-all-done {
+    animation: kaizhi-frame-glow 1.8s ease-in-out infinite;
 }
 
-@keyframes chousi-frame-glow {
+@keyframes kaizhi-frame-glow {
 
     0%,
     100% {
@@ -116,7 +118,7 @@
 }
 
 /* ── 符號圖例 ───────────────────────────────────────────────────────── */
-.chousi-legend {
+.kaizhi-legend {
     position: absolute;
     left: 14px;
     top: 562px;
@@ -129,7 +131,7 @@
     box-sizing: border-box;
 }
 
-.chousi-legend-item {
+.kaizhi-legend-item {
     display: flex;
     align-items: center;
     gap: 1px;
@@ -139,34 +141,34 @@
     color: hsla(42, 40%, 88%, 0.78);
 }
 
-.chousi-legend-icon {
+.kaizhi-legend-icon {
     width: 26px;
     height: 26px;
     display: block;
 }
 
 /* ── 推理旁白 ───────────────────────────────────────────────────────── */
-.chousi-narration {
+.kaizhi-narration {
     position: absolute;
     left: 14px;
     top: 592px;
     width: 472px;
-    height: 140px;
+    height: 120px;
     box-sizing: border-box;
     display: flex;
     align-items: flex-start;
     gap: 9px;
-    padding: 4px 11px;
+    padding: 9px 11px;
     border-radius: 12px;
     background: hsla(214, 42%, 13%, 0.85);
     border: 1px solid hsla(42, 50%, 70%, 0.20);
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
-.chousi-narration-rule {
+.kaizhi-narration-tag {
     flex: 0 0 auto;
     min-width: 52px;
-    padding: 3px 7px;
+    padding: 1px 7px;
     text-align: center;
     font-size: 14px;
     letter-spacing: 1px;
@@ -176,7 +178,7 @@
     border-radius: 8px;
 }
 
-.chousi-narration-text {
+.kaizhi-narration-text {
     flex: 1 1 auto;
     font-size: 22px;
     line-height: 1.4;
@@ -186,7 +188,7 @@
 }
 
 /* ── 底部面板 ───────────────────────────────────────────────────────── */
-.chousi-panel {
+.kaizhi-panel {
     position: absolute;
     left: 0;
     bottom: 0;
@@ -197,7 +199,7 @@
     z-index: 20025;
 }
 
-.chousi-progress-wrap {
+.kaizhi-progress-wrap {
     position: relative;
     height: 16px;
     margin-bottom: 8px;
@@ -206,7 +208,7 @@
     overflow: hidden;
 }
 
-.chousi-progress-bar {
+.kaizhi-progress-bar {
     position: absolute;
     left: 0;
     top: 0;
@@ -217,7 +219,7 @@
     transition: width 0.25s linear;
 }
 
-.chousi-progress-text {
+.kaizhi-progress-text {
     position: absolute;
     inset: 0;
     line-height: 16px;
@@ -228,31 +230,30 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
-.chousi-row {
+.kaizhi-row {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-top: 7px;
 }
 
-.chousi-row-label {
+.kaizhi-row-label {
     flex: 0 0 auto;
     font-size: 15px;
     letter-spacing: 1px;
     color: hsla(42, 40%, 85%, 0.8);
 }
 
-.chousi-btn-group {
+.kaizhi-btn-group {
     display: flex;
     gap: 4px;
     flex: 0 0 auto;
 }
 
-.chousi-chip {
-    /* ⚠️ 固定寬度（.chousi-chip-narrow / .chousi-chip-mini 的 flex-basis）在
-       content-box 底下不含 padding／border，實際渲染寬度會比宣告值多出幾 px；
-       「最小區塊」最多要排 6 顆按鈕，這點誤差乘起來就足以把整排擠出容器、
-       跟旁邊的文字重疊。改 border-box 讓寬度所見即所得。 */
+.kaizhi-chip {
+    /* ⚠️ 固定寬度（flex-basis）在 content-box 底下不含 padding／border，實際渲染
+       寬度會比宣告值多出幾 px；「最小區塊」最多要排 6 顆按鈕，這點誤差乘起來
+       就足以把整排擠出容器、跟旁邊的文字重疊。改 border-box 讓寬度所見即所得。 */
     box-sizing: border-box;
     padding: 5px 2px;
     font-family: 'Noto Serif TC', serif;
@@ -266,32 +267,31 @@
     transition: background 0.2s, transform 0.15s, border-color 0.2s;
 }
 
-.chousi-chip-narrow {
+.kaizhi-chip-narrow {
     flex: 0 0 46px;
 }
 
-.chousi-chip-mini {
+.kaizhi-chip-mini {
     flex: 0 0 30px;
 }
 
-.chousi-chip:hover {
+.kaizhi-chip:hover {
     background: hsla(214, 38%, 50%, 0.9);
 }
 
-.chousi-chip:active {
+.kaizhi-chip:active {
     transform: scale(0.85);
 }
 
-.chousi-chip.active {
+.kaizhi-chip.active {
     color: hsl(45, 95%, 82%);
     background: linear-gradient(180deg, hsla(210, 45%, 34%, 0.95), hsla(214, 45%, 22%, 0.95));
     border-color: hsla(45, 80%, 70%, 0.7);
     box-shadow: 0 0 10px hsla(45, 80%, 60%, 0.3);
 }
 
-.chousi-action-btn {
-    /* 固定寬度（依內容自然撐開），不要用 flex-grow 撐滿剩餘空間——這一列有
-       兩顆按鈕，設成 1 1 auto 會兩顆一起被拉寬到誇張的程度。 */
+.kaizhi-action-btn {
+    /* 固定寬度（依內容自然撐開），不要用 flex-grow 撐滿剩餘空間 */
     flex: 0 0 auto;
     padding: 6px 14px;
     font-family: 'Noto Serif TC', serif;
@@ -305,16 +305,16 @@
     transition: transform 0.15s, box-shadow 0.2s;
 }
 
-.chousi-action-btn:hover {
+.kaizhi-action-btn:hover {
     box-shadow: 0 0 12px hsla(45, 80%, 60%, 0.45);
 }
 
-.chousi-action-btn:active {
+.kaizhi-action-btn:active {
     transform: scale(0.85);
 }
 
 /* 暫停中：按鈕自己也要看得出狀態，不然玩家會以為是程式卡住了 */
-.chousi-action-btn-on {
+.kaizhi-action-btn-on {
     color: hsl(45, 100%, 90%);
     background: linear-gradient(180deg, hsla(6, 62%, 44%, 0.95), hsla(4, 62%, 30%, 0.95));
     border-color: hsla(12, 85%, 72%, 0.75);
