@@ -271,8 +271,9 @@
     flex: 0 0 46px;
 }
 
-.kaizhi-chip-mini {
-    flex: 0 0 30px;
+/* 盤面尺寸鈕：五顆要跟「速度」三顆擠同一列，所以窄一點、只放數字 */
+.kaizhi-chip-tiny {
+    flex: 0 0 34px;
 }
 
 .kaizhi-chip:hover {
