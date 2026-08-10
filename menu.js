@@ -33,6 +33,7 @@
         { page: 'game37', label: '步步為陣', image: 'images/Menu/步步為陣_Menu256.jpg' },
         { page: 'game38', label: '推枰成詩', image: 'images/Menu/推枰成詩_Menu256.jpg' },
         { page: 'game39', label: '彈珠成詩', image: 'images/Menu/彈珠成詩_Menu256.jpg' },
+        { page: 'game40', label: '點兵成詩', image: 'images/Menu/點兵成詩_Menu256.jpg' },
         { page: 'game5', label: '詩詞精靈', image: 'images/Menu/詩詞小精靈_Menu256.jpg' },
         { page: 'game6', label: '詩陣侵略', image: 'images/Menu/詩陣侵略_Menu256.jpg' },
         { page: 'game19', label: '詩碟狂襲', image: 'images/Menu/詩碟狂襲_Menu256.jpg' },
@@ -133,6 +134,7 @@
         'game37': { firework: false, smoke: false },   // 步步為陣
         'game38': { firework: false, smoke: false },   // 推枰成詩
         'game39': { firework: false, smoke: false },   // 彈珠成詩
+        'game40': { firework: false, smoke: false },   // 點兵成詩
 
         // ── 舒壓／視覺療癒類 ──────────────────────────────────────────────
         'wordcloud': { firework: false, smoke: true },   // 文字雲
@@ -489,7 +491,7 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
-        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37', 'Game38', 'Game39'].forEach(gameName => {
+        ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37', 'Game38', 'Game39', 'Game40'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {
                     window[gameName].stopGame();
@@ -848,6 +850,10 @@
                     case 'game39':
                         if (window.Game39) window.Game39.show();
                         else window.location.href = 'index.html?game=39';
+                        break;
+                    case 'game40':
+                        if (window.Game40) window.Game40.show();
+                        else window.location.href = 'index.html?game=40';
                         break;
                     case 'author-biography':
                         if (window.AuthorBio) window.AuthorBio.show();

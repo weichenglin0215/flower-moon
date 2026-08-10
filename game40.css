@@ -1,0 +1,384 @@
+/* =========================================
+   遊戲四十：點兵成詩 (Muster the Verse) 樣式
+   ----------------------------------------
+   介面沿用 GAME24《三字成珠》的視覺語彙：深墨舞台 + 立體糖果字塊。
+   ⚠️ 上半部共用外殼（overlay / header / sub-header / info-bar / area /
+      board-wrapper / 計時 SVG 外框）已定義於 theme_dark.css 的 .fmd-* class，
+      本檔僅保留 game40 專屬的題目區、提示列與字塊樣式。
+   依規範：所有 class 前綴 game40-，不使用 rem（一律 px，由 stage scale 統一縮放）。
+   ========================================= */
+
+/* ── 題目區：兩句各一行，每字一張小卡 ── */
+.game40-question {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.game40-q-line {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 5px;
+}
+
+/* 單字卡（上方字塊 + 下方所需次數） */
+.game40-q-char {
+    --g40-h: 40;
+    --g40-s: 0%;
+    --g40-l: 96%;
+    --g40-text: hsl(0, 0%, 12%);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 2px 2px 1px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
+}
+
+/* 題目區的小字塊：與棋盤字塊同一套 CSS 變數，確保顏色/形狀完全對得上 */
+.game40-q-tile {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 1;
+    padding-bottom: 0.05em;
+    font-size: 21px;
+    font-weight: 900;
+    color: var(--g40-text);
+    background: hsl(var(--g40-h), var(--g40-s), var(--g40-l));
+    border: 1px solid hsla(var(--g40-h), 40%, 25%, 0.6);
+    border-radius: 7px;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.4),
+        inset 0 1px 2px hsla(0, 0%, 100%, 0.5);
+}
+
+/* 未揭示的字：灰底〇，但「所需次數」仍然可見 */
+.game40-q-char.masked .game40-q-tile {
+    background: hsl(0, 0%, 30%);
+    color: hsl(0, 0%, 62%);
+    border-color: hsla(0, 0%, 100%, 0.15);
+    box-shadow: none;
+}
+
+/* 下方的所需點擊次數 */
+.game40-q-num {
+    font-size: 12px;
+    font-weight: bold;
+    color: hsl(40, 55%, 80%);
+    line-height: 1;
+}
+
+/* 已完成的字：轉為金色並淡出，視覺上「退場」 */
+.game40-q-char.done {
+    opacity: 0.45;
+}
+
+.game40-q-char.done .game40-q-tile {
+    background: linear-gradient(135deg, hsl(50, 100%, 78%) 0%, hsl(42, 100%, 58%) 100%);
+    color: hsl(20, 80%, 18%);
+    border-color: hsl(40, 100%, 35%);
+}
+
+.game40-q-char.done .game40-q-num {
+    color: hsl(45, 100%, 72%);
+}
+
+/* 當前正在點的字：金色脈動外框 */
+.game40-q-char.current {
+    border-color: hsl(45, 100%, 65%);
+    animation: game40-q-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes game40-q-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 3px 0 hsla(45, 100%, 65%, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 10px 3px hsla(45, 100%, 70%, 0.95);
+    }
+}
+
+/* ── 提示列：「請連續點擊 X 個【Y】字」 ── */
+.game40-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 19px;
+    color: hsl(40, 55%, 88%);
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.game40-hint-num {
+    font-size: 24px;
+    color: hsl(45, 100%, 68%);
+    text-shadow: 0 0 8px hsla(45, 100%, 55%, 0.7);
+    padding: 0 2px;
+}
+
+.game40-hint-char {
+    font-size: 24px;
+    color: hsl(45, 100%, 72%);
+    text-shadow: 0 0 8px hsla(45, 100%, 55%, 0.7);
+}
+
+.game40-hint-done {
+    font-size: 20px;
+    color: hsl(140, 70%, 65%);
+    font-weight: bold;
+}
+
+/* 進度點：已點中的亮起，玩家不必自己數 */
+.game40-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+}
+
+.game40-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: hsla(0, 0%, 100%, 0.22);
+    border: 1px solid hsla(45, 80%, 70%, 0.35);
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game40-dot.on {
+    background: hsl(45, 100%, 65%);
+    box-shadow: 0 0 6px hsla(45, 100%, 60%, 0.9);
+}
+
+/* ── 棋盤本體：grid 佈局，欄列由 JS 依 5×6 / 7×8 動態設定 ── */
+.game40-board {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    gap: 3px;
+    z-index: 3;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+/* ── 字塊：單色底 + 頂部光澤 + 內陰影，維持立體浮起感 ──
+   --g40-h/-s/-l/-text 由 JS 依「該字的分組」寫入 inline style
+*/
+.game40-cell {
+    --g40-h: 40;
+    --g40-s: 85%;
+    --g40-l: 70%;
+    --g40-text: hsl(0, 0%, 12%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* line-height: 1 + padding-bottom 微調，修正中文字基線造成的視覺偏下問題 */
+    line-height: 1;
+    padding-bottom: 0.05em;
+    font-weight: 900;
+    color: var(--g40-text);
+    background: hsl(var(--g40-h), var(--g40-s), var(--g40-l));
+    border: 1px solid hsla(var(--g40-h), 40%, 25%, 0.7);
+    border-radius: 14px;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow:
+        0 3px 5px rgba(0, 0, 0, 0.4),
+        inset 0 2px 3px hsla(0, 0%, 100%, 0.5),
+        inset 0 -2px 4px hsla(var(--g40-h), 50%, 20%, 0.35);
+    transition:
+        transform 0.15s cubic-bezier(0.4, 1.4, 0.5, 1),
+        box-shadow 0.2s ease,
+        filter 0.15s ease,
+        opacity 0.3s ease;
+}
+
+/* 頂部白光高光 */
+.game40-cell::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 10%;
+    right: 10%;
+    height: 30%;
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.42) 0%, hsla(0, 0%, 100%, 0) 100%);
+    border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.game40-cell:hover {
+    transform: scale(1.06) translateY(-2px);
+    filter: brightness(1.1);
+    z-index: 4;
+    box-shadow:
+        0 6px 10px rgba(0, 0, 0, 0.5),
+        inset 0 2px 3px hsla(0, 0%, 100%, 0.6),
+        0 0 10px hsla(var(--g40-h), 90%, 60%, 0.45);
+}
+
+.game40-cell:active {
+    transform: scale(0.96);
+}
+
+/* 反色字塊（研究所混淆模式）：黑底白字，取消白色高光免得露餡 */
+.game40-cell.game40-inverse {
+    border-color: hsla(0, 0%, 100%, 0.35);
+    text-shadow: 0 0 4px hsla(0, 0%, 0%, 0.8);
+    box-shadow:
+        0 3px 5px rgba(0, 0, 0, 0.5),
+        inset 0 2px 3px hsla(0, 0%, 100%, 0.12);
+}
+
+.game40-cell.game40-inverse::before {
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.10) 0%, hsla(0, 0%, 100%, 0) 100%);
+}
+
+/* 已點掉的字塊：留下淡淡的凹槽，維持格線不塌陷 */
+.game40-cell.cleared {
+    pointer-events: none;
+    color: transparent;
+    background: hsla(0, 0%, 0%, 0.28);
+    border-color: hsla(0, 0%, 100%, 0.07);
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55);
+    opacity: 0.55;
+    transform: scale(0.86);
+    animation: game40-clear-pop 0.35s ease-out;
+}
+
+.game40-cell.cleared::before {
+    display: none;
+}
+
+@keyframes game40-clear-pop {
+    0% {
+        transform: scale(1);
+        filter: brightness(2.2);
+    }
+
+    45% {
+        transform: scale(1.18);
+        filter: brightness(2.6);
+    }
+
+    100% {
+        transform: scale(0.86);
+        filter: brightness(1);
+    }
+}
+
+/* 點錯：紅光 + 抖動（依規範錯誤反饋必須有 shake） */
+.game40-cell.wrong {
+    animation: game40-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+    box-shadow: 0 0 14px 4px hsla(0, 90%, 55%, 0.95);
+    border-color: hsl(0, 85%, 55%);
+    z-index: 5;
+}
+
+@keyframes game40-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    15% {
+        transform: translateX(-7px) rotate(-4deg);
+    }
+
+    30% {
+        transform: translateX(7px) rotate(4deg);
+    }
+
+    45% {
+        transform: translateX(-5px) rotate(-3deg);
+    }
+
+    60% {
+        transform: translateX(5px) rotate(3deg);
+    }
+
+    80% {
+        transform: translateX(-2px);
+    }
+}
+
+/* ── 七種字塊形狀（依規格「最多七種形狀」）──
+   ⚠️ 皆刻意保留中央完整區域，不會把漢字裁掉。
+   octagon / hexagon 使用 clip-path，此時 box-shadow 會被裁掉屬預期行為。
+*/
+.game40-shape-rsquare {
+    border-radius: 14px;
+}
+
+.game40-shape-circle {
+    border-radius: 50%;
+}
+
+.game40-shape-ssquare {
+    border-radius: 0;
+}
+
+/* 葉形：對角圓弧 */
+.game40-shape-leaf {
+    border-radius: 50% 10px 50% 10px;
+}
+
+/* 橢圓（扁圓）：與正圓在同一版面上仍可一眼分辨 */
+.game40-shape-ellipse {
+    border-radius: 50% / 32%;
+}
+
+.game40-shape-octagon {
+    border-radius: 0;
+    clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+.game40-shape-hexagon {
+    border-radius: 0;
+    clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+}
+
+/* 題目區小字塊沿用同一組形狀（尺寸較小，圓角等比縮小） */
+.game40-q-tile.game40-shape-rsquare {
+    border-radius: 7px;
+}
+
+.game40-q-tile.game40-shape-leaf {
+    border-radius: 50% 5px 50% 5px;
+}
+
+/* ── 紅心（本作沿用跨遊戲通用的 .hearts / .heart，此處僅補墨底下的配色） ── */
+#game40-hearts {
+    display: flex;
+    gap: 2px;
+    flex: 0 0 auto;
+}
+
+#game40-hearts .heart {
+    color: hsl(4, 90%, 60%);
+    font-size: 26px;
+    line-height: 1;
+    text-shadow: 0 0 6px hsla(4, 90%, 50%, 0.6);
+}
+
+#game40-hearts .heart.empty {
+    color: hsla(0, 0%, 100%, 0.28);
+    text-shadow: none;
+}

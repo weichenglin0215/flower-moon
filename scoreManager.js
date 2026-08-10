@@ -82,7 +82,12 @@ const ScoreManager = {
             base: 100, heart: 0, time: 4, getPointA: 4, getPointB: 40,
             getPointAMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 },
             getPointBMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 }
-        } //彈珠成詩（無紅心機制；time 換算的是「剩餘彈珠數」，getPointA 為一字歸位、getPointB 為整句完成）
+        }, //彈珠成詩（無紅心機制；time 換算的是「剩餘彈珠數」，getPointA 為一字歸位、getPointB 為整句完成）
+        'game40': {
+            base: 100, heart: 10, time: 2, getPointA: 2, getPointB: 20,
+            getPointAMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 },
+            getPointBMul: { '小學': 1.0, '中學': 2.0, '高中': 3.0, '大學': 4.0, '研究所': 5.0 }
+        } //點兵成詩（getPointA 為點對一塊字，getPointB 為某個字全數點齊的額外獎勵）
     },
 
     // 玩家階級設定：根據總分決定玩家的級別
