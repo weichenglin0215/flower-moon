@@ -31,9 +31,9 @@
         { page: 'game3', label: '字爬梯', image: 'images/Menu/字爬梯_Menu256.jpg' },
         { page: 'game14', label: '步步驚心', image: 'images/Menu/步步驚心_Menu256.jpg' },
         { page: 'game37', label: '步步為陣', image: 'images/Menu/步步為陣_Menu256.jpg' },
+        { page: 'game40', label: '點兵成詩', image: 'images/Menu/點兵成詩_Menu256.jpg' },
         { page: 'game38', label: '推枰成詩', image: 'images/Menu/推枰成詩_Menu256.jpg' },
         { page: 'game39', label: '彈珠成詩', image: 'images/Menu/彈珠成詩_Menu256.jpg' },
-        { page: 'game40', label: '點兵成詩', image: 'images/Menu/點兵成詩_Menu256.jpg' },
         { page: 'game5', label: '詩詞精靈', image: 'images/Menu/詩詞小精靈_Menu256.jpg' },
         { page: 'game6', label: '詩陣侵略', image: 'images/Menu/詩陣侵略_Menu256.jpg' },
         { page: 'game19', label: '詩碟狂襲', image: 'images/Menu/詩碟狂襲_Menu256.jpg' },
@@ -61,9 +61,10 @@
         { page: 'zhexianren', label: '詩詞珠簾', image: 'images/Menu/詩詞珠簾_Menu256.jpg' },
         { page: 'suiyuean', label: '隨遇而安', image: 'images/Menu/隨遇而安_Menu256.jpg' },
         { page: 'yichichunshui', label: '一池春水', image: 'images/Menu/一池春水_Menu256.png' },
-        { page: 'tuiqiao', label: '詩仙推敲', image: 'images/Menu/詩仙推敲_Menu256.png' },
+        { page: 'tuibo', label: '推波助瀾', image: 'images/Menu/推波助瀾_Menu256.png' },
         { page: 'zhuluo', label: '珠落玉盤', image: 'images/Menu/珠落玉盤_Menu256.png' },
         { page: 'qianzhu', label: '千珠成字', image: 'images/Menu/千珠成字_Menu256.png' },
+        { page: 'tuiqiao', label: '詩仙推敲', image: 'images/Menu/詩仙推敲_Menu256.png' },
         { page: 'chousi', label: '抽絲剝繭', image: 'images/Menu/抽絲剝繭_Menu256.png' },
         { page: 'kaizhi', label: '開枝散葉', image: 'images/Menu/開枝散葉_Menu256.png' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
@@ -136,16 +137,19 @@
         'game39': { firework: false, smoke: false },   // 彈珠成詩
         'game40': { firework: false, smoke: false },   // 點兵成詩
 
+
         // ── 舒壓／視覺療癒類 ──────────────────────────────────────────────
         'wordcloud': { firework: false, smoke: true },   // 文字雲
         'zhexianren': { firework: false, smoke: true },   // 詩詞珠簾
         'suiyuean': { firework: false, smoke: true },   // 隨遇而安
         'yichichunshui': { firework: false, smoke: true },   // 一池春水
-        'tuiqiao': { firework: false, smoke: true },   // 詩仙推敲
+        'tuibo': { firework: false, smoke: true },  // 推波助瀾（滿版視覺，關掉觸控特效）
         'zhuluo': { firework: false, smoke: true },   // 珠落玉盤
         'qianzhu': { firework: false, smoke: true },   // 千珠成字
+        'tuiqiao': { firework: false, smoke: true },   // 詩仙推敲
         'chousi': { firework: false, smoke: true },   // 抽絲剝繭
         'kaizhi': { firework: false, smoke: true },   // 開枝散葉
+
 
         // ── 資料類 ───────────────────────────────────────────────────────
         'achievements': { firework: false, smoke: true },   // 成就紀錄
@@ -176,6 +180,7 @@
         'qianzhu': 'qianzhu-container',
         'chousi': 'chousi-container',
         'kaizhi': 'kaizhi-container',
+        'tuibo': 'tuibo-container',
         'author-biography': 'authorBioPage',
     };
     Object.keys(TOUCH_EFFECTS).forEach(function (page) {
@@ -574,6 +579,12 @@
             }
         } catch (e) { console.warn('[Menu] 隱藏開枝散葉失敗', e); }
 
+        try {
+            if (window.TuiBo && typeof window.TuiBo.stopGame === 'function') {
+                window.TuiBo.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏推波助瀾失敗', e); }
+
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
             if (window.LeaderboardDialog && typeof window.LeaderboardDialog.hide === 'function') {
@@ -894,6 +905,10 @@
                     case 'kaizhi':
                         if (window.KaiZhi) window.KaiZhi.show();
                         else window.location.href = 'index.html?page=kaizhi';
+                        break;
+                    case 'tuibo':
+                        if (window.TuiBo) window.TuiBo.show();
+                        else window.location.href = 'index.html?page=tuibo';
                         break;
                     case 'achievements':
                         if (window.AchievementDialog) window.AchievementDialog.show();

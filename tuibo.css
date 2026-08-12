@@ -1,0 +1,133 @@
+/* ============================================================================
+ * tuibo.css — 推波助瀾（字粒推擠水波．視覺療癒頁）樣式
+ * 慣例：所有 class 加 tuibo- 前綴；overlay 掛於 body 並由 JS 同步 stage 縮放。
+ * ========================================================================== */
+
+.tuibo-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 500px;
+    height: 850px;
+    overflow: hidden;
+    z-index: 20000;
+    background: #000000;
+    /* 全面攔截瀏覽器的捲動／縮放手勢，讓拖曳完全屬於畫面 */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tuibo-overlay.hidden {
+    display: none;
+}
+
+.tuibo-canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    touch-action: none;
+}
+
+/* 關閉鍵 */
+.tuibo-close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 22px;
+    color: hsla(0, 0%, 96%, 0.85);
+    background: hsla(0, 0%, 16%, 0.55);
+    border: 1px solid hsla(0, 0%, 90%, 0.3);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 20010;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.tuibo-close:hover {
+    background: hsla(0, 0%, 30%, 0.8);
+    transform: scale(1.08);
+}
+
+/* 「換詩」鍵：重新抽一批新的詩。
+   ⚠️ 必須放在左下角：左上角是全站漢堡選單鈕（z-index 30000）的位置，
+   放在那裡會被蓋住而完全按不到。 */
+.tuibo-refresh {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    padding: 0 14px;
+    height: 40px;
+    line-height: 40px;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 16px;
+    letter-spacing: 3px;
+    color: hsla(0, 0%, 96%, 0.85);
+    background: hsla(0, 0%, 16%, 0.55);
+    border: 1px solid hsla(0, 0%, 90%, 0.3);
+    border-radius: 20px;
+    cursor: pointer;
+    z-index: 20010;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.tuibo-refresh:hover {
+    background: hsla(0, 0%, 30%, 0.8);
+    transform: scale(1.05);
+}
+
+/* 頁面標題（底部低調置中，不干擾畫面） */
+.tuibo-title {
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    /*font-family: 'Noto Serif TC', serif;*/
+    font-size: 18px;
+    letter-spacing: 8px;
+    color: hsla(0, 0%, 100%, 0.35);
+    z-index: 20005;
+    pointer-events: none;
+}
+
+/* 初次進入的操作提示，第一次觸碰後淡出 */
+.tuibo-hint {
+    position: absolute;
+    left: 50%;
+    top: 80%;
+    transform: translate(-50%, -50%);
+    /*font-family: 'Noto TC';*/
+    font-size: 24px;
+    letter-spacing: 5px;
+    padding: 10px 30px;
+    color: hsla(231, 30%, 74%, 0.8);
+    background-color: black;
+    border-radius: 15px;
+    z-index: 20005;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.9s ease;
+    animation: tuibo-breathe 3.2s ease-in-out infinite;
+}
+
+.tuibo-hint.hidden {
+    opacity: 0;
+}
+
+@keyframes tuibo-breathe {
+
+    0%,
+    100% {
+        text-shadow: 0 0 8px hsla(0, 0%, 100%, 0.3);
+    }
+
+    50% {
+        text-shadow: 0 0 18px hsla(0, 0%, 100%, 0.7);
+    }
+}

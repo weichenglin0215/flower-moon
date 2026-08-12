@@ -91,19 +91,19 @@
             },
             '中學': {
                 timeLimitRate: 8, maxLives: 5, descentSpeed: 20, bombInterval: 4, driftMin: 40, driftMax: 60,
-                arcRaiderInterval: 15, poemMinRating: 5, lineCount: 4, goldBorderHint: true
+                arcRaiderInterval: 18, poemMinRating: 5, lineCount: 4, goldBorderHint: true
             },
             '高中': {
                 timeLimitRate: 6, maxLives: 4, descentSpeed: 20, bombInterval: 3, driftMin: 60, driftMax: 80,
-                arcRaiderInterval: 12, poemMinRating: 4, lineCount: 6, goldBorderHint: false
+                arcRaiderInterval: 16, poemMinRating: 4, lineCount: 6, goldBorderHint: false
             },
             '大學': {
-                timeLimitRate: 4, maxLives: 3, descentSpeed: 20, bombInterval: 2, driftMin: 80, driftMax: 100,
-                arcRaiderInterval: 10, poemMinRating: 3, lineCount: 8, goldBorderHint: false
+                timeLimitRate: 4, maxLives: 3, descentSpeed: 20, bombInterval: 2.5, driftMin: 80, driftMax: 100,
+                arcRaiderInterval: 14, poemMinRating: 3, lineCount: 8, goldBorderHint: false
             },
             '研究所': {
-                timeLimitRate: 3, maxLives: 2, descentSpeed: 20, bombInterval: 1, driftMin: 80, driftMax: 100,
-                arcRaiderInterval: 8, poemMinRating: 3, lineCount: 10, goldBorderHint: false
+                timeLimitRate: 3, maxLives: 2, descentSpeed: 20, bombInterval: 2, driftMin: 80, driftMax: 100,
+                arcRaiderInterval: 12, poemMinRating: 3, lineCount: 10, goldBorderHint: false
             }
         },
 
