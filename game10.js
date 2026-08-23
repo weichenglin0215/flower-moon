@@ -244,7 +244,7 @@
 
             if (diffTag) {
                 if (this.isLevelMode) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                 } else {
                     diffTag.textContent = this.difficulty;
                 }

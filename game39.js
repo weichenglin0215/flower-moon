@@ -482,7 +482,7 @@
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
             if (tag) {
                 // 關卡挑戰模式下標籤改顯示關卡編號，底色仍用該關所屬難度的顏色
-                tag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
+                tag.textContent = this.isLevelMode ? `${window.FMRoundLabel(this.currentLevelIndex)}` : this.difficulty;
                 tag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                 tag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
             }

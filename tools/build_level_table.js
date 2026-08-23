@@ -14,16 +14,24 @@
    3. 「題目單位 (unit)」= 一組連續兩句（由偶數索引起算），
       與 script.js 的 getSharedRandomPoem 之 `i += 2` 慣例一致。
 
-   執行方式：
-      node tools/build_level_table.js
-   輸出：
-      data/level_table.js
+   ── 兩種執行方式（同一份邏輯，避免兩邊實作走鐘）──────────────────────
+   1. 命令列：
+        node tools/build_level_table.js
+      直接讀 data/poems.js，寫出 data/level_table.js。
+
+   2. 瀏覽器（tools/converter.html）：
+        <script src="build_level_table.js"></script>
+        FMLevelTableBuilder.generate(poems)  →  { table, fileText, stats, hasError }
+      詩詞資料更新是常態工作，converter.html 轉完詩詞後可以順手把關卡表
+      一起產生，不必再切到命令列。
+
+   ⚠️ 只要 data/poems.js 的 rating 有變動，就必須重新產生關卡表，
+      否則青雲梯仍會依舊表決定「哪首詩屬於哪一難度層」。
    ========================================================================== */
 
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+(function () {
 
 // ── 難度層 → 詩詞評價下限 ────────────────────────────────────────────────
 // 沿用既有的「累積下限抽樣」(rating >= minRating)，高難度池天然包含所有更容易
@@ -76,6 +84,9 @@ const cleanLine = (s) => (s || '').replace(PUNCT, '');
  * poems.js 的內容形如 `const POEMS = [...]`，直接以 eval 取出陣列。
  */
 function loadPoems(rootDir) {
+    // ⚠️ 在函式內才 require，瀏覽器環境不會走到這裡
+    const fs = require('fs');
+    const path = require('path');
     const src = fs.readFileSync(path.join(rootDir, 'data', 'poems.js'), 'utf8');
     // eslint-disable-next-line no-eval
     return eval(src + '; POEMS');
@@ -212,10 +223,14 @@ function buildTier(poems, tier) {
     };
 }
 
-function main() {
-    const rootDir = path.resolve(__dirname, '..');
-    const poems = loadPoems(rootDir);
-
+/**
+ * 【純邏輯】依詩詞陣列產生關卡表。Node 與瀏覽器共用同一份實作。
+ *
+ * @param {Array} poems data/poems.js 的 POEMS 陣列
+ * @returns {{table:object, fileText:string, stats:Array, hasError:boolean, totalLevels:number}}
+ *          fileText 可直接寫成／貼進 data/level_table.js
+ */
+function generate(poems) {
     const table = {
         version: '1.0',
         generatedAt: new Date().toISOString().slice(0, 10),
@@ -223,9 +238,7 @@ function main() {
         tiers: {}
     };
 
-    console.log('=== 花月關卡表生成 ===');
-    console.log(`詩詞總數：${poems.length}\n`);
-
+    const stats = [];
     let hasError = false;
 
     for (const tier of TIERS) {
@@ -238,24 +251,30 @@ function main() {
         const ok = built.levels.length >= need;
         if (!ok) hasError = true;
 
-        console.log(
-            `${tier.name.padEnd(4)} 評價 ${tier.minRating}~${tier.maxRating}  ` +
-            `詩詞 ${String(poolSize).padStart(3)} 首  ` +
-            `題目群 ${String(built.clusters.length).padStart(3)} 群  ` +
-            `關卡 ${String(built.levels.length).padStart(3)} 關  ` +
-            `(學習道路需 ${String(need).padStart(3)}) ${ok ? '✓' : '✗ 關卡數不足！'}`
-        );
+        stats.push({
+            tier: tier.name,
+            minRating: tier.minRating,
+            maxRating: tier.maxRating,
+            poems: poolSize,
+            clusters: built.clusters.length,
+            levels: built.levels.length,
+            need: need,
+            ok: ok
+        });
     }
 
-    const outPath = path.join(rootDir, 'data', 'level_table.js');
-    const out =
+    const fileText =
         '/* ==========================================================================\n' +
         '   花月 · 跨遊戲共用關卡表（自動生成，請勿手動編輯）\n' +
-        '   由 tools/build_level_table.js 產生；要修改請改生成器後重新執行：\n' +
+        '   產生方式（兩者等價）：\n' +
         '       node tools/build_level_table.js\n' +
+        '       或 tools/converter.html 轉換詩詞後一併產生\n' +
+        '\n' +
+        '   ⚠️ 只要 data/poems.js 的 rating 有變動就必須重新產生，\n' +
+        '      否則青雲梯仍會依舊表決定「哪首詩屬於哪一難度層」。\n' +
         '\n' +
         '   資料結構：\n' +
-        '     tiers[難度].minRating  該層的詩詞評價下限（累積下限抽樣）\n' +
+        '     tiers[難度].minRating  該層的詩詞評價下限\n' +
         '     tiers[難度].clusters   詩詞題目群，每群 3~6 首詩的 poem id 陣列\n' +
         '     tiers[難度].levels     關卡陣列（索引 0 = 第 1 關），每筆：\n' +
         '                              c = 所屬題目群索引\n' +
@@ -269,17 +288,54 @@ function main() {
         'const LEVEL_TABLE = ' + JSON.stringify(table) + ';\n\n' +
         "if (typeof module !== 'undefined' && module.exports) module.exports = LEVEL_TABLE;\n";
 
-    fs.writeFileSync(outPath, out, 'utf8');
+    const totalLevels = Object.keys(table.tiers)
+        .reduce((n, k) => n + table.tiers[k].levels.length, 0);
 
-    const totalLevels = Object.values(table.tiers).reduce((n, t) => n + t.levels.length, 0);
-    console.log(`\n總關卡數：${totalLevels}`);
-    console.log(`已輸出：data/level_table.js (${(out.length / 1024).toFixed(1)} KB)`);
+    return { table: table, fileText: fileText, stats: stats,
+             hasError: hasError, totalLevels: totalLevels };
+}
 
-    if (hasError) {
+/** 命令列進入點：讀 data/poems.js → 寫 data/level_table.js */
+function runCLI() {
+    const fs = require('fs');
+    const path = require('path');
+    const rootDir = path.resolve(__dirname, '..');
+    const poems = loadPoems(rootDir);
+
+    console.log('=== 花月關卡表生成 ===');
+    console.log(`詩詞總數：${poems.length}\n`);
+
+    const r = generate(poems);
+    r.stats.forEach(st => {
+        console.log(
+            `${st.tier.padEnd(4)} 評價 ${st.minRating}~${st.maxRating}  ` +
+            `詩詞 ${String(st.poems).padStart(3)} 首  ` +
+            `題目群 ${String(st.clusters).padStart(3)} 群  ` +
+            `關卡 ${String(st.levels).padStart(3)} 關  ` +
+            `(學習道路需 ${String(st.need).padStart(3)}) ${st.ok ? '✓' : '✗ 關卡數不足！'}`
+        );
+    });
+
+    const outPath = path.join(rootDir, 'data', 'level_table.js');
+    fs.writeFileSync(outPath, r.fileText, 'utf8');
+
+    console.log(`\n總關卡數：${r.totalLevels}`);
+    console.log(`已輸出：data/level_table.js (${(r.fileText.length / 1024).toFixed(1)} KB)`);
+
+    if (r.hasError) {
         console.error('\n✗ 有難度層的關卡數不足以支撐學習道路，請調整 CLUSTER_SIZE 或評價分層。');
         process.exit(1);
     }
     console.log('✓ 所有難度層的關卡數皆足夠支撐學習道路。');
 }
 
-main();
+// ── 對外掛載 ────────────────────────────────────────────────────────────
+if (typeof window !== 'undefined') {
+    window.FMLevelTableBuilder = { generate: generate, TIERS: TIERS };
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { generate: generate, loadPoems: loadPoems, TIERS: TIERS };
+    if (require.main === module) runCLI();
+}
+
+})();

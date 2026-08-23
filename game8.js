@@ -38,13 +38,16 @@
         // obstacles 障礙物數量
         // decoyPool 誘餌池：normal/hard
         // minLines 最少句數（必須偶數，從奇數句開始連續挑選）
-        // maxChars 總字數上限
+        // minChars 總字數下限、maxChars 總字數上限
+        // ⚠️ minChars 必須 ≤ maxChars，且要 ≤ minLines 句所能湊出的最大字數
+        //    （七言為上限，即 minLines × 7），否則該難度永遠取不到題。
+        //    例：小學 minLines:2 → 兩句最多 14 字，minChars 不可超過 14。
         difficultySettings: {
-            '小學': { timeLimitRate: 1, poemMinRating: 6, maxMistakeCount: 6, hints: 'all', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
-            '中學': { timeLimitRate: 1, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
-            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, maxChars: 56 },
-            '大學': { timeLimitRate: 1.5, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, maxChars: 56 },
-            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, maxChars: 56 }
+            '小學': { timeLimitRate: 1, poemMinRating: 6, maxMistakeCount: 6, hints: 'all', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 2, minChars: 8, maxChars: 14 },
+            '中學': { timeLimitRate: 1, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, minChars: 20, maxChars: 28 },
+            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, minChars: 20, maxChars: 56 },
+            '大學': { timeLimitRate: 1.5, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, minChars: 20, maxChars: 56 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, minChars: 20, maxChars: 56 }
         },
 
 
@@ -174,7 +177,7 @@
 
             if (this.isLevelMode) {
                 if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                     diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                     diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
                 }
@@ -314,7 +317,7 @@
                 settings.poemMinRating,
                 settings.minLines,
                 10,
-                20,
+                settings.minChars,
                 settings.maxChars,
                 "",
                 this.isLevelMode ? this.currentLevelIndex : null,

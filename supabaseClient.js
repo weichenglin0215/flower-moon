@@ -50,6 +50,11 @@
             return true;
         },
 
+        /** 取得目前綁定的引繼碼（模組外不必直接碰 localStorage） */
+        getCurrentId: function () {
+            try { return localStorage.getItem('flower_moon_id') || ''; } catch (e) { return ''; }
+        },
+
         // 供外部直接取得建立好的 supabase 實例
         getClient: function () {
             this.init();
@@ -60,56 +65,78 @@
          * 遊戲啟動時自動從雲端同步（以雲端資料為主）
          * 若本機有引繼碼，靜默拉取雲端資料並覆蓋本機存檔
          */
+        /**
+         * 讀取雲端存檔，並明確區分三種結果。
+         *
+         * ⚠️ 為什麼不能沿用 loadGameFromCloud：
+         *    它在「查無此帳號」與「連線失敗」兩種情況都回傳 null，
+         *    呼叫端無從分辨。但這兩者的正確處置完全相反 ——
+         *    查無資料代表帳號已被重置（本機該跟著清空），
+         *    連線失敗則絕對不可以動本機資料。
+         *
+         * @returns {{ok:boolean, found:boolean, data:object|null, error:*}}
+         */
+        fetchSave: async function (id) {
+            if (!this.init()) return { ok: false, found: false, data: null, error: 'SDK 未就緒' };
+            try {
+                const { data, error } = await supabase
+                    .from('player_saves')
+                    .select('*')
+                    .eq('id', id)
+                    .maybeSingle();
+
+                if (error) return { ok: false, found: false, data: null, error: error };
+                return { ok: true, found: !!data, data: data || null, error: null };
+            } catch (e) {
+                return { ok: false, found: false, data: null, error: e };
+            }
+        },
+
+        /**
+         * 遊戲啟動時自動從雲端同步（**以雲端資料為主**）
+         *
+         * 三種情形的處置：
+         *   1. 連線失敗       → 保留本機，什麼都不動（網路問題不該毀掉玩家進度）
+         *   2. 雲端查無此帳號 → 帳號已在雲端被刪除／重置，本機一併清空
+         *   3. 雲端有資料     → 以雲端覆蓋本機
+         *
+         * ⚠️ 第 2 種是本次修正的重點。舊版在查無資料時只是「保留本機存檔」，
+         *    導致清空雲端後重開遊戲，本機殘留的資料仍在運作
+         *    （實際發生過：雲端已清空，成就頁卻仍要求領取「縣案首」獎狀），
+         *    而且下一次存檔又會把舊資料整包推回雲端，等於清了個寂寞。
+         */
         syncOnStartup: async function () {
             const currentId = localStorage.getItem('flower_moon_id');
             if (!currentId) return false; // 未綁定引繼碼，略過
 
             if (!this.init()) return false;
 
-            try {
-                const cloudData = await this.loadGameFromCloud(currentId);
-                if (!cloudData) {
-                    console.log('雲端無此帳號資料，保留本機存檔');
-                    return false;
+            const res = await this.fetchSave(currentId);
+
+            if (!res.ok) {
+                console.warn('[雲端] 連線失敗，本次以本機存檔運作:', res.error);
+                return false;
+            }
+
+            if (!res.found) {
+                console.warn('[雲端] 查無此帳號（可能已被重置），依雲端優先原則清空本機:', currentId);
+                if (window.ScoreManager && typeof window.ScoreManager.resetAll === 'function') {
+                    window.ScoreManager.resetAll({ cloud: false, keepId: true });
                 }
+                return false;
+            }
 
-                // 將雲端資料套用至本機（以雲端為主）
+            try {
                 if (window.CloudSaveDialog) {
-                    window.CloudSaveDialog.applyCloudDataToLocal(cloudData, currentId);
+                    window.CloudSaveDialog.applyCloudDataToLocal(res.data, currentId);
                 } else {
-                    // CloudSaveDialog 未載入時的備援寫法
-                    const localData = window.ScoreManager ? window.ScoreManager.getDefaultData() : {};
-                    localData.nickname        = cloudData.nickname;
-                    localData.totalScore      = cloudData.total_score || 0;
-                    localData.globalRank      = cloudData.global_rank || '書僮';
-                    localData.playDays        = cloudData.play_days || 1;
-                    localData.lastPlayedDate  = cloudData.last_played_date || '';
-                    localData.games           = cloudData.games || {};
-                    localData.levelProgress   = cloudData.level_progress || {};
-                    localData.difficultyCounts= cloudData.difficulty_counts || {};
-                    localData.poemRecords     = cloudData.poem_records || {};
-                    localData.settings        = cloudData.settings || { bgm: true, soundEffects: true };
-
-                    // 從雲端 achievements._levelCleared 還原關卡星星紀錄
-                    // 若雲端無此欄位則保留本機現有資料
-                    const ach = cloudData.achievements || {};
-                    const cloudLevelCleared = ach._levelCleared || {};
-                    localData.achievements = { unlocked: ach.unlocked || [], progress: ach.progress || {}, claimed: ach.claimed || [] };
-                    try {
-                        const existingRaw = localStorage.getItem('flowerMoon_playerData');
-                        const localLevelCleared = existingRaw ? (JSON.parse(existingRaw).levelCleared || {}) : {};
-                        localData.levelCleared = Object.keys(cloudLevelCleared).length > 0 ? cloudLevelCleared : localLevelCleared;
-                    } catch (e) {
-                        localData.levelCleared = cloudLevelCleared;
-                    }
-
-                    localStorage.setItem('flowerMoon_playerData', JSON.stringify(localData));
-                    if (window.ScoreManager) window.ScoreManager.updateProfileUI(localData);
+                    console.warn('[雲端] CloudSaveDialog 未載入，無法套用雲端資料');
+                    return false;
                 }
                 console.log('✅ 雲端同步完成：', currentId);
                 return true;
             } catch (e) {
-                console.warn('啟動同步失敗（保留本機資料）:', e);
+                console.warn('套用雲端資料失敗（保留本機資料）:', e);
                 return false;
             }
         },
@@ -195,11 +222,33 @@
             // 從 "#" 分割取得 nickname 顯示部分
             const nickname = currentId.split('#')[0] || localData.nickname || '訪客';
 
-            // 將 levelCleared 嵌入 achievements._levelCleared 一起存雲端（不需額外欄位）
+            // 關卡相關的三個欄位嵌入 achievements 一起存雲端
+            // （沿用既有的 _levelCleared 慣例，避免再動 schema）
+            //   _levelCleared = 各遊戲的通關紀錄（青雲梯用它算「三種提取方式」）
+            //   _levelDonated = 捐納跳關的關卡
+            //   _levelFails   = 各關卡失敗次數（捐納門檻判定用）
             const achievementsToSave = Object.assign(
                 {}, localData.achievements || {},
-                { _levelCleared: localData.levelCleared || {} }
+                {
+                    _levelCleared: localData.levelCleared || {},
+                    _levelDonated: localData.levelDonated || {},
+                    _levelFails:   localData.levelFails   || {},
+                    _pathRounds:   localData.pathRounds   || 0
+                }
             );
+
+            // 江南小院收集系統（文錢、考試通過紀錄、考試次數、田地/茶寮/酒窖…）
+            // ⚠️ 這一整包過去只存在本機、從未上雲，造成的實害：
+            //    清空雲端後重開遊戲，成就頁仍依本機的 ranks.passed
+            //    要求玩家領取「縣案首」獎狀。
+            let collectionToSave = {};
+            try {
+                if (window.FMCollectionSave && typeof window.FMCollectionSave.load === 'function') {
+                    collectionToSave = window.FMCollectionSave.load() || {};
+                }
+            } catch (e) {
+                console.warn('[雲端] 讀取收集系統存檔失敗，本次不上傳該欄位:', e);
+            }
 
             // 準備上傳的結構
             const payload = {
@@ -216,6 +265,7 @@
                 achievements: achievementsToSave,
                 poem_records: localData.poemRecords || {},
                 settings: localData.settings || {},
+                collection: collectionToSave,
                 updated_at: new Date().toISOString()
             };
 
@@ -225,6 +275,23 @@
                     .upsert(payload, { onConflict: 'id' });
 
                 if (error) {
+                    // 資料庫尚未新增 collection 欄位時（PostgREST 42703 / PGRST204），
+                    // 退回舊格式再存一次，確保核心進度不會因此完全存不進去。
+                    const code = String(error.code || '');
+                    const msg = String(error.message || '');
+                    if (code === '42703' || code === 'PGRST204' || msg.indexOf('collection') >= 0) {
+                        console.warn('[雲端] player_saves 尚無 collection 欄位，本次改存舊格式。'
+                            + '請執行：alter table player_saves add column if not exists collection jsonb;');
+                        delete payload.collection;
+                        const retry = await supabase
+                            .from('player_saves')
+                            .upsert(payload, { onConflict: 'id' });
+                        if (retry.error) {
+                            console.error('備份存檔至雲端失敗:', retry.error);
+                            return false;
+                        }
+                        return true;
+                    }
                     console.error('備份存檔至雲端失敗:', error);
                     return false;
                 }
@@ -232,6 +299,45 @@
             } catch (e) {
                 console.error('備份儲存異常:', e);
                 return false;
+            }
+        },
+
+        /**
+         * 把某個引繼碼在雲端的所有紀錄整個刪除。
+         *
+         * ⚠️ 這是破壞性操作，只用於測試期重置。
+         *    會刪除 player_saves 與 game_logs 兩張表中該 id 的資料。
+         *
+         * @param {string} id 引繼碼，例如 '家中測試#ZPSY'
+         * @returns {{ok:boolean, saves:number|null, logs:number|null, error:*}}
+         */
+        deletePlayerFromCloud: async function (id) {
+            if (!this.init()) return { ok: false, saves: null, logs: null, error: 'SDK 未就緒' };
+            if (!id) return { ok: false, saves: null, logs: null, error: '未提供 id' };
+            try {
+                const logsRes = await supabase
+                    .from('game_logs')
+                    .delete()
+                    .eq('player_id', id)
+                    .select('player_id');
+                if (logsRes.error) throw logsRes.error;
+
+                const savesRes = await supabase
+                    .from('player_saves')
+                    .delete()
+                    .eq('id', id)
+                    .select('id');
+                if (savesRes.error) throw savesRes.error;
+
+                return {
+                    ok: true,
+                    saves: (savesRes.data || []).length,
+                    logs: (logsRes.data || []).length,
+                    error: null
+                };
+            } catch (e) {
+                console.error('[雲端] 刪除玩家資料失敗:', e);
+                return { ok: false, saves: null, logs: null, error: e };
             }
         },
 

@@ -13,8 +13,8 @@
     // ========================================
     const MENU_ITEMS = [
         // ⚠️ 選單縮圖尚未製作，暫時借用花月 logo，
-        //    待美術補上 images/Menu/學習道路_Menu256.jpg 後改回。
-        { page: 'learningpath', label: '學習道路', image: 'images/FlowerMoon_512.png' },
+        //    待美術補上 images/Menu/青雲梯_Menu256.jpg 後改回。
+        { page: 'learningpath', label: '青雲梯', image: 'images/FlowerMoon_512.png' },
         { page: 'calendar', label: '日曆', image: 'images/Menu/日曆_Menu256.jpg' },
         { page: 'cards', label: '默背卡片', image: 'images/Menu/默背_Menu256.jpg' },
         { page: 'game1', label: '慢思快選', image: 'images/Menu/慢思快選_Menu256.jpg' },
@@ -154,8 +154,8 @@
         'kaizhi': { firework: false, smoke: true },   // 開枝散葉
 
 
-        // ── 學習道路（科考大道）─────────────────────────────────────────
-        'learningpath': { firework: false, smoke: true },   // 學習道路
+        // ── 青雲梯─────────────────────────────────────────
+        'learningpath': { firework: false, smoke: true },   // 青雲梯
 
         // ── 資料類 ───────────────────────────────────────────────────────
         'achievements': { firework: false, smoke: true },   // 成就紀錄
@@ -472,10 +472,11 @@
                 }
                 // (b) 有資格參加考試（積分達標且尚未通過）
                 if (!hasAlert && window.ScoreManager) {
+                    // 應試資格改看必通關卡（企畫書 9.4），不再看積分
                     for (const name of examNames) {
-                        const r = window.ScoreManager.ranks.find(x => x.name === name);
-                        if (!r) continue;
-                        if (totalScore >= r.minScore && passed.indexOf(name) < 0) { hasAlert = true; break; }
+                        const p = (window.LearningPath && window.LearningPath.getRankExamProgress)
+                            ? window.LearningPath.getRankExamProgress(name) : { ok: false };
+                        if (p.ok && passed.indexOf(name) < 0) { hasAlert = true; break; }
                     }
                 }
                 // (c) 其他一般成就（次數、階級）尚未領取
@@ -514,7 +515,7 @@
             if (window.LearningPath && typeof window.LearningPath.stopGame === 'function') {
                 window.LearningPath.stopGame();
             }
-        } catch (e) { console.warn('[Menu] 隱藏學習道路失敗', e); }
+        } catch (e) { console.warn('[Menu] 隱藏青雲梯失敗', e); }
 
         try {
             if (window.AchievementDialog && typeof window.AchievementDialog.hide === 'function') {
@@ -698,7 +699,7 @@
             try {
                 switch (pageName) {
                     case 'learningpath':
-                        console.log('[Menu] 切換至學習道路');
+                        console.log('[Menu] 切換至青雲梯');
                         if (window.LearningPath) window.LearningPath.show();
                         else console.warn('[Menu] LearningPath 模組未載入');
                         break;

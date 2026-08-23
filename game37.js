@@ -70,7 +70,7 @@
             '中學': { timeMutiply: 2.0, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28, maxOptionCount: 16 },
             '高中': { timeMutiply: 2.4, poemMinRating: 4, maxMistakeCount: 4, minChars: 28, maxChars: 40, maxOptionCount: 25 },
             '大學': { timeMutiply: 2.8, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56, maxOptionCount: 36 },
-            '研究所': { timeMutiply: 3.2, poemMinRating: 3, maxMistakeCount: 2, minChars: 40, maxChars: 120, maxOptionCount: 36 }
+            '研究所': { timeMutiply: 3.2, poemMinRating: 3, maxMistakeCount: 2, minChars: 28, maxChars: 120, maxOptionCount: 36 }
         },
         gameStartTime: null,
 
@@ -170,7 +170,7 @@
             const newBtn = document.getElementById('game37-newGame-btn');
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
             if (diffTag) {
-                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
+                diffTag.textContent = this.isLevelMode ? `${window.FMRoundLabel(this.currentLevelIndex)}` : this.difficulty;
                 diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                 diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
             }
@@ -189,6 +189,14 @@
 
         // 開始全新一局：重置分數/錯誤次數/進度等所有狀態，重新挑選一首詩並建立階梯題目，
         // 最後顯示開場規則說明（玩家按下確認才會真正開始計時，見 showStartMessage → gameStart）
+        // 關卡模式下過關成功，前進到下一關並開始新的一局。
+        // ⚠️ 青雲梯會在 launchGame() 時暫時覆寫本方法，改由它決定
+        //    下一關要玩哪一題、哪一款遊戲（企畫書第十章 遊戲切換規則）。
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
         startNewGame: function () {
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
@@ -601,8 +609,10 @@
 
                 if (win) {
                     if (this.isLevelMode) {
-                        this.currentLevelIndex++;
-                        this.startNewGame();
+                        // ⚠️ 一律走 startNextLevel()，不要在這裡直接 ++。
+                        //    青雲梯會覆寫這個方法以收回關卡推進的控制權
+                        //    （見 learningPath.js advanceAfterWin）。
+                        this.startNextLevel();
                     } else {
                         this.startNewGame();
                     }

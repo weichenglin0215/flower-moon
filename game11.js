@@ -34,7 +34,7 @@
         //passChars:起始顯示字數，一開始翻開較多字數來加快遊戲進行節奏，預設為0
         //revealStep:每輪增加顯示的字數
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', minLines: 1, maxLines: 2, minChars: 5, maxChars: 10, slowFlipChars: 7, passChars: 0, revealStep: 1 },
+            '小學': { poemMinRating: 6, maxMistakeCount: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', minLines: 1, maxLines: 2, minChars: 5, maxChars: 7, slowFlipChars: 7, passChars: 0, revealStep: 1 },
             '中學': { poemMinRating: 5, maxMistakeCount: 8, rows: 5, cols: 3, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, slowFlipChars: 7, passChars: 3, revealStep: 1 },
             '高中': { poemMinRating: 4, maxMistakeCount: 10, rows: 5, cols: 4, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 4, minChars: 14, maxChars: 21, slowFlipChars: 7, passChars: 6, revealStep: 2 },
             '大學': { poemMinRating: 3, maxMistakeCount: 12, rows: 6, cols: 5, mode: 'all', feedback: 'hide', minLines: 3, maxLines: 4, minChars: 20, maxChars: 28, slowFlipChars: 7, passChars: 9, revealStep: 2 },
@@ -104,9 +104,9 @@
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    div.style.left   = r.left   + 'px';
-                    div.style.top    = r.top    + 'px';
-                    div.style.width  = 500 + 'px';
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
                     div.style.height = 850 + 'px';
                     div.style.transform = 'scale(' + r.scale + ')';
                     div.style.transformOrigin = 'top left';
@@ -151,7 +151,7 @@
             if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                if (diffTag) diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {

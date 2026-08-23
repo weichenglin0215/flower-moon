@@ -287,7 +287,7 @@
             const retryBtn = document.getElementById('game19-retryGame-btn');
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
             if (this.isLevelMode) {
-                if (diffTag) { diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`; diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50'; diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff'; }
+                if (diffTag) { diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`; diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50'; diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff'; }
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {

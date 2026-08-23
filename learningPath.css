@@ -1,5 +1,5 @@
 /* ==========================================================================
-   花月 · 學習道路（科考大道）learningPath.css
+   花月 · 青雲梯 learningPath.css
    --------------------------------------------------------------------------
    所有 class 一律使用 lp- 前綴，避免全域 CSS 污染
    （見「花月開發常見錯誤與解法」§1.2 / §4.1）。
@@ -23,7 +23,15 @@
             var(--fm-paper-deep, hsl(42, 48%, 76%)) 100%);
     display: flex;
     flex-direction: column;
-    z-index: 9000;
+    /* ⚠️ 層級必須與「遊戲」同層（1000），不可更高。
+       menu.js 的 SKIP_CLEANUP_PAGES（成就紀錄／群英榜／江南小院／名人列傳／
+       關於花月／詩詞資料）刻意不呼叫 closeAllActiveOverlays()，
+       目的是讓這些資料頁「疊」在目前畫面上而不中斷底下的狀態。
+       青雲梯屬於被疊的主畫面，若 z-index 高於資料頁（2100）就會反過來蓋住它們。
+       全站層級約定：
+         遊戲/青雲梯 1000 < 疊加型資料頁 2100 < 資料頁內部彈窗 3000~4500
+         < 選擇器 10000 < 舒壓頁 20000 < 漢堡選單 30000 */
+    z-index: 1000;
     overflow: hidden;
     font-family: "Noto Serif TC", "Microsoft JhengHei", serif;
 }
@@ -32,7 +40,49 @@
     display: none !important;
 }
 
-/* ── 頂部資訊框：文位 / 總積分 / 文錢 ─────────────────────────────────── */
+/* ── 卡關提示列：提供捐納跳關（企畫書 8.3）──────────────────────────── */
+.lp-notice {
+    flex: 0 0 auto;
+    margin: 0 20px 8px;
+    padding: 9px 14px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--fm-paper-light, hsl(44, 63%, 90%));
+    border: 1px solid var(--fm-cinnabar, hsl(6, 63%, 46%));
+    box-shadow: 0 2px 6px rgba(60, 40, 20, .18);
+}
+
+.lp-notice.hidden {
+    display: none !important;
+}
+
+.lp-notice-text {
+    font-size: 15px;
+    color: var(--fm-ink, hsl(30, 22%, 18%));
+    line-height: 1.4;
+}
+
+.lp-notice-btn {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--fm-paper-light, hsl(44, 63%, 90%));
+    background: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.lp-notice-btn:active {
+    transform: translateY(1px);
+}
+
+/* ── 頂部資訊框：文位 / 已學首數 / 文錢 / 文名 ────────────────────────── */
 .lp-header {
     flex: 0 0 auto;
     margin: 16px 20px 10px;

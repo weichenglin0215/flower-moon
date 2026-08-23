@@ -222,7 +222,7 @@
             if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                if (diffTag) diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
             } else {

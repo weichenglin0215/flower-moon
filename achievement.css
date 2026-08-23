@@ -981,3 +981,31 @@
     font-family: 'Noto Serif TC', serif;
     text-align: center;
 }
+/* ── ⚠️ 測試期專用：完整重置鈕（正式上線前整段移除）──────────────────
+   作法比照 difficulty-selector 的「📅 日曆」測試勾選框：
+   幾乎透明，知道位置的人才點得到，不干擾一般玩家。 */
+.ach-devtool-row {
+    margin-top: 10px;
+    text-align: right;
+}
+
+.ach-devtool-btn {
+    opacity: 0.12;
+    background: transparent;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    color: inherit;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
+.ach-devtool-btn:hover {
+    opacity: 0.85;
+}
+
+.ach-devtool-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

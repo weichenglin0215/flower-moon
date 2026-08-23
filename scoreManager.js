@@ -326,6 +326,11 @@ const ScoreManager = {
             games: {},
             levelProgress: {}, // 格式: { gameKey: { '小學': 0, '中學': 0, ... } } — 各難度最高通關關卡（供鎖定判斷）
             levelCleared: {},  // 格式: { gameKey: { '小學': [1,3,5,...], ... } } — 個別通關關卡紀錄（供星星顯示）
+            // 青雲梯累計局數：玩家每贏一局就 +1，只增不減、絕不跳號。
+            // ⚠️ 這是「給人看」的數字，與 levelCleared 的關卡編號完全不同：
+            //    關卡編號（tier + levelIndex）是**題庫位址**（哪首詩的哪一聯），
+            //    會重複、會跳號，拿來當進度顯示對玩家毫無意義。
+            pathRounds: 0,
             poemRecords: {},   // 格式: { poemId: { '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0 } }
             difficultyCounts: {
                 '小學': 0, '中學': 0, '高中': 0, '大學': 0, '研究所': 0
@@ -366,23 +371,19 @@ const ScoreManager = {
             }
             if (!data.poemRecords) data.poemRecords = {};
 
-            // 相容性補丁：若 levelCleared 為空但 levelProgress 有資料，
-            // 從 levelProgress 的最高關卡回填（1 ~ maxIdx），以還原舊存檔的星星。
+            // ⚠️ 已移除的相容性補丁（2026-08-23 青雲梯改版）─────────────────
+            // 舊版在此會「若 levelCleared 為空但 levelProgress 有資料，
+            // 就把 levelCleared 回填成 1~maxIdx」，用來還原舊存檔的星星。
+            //
+            // 這在舊制（關卡依序解鎖、通關必然連續）是合理的，但新制會出事：
+            // 青雲梯的進度判準是「同一關用三種不同提取方式通過」，
+            // 而回填會一次補齊多款遊戲的通關紀錄。實測某存檔
+            // game1／game8／game14 各到小學 17 關（分屬語感／空間／字序三通道），
+            // 回填後小學第 1~17 關全部被判定為已完成，玩家憑空前進 17 關。
+            //
+            // 花月尚未正式上線，依作者決議採最乾淨的處理方式：
+            // 移除補丁，並以 tools/reset_progress.js 清空既有的關卡資料。
             if (!data.levelCleared) data.levelCleared = {};
-            if (data.levelProgress && Object.keys(data.levelCleared).length === 0) {
-                const diffs = ['小學', '中學', '高中', '大學', '研究所'];
-                for (const gk in data.levelProgress) {
-                    const prog = data.levelProgress[gk];
-                    if (!prog) continue;
-                    data.levelCleared[gk] = {};
-                    for (const diff of diffs) {
-                        const maxIdx = prog[diff] || 0;
-                        if (maxIdx > 0) {
-                            data.levelCleared[gk][diff] = Array.from({ length: maxIdx }, (_, k) => k + 1);
-                        }
-                    }
-                }
-            }
 
             return data;
         }
@@ -494,6 +495,12 @@ const ScoreManager = {
         let needsSave = false;
         let achIdToReturn = null;
 
+        // ── 累計局數（青雲梯「第 X 局」與頂端「局數」的來源）──────────
+        // 不論是不是重複練同一個關卡編號、不論換了哪一款遊戲，
+        // 只要贏了一局就 +1，確保玩家看到的是連續遞增的數字。
+        data.pathRounds = (data.pathRounds || 0) + 1;
+        needsSave = true;
+
         // 個別通關紀錄（選關介面的星星顯示用）
         if (!data.levelCleared[gameKey][finalDifficulty]) {
             data.levelCleared[gameKey][finalDifficulty] = [];
@@ -531,6 +538,161 @@ const ScoreManager = {
             }
         }
         return achIdToReturn;
+    },
+
+    // ══════════════════════════════════════════════════════════════════
+    //  青雲梯：關卡失敗計數與捐納跳關
+    //  對應企畫書 note/學習道路_重新規劃企劃書.md 第 8.3 節
+    //  ── 為什麼需要 ────────────────────────────────────────────────
+    //  積分原本是軟性門檻，卡住也能刷過去；改為「必通關卡」硬性門檻後
+    //  就成了硬牆。現成的例子：game37 研究所 minChars:40 配 4 句，
+    //  在現有詩庫中數學上無解，玩家會永遠卡死。
+    //  因此逃生口是必需品，不是加值功能。
+    // ══════════════════════════════════════════════════════════════════
+
+    /** 內部共用：寫回玩家存檔並同步雲端（模組外不得直接碰 localStorage） */
+    _persist: function (data) {
+        localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+        if (window.SupabaseClient) {
+            window.SupabaseClient.saveGameToCloud(data);
+        }
+    },
+
+    /** 累計某一關的失敗次數（由 learningPath.js 在返回時推定） */
+    recordLevelFail: function (tier, level) {
+        const data = this.loadPlayerData();
+        if (!data.levelFails) data.levelFails = {};
+        const key = tier + '|' + level;
+        data.levelFails[key] = (data.levelFails[key] || 0) + 1;
+        this._persist(data);
+        return data.levelFails[key];
+    },
+
+    /** 查詢某一關累計失敗幾次 */
+    getLevelFails: function (tier, level) {
+        const data = this.loadPlayerData();
+        const fails = (data && data.levelFails) || {};
+        return fails[tier + '|' + level] || 0;
+    },
+
+    /**
+     * 捐納跳關：把某一關記為「視同完成」。
+     * 另存於 levelDonated，不偽造 levelCleared 的遊戲別紀錄，
+     * 以免污染成就系統的「某遊戲通關 N 次」統計。
+     */
+    markLevelDonated: function (tier, level) {
+        const data = this.loadPlayerData();
+        if (!data.levelDonated) data.levelDonated = {};
+        if (!data.levelDonated[tier]) data.levelDonated[tier] = [];
+        if (data.levelDonated[tier].indexOf(level) === -1) {
+            data.levelDonated[tier].push(level);
+            this._persist(data);
+        }
+    },
+
+    /**
+     * 清空所有關卡相關進度（本機 + 推送至雲端覆蓋）。
+     *
+     * ── 為什麼需要這個 ────────────────────────────────────────────────
+     * 青雲梯改版把進度判準從「積分」換成「同一關用三種提取方式通過」，
+     * 舊制留下的 levelProgress / levelCleared 在新制下語意不同，
+     * 會讓玩家一登入就憑空前進一大段（見企畫書 16.2(g)）。
+     * 花月尚未正式上線，依作者決議直接清空，不做遷移。
+     *
+     * ⚠️ 只清關卡進度，**不動**積分、文錢、成就、詩詞紀錄與暱稱。
+     *
+     * @returns {object} 清除前的統計，供確認用
+     */
+    resetLevelProgress: function () {
+        const data = this.loadPlayerData();
+        const before = {
+            levelProgress: Object.keys(data.levelProgress || {}).length,
+            levelCleared: Object.keys(data.levelCleared || {}).length,
+            levelDonated: Object.keys(data.levelDonated || {}).length,
+            levelFails: Object.keys(data.levelFails || {}).length
+        };
+        data.levelProgress = {};
+        data.levelCleared = {};
+        data.levelDonated = {};
+        data.levelFails = {};
+        data.pathRounds = 0;
+        this._persist(data);
+        if (window.LearningPath && typeof window.LearningPath.invalidateProgress === 'function') {
+            window.LearningPath.invalidateProgress();
+        }
+        console.log('[ScoreManager] 已清空關卡進度', before);
+        return before;
+    },
+
+    /**
+     * 【測試期用】完整重置一位玩家的所有資料。
+     *
+     * ── 為什麼需要這個 ────────────────────────────────────────────────
+     * 玩家資料散在三個地方，只清其中一處會留下鬼魂資料：
+     *   1. flowerMoon_playerData      積分、關卡、成就
+     *   2. flowerMoon_collection_v1   文錢、考試通過紀錄、江南小院
+     *   3. 雲端 player_saves / game_logs
+     * 實際發生過：只在雲端下了 delete，重開遊戲後成就頁仍要求
+     * 領取「縣案首」獎狀 —— 因為考試通過紀錄 (ranks.passed) 只存在本機 2。
+     *
+     * @param {object} [opts]
+     * @param {boolean} [opts.cloud=true]  是否一併刪除雲端資料
+     * @param {boolean} [opts.keepId=true] 是否保留引繼碼綁定
+     * @returns {Promise<object>} 清除結果摘要
+     */
+    resetAll: async function (opts) {
+        const o = opts || {};
+        const doCloud = o.cloud !== false;
+        const keepId  = o.keepId !== false;
+        const result  = { local: false, collection: false, cloud: null, id: null };
+
+        const id = (window.SupabaseClient && window.SupabaseClient.getCurrentId)
+            ? window.SupabaseClient.getCurrentId() : '';
+        result.id = id || '(未綁定)';
+
+        // 1. 雲端（必須先做：本機清掉後就查不到引繼碼了）
+        if (doCloud && id && window.SupabaseClient &&
+            typeof window.SupabaseClient.deletePlayerFromCloud === 'function') {
+            result.cloud = await window.SupabaseClient.deletePlayerFromCloud(id);
+        }
+
+        // 2. 本機主存檔
+        try {
+            localStorage.removeItem('flowerMoon_playerData');
+            localStorage.removeItem('flowerMoon_dailyFirstGame');
+            result.local = true;
+        } catch (e) { console.error('[ScoreManager] 清除本機存檔失敗:', e); }
+
+        // 3. 江南小院收集系統（文錢、考試通過紀錄、examStats…）
+        try {
+            if (window.FMCollectionSave && typeof window.FMCollectionSave.reset === 'function') {
+                window.FMCollectionSave.reset();
+                result.collection = true;
+            }
+        } catch (e) { console.error('[ScoreManager] 清除收集系統存檔失敗:', e); }
+
+        // 4. 引繼碼
+        if (!keepId) {
+            try { localStorage.removeItem('flower_moon_id'); } catch (e) { /* ignore */ }
+        }
+
+        // 5. 讓青雲梯的進度快取失效
+        try {
+            if (window.LearningPath && typeof window.LearningPath.invalidateProgress === 'function') {
+                window.LearningPath.invalidateProgress();
+            }
+        } catch (e) { /* ignore */ }
+
+        console.log('[ScoreManager] 完整重置完成', result);
+        console.log('請重新整理頁面 (F5) 讓所有模組以全新狀態載入。');
+        return result;
+    },
+
+    /** 某一關是否已捐納跳過 */
+    isLevelDonated: function (tier, level) {
+        const data = this.loadPlayerData();
+        const d = (data && data.levelDonated) || {};
+        return Array.isArray(d[tier]) && d[tier].indexOf(level) !== -1;
     },
 
     /**
@@ -905,4 +1067,29 @@ const ScoreManager = {
 
 // 將管理器掛載到 window 全局對象
 window.ScoreManager = ScoreManager;
+
+/**
+ * 遊戲畫面右上角的關卡標籤文字。
+ *
+ * ⚠️ 為什麼不直接印 levelIndex：
+ *    levelIndex 是**題庫位址**（第幾首詩的第幾聯），不是進度計數器。
+ *    青雲梯會讓同一個編號配三種不同提取方式各出現一次，且刻意隨機挑題，
+ *    所以直接顯示會變成「第1關→第2關→第4關→第4關→第2關」這種
+ *    又跳號又重複的樣子，對玩家完全無法理解。
+ *    改為顯示連續遞增的「第 X 局」。
+ *
+ * @param {number} levelIndex 目前關卡編號（僅在非青雲梯的測試用關卡模式下顯示）
+ * @returns {string}
+ */
+window.FMRoundLabel = function (levelIndex) {
+    try {
+        // 青雲梯進行中 → 顯示累計局數（含本局）
+        if (window.LevelTable && window.LevelTable.getContext()) {
+            const d = ScoreManager.loadPlayerData();
+            return '第 ' + ((d.pathRounds || 0) + 1) + ' 局';
+        }
+    } catch (e) { /* 存檔異常時退回舊格式 */ }
+    // 測試用的關卡模式（正式上線隱藏）維持舊格式
+    return '挑戰第 ' + levelIndex + ' 關';
+};
 

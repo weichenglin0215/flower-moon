@@ -206,6 +206,50 @@
             this._startTimer();
         },
 
+        // 一場考試最少要有幾首詩可抽（太少會一直重複同一首）
+        MIN_STAGE_POOL: 12,
+
+        /**
+         * 建立「本階段應學的詩」題庫（企畫書 9.3）。
+         *
+         * 範圍 = 學習序列中，前一個文位的里程碑 → 本文位的里程碑。
+         *   例：文童 52 首、秀才 64 首 → 秀才考試抽第 53~64 首。
+         *
+         * 若該階段的詩不足 MIN_STAGE_POOL 首，往前擴充（納入更早學過的詩）
+         * 直到足夠 —— 早期文位一階只有 8 首，全押這 8 首會一直重複。
+         *
+         * @param {number} needLines 該題型所需的最少句數
+         * @returns {Array} 候選詩陣列；無法建立時回傳空陣列由呼叫端退回舊邏輯
+         */
+        _buildStagePool: function (needLines) {
+            try {
+                const PS = window.PathStations;
+                if (!PS || !this.rank || !this.rank.name) return [];
+
+                const milestones = PS.getMilestones();
+                const idx = milestones.findIndex(m => m.name === this.rank.name);
+                if (idx < 0) return [];
+
+                const to = milestones[idx].poems;
+                let from = idx > 0 ? milestones[idx - 1].poems : 0;
+                // 不足最低數量時往前擴充
+                if (to - from < this.MIN_STAGE_POOL) {
+                    from = Math.max(0, to - this.MIN_STAGE_POOL);
+                }
+                if (to <= from) return [];
+
+                const order = PS.buildLearnOrder();
+                const wanted = {};
+                order.slice(from, to).forEach(p => { wanted[p.id] = true; });
+
+                return POEMS.filter(p => wanted[p.id]
+                    && Array.isArray(p.content) && p.content.length >= needLines);
+            } catch (e) {
+                console.warn('[Exam] 建立階段題庫失敗，改用舊的評價區間抽題:', e);
+                return [];
+            }
+        },
+
         _prepareChallenge: function () {
             if (typeof POEMS === 'undefined' || !POEMS.length) return false;
             const s = this.settings;
@@ -218,12 +262,22 @@
                 : (this.currentFormat === 'B') ? 3
                     : 4;
 
-            // 依 rating 範圍 + 最少行數過濾候選詩
-            let candidates = POEMS.filter(p => {
-                const r = p.rating || 0;
-                return r >= s.poolMinRating && r <= s.poolMaxRating
-                    && Array.isArray(p.content) && p.content.length >= needLines;
-            });
+            // ── 題庫：本階段應學的詩（企畫書 9.3）────────────────────────
+            // 舊版是「依 rating 區間從全庫抽」，代表考題可能是玩家從沒學過的詩
+            // —— 考的是運氣，不是驗收。改為只抽該文位這一階段的課程內容後，
+            // **考試本身就成為學習進度的檢查點**：只刷低難度小遊戲的玩家
+            // 積分再高也考不過，因為那些詩他根本沒碰過。
+            // 這正是當初加入考試制度的初衷，而且不必另外做任何進度鎖。
+            let candidates = this._buildStagePool(needLines);
+
+            // 退路一：階段題庫取不到（PathStations 未載入等）→ 回舊的 rating 區間
+            if (!candidates.length) {
+                candidates = POEMS.filter(p => {
+                    const r = p.rating || 0;
+                    return r >= s.poolMinRating && r <= s.poolMaxRating
+                        && Array.isArray(p.content) && p.content.length >= needLines;
+                });
+            }
             if (!candidates.length) {
                 candidates = POEMS.filter(p => (p.rating || 0) >= s.poolMinRating
                     && Array.isArray(p.content) && p.content.length >= needLines);

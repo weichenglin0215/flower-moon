@@ -97,6 +97,16 @@
         },
 
         /**
+         * 取得某一關的原始資料 { p: 錨定詩 id, s: 起始句索引, c: 題目群索引 }。
+         * 青雲梯用 s 去查該關起始句的「詩句評價」，藉此挑出必通關卡。
+         */
+        getLevelEntry: function (tier, levelIndex) {
+            const table = this.getTable();
+            if (!table || !table.tiers[tier]) return null;
+            return table.tiers[tier].levels[levelIndex - 1] || null;
+        },
+
+        /**
          * 取得某難度層「依關卡順序排列的不重複詩詞 id」。
          * 學習道路用它把詩詞分配給各個文位站（每站 2~3 首）。
          */

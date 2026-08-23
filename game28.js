@@ -226,7 +226,7 @@
 
             if (this.isLevelMode) {
                 if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                     diffTag.setAttribute('data-level', this.difficulty);
                     diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                     diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';

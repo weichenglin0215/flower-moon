@@ -26,7 +26,7 @@
         // minChars：詩詞最少字數
         // maxChars：詩詞最多字數
         difficultySettings: {
-            '小學': { timeMutiply: 1.2, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 20 },
+            '小學': { timeMutiply: 1.2, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 14 },
             '中學': { timeMutiply: 1.1, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28 },
             '高中': { timeMutiply: 1.0, poemMinRating: 4, maxMistakeCount: 4, minChars: 28, maxChars: 40 },
             '大學': { timeMutiply: 0.85, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56 },
@@ -78,9 +78,9 @@
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
                 window.registerOverlayResize((r) => {
-                    div.style.left   = r.left   + 'px';
-                    div.style.top    = r.top    + 'px';
-                    div.style.width  = 500 + 'px';
+                    div.style.left = r.left + 'px';
+                    div.style.top = r.top + 'px';
+                    div.style.width = 500 + 'px';
                     div.style.height = 850 + 'px';
                     div.style.transform = 'scale(' + r.scale + ')';
                     div.style.transformOrigin = 'top left';
@@ -116,7 +116,7 @@
             const newBtn = document.getElementById('game14-newGame-btn');
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
             if (diffTag) {
-                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
+                diffTag.textContent = this.isLevelMode ? `${window.FMRoundLabel(this.currentLevelIndex)}` : this.difficulty;
                 diffTag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                 diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
             }
@@ -135,6 +135,14 @@
 
         // 開新局：重置分數、錯誤次數、時間等所有狀態，重新選詩並準備階梯，
         // 最後顯示開始提示訊息（一般模式或挑戰下一關都會呼叫此函式）
+        // 關卡模式下過關成功，前進到下一關並開始新的一局。
+        // ⚠️ 青雲梯會在 launchGame() 時暫時覆寫本方法，改由它決定
+        //    下一關要玩哪一題、哪一款遊戲（企畫書第十章 遊戲切換規則）。
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
         startNewGame: function () {
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
@@ -565,8 +573,10 @@
 
                 if (win) {
                     if (this.isLevelMode) {
-                        this.currentLevelIndex++;
-                        this.startNewGame();
+                        // ⚠️ 一律走 startNextLevel()，不要在這裡直接 ++。
+                        //    青雲梯會覆寫這個方法以收回關卡推進的控制權
+                        //    （見 learningPath.js advanceAfterWin）。
+                        this.startNextLevel();
                     } else {
                         this.startNewGame();
                     }

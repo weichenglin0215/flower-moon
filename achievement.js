@@ -246,6 +246,14 @@
                                         <button id="achBtnChangeId" class="ach-btn-small">變更暱稱</button>
                                     </div>
                                 </div>
+                                <!-- ⚠️ 測試期專用：完整重置（本機 + 雲端）。
+                                     刻意做成幾乎看不見（opacity 0.12），
+                                     作法比照 difficulty-selector 的「📅 日曆」測試勾選框。
+                                     ⛔ 正式上線前必須連同下方事件綁定一起移除。 -->
+                                <div class="ach-devtool-row">
+                                    <button id="achBtnResetAll" class="ach-devtool-btn"
+                                            title="測試用：清空本機與雲端的所有玩家資料">⟲ 重置</button>
+                                </div>
                             </div>
                         </div>
                         <!-- 遊戲紀錄面板 -->
@@ -333,6 +341,44 @@
             });
 
 
+
+            // ⚠️ 測試期專用：完整重置按鈕（正式上線前連同 HTML 一起移除）
+            const btnReset = this.overlay.querySelector('#achBtnResetAll');
+            if (btnReset) {
+                btnReset.addEventListener('click', async () => {
+                    const id = (window.SupabaseClient && window.SupabaseClient.getCurrentId)
+                        ? (window.SupabaseClient.getCurrentId() || '(未綁定)') : '(未綁定)';
+                    const msg = [
+                        '【測試用】完整重置',
+                        '',
+                        '引繼碼：' + id,
+                        '',
+                        '將清除：',
+                        '　· 本機積分、關卡進度、成就、詩詞紀錄',
+                        '　· 本機文錢、考試通過紀錄、江南小院',
+                        '　· 雲端 player_saves 與 game_logs',
+                        '',
+                        '此操作無法復原，確定嗎？'
+                    ].join(String.fromCharCode(10));
+                    if (!window.confirm(msg)) return;
+
+                    btnReset.disabled = true;
+                    btnReset.textContent = '重置中…';
+                    try {
+                        const r = await window.ScoreManager.resetAll();
+                        const cloudTxt = r.cloud
+                            ? (r.cloud.ok
+                                ? ('雲端已刪除（存檔 ' + r.cloud.saves + ' 筆、紀錄 ' + r.cloud.logs + ' 筆）')
+                                : ('雲端刪除失敗：' + r.cloud.error))
+                            : '未綁定引繼碼，僅清除本機';
+                        window.alert(['重置完成。', cloudTxt, '', '按確定後將重新整理頁面。']
+                            .join(String.fromCharCode(10)));
+                    } catch (e) {
+                        window.alert('重置失敗：' + e);
+                    }
+                    window.location.reload();
+                });
+            }
 
             // 總覽/引繼碼按鈕綁定
 
@@ -1408,7 +1454,10 @@
                 for (const name of examRankNames) {
                     const r = window.ScoreManager.ranks.find(x => x.name === name);
                     if (!r) continue;
-                    if (totalScore >= r.minScore && passed.indexOf(name) < 0) {
+                    // 應試資格改看必通關卡（企畫書 9.4），不再看積分
+                    const _p = (window.LearningPath && window.LearningPath.getRankExamProgress)
+                        ? window.LearningPath.getRankExamProgress(name) : { ok: false };
+                    if (_p.ok && passed.indexOf(name) < 0) {
                         toExam = { name: r.name, minScore: r.minScore };
                         break;
                     }

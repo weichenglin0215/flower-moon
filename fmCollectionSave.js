@@ -76,9 +76,63 @@
             data.timestamps.lastSaved = Date.now();
             try {
                 localStorage.setItem(KEY, JSON.stringify(data));
+                this.scheduleCloudSync();
                 return true;
             } catch (e) {
                 console.error('[FMCollectionSave] 寫入失敗:', e);
+                return false;
+            }
+        },
+
+        // ── 雲端同步 ────────────────────────────────────────────────────
+        // 這一整包（文錢、考試通過紀錄、考試次數、江南小院進度）
+        // 過去只存在本機。實際造成過的問題：清空雲端後重開遊戲，
+        // 成就頁仍依本機殘留的 ranks.passed 要求領取「縣案首」獎狀。
+        //
+        // ⚠️ 必須節流：澆水、收成、烘茶等操作會頻繁觸發 save()，
+        //    若每次都打雲端會造成大量無謂請求。
+        _syncTimer: null,
+        CLOUD_SYNC_DELAY: 3000,
+
+        scheduleCloudSync: function () {
+            if (typeof window === 'undefined') return;
+            if (this._syncTimer) clearTimeout(this._syncTimer);
+            this._syncTimer = setTimeout(() => {
+                this._syncTimer = null;
+                this.pushToCloud();
+            }, this.CLOUD_SYNC_DELAY);
+        },
+
+        /** 立刻把本機資料推上雲端（透過 ScoreManager 的存檔一起帶上去） */
+        pushToCloud: function () {
+            try {
+                if (!window.SupabaseClient || !window.ScoreManager) return;
+                if (!window.SupabaseClient.getCurrentId ||
+                    !window.SupabaseClient.getCurrentId()) return;
+                // saveGameToCloud 會自行呼叫 FMCollectionSave.load() 取得本包資料
+                window.SupabaseClient.saveGameToCloud(window.ScoreManager.loadPlayerData());
+            } catch (e) {
+                console.warn('[FMCollectionSave] 推送雲端失敗:', e);
+            }
+        },
+
+        /**
+         * 以雲端資料覆蓋本機（雲端優先）。
+         * 由 CloudSaveDialog.applyCloudDataToLocal 在啟動同步時呼叫。
+         * @param {object} cloudCollection player_saves.collection 欄位的內容
+         */
+        applyCloudData: function (cloudCollection) {
+            if (!cloudCollection || typeof cloudCollection !== 'object'
+                || Object.keys(cloudCollection).length === 0) {
+                // 雲端沒有這包資料（舊存檔或欄位尚未建立）→ 保留本機，不覆蓋成空的
+                return false;
+            }
+            const safe = this.migrate(cloudCollection);
+            try {
+                localStorage.setItem(KEY, JSON.stringify(safe));
+                return true;
+            } catch (e) {
+                console.error('[FMCollectionSave] 套用雲端資料失敗:', e);
                 return false;
             }
         },

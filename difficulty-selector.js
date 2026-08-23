@@ -89,20 +89,34 @@
             overlay.id = 'difficulty-selector-overlay';
             overlay.className = 'difficulty-selector-overlay  hidden';
 
-            // ── 兩欄式難度選單 ───────────────────────────────────────────
-            // 左欄「隨機練習」：維持原本行為，每次隨機抽題。
-            // 右欄「關卡模式」：進入該難度層的固定關卡序列，題目由跨遊戲共用
-            //                   關卡表決定，所有遊戲的同一關都是同一組詩句。
-            // 已熟悉較難詩詞的玩家可直接點右欄「大學」，不必從小學一路推上來。
-            // 左欄改以「隨機」為統一標籤：難度本身已由按鈕顏色表達
-            //（綠=小學、藍=中學、紅=高中、紫=大學、金=研究所），
-            // 寬度縮半，把視覺主體讓給右欄的關卡模式。
+            // ── 難度選單（2026-08 青雲梯改版後退回單欄）────────────────────
+            // 對應企畫書 note/學習道路_重新規劃企劃書.md 第十一章。
+            //
+            // 改版前曾做成兩欄（左「隨機」／右「關卡模式」），但關卡模式與
+            // 青雲梯在做同一件事 —— 兩套並存的進度系統只會讓玩家搞不清楚
+            // 「到底哪個才是我的進度」。因此關卡模式整個併入青雲梯：
+            //   · 青雲梯 = 唯一的進度主線（給文錢、積分、關卡進度、考試資格）
+            //   · 漢堡選單 = 純娛樂與複習（給文錢、積分、獎狀、連續天數，
+            //                但**不算考試資格**）
+            // 這裡因此退回單純的五顆難度按鈕，每次隨機出題。
             const randomHTML = this.levels.map(level =>
-                `<button class="difficulty-btn" data-level="${level}">隨機</button>`
+                `<button class="difficulty-btn" data-level="${level}">${level}</button>`
             ).join('');
+
+            // 關卡模式按鈕保留但預設隱藏，僅供開發期測試用
+            //（正式上線不顯示；要開啟改 SHOW_LEVEL_MODE 或在主控台設
+            //  window._fmShowLevelMode = true 後重新整理）。
+            const showLevelMode = (typeof window !== 'undefined' && window._fmShowLevelMode === true);
             const levelHTML = this.levels.map(level =>
                 `<button class="difficulty-level-btn" data-level="${level}">${level}</button>`
             ).join('');
+            const levelColHTML = showLevelMode ? `
+                        <div class="difficulty-col difficulty-col-level">
+                            <div class="difficulty-col-title">關卡模式<span class="difficulty-new-tag">測試</span></div>
+                            <div class="difficulty-buttons">
+                                ${levelHTML}
+                            </div>
+                        </div>` : '';
 
             overlay.innerHTML = `
                 <div class="difficulty-selector-container" style="position:relative;">
@@ -110,19 +124,12 @@
                     <label id="difficulty-calendar-label" title="測試用：強制使用今日日曆詩（不消耗每日名額）" style="position:absolute;top:10px;right:10px;opacity:0.1;font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:#f4e4a0;user-select:none;">
                         <input type="checkbox" id="difficulty-calendar-chk" style="cursor:pointer;">📅 日曆
                     </label>
-                    <div class="difficulty-two-col">
+                    <div class="difficulty-two-col${showLevelMode ? '' : ' difficulty-single-col'}">
                         <div class="difficulty-col difficulty-col-random">
-                            <div class="difficulty-col-title">隨機練習</div>
                             <div class="difficulty-buttons">
                                 ${randomHTML}
                             </div>
-                        </div>
-                        <div class="difficulty-col difficulty-col-level">
-                            <div class="difficulty-col-title">關卡模式<span class="difficulty-new-tag">新</span></div>
-                            <div class="difficulty-buttons">
-                                ${levelHTML}
-                            </div>
-                        </div>
+                        </div>${levelColHTML}
                     </div>
                 </div>
             `;

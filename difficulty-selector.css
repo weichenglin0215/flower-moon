@@ -194,6 +194,19 @@
     width: 100%;
 }
 
+/* ── 單欄模式（2026-08 青雲梯改版後的預設樣貌）────────────────────────
+   關卡模式已整個併入青雲梯，難度選單退回單純的五顆按鈕。
+   關卡模式欄僅在開發測試時顯示（window._fmShowLevelMode = true）。 */
+.difficulty-single-col .difficulty-col-random {
+    flex: 1 1 100%;
+}
+
+.difficulty-single-col .difficulty-btn {
+    font-size: 26px;
+    padding: 16px 0;
+    letter-spacing: 0.15em;
+}
+
 /* 左欄（隨機）縮成一半寬，把視覺主體讓給右欄的關卡模式 */
 .difficulty-col {
     min-width: 0;

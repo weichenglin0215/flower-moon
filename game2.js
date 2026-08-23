@@ -229,7 +229,7 @@
             if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
 
             if (this.isLevelMode) {
-                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                if (diffTag) diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                 if (newBtn) newBtn.style.display = 'none';
                 if (retryBtn) retryBtn.style.display = 'inline-block';
                 // 關卡模式下固定關鍵字，避免玩家切換關鍵字導致確定性消失

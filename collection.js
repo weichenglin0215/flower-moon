@@ -75,12 +75,28 @@
     const WATER_INTERVAL = 6 * HOUR;
     const NIGHT_START_H = 22, NIGHT_END_H = 6;
 
+    // ── 考試入場費（作者定案 2026-08-23）────────────────────────────
+    // 設計原則：**玩家抵達某文位時，身上的文錢至少夠考兩次；**
+    // **萬一都落榜，再賺一點就能考第三次。**
+    // 例：抵達縣案首時光靠遊戲收入約有 800 文錢（尚未計入獎狀獎勵），
+    //     費用 300 → 可考兩次，再賺 100 即可考第三次。
+    //
+    // ⚠️ 刻意**不做補考費遞增**。落榜本身已經夠挫折，
+    //    再對失敗加收費用等於懲罰失敗，與花月「不用體力機制、
+    //    不用默寫考玩家」的一貫精神相違背。
+    //    費用只隨「文位高低」變動，同一文位考幾次都是同一個價。
+    //
+    // 舊版問題：進士～狀元全部卡在 10000 不再成長，但玩家在研究所階段
+    // 的文錢收入是小學的 15 倍，等於後期考試形同免費、失去份量。
     const EXAM_FEES = {
         '縣案首': 300, '府案首': 600, '文童': 1200, '秀才': 2400,
-        '舉人': 4800, '貢士': 9600,
-        '進士': 10000, '探花': 10000, '榜眼': 10000, '狀元': 10000
+        '舉人': 4800, '貢士': 7200,
+        '進士': 14400, '探花': 28800, '榜眼': 57600,
+        '狀元': 115200, '大儒': 230400
     };
-    const EXAM_RANKS_ORDER = ['縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元'];
+    // ⚠️ 必須包含「大儒」：舊版此陣列少了大儒，導致 nextExamRank() 在
+    //    玩家考過狀元後直接回傳 null，大儒這個文位永遠考不到。
+    const EXAM_RANKS_ORDER = ['縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'];
 
     const PLOT_PRICES = {
         '茶寮': { rank: '童生', price: 500 },
@@ -1785,15 +1801,18 @@
             let html = '<div class="fm-collection-popup-title">考棚</div>';
             html += '<div class="fm-collection-popup-row"><span>目前積分</span><span>' + score.toLocaleString() + '</span></div>';
             if (!nextRank) {
-                html += '<div class="fm-collection-popup-row">已達狀元極位，無更高功名可考。</div>';
+                html += '<div class="fm-collection-popup-row">已達大儒之境，無更高功名可考。</div>';
             } else {
                 const fee = EXAM_FEES[nextRank.name];
-                const need = nextRank.minScore;
-                const scoreGap = score - need;
                 const silverGap = this.data.silver - fee;
-                const scoreCell = (scoreGap >= 0)
-                    ? need.toLocaleString() + ' <span class="fm-collection-gap-ok">(已達)</span>'
-                    : need.toLocaleString() + ' <span class="fm-collection-gap-red">(' + scoreGap.toLocaleString() + ')</span>';
+                // ── 應試資格改看「必通關卡」而非積分（企畫書 9.4）──────────
+                // 積分可以靠反覆刷低難度遊戲累積，不代表學會了詩詞。
+                const prog = (window.LearningPath && window.LearningPath.getRankExamProgress)
+                    ? window.LearningPath.getRankExamProgress(nextRank.name)
+                    : { ok: false, unitsDone: 0, unitsTotal: 0, poemsDone: 0, poemsNeed: 0 };
+                const scoreCell = prog.ok
+                    ? prog.unitsDone + ' / ' + prog.unitsTotal + ' <span class="fm-collection-gap-ok">(已達)</span>'
+                    : prog.unitsDone + ' / ' + prog.unitsTotal + ' <span class="fm-collection-gap-red">(尚缺 ' + (prog.unitsTotal - prog.unitsDone) + ')</span>';
                 const feeCell = (silverGap >= 0)
                     ? fee + ' 文錢 <span class="fm-collection-gap-ok">(已達)</span>'
                     : fee + ' 文錢 <span class="fm-collection-gap-red">(' + silverGap.toLocaleString() + ')</span>';
@@ -1810,9 +1829,11 @@
                         + '<span>歷次紀錄</span><span>通過 ' + stats.passCount + ' 次 / 失敗 ' + stats.failCount + ' 次</span>'
                         + '</div>';
                 }
-                html += '<div class="fm-collection-popup-row"><span>積分門檻</span><span>' + scoreCell + '</span></div>';
+                html += '<div class="fm-collection-popup-row"><span>必通關卡</span><span>' + scoreCell + '</span></div>';
+                html += '<div class="fm-collection-popup-row" style="font-size:14px;opacity:.85;">'
+                    + '<span>已學詩詞</span><span>' + prog.poemsDone + ' / ' + prog.poemsNeed + ' 首</span></div>';
                 html += '<div class="fm-collection-popup-row"><span>入場費</span><span>' + feeCell + '</span></div>';
-                const okScore = (scoreGap >= 0), okSilver = (silverGap >= 0);
+                const okScore = prog.ok, okSilver = (silverGap >= 0);
                 if (!okScore) html += '<div class="fm-collection-popup-row" style="color:#888">學問未足，請再勤工。</div>';
                 else if (!okSilver) html += '<div class="fm-collection-popup-row" style="color:#aa3">學問已成，盤纏未足。請再勤工或變賣盆中之物。</div>';
                 else html += '<button class="fm-collection-popup-btn" data-act="exam">報考 ' + nextRank.name + '（扣 ' + fee + ' 文錢）</button>';

@@ -167,7 +167,7 @@
             // 難度標籤色彩改由 CSS 依 data-level 套色（見 theme_xuanzhi.css 的 .fm-difficulty-tag[data-level=...]）
             if (diffTag) {
                 diffTag.setAttribute('data-level', this.difficulty);
-                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
+                diffTag.textContent = this.isLevelMode ? `${window.FMRoundLabel(this.currentLevelIndex)}` : this.difficulty;
             }
             // 挑戰模式下隱藏「新局」按鈕，避免玩家意外跳出挑戰流程
             if (newBtn) newBtn.style.display = this.isLevelMode ? 'none' : 'inline-block';
@@ -183,6 +183,14 @@
         },
 
         // 開始全新一局：重置分數/錯誤次數、隨機選詩、產生題目與答案池，並啟動倒數計時
+        // 關卡模式下過關成功，前進到下一關並開始新的一局。
+        // ⚠️ 青雲梯會在 launchGame() 時暫時覆寫本方法，改由它決定
+        //    下一關要玩哪一題、哪一款遊戲（企畫書第十章 遊戲切換規則）。
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.startNewGame();
+        },
+
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.isActive = true;
@@ -914,8 +922,10 @@
 
                 if (win) {
                     if (this.isLevelMode) {
-                        this.currentLevelIndex++;
-                        this.startNewGame();
+                        // ⚠️ 一律走 startNextLevel()，不要在這裡直接 ++。
+                        //    青雲梯會覆寫這個方法以收回關卡推進的控制權
+                        //    （見 learningPath.js advanceAfterWin）。
+                        this.startNextLevel();
                     } else {
                         this.startNewGame();
                     }

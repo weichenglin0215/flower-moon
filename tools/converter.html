@@ -113,8 +113,13 @@
                 <li>貼上到下方的文字框中。</li>
                 <li>按下「轉換」按鈕。</li>
                 <li>複製下方的結果，貼到 <code>data/poems.js</code> 中。</li>
+                <li><strong>複製最下方的「關卡表」，貼到 <code>data/level_table.js</code> 中。</strong></li>
             </ol>
             <p><strong>✨ 新功能：</strong>注音欄位現在會自動添加大陸拼音和同音常用字！</p>
+            <p><strong>⚠️ 重要：</strong>只要詩詞的<strong>評價 (rating)</strong> 有變動，就必須一併更新
+                <code>data/level_table.js</code>。關卡表決定「哪一首詩屬於哪一個難度層」，
+                不更新的話「青雲梯」仍會依照舊表出題
+                （例如把已降為評價 6 的詩留在小學層）。本工具最下方會一併產生。</p>
             <p><strong>✨ 注音欄位寫法：</strong>例如：晞(ㄒㄧ)蒸發、乾燥。自動轉換成：晞(ㄒㄧ)(xī)發音同\"西\"，蒸發、乾燥。</p>
             <p><strong>✨
                     注音欄位寫法：</strong>也可以兩個字一起寫，例如：羅敷(ㄌㄨㄛˊ　ㄈㄨ)人名。戰國時趙王家令王仁妻。自動轉換成：羅敷(ㄌㄨㄛˊ　ㄈㄨ)(luó
@@ -164,8 +169,32 @@
             </button>
         </div>
         <pre id="recitationArea">// 請先點擊《EXCEL資料轉換成程式碼格式》按鈕...</pre>
+
+        <div class="header-container">
+            <h3>跨遊戲共用關卡表：(請複製，貼入 data/level_table.js)</h3>
+            <button class="copy-btn" onclick="copyToClipboard('levelTableArea')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                複製
+            </button>
+        </div>
+        <div id="levelTableStats" style="margin:0 0 .5rem;font-size:.9rem;line-height:1.7;"></div>
+        <pre id="levelTableArea">// 請先點擊《EXCEL資料轉換成程式碼格式》按鈕...</pre>
+
+        <div class="instructions" style="margin-top:1rem;">
+            <h3>只改了 data/poems.js，沒有 Excel 資料？</h3>
+            <p>直接選取現有的 <code>data/poems.js</code>，即可單獨重新產生關卡表：</p>
+            <input type="file" id="poemsFile" accept=".js">
+            <span id="poemsFileMsg" style="margin-left:.5rem;"></span>
+        </div>
     </div>
 
+    <!-- 關卡表產生器：與 `node tools/build_level_table.js` 共用同一份邏輯，
+         避免命令列與網頁版兩邊實作走鐘 -->
+    <script src="build_level_table.js"></script>
     <script>
         // 繁體中文常用字對照表（按注音分組）
         const COMMON_CHARS = {
@@ -924,7 +953,71 @@
 
             // 生成單行朗誦文本輸出            
             document.getElementById('recitationArea').textContent = recitationLines.join('\n');
+
+            // 一併產生跨遊戲共用關卡表
+            buildLevelTableFrom(poems, '（依上方轉換結果產生）');
         }
+
+        /**
+         * 依詩詞陣列產生關卡表並填入畫面。
+         * 邏輯本身來自 build_level_table.js，與命令列版完全相同。
+         */
+        function buildLevelTableFrom(poems, sourceNote) {
+            const area = document.getElementById('levelTableArea');
+            const statsEl = document.getElementById('levelTableStats');
+            if (!window.FMLevelTableBuilder) {
+                area.textContent = '// ✗ 找不到 build_level_table.js，請確認它與本檔在同一個 tools/ 目錄下。';
+                statsEl.innerHTML = '';
+                return;
+            }
+            if (!poems || !poems.length) {
+                area.textContent = '// ✗ 沒有詩詞資料。';
+                statsEl.innerHTML = '';
+                return;
+            }
+            try {
+                const r = window.FMLevelTableBuilder.generate(poems);
+                area.textContent = r.fileText;
+                const rows = r.stats.map(function (st) {
+                    return '　' + st.tier + '　評價 ' + st.minRating + '~' + st.maxRating
+                        + '　詩詞 ' + st.poems + ' 首'
+                        + '　關卡 ' + st.levels + ' 關'
+                        + '　<span style="color:' + (st.ok ? 'green' : 'red') + '">'
+                        + (st.ok ? '✓' : '✗ 關卡數不足（需 ' + st.need + '）') + '</span>';
+                }).join('<br>');
+                statsEl.innerHTML = '<strong>詩詞總數 ' + poems.length + ' 首　總關卡數 '
+                    + r.totalLevels + ' 關</strong>　<span style="opacity:.7">' + sourceNote + '</span><br>' + rows
+                    + (r.hasError ? '<br><strong style="color:red">✗ 有難度層關卡數不足，請調整評價分佈。</strong>' : '');
+            } catch (e) {
+                area.textContent = '// ✗ 產生關卡表失敗：' + e;
+                statsEl.innerHTML = '';
+            }
+        }
+
+        // 直接載入現有的 data/poems.js 單獨重新產生關卡表
+        // （適用於「只是改了某首詩的 rating，沒有重新跑 Excel」的情況）
+        document.addEventListener('DOMContentLoaded', function () {
+            const input = document.getElementById('poemsFile');
+            if (!input) return;
+            input.addEventListener('change', function () {
+                const f = input.files && input.files[0];
+                const msg = document.getElementById('poemsFileMsg');
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = function () {
+                    try {
+                        // poems.js 的內容形如 `const POEMS = [...]`
+                        const poems = new Function(String(reader.result) + '; return POEMS;')();
+                        msg.innerHTML = '<span style="color:green">✓ 已讀取 ' + f.name
+                            + '（' + poems.length + ' 首）</span>';
+                        buildLevelTableFrom(poems, '（依 ' + f.name + ' 產生）');
+                    } catch (e) {
+                        msg.innerHTML = '<span style="color:red">✗ 解析失敗：' + e + '</span>';
+                    }
+                };
+                reader.readAsText(f, 'utf-8');
+            });
+        });
 
         // Custom TSV Parser
         function parseTSV(input) {

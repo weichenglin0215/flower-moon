@@ -222,7 +222,7 @@
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#e2b800' };
 
             if (this.isLevelMode) {
-                if (tag) { tag.textContent = `挑戰第 ${this.currentLevelIndex} 關`; tag.style.backgroundColor = colors[this.difficulty] || '#4CAF50'; tag.style.color = this.difficulty === '研究所' ? '#333' : '#fff'; tag.dataset.level = this.difficulty; }
+                if (tag) { tag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`; tag.style.backgroundColor = colors[this.difficulty] || '#4CAF50'; tag.style.color = this.difficulty === '研究所' ? '#333' : '#fff'; tag.dataset.level = this.difficulty; }
                 if (newBtn) newBtn.style.display = 'none';
                 if (retBtn) retBtn.style.display = 'inline-block';
             } else {

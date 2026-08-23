@@ -286,7 +286,7 @@
             const newBtn = document.getElementById('game15-newGame-btn');
             const colors = { '小學': '#27ae60', '中學': '#2980b9', '高中': '#c0392b', '大學': '#8e44ad', '研究所': '#f1c40f' };
             if (diffTag) {
-                diffTag.textContent = this.isLevelMode ? `挑戰第 ${this.currentLevelIndex} 關` : this.difficulty;
+                diffTag.textContent = this.isLevelMode ? `${window.FMRoundLabel(this.currentLevelIndex)}` : this.difficulty;
                 diffTag.setAttribute('data-level', this.difficulty);
                 diffTag.style.backgroundColor = colors[this.difficulty] || '#27ae60';
                 diffTag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';

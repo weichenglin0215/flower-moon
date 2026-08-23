@@ -171,6 +171,26 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
    //
    // 查表失敗（該題目群無詩能滿足此遊戲的行數／字數需求）時，
    // 會直接落回下方原本的隨機選詩邏輯，遊戲不會因此卡死。
+   // ── 參數防呆：先擋掉「數學上不可能成立」的需求 ─────────────────────
+   // 各遊戲的 difficultySettings 與呼叫端若不一致，會出現例如
+   // minChars(20) > maxChars(14) 這種永遠無解的組合，
+   // 症狀是該難度一進去就跳「載入詩詞失敗」，但錯誤原因完全看不出來。
+   // 這裡直接把原因印出來，省去逐一比對設定的時間。
+   if (minChars > maxChars) {
+      console.error('[getSharedRandomPoem] ' + (gameKey || '(未指定遊戲)')
+         + ' 的參數不可能成立：minChars(' + minChars + ') > maxChars(' + maxChars + ')。'
+         + ' 請檢查該遊戲 difficultySettings 的 minChars / maxChars。');
+      return null;
+   }
+   // 一句最多七言，因此 minLines 句最多只能湊出 minLines × 7 字
+   if (minChars > minLines * 7) {
+      console.error('[getSharedRandomPoem] ' + (gameKey || '(未指定遊戲)')
+         + ' 的參數不可能成立：minChars(' + minChars + ') 超過 minLines(' + minLines + ')',
+         '句所能湊出的最大字數 ' + (minLines * 7) + ' 字（七言為上限）。'
+         + ' 請調低 minChars 或提高 minLines。');
+      return null;
+   }
+
    if (seed !== null && typeof LevelTable !== 'undefined' && LevelTable) {
       const lvCtx = LevelTable.getContext();
       // ⚠️ 關卡編號一律以 seed 為準，情境只負責提供「難度層」。

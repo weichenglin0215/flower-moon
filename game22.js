@@ -226,7 +226,7 @@
             const newBtn = document.getElementById('game22-newGame-btn');
             if (this.isLevelMode) {
                 if (diffTag) {
-                    diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                     diffTag.setAttribute('data-level', this.difficulty);
                 }
                 if (newBtn) newBtn.style.display = 'none';

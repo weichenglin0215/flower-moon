@@ -244,24 +244,43 @@
             localData.poemRecords  = cloudData.poem_records || {};
             localData.settings = cloudData.settings || { bgm: true, soundEffects: true };
 
-            // 從雲端 achievements._levelCleared 還原關卡星星紀錄
-            // 若雲端無此欄位（舊存檔），則保留本機現有的 levelCleared 資料
+            // 關卡相關的三個欄位存放在雲端的 achievements 底下
+            //   _levelCleared = 各遊戲的通關紀錄（青雲梯據此計算「三種提取方式」）
+            //   _levelDonated = 捐納跳關的關卡
+            //   _levelFails   = 各關卡失敗次數
+            //
+            // ⚠️ 一律以雲端為準，**不再回退到本機舊值**。
+            //    舊版寫成「雲端為空就沿用本機」，等於雲端清空後本機仍會復活，
+            //    使用者實際遇過：清了雲端，成就頁照樣要求領取「縣案首」獎狀。
             const ach = cloudData.achievements || {};
-            const cloudLevelCleared = ach._levelCleared || {};
             localData.achievements = {
                 unlocked: ach.unlocked || [],
                 progress: ach.progress || {},
                 claimed:  ach.claimed  || []
             };
-            try {
-                const existingRaw = localStorage.getItem('flowerMoon_playerData');
-                const localLevelCleared = existingRaw ? (JSON.parse(existingRaw).levelCleared || {}) : {};
-                localData.levelCleared = Object.keys(cloudLevelCleared).length > 0 ? cloudLevelCleared : localLevelCleared;
-            } catch (e) {
-                localData.levelCleared = cloudLevelCleared;
-            }
+            localData.levelCleared = ach._levelCleared || {};
+            localData.levelDonated = ach._levelDonated || {};
+            localData.levelFails   = ach._levelFails   || {};
+            localData.pathRounds   = ach._pathRounds   || 0;
 
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(localData));
+
+            // 江南小院收集系統（文錢、考試通過紀錄、考試次數、田地/茶寮/酒窖…）
+            // 雲端若沒有這一包（欄位尚未建立或舊存檔）則保留本機，不覆蓋成空的。
+            try {
+                if (window.FMCollectionSave && typeof window.FMCollectionSave.applyCloudData === 'function') {
+                    window.FMCollectionSave.applyCloudData(cloudData.collection);
+                }
+            } catch (e) {
+                console.warn('[雲端] 套用收集系統資料失敗:', e);
+            }
+
+            // 青雲梯的進度快取必須失效，否則畫面仍是同步前的舊進度
+            try {
+                if (window.LearningPath && typeof window.LearningPath.invalidateProgress === 'function') {
+                    window.LearningPath.invalidateProgress();
+                }
+            } catch (e) { /* 青雲梯尚未初始化時忽略 */ }
 
             // 重新刷新 UI
             if (window.ScoreManager) {

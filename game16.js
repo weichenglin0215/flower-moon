@@ -209,7 +209,7 @@
 
             if (this.isLevelMode) {
                 if (tag) {
-                    tag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                    tag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                     tag.style.backgroundColor = colors[this.difficulty] || '#4CAF50';
                     tag.style.color = (this.difficulty === '研究所') ? '#333' : '#fff';
                     tag.dataset.level = this.difficulty;

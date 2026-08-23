@@ -236,7 +236,7 @@
             const newBtn = document.getElementById('game36-newGame-btn');
             if (diffTag) diffTag.setAttribute('data-level', this.difficulty);
             if (this.isLevelMode) {
-                if (diffTag) diffTag.textContent = `挑戰第 ${this.currentLevelIndex} 關`;
+                if (diffTag) diffTag.textContent = `${window.FMRoundLabel(this.currentLevelIndex)}`;
                 if (newBtn) newBtn.style.display = 'none';   // 關卡模式由「下一關」推進
             } else {
                 if (diffTag) diffTag.textContent = this.difficulty;
