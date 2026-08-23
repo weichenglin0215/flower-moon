@@ -886,6 +886,38 @@
     font-weight: bold;
 }
 
+/* 評價分組標題：讓 381 首的長清單有段落感（仍為單一可捲動清單，不分頁） */
+.ach-poem-group-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 10px 0 2px;
+    padding: 6px 14px;
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    color: hsl(48, 100%, 78%);
+    background: linear-gradient(90deg, hsla(0, 60%, 22%, 0.98) 0%, hsla(0, 55%, 16%, 0.92) 100%);
+    border-left: 5px solid hsl(48, 90%, 60%);
+    border-radius: 6px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* 尚未收集的詩詞：暗色呈現，一眼看出還有多少沒收集 */
+.ach-poem-item-locked {
+    background: hsla(0, 12%, 20%, 1);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.ach-poem-item-locked .ach-poem-title {
+    color: hsla(48, 25%, 70%, 0.5);
+    text-decoration: none;
+}
+
+.ach-poem-item-locked .ach-poem-counts {
+    color: hsla(0, 0%, 100%, 0.32);
+}
+
 /* ── 詩詞寶盒圖片彈窗 ── */
 .treasurebox-overlay {
     position: fixed;

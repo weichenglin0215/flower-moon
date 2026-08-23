@@ -12,6 +12,9 @@
     // 調整順序即可改變在選單中的排列位置。
     // ========================================
     const MENU_ITEMS = [
+        // ⚠️ 選單縮圖尚未製作，暫時借用花月 logo，
+        //    待美術補上 images/Menu/學習道路_Menu256.jpg 後改回。
+        { page: 'learningpath', label: '學習道路', image: 'images/FlowerMoon_512.png' },
         { page: 'calendar', label: '日曆', image: 'images/Menu/日曆_Menu256.jpg' },
         { page: 'cards', label: '默背卡片', image: 'images/Menu/默背_Menu256.jpg' },
         { page: 'game1', label: '慢思快選', image: 'images/Menu/慢思快選_Menu256.jpg' },
@@ -150,6 +153,9 @@
         'chousi': { firework: false, smoke: true },   // 抽絲剝繭
         'kaizhi': { firework: false, smoke: true },   // 開枝散葉
 
+
+        // ── 學習道路（科考大道）─────────────────────────────────────────
+        'learningpath': { firework: false, smoke: true },   // 學習道路
 
         // ── 資料類 ───────────────────────────────────────────────────────
         'achievements': { firework: false, smoke: true },   // 成就紀錄
@@ -505,6 +511,12 @@
         });
 
         try {
+            if (window.LearningPath && typeof window.LearningPath.stopGame === 'function') {
+                window.LearningPath.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏學習道路失敗', e); }
+
+        try {
             if (window.AchievementDialog && typeof window.AchievementDialog.hide === 'function') {
                 window.AchievementDialog.hide();
             }
@@ -685,6 +697,11 @@
 
             try {
                 switch (pageName) {
+                    case 'learningpath':
+                        console.log('[Menu] 切換至學習道路');
+                        if (window.LearningPath) window.LearningPath.show();
+                        else console.warn('[Menu] LearningPath 模組未載入');
+                        break;
                     case 'calendar':
                         console.log('[Menu] 切換至日曆');
                         {

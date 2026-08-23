@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "FlowerMoon",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8791"],
-      "port": 8791
-    },
-    {
-      "name": "FlowerMoon-dev2",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8792"],
-      "port": 8792
+      "name": "flowermoon",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/devserver.js", "8788"],
+      "port": 8788
     }
   ]
 }

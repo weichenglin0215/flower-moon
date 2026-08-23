@@ -89,8 +89,19 @@
             overlay.id = 'difficulty-selector-overlay';
             overlay.className = 'difficulty-selector-overlay  hidden';
 
-            const buttonsHTML = this.levels.map(level =>
-                `<button class="difficulty-btn" data-level="${level}">${level}</button>`
+            // ── 兩欄式難度選單 ───────────────────────────────────────────
+            // 左欄「隨機練習」：維持原本行為，每次隨機抽題。
+            // 右欄「關卡模式」：進入該難度層的固定關卡序列，題目由跨遊戲共用
+            //                   關卡表決定，所有遊戲的同一關都是同一組詩句。
+            // 已熟悉較難詩詞的玩家可直接點右欄「大學」，不必從小學一路推上來。
+            // 左欄改以「隨機」為統一標籤：難度本身已由按鈕顏色表達
+            //（綠=小學、藍=中學、紅=高中、紫=大學、金=研究所），
+            // 寬度縮半，把視覺主體讓給右欄的關卡模式。
+            const randomHTML = this.levels.map(level =>
+                `<button class="difficulty-btn" data-level="${level}">隨機</button>`
+            ).join('');
+            const levelHTML = this.levels.map(level =>
+                `<button class="difficulty-level-btn" data-level="${level}">${level}</button>`
             ).join('');
 
             overlay.innerHTML = `
@@ -99,13 +110,19 @@
                     <label id="difficulty-calendar-label" title="測試用：強制使用今日日曆詩（不消耗每日名額）" style="position:absolute;top:10px;right:10px;opacity:0.1;font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:#f4e4a0;user-select:none;">
                         <input type="checkbox" id="difficulty-calendar-chk" style="cursor:pointer;">📅 日曆
                     </label>
-                    <div class="difficulty-buttons">
-                        ${buttonsHTML}
-                    </div>
-                    <div class="level-challenge-container">
-                        <button class="level-challenge-btn" id="level-challenge-btn">
-                            關卡挑戰 <span class="new-tag">新</span>
-                        </button>
+                    <div class="difficulty-two-col">
+                        <div class="difficulty-col difficulty-col-random">
+                            <div class="difficulty-col-title">隨機練習</div>
+                            <div class="difficulty-buttons">
+                                ${randomHTML}
+                            </div>
+                        </div>
+                        <div class="difficulty-col difficulty-col-level">
+                            <div class="difficulty-col-title">關卡模式<span class="difficulty-new-tag">新</span></div>
+                            <div class="difficulty-buttons">
+                                ${levelHTML}
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -159,20 +176,23 @@
                 });
             }
 
-            // 点击关卡挑战按钮
-            const levelBtn = this.overlay.querySelector('#level-challenge-btn');
-            if (levelBtn) {
-                levelBtn.addEventListener('click', () => {
+            // 右欄「關卡模式」按鈕：直接接續上次進度，開始「尚未完成的那一關」，
+            // 不再跳出挑選關卡的清單（少一次點擊，玩家也不必自己想該玩第幾關）。
+            const levelButtons = this.overlay.querySelectorAll('.difficulty-level-btn');
+            levelButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const level = e.target.getAttribute('data-level');
                     if (window.SoundManager) window.SoundManager.playConfirmItem();
                     this.hide();
-                    if (window.LevelSelector) {
-                        const gameKey = this.gameTitleToKey[this.currentGameName] || this.currentGameName;
-                        window.LevelSelector.show(gameKey, this.callback);
-                    } else {
-                        console.error('LevelSelector not found');
-                    }
+
+                    const gameKey = this.gameTitleToKey[this.currentGameName] || this.currentGameName;
+                    const nextLevel = this.getNextLevel(gameKey, level);
+
+                    // 設定關卡情境，讓 getSharedRandomPoem 去查跨遊戲共用關卡表
+                    if (window.LevelTable) window.LevelTable.setContext(level, nextLevel);
+                    if (this.callback) this.callback(level, nextLevel);
                 });
-            }
+            });
 
             // 点击背景关闭（可选）
             this.overlay.addEventListener('click', (e) => {
@@ -181,6 +201,28 @@
                     // this.hide();
                 }
             });
+        },
+
+        /**
+         * 取得某遊戲在某難度層「下一關該玩第幾關」。
+         * 規則：已通關的最高關卡 + 1；全部通關後停在最後一關（可重複挑戰複習）。
+         * @param {string} gameKey 遊戲代號，如 'game1'
+         * @param {string} tier    難度層，如 '小學'
+         * @returns {number} 關卡編號（自 1 起算）
+         */
+        getNextLevel: function (gameKey, tier) {
+            let maxCleared = 0;
+            try {
+                if (window.ScoreManager) {
+                    const data = window.ScoreManager.loadPlayerData();
+                    const prog = data && data.levelProgress && data.levelProgress[gameKey];
+                    maxCleared = (prog && prog[tier]) || 0;
+                }
+            } catch (e) {
+                console.warn('[DifficultySelector] 讀取關卡進度失敗，改由第 1 關開始', e);
+            }
+            const total = (window.LevelTable && window.LevelTable.getLevelCount(tier)) || 1;
+            return Math.min(maxCleared + 1, total);
         },
 
         /**
@@ -223,6 +265,9 @@
         selectDifficulty: function (level) {
             console.log(`[DifficultySelector] ${this.currentGameName} 選擇難度: ${level}`);
             this.hide();
+            // ⚠️ 進入「隨機練習」前必須清除關卡情境，
+            //    否則 getSharedRandomPoem 會誤以為仍在關卡模式而去查關卡表。
+            if (window.LevelTable) window.LevelTable.clearContext();
             if (this.callback && typeof this.callback === 'function') {
                 this.callback(level);
             }

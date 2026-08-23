@@ -162,6 +162,35 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
       }
    }
 
+   // ── 關卡模式：改由「跨遊戲共用關卡表」決定題目 ─────────────────────
+   // 對應企畫書 note/學習道路與關卡模式_企畫書.md 第五章步驟②。
+   //
+   // 改版前：下方會把 gameKey 混入隨機種子，導致 game1 的第 5 關與 game13 的
+   //         第 5 關是「不同的詩」，玩家無法用不同遊戲複習同一首詩。
+   // 改版後：關卡模式下先查關卡表，讓所有遊戲的「小學第 3 關」都指向同一組詩句。
+   //
+   // 查表失敗（該題目群無詩能滿足此遊戲的行數／字數需求）時，
+   // 會直接落回下方原本的隨機選詩邏輯，遊戲不會因此卡死。
+   if (seed !== null && typeof LevelTable !== 'undefined' && LevelTable) {
+      const lvCtx = LevelTable.getContext();
+      // ⚠️ 關卡編號一律以 seed 為準，情境只負責提供「難度層」。
+      //    因為遊戲過關進入下一關時，只會把自己的 currentLevelIndex++
+      //    再重新開局，並不會回頭更新情境；若要求情境的編號與 seed 相等，
+      //    第二關以後就會全部誤判成非關卡模式而退回隨機選詩。
+      if (lvCtx && lvCtx.tier) {
+         const fixed = LevelTable.resolve(lvCtx.tier, Number(seed), {
+            minLines: minLines,
+            maxLines: maxLines,
+            minChars: minChars,
+            maxChars: maxChars,
+            keyword: keyword
+         });
+         if (fixed) {
+            return { poem: fixed.poem, lines: fixed.lines, startIndex: fixed.startIndex };
+         }
+      }
+   }
+
    let currentSeed = seed !== null ? Number(seed) : null;
 
    // 融入遊戲 ID (gameKey) 進入種子，確保不同遊戲即使在同一關卡也能產生不同題目

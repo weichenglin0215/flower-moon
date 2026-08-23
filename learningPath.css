@@ -1,0 +1,325 @@
+/* ==========================================================================
+   花月 · 學習道路（科考大道）learningPath.css
+   --------------------------------------------------------------------------
+   所有 class 一律使用 lp- 前綴，避免全域 CSS 污染
+   （見「花月開發常見錯誤與解法」§1.2 / §4.1）。
+   尺寸一律使用 px：舞台由 screen_adaptive.js 整體 scale()，
+   內部維持固定邏輯尺寸 500×850。
+
+   配色沿用共用主題 theme_xuanzhi.css 的宣紙色系（--fm-* 變數），
+   並一律附上後備值，確保主題檔未載入時仍能正常顯示。
+   ========================================================================== */
+
+.lp-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 500px;
+    height: 850px;
+    /* 宣紙底：中心受光、邊緣略暗 */
+    background: radial-gradient(ellipse at 50% 32%,
+            var(--fm-paper-light, hsl(44, 63%, 90%)) 0%,
+            var(--fm-paper, hsl(43, 53%, 82%)) 58%,
+            var(--fm-paper-deep, hsl(42, 48%, 76%)) 100%);
+    display: flex;
+    flex-direction: column;
+    z-index: 9000;
+    overflow: hidden;
+    font-family: "Noto Serif TC", "Microsoft JhengHei", serif;
+}
+
+.lp-overlay.hidden {
+    display: none !important;
+}
+
+/* ── 頂部資訊框：文位 / 總積分 / 文錢 ─────────────────────────────────── */
+.lp-header {
+    flex: 0 0 auto;
+    margin: 16px 20px 10px;
+    padding: 12px 18px;
+    border-radius: 14px;
+    background: var(--fm-paper-card, hsl(43, 72%, 94%));
+    border: 3px solid var(--fm-border-strong, hsl(35, 43%, 52%));
+    box-shadow: 0 4px 10px hsla(38, 50%, 31%, 0.22);
+}
+
+.lp-header-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lp-rank {
+    font-size: 34px;
+    font-weight: bold;
+    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+}
+
+/* 右側兩欄數值：總積分與文錢 */
+.lp-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.lp-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.15;
+}
+
+.lp-stat-label {
+    font-size: 13px;
+    color: var(--fm-ink-faint, hsl(35, 38%, 39%));
+    letter-spacing: 0.06em;
+}
+
+.lp-stat-value {
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--fm-gold, hsl(40, 66%, 40%));
+    font-variant-numeric: tabular-nums;
+}
+
+/* 文位下方的橫條進度條：距離下一站還差多少分 */
+.lp-progress-bar {
+    margin-top: 10px;
+    height: 12px;
+    background: hsla(38, 50%, 31%, 0.14);
+    border: 1px solid var(--fm-border, hsl(40, 47%, 71%));
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.lp-progress-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg,
+            var(--fm-gold, hsl(40, 66%, 40%)) 0%,
+            var(--fm-cinnabar-bright, hsl(8, 56%, 51%)) 100%);
+    border-radius: 6px;
+    transition: width 0.6s ease-out;
+}
+
+.lp-progress-text {
+    margin-top: 6px;
+    font-size: 15px;
+    color: var(--fm-ink-soft, hsl(30, 25%, 23%));
+    text-align: right;
+}
+
+/* ── 可拖曳的道路區（無捲動軸）───────────────────────────────────────── */
+.lp-scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    cursor: grab;
+    -webkit-overflow-scrolling: touch;
+    /* 隱藏捲動軸：改以手指／滑鼠拖曳操作（含慣性） */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.lp-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.lp-track {
+    position: relative;
+    width: 500px;
+}
+
+/* ── 站點 ───────────────────────────────────────────────────────────── */
+.lp-station {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* 圖示與進度圈疊在一起 */
+.lp-station-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.lp-station-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: bold;
+    color: var(--fm-paper-card, hsl(43, 72%, 94%));
+    box-shadow: 0 4px 0 hsla(28, 40%, 28%, 0.35), 0 6px 12px hsla(38, 50%, 31%, 0.28);
+    transition: transform 0.15s ease-out;
+}
+
+/* 小站：較小的圓點（青碧） */
+.lp-minor-station .lp-station-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 19px;
+    background: var(--fm-celadon, hsl(150, 37%, 40%));
+    border: 3px solid var(--fm-paper-card, hsl(43, 72%, 94%));
+}
+
+/* 文位站：較大的印章造型（金赭） */
+.lp-rank-station .lp-station-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+    background: var(--fm-gold, hsl(40, 66%, 40%));
+    border: 4px solid var(--fm-paper-card, hsl(43, 72%, 94%));
+}
+
+/* 考棚站（縣案首以後需通過科舉考試的文位）：朱砂 */
+.lp-exam-station .lp-station-icon {
+    background: var(--fm-cinnabar, hsl(6, 63%, 46%));
+}
+
+/* ── 四段式進度圈（僅目前站顯示）───────────────────────────────────── */
+.lp-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    pointer-events: none;
+}
+
+.lp-ring-bg {
+    stroke: hsla(38, 50%, 31%, 0.18);
+}
+
+.lp-ring-fg {
+    stroke: var(--fm-cinnabar-bright, hsl(8, 56%, 51%));
+}
+
+/* ── 站點文字：文位名稱 + 遊戲名與關卡編號 ─────────────────────────── */
+.lp-station-text {
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+}
+
+/* 標籤在右邊時文字靠左、在左邊時文字靠右，讓文字永遠朝向圓圈外側 */
+.lp-label-right .lp-station-text {
+    align-items: flex-start;
+}
+
+.lp-label-left .lp-station-text {
+    align-items: flex-end;
+}
+
+.lp-station-label {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--fm-ink, hsl(28, 26%, 24%));
+}
+
+.lp-rank-station .lp-station-label {
+    font-size: 20px;
+    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+}
+
+.lp-station-game {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--fm-ink-faint, hsl(35, 38%, 39%));
+}
+
+/* ── 三種狀態：已完成／目前／未解鎖 ─────────────────────────────────── */
+.lp-done .lp-station-icon {
+    filter: saturate(0.7) brightness(1.05);
+    opacity: 0.85;
+}
+
+.lp-current .lp-station-icon {
+    box-shadow: 0 4px 0 hsla(28, 40%, 28%, 0.35),
+        0 0 0 3px var(--fm-paper-card, hsl(43, 72%, 94%)),
+        0 6px 16px hsla(6, 63%, 46%, 0.45);
+}
+
+.lp-current .lp-station-label {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+/* 未解鎖：淡化為赭灰，但文字仍可辨識（文位與關卡一律顯示） */
+.lp-locked .lp-station-icon {
+    background: hsl(38, 16%, 68%);
+    border-color: hsla(43, 40%, 92%, 0.9);
+    color: hsla(28, 20%, 35%, 0.55);
+    box-shadow: 0 3px 0 hsla(28, 30%, 30%, 0.18);
+}
+
+.lp-locked .lp-station-label {
+    color: hsla(28, 24%, 30%, 0.5);
+}
+
+.lp-locked .lp-station-game {
+    color: hsla(35, 30%, 38%, 0.45);
+}
+
+.lp-station:not(.lp-locked):hover .lp-station-icon {
+    transform: translateY(-3px) scale(1.07);
+}
+
+.lp-station:not(.lp-locked):active .lp-station-icon {
+    transform: translateY(2px) scale(0.94);
+}
+
+/* ── 右下角「回到目前關卡」定位鈕（比照地圖類 App 的重新定位鈕）────── */
+.lp-locate-btn {
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    width: 54px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    background: var(--fm-paper-card, hsl(43, 72%, 94%));
+    border: 3px solid var(--fm-border-strong, hsl(35, 43%, 52%));
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px hsla(38, 50%, 31%, 0.35);
+    transition: transform 0.15s ease-out;
+    z-index: 5;
+}
+
+.lp-locate-btn:hover {
+    transform: translateY(-2px);
+}
+
+.lp-locate-btn:active {
+    transform: translateY(2px) scale(0.95);
+}
+
+.lp-locate-btn:focus-visible {
+    outline: 3px solid var(--fm-celadon, hsl(150, 37%, 40%));
+    outline-offset: 2px;
+}
+
+/* 尊重使用者的減少動態偏好 */
+@media (prefers-reduced-motion: reduce) {
+
+    .lp-station-icon,
+    .lp-locate-btn {
+        transition: none;
+    }
+}

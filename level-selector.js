@@ -10,7 +10,23 @@
         overlay: null,
         callback: null,
         gameKey: '',
+
+        // 目前顯示的難度層。由兩欄式難度選單的右欄「關卡模式」指定。
+        // 改版後關卡編號改為「每個難度層各自從 1 起算」，
+        // 不再使用舊制 1~300 的全域編號。
+        tier: '小學',
+
+        // 後備關卡數；實際數量以 LevelTable.getLevelCount(tier) 為準
         maxLevels: 300,
+
+        // 各難度層的按鈕配色（沿用原本五色）
+        tierColorClass: {
+            '小學': 'green-bg',
+            '中學': 'blue-bg',
+            '高中': 'red-bg',
+            '大學': 'purple-bg',
+            '研究所': 'gold-bg'
+        },
 
         init: function () {
             if (this.overlay) return;
@@ -141,10 +157,14 @@
             this.overlay = overlay;
         },
 
-        show: function (gameKey, callback) {
+        show: function (gameKey, callback, tier) {
             this.init();
             this.gameKey = gameKey;
             this.callback = callback;
+            this.tier = tier || '小學';
+            // 標題顯示目前所在的難度層，避免玩家忘記自己點了哪一層
+            const titleEl = this.overlay.querySelector('.level-selector-title');
+            if (titleEl) titleEl.textContent = this.tier + ' · 選擇關卡';
             this.renderLevels();
             this.overlay.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
@@ -168,7 +188,12 @@
             // 個別通關星星紀錄（只有實際通關過的關卡才亮星）
             const clearedData = (data && data.levelCleared && data.levelCleared[this.gameKey]) ? data.levelCleared[this.gameKey] : {};
 
-            for (let i = 1; i <= this.maxLevels; i++) {
+            // 關卡數改由跨遊戲共用關卡表決定（各難度層數量不同，
+            // 例如小學只有 33 關 —— 因為評價 7 的詩僅 12 首）
+            const levelCount = (window.LevelTable && window.LevelTable.getLevelCount(this.tier))
+                || this.maxLevels;
+
+            for (let i = 1; i <= levelCount; i++) {
                 const info = this.getLevelConfig(i, progressData, clearedData);
                 const btn = document.createElement('div');
                 btn.className = `level-item ${info.colorClass}`;
@@ -198,59 +223,36 @@
 
         getLevelConfig: function (i, progressData, clearedData) {
             clearedData = clearedData || {};
-            let diff = '';
-            let relIdx = 0;
-            let isLocked = false;
-            let isCleared = false;
-            let colorClass = '';
 
-            // 自由區 (1~51) 星星：查個別通關紀錄
-            const hasCleared = (difficulty, relativeIdx) =>
-                Array.isArray(clearedData[difficulty]) && clearedData[difficulty].includes(relativeIdx);
+            // ── 改版後的解鎖規則 ─────────────────────────────────────────
+            // 舊制：1~300 全域編號，前 51 關自由選、之後依序解鎖，
+            //       且高難度層還要求前一層先破 50 關。
+            // 新制：難度層本身已可自由挑選（兩欄式選單右欄），
+            //       所以「自由度」由選層提供；層內則單純依序解鎖，
+            //       第 1 關永遠開放，第 N 關需先通過第 N-1 關。
+            //       已通關的關卡可重複挑戰（複習）。
+            const diff = this.tier;
+            const relIdx = i;
+            const colorClass = this.tierColorClass[diff] || 'green-bg';
 
-            if (i <= 20) {
-                diff = '小學';
-                relIdx = i;
-                colorClass = 'green-bg';
-                isCleared = hasCleared('小學', relIdx);
-                isLocked = false;
-            } else if (i <= 50) {
-                diff = '中學';
-                relIdx = i - 20;
-                colorClass = 'blue-bg';
-                isCleared = hasCleared('中學', relIdx);
-                isLocked = false;
-            } else if (i <= 100) {
-                diff = '高中';
-                relIdx = i - 50;
-                colorClass = 'red-bg';
-                const currentProg = progressData['高中'] || 0;
-                // 第 51 關 (relIdx=1) 屬於自由區，查個別紀錄；52+ 屬於依序區，用最高關卡推算
-                isCleared = (i <= 51) ? hasCleared('高中', relIdx) : (relIdx <= currentProg);
-                isLocked = (i <= 51) ? false : (relIdx > (currentProg + 1));
-            } else if (i <= 150) {
-                diff = '大學';
-                relIdx = i - 100;
-                colorClass = 'purple-bg';
-                const hsProg = progressData['高中'] || 0;
-                const currentProg = progressData['大學'] || 0;
-                isCleared = relIdx <= currentProg;
-                isLocked = (hsProg < 50) || (relIdx > (currentProg + 1));
-            } else {
-                diff = '研究所';
-                relIdx = i - 150;
-                colorClass = 'gold-bg';
-                const univProg = progressData['大學'] || 0;
-                const currentProg = progressData['研究所'] || 0;
-                isCleared = relIdx <= currentProg;
-                isLocked = (univProg < 50) || (relIdx > (currentProg + 1));
-            }
+            const clearedArr = Array.isArray(clearedData[diff]) ? clearedData[diff] : [];
+            const isCleared = clearedArr.indexOf(relIdx) !== -1;
+
+            const currentProg = progressData[diff] || 0;
+            const isLocked = relIdx > (currentProg + 1);
 
             return { diff, relIdx, isLocked, isCleared, colorClass };
         },
 
         selectLevel: function (difficulty, levelIndex) {
             this.hide();
+            // ⚠️ 必須在呼叫遊戲之前設定關卡情境：
+            //    遊戲啟動時會呼叫 getSharedRandomPoem(..., seed=levelIndex, gameKey)，
+            //    該函式會依這裡設定的難度層去查跨遊戲共用關卡表，
+            //    才能讓所有遊戲的「同一關」拿到同一組詩句。
+            if (window.LevelTable) {
+                window.LevelTable.setContext(difficulty, levelIndex);
+            }
             if (this.callback) {
                 this.callback(difficulty, levelIndex);
             }

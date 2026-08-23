@@ -1556,37 +1556,82 @@
 
             const poemRecords = data.poemRecords || {};
 
-            const played = [];
+            // ── 排序與呈現規則（企畫書第 2.3 節）───────────────────────────
+            // 改版前：只列出「玩過的詩」，且依遊玩次數排序 ——
+            //         等於用玩家的隨機遊玩順序決定畫面順序，看不出收集進度。
+            // 改版後：列出**全部詩詞**，固定依
+            //           主要鍵 = 詩詞評價 rating（7 → 1）
+            //           次要鍵 = 詩句總評價（line_ratings 平均，高 → 低）
+            //         排列，未收集的以暗色呈現。
+            //         學習道路正是從評價 7 開始，因此初期收集到的寶盒
+            //         永遠顯示在最前端，往下捲就是還沒收集的部分。
+            //         ⚠️ 不使用分頁（分頁看起來不像遊戲），維持單一可捲動清單。
+            const avgLineRating = (p) => {
+                const lr = (p && p.line_ratings) || [];
+                if (!lr.length) return 0;
+                let s = 0;
+                for (let i = 0; i < lr.length; i++) s += (lr[i] || 0);
+                return s / lr.length;
+            };
 
-            for (const poemId in poemRecords) {
+            const allPoems = (typeof POEMS !== 'undefined') ? POEMS.slice() : [];
 
-                const counts = poemRecords[poemId];
+            if (allPoems.length === 0) {
 
-                const total = (counts['小學'] || 0) + (counts['中學'] || 0) + (counts['高中'] || 0) + (counts['大學'] || 0) + (counts['研究所'] || 0);
-
-                if (total <= 0) continue;
-
-                let poem = null;
-
-                if (typeof POEMS !== 'undefined') poem = POEMS.find(p => String(p.id) === String(poemId));
-
-                played.push({ poemId, counts, total, poem });
-
-            }
-
-            played.sort((a, b) => b.total - a.total);
-
-            if (played.length === 0) {
-
-                container.innerHTML = '<div style="text-align:center;color:#999;padding:18px;">尚無詩詞遊玩紀錄</div>';
+                container.innerHTML = '<div style="text-align:center;color:#999;padding:18px;">尚無詩詞資料</div>';
 
                 return;
 
             }
 
+            allPoems.sort((a, b) =>
+                (b.rating || 0) - (a.rating || 0) ||
+                avgLineRating(b) - avgLineRating(a) ||
+                (a.id || 0) - (b.id || 0)
+            );
+
+            const played = allPoems.map(poem => {
+                const counts = poemRecords[poem.id] || poemRecords[String(poem.id)] || {};
+                const total = (counts['小學'] || 0) + (counts['中學'] || 0) + (counts['高中'] || 0)
+                    + (counts['大學'] || 0) + (counts['研究所'] || 0);
+                return { poemId: poem.id, counts, total, poem };
+            });
+
+            // 各評價層的收集進度，供分組標題顯示「3 / 12」
+            const groupStat = {};
+
+            played.forEach(r => {
+                const g = r.poem.rating || 0;
+                if (!groupStat[g]) groupStat[g] = { got: 0, all: 0 };
+                groupStat[g].all++;
+                if (r.total > 0) groupStat[g].got++;
+            });
+
             const diffs = ['研究所', '大學', '高中', '中學', '小學'];
 
+            let lastRating = null;
+
             played.forEach(({ poemId, counts, total, poem }) => {
+
+                // 評價改變時插入分組標題，讓 381 首的長清單有段落感
+                // （仍然是同一條可上下拖曳的清單，沒有分頁）
+                const rating = poem.rating || 0;
+
+                if (rating !== lastRating) {
+
+                    lastRating = rating;
+
+                    const gh = document.createElement('div');
+
+                    gh.className = 'ach-poem-group-header';
+
+                    const st = groupStat[rating] || { got: 0, all: 0 };
+
+                    gh.textContent = '評價 ' + rating + '　　' + st.got + ' / ' + st.all;
+
+                    container.appendChild(gh);
+
+                }
 
                 const title = poem ? poem.title : poemId;
 
@@ -1594,7 +1639,8 @@
 
                 const item = document.createElement('div');
 
-                item.className = 'ach-poem-item';
+                // 未收集的詩以暗色呈現，讓玩家一眼看出還有多少沒收集
+                item.className = 'ach-poem-item' + (total > 0 ? '' : ' ach-poem-item-locked');
 
                 const left = document.createElement('div');
 
@@ -1620,7 +1666,7 @@
 
                 countsEl.className = 'ach-poem-counts';
 
-                countsEl.innerHTML = '次數：';
+                countsEl.innerHTML = total > 0 ? '次數：' : '尚未收集';
 
                 diffs.forEach(diff => {
 
@@ -1648,21 +1694,26 @@
 
                 right.className = 'ach-item-right';
 
-                const btn = document.createElement('button');
+                // 只有已收集的詩才給「寶盒」按鈕；未收集的留白，避免誤觸空寶盒
+                if (total > 0) {
 
-                btn.className = 'ach-btn-claim';
+                    const btn = document.createElement('button');
 
-                btn.textContent = '寶盒';
+                    btn.className = 'ach-btn-claim';
 
-                btn.onclick = () => {
+                    btn.textContent = '寶盒';
 
-                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    btn.onclick = () => {
 
-                    this.showTreasureBox(poem, counts, total);
+                        if (window.SoundManager) window.SoundManager.playConfirmItem();
 
-                };
+                        this.showTreasureBox(poem, counts, total);
 
-                right.appendChild(btn);
+                    };
+
+                    right.appendChild(btn);
+
+                }
 
                 item.appendChild(left);
 

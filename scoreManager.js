@@ -482,46 +482,32 @@ const ScoreManager = {
         if (!data.achievements) data.achievements = { unlocked: [], progress: {}, claimed: [] };
         if (!data.achievements.unlocked) data.achievements.unlocked = [];
 
-        // 將全域編號轉成 (難度, 相對編號)
-        let finalDifficulty = difficulty;
-        let finalRelIdx = levelIndex;
-        if (levelIndex >= 1 && levelIndex <= 300) {
-            const converted = this.getRelativeLevelIndex(levelIndex);
-            finalDifficulty = converted.difficulty;
-            finalRelIdx = converted.relIdx;
-        }
+        // ── 關卡編號改制（2026-08 學習道路改版）────────────────────────
+        // 舊制：1~300 的全域編號，需換算成 (難度, 相對編號)，且 1~51 為自由區。
+        // 新制：每個難度層各自從 1 起算（小學第 1 關、中學第 1 關…），
+        //       難度層由兩欄式選單的右欄直接指定，因此完全不需要換算。
+        //       自由度改由「玩家可自選難度層」提供，層內則維持依序解鎖。
+        //       （舊制進度已依企畫書第三章原則 9 全部歸零，不需相容。）
+        const finalDifficulty = difficulty;
+        const finalRelIdx = levelIndex;
 
         let needsSave = false;
         let achIdToReturn = null;
 
-        // ─────────────────────────────────────────────────────
-        // 區段 A：第 1~51 關 ── 自由區，每關個別留紀錄（星星用）
-        // 區段 B：第 52 關以後 ── 依序區，只記最高關卡（解鎖+星星用）
-        // ─────────────────────────────────────────────────────
-        if (levelIndex <= 51) {
-            // 自由區：把 finalRelIdx 加入個別星星陣列
-            if (!data.levelCleared[gameKey][finalDifficulty]) {
-                data.levelCleared[gameKey][finalDifficulty] = [];
-            }
-            if (!data.levelCleared[gameKey][finalDifficulty].includes(finalRelIdx)) {
-                data.levelCleared[gameKey][finalDifficulty].push(finalRelIdx);
-                needsSave = true;
-            }
-            // 特例：第 51 關 (高中 relIdx=1) 同時推進 levelProgress[高中]，
-            // 讓第 52 關之後的依序解鎖邏輯能順利啟動。
-            if (levelIndex === 51) {
-                if ((data.levelProgress[gameKey]['高中'] || 0) < 1) {
-                    data.levelProgress[gameKey]['高中'] = 1;
-                    needsSave = true;
-                }
-            }
-        } else {
-            // 依序區：只更新該難度的最高關卡編號
-            const currentMax = data.levelProgress[gameKey][finalDifficulty] || 0;
-            if (finalRelIdx > currentMax) {
-                data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
-                needsSave = true;
-            }
+        // 個別通關紀錄（選關介面的星星顯示用）
+        if (!data.levelCleared[gameKey][finalDifficulty]) {
+            data.levelCleared[gameKey][finalDifficulty] = [];
+        }
+        if (!data.levelCleared[gameKey][finalDifficulty].includes(finalRelIdx)) {
+            data.levelCleared[gameKey][finalDifficulty].push(finalRelIdx);
+            needsSave = true;
+        }
+
+        // 該難度層的最高通關關卡（下一關的解鎖判斷用）
+        const currentMax = data.levelProgress[gameKey][finalDifficulty] || 0;
+        if (finalRelIdx > currentMax) {
+            data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
+            needsSave = true;
         }
 
         // ─────────────────────────────────────────────────────

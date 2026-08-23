@@ -182,7 +182,134 @@
     }
 }
 
-/* 關卡挑戰按鈕 */
+/* =========================================
+   兩欄式難度選單（左：隨機練習／右：關卡模式）
+   ========================================= */
+
+.difficulty-two-col {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+}
+
+/* 左欄（隨機）縮成一半寬，把視覺主體讓給右欄的關卡模式 */
+.difficulty-col {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.difficulty-col-random {
+    flex: 0 0 33%;
+}
+
+.difficulty-col-level {
+    flex: 1 1 0;
+}
+
+/* 欄位標題（隨機練習／關卡模式） */
+.difficulty-col-title {
+    color: hsl(45, 60%, 88%);
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.25);
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    position: relative;
+}
+
+/* 「新」標記（沿用原關卡挑戰按鈕的紅圈樣式，縮小後貼在標題旁） */
+.difficulty-new-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ff0000;
+    color: #fff;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 14px;
+    border: 1px solid white;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* 兩欄並排後每顆按鈕變窄，字級與間距同步縮小以免撐破 500px 舞台 */
+.difficulty-two-col .difficulty-btn,
+.difficulty-two-col .difficulty-level-btn {
+    letter-spacing: 0.08em;
+    width: 100%;
+    padding: 6px 4px;
+}
+
+/* 左欄「隨機」：字級較小、寬度較窄，維持原本的難度配色以資辨識 */
+.difficulty-two-col .difficulty-btn {
+    font-size: 20px;
+    max-width: 110px;
+}
+
+/* 右欄「關卡模式」：為主要入口，字級較大 */
+.difficulty-two-col .difficulty-level-btn {
+    font-size: 26px;
+    max-width: 180px;
+}
+
+.difficulty-two-col .difficulty-buttons {
+    gap: 14px;
+}
+
+/* 關卡模式按鈕：沿用左欄的難度配色，但改為金色外框以資區別 */
+.difficulty-level-btn {
+    background: rgba(255, 255, 255, 0.95);
+    color: hsl(45, 30%, 85%);
+    border: 4px solid hsl(45, 70%, 55%);
+    margin: 4px auto;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.66);
+    text-align: center;
+}
+
+.difficulty-level-btn:hover {
+    transform: translateY(-6px) scale(1.1);
+    border-color: #ffd700;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.66);
+}
+
+.difficulty-level-btn:active {
+    transform: translateY(-10px) scale(0.9);
+}
+
+.difficulty-level-btn[data-level="小學"] {
+    background: linear-gradient(135deg, hsl(100, 40%, 40%) 0%, hsl(120, 40%, 30%) 100%);
+}
+
+.difficulty-level-btn[data-level="中學"] {
+    background: linear-gradient(135deg, hsl(210, 40%, 50%) 0%, hsl(230, 40%, 40%) 100%);
+}
+
+.difficulty-level-btn[data-level="高中"] {
+    background: linear-gradient(135deg, hsl(0, 50%, 50%) 0%, hsl(0, 50%, 35%) 100%);
+}
+
+.difficulty-level-btn[data-level="大學"] {
+    background: linear-gradient(135deg, hsl(290, 50%, 50%) 0%, hsl(270, 50%, 35%) 100%);
+}
+
+.difficulty-level-btn[data-level="研究所"] {
+    background: linear-gradient(135deg, hsl(50, 80%, 50%) 0%, hsl(40, 80%, 35%) 100%);
+}
+
+/* 關卡挑戰按鈕（舊版單一入口，已由右欄取代，樣式保留供相容） */
 .level-challenge-container {
     margin-top: 20px;
     padding-top: 20px;
