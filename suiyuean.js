@@ -709,8 +709,11 @@
             this._startLoop();
         },
 
+        // 玩家按 ✕ 主動關閉 → 回到首頁「青雲梯」。
+        // （只有這條路徑回首頁；menu.js 的全域清理走 stopGame()，不受影響）
         hide: function () {
             this.stopGame();
+            if (typeof window.FMGoHome === 'function') window.FMGoHome();
         },
 
         // menu.js 全域清理只呼叫 stopGame()

@@ -175,6 +175,11 @@
     //    若只在切頁時套用設定，離開該頁後特效就會一直卡在錯誤的開關狀態。因此每次
     //    pointerdown 都先判斷「現在真正顯示的是哪一頁」再套用對應設定。
 
+    // ── 首頁 ────────────────────────────────────────────────────────────
+    // 「青雲梯」是花月的主軸：開場動畫結束、以及任何舒壓頁按 ✕ 關閉之後，
+    // 都要回到這裡，讓玩家隨時能接著學習，而不是停在空白的舞台底色。
+    const HOME_PAGE = 'learningpath';
+
     // (a) 有固定容器 id 的頁面。遊戲一律是 gameXX-container，只需列出命名不同的。
     const PAGE_CONTAINER_ID = {
         'wordcloud': 'wordcloud-container',
@@ -203,8 +208,8 @@
         'collection': 'CollectionDialog',
     };
 
-    // switchPage 記錄的頁面：偵測不到任何 overlay 時（日曆、卡片…）以這個值為準。
-    let currentPage = 'calendar';
+    // switchPage 記錄的頁面：偵測不到任何 overlay 時以這個值為準。
+    let currentPage = HOME_PAGE;
 
     /** 取得某頁的特效設定（未列出者一律採用預設值＝兩個都開） */
     function getTouchEffect(page) {
@@ -234,7 +239,7 @@
         // ⚠️ 沒有任何 overlay 在顯示，但 currentPage 卻是個 overlay 類型的頁面
         //    → 代表玩家剛用該頁自己的 ✕ 關掉它、已經回到日曆了。
         //    少了這一段，關閉頁面後特效會一直沿用該頁的設定而回不來。
-        if (PAGE_CONTAINER_ID[currentPage] || PAGE_MODULE_OVERLAY[currentPage]) return 'calendar';
+        if (PAGE_CONTAINER_ID[currentPage] || PAGE_MODULE_OVERLAY[currentPage]) return HOME_PAGE;
         return currentPage;
     }
 
@@ -270,11 +275,35 @@
         get: getTouchEffect,
     };
 
+    /**
+     * 開機時把首頁（青雲梯）鋪在最底層。
+     *
+     * ⚠️ 這裡刻意**不呼叫 goHome()** —— goHome 會執行 closeAllActiveOverlays()，
+     *    那會把正在播放的開場動畫（IntroCard，z-index 3500）一起關掉。
+     *    青雲梯的 z-index 是 1000，本來就在開場動畫底下，
+     *    因此只要先 show() 出來，等開場動畫淡出後玩家看到的就是青雲梯。
+     *
+     * 若網址帶有 ?game= / ?page= 參數（從外部直接連進某個遊戲或頁面），
+     * 就交給該模組自行處理，不搶先顯示首頁。
+     */
+    function showHomeOnBoot() {
+        try {
+            const qs = window.location.search || '';
+            if (qs.indexOf('game=') >= 0 || qs.indexOf('page=') >= 0) return;
+            if (window.LearningPath && typeof window.LearningPath.show === 'function') {
+                window.LearningPath.show();
+            }
+        } catch (e) {
+            console.warn('[Menu] 開機顯示首頁失敗', e);
+        }
+    }
+
     // 等待 DOM 載入完成
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initMenu);
+        document.addEventListener('DOMContentLoaded', () => { initMenu(); showHomeOnBoot(); });
     } else {
         initMenu();
+        showHomeOnBoot();
     }
 
     function initMenu() {
@@ -1108,9 +1137,32 @@
         });
     }
 
+    /**
+     * 回到首頁（青雲梯）。
+     *
+     * 供舒壓頁的 ✕ 按鈕呼叫。這些頁面原本的 hide() 只把自己的容器隱藏，
+     * 底下沒有任何東西，玩家會看到一片空白的舞台底色（紅底）。
+     *
+     * ⚠️ 只有玩家「主動關閉」時才呼叫；menu.js 的全域清理走 stopGame()，
+     *    那條路徑不可以回首頁，否則會跟正要開啟的新頁面互相打架。
+     */
+    function goHome() {
+        closeAllActiveOverlays();
+        currentPage = HOME_PAGE;
+        applyTouchEffects(HOME_PAGE);
+        if (window.LearningPath && typeof window.LearningPath.show === 'function') {
+            window.LearningPath.show();
+        } else {
+            console.warn('[Menu] LearningPath 模組未載入，無法回到首頁');
+        }
+    }
+
     // 暴露全域函數
     window.MenuManager = {
-        closeAll: closeAllActiveOverlays
+        closeAll: closeAllActiveOverlays,
+        goHome: goHome,
+        HOME_PAGE: HOME_PAGE
     };
+    window.FMGoHome = goHome;
 
 })();

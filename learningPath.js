@@ -107,6 +107,8 @@
         _pendingUnit: null,   // 上一次派出去、尚未確認通過的關卡
         _currentStation: null,// 玩家目前正在闖的那一站
         _patched: null,       // { no, original } —— 被覆寫 startNextLevel 的遊戲
+        _reviewMode: false,   // 目前是否在溫習舊文位（不累計局數）
+        _stationIdxAtLaunch: -1, // 開局當下的站點索引，用來偵測「這一局讓玩家晉升了」
 
         /** 建立「文位 → 可玩遊戲清單」的累加對照表 */
         buildRankGames: function () {
@@ -520,6 +522,10 @@
             // 讓該遊戲回到自己原本的關卡推進行為。
             this.restorePatchedGame();
             this._currentStation = null;
+            this._reviewMode = false;
+            if (window.ScoreManager && window.ScoreManager.setReviewMode) {
+                window.ScoreManager.setReviewMode(false);
+            }
             if (!this.overlay) return;
             this.overlay.classList.add('hidden');
             document.body.style.overflow = '';
@@ -844,6 +850,30 @@
                 this.toast('先把前面的詩學會吧。');
                 return;
             }
+
+            // ── 點到已經走過的舊站點 → 先問清楚是不是要溫習 ──────────────
+            // 玩家看到的是全域累計局數，回頭點舊站時很容易誤以為
+            // 「我還在往前走」。這裡明講：溫習不累計局數。
+            if (idx < currentIdx) {
+                this.showReviewConfirm(st, () => this.enterStation(idx, true));
+                return;
+            }
+            this.enterStation(idx, false);
+        },
+
+        /**
+         * 真正進入某一站開局。
+         * @param {number} idx 站點索引
+         * @param {boolean} review 是否為溫習（溫習不累計局數）
+         */
+        enterStation: function (idx, review) {
+            const st = this.stations[idx];
+            if (!st) return;
+            this._reviewMode = !!review;
+            if (window.ScoreManager && window.ScoreManager.setReviewMode) {
+                window.ScoreManager.setReviewMode(this._reviewMode);
+            }
+            this._stationIdxAtLaunch = window.PathStations.getCurrentIndex(this.getLearnedPoemCount());
             this._currentStation = st;
             const unit = this.pickUnit(st);
             if (!unit) {
@@ -900,6 +930,21 @@
 
             if (window.LevelTable) window.LevelTable.setContext(tier, levelIndex);
             this.hide();
+
+            // ⚠️ 先關掉其他還開著的青雲梯遊戲。
+            //    玩家若沒通關就返回青雲梯、再點另一個站，舊遊戲的 overlay 會留在
+            //    畫面上不會自動消失，新舊兩層疊著（實測會同時看到兩款遊戲，
+            //    而且舊的那層還顯示著過期的局數標籤）。
+            //    同一款遊戲續玩時不關，避免每關都閃一下。
+            Object.keys(GAME_NAMES).forEach(k => {
+                const n = parseInt(k, 10);
+                if (n === gameNo) return;
+                const G = window['Game' + n];
+                if (G && typeof G.stopGame === 'function' && G.container
+                    && !G.container.classList.contains('hidden')) {
+                    G.stopGame();
+                }
+            });
 
             // ── 收回關卡推進的控制權（企畫書第十章）────────────────────
             // ⚠️ 這是「同一款遊戲連玩 20 關都沒換」的修正。
@@ -985,6 +1030,20 @@
             this.invalidateProgress();
             this._pendingUnit = null;
 
+            // ── 這一局是否讓玩家晉升到下一站？────────────────────────────
+            // 站點索引往前跳 = 這一站的必通關卡剛剛全部完成。
+            // 立刻彈窗給予成就感，避免玩家傻傻一直玩卻不知道自己已經升階。
+            const nowIdx = window.PathStations.getCurrentIndex(this.getLearnedPoemCount());
+            if (!this._reviewMode && nowIdx > this._stationIdxAtLaunch && this._stationIdxAtLaunch >= 0) {
+                this._stationIdxAtLaunch = nowIdx;
+                const reached = this.stations[nowIdx];
+                this.restorePatchedGame();
+                const cur1 = window['Game' + gameNo];
+                if (cur1 && typeof cur1.stopGame === 'function') cur1.stopGame();
+                this.showPromotionPopup(reached);
+                return;
+            }
+
             const st = this._currentStation;
             const unit = st ? this.pickUnit(st) : null;
             if (!unit) {
@@ -1017,6 +1076,126 @@
                 if (cur && typeof cur.stopGame === 'function') cur.stopGame();
             }
             this.launchGame(nextGame, unit.tier, unit.level);
+        },
+
+        // ══════════════════════════════════════════════════════════════
+        //  彈窗
+        // ══════════════════════════════════════════════════════════════
+
+        /** 建立一個對齊 500×850 舞台的彈窗外殼 */
+        _makePopup: function (innerHTML) {
+            const overlay = document.createElement('div');
+            overlay.className = 'lp-pop-overlay';
+            overlay.innerHTML = '<div class="lp-pop">' + innerHTML + '</div>';
+            document.body.appendChild(overlay);
+            // 對齊舞台（作法同 achievement.js 的即時獎狀彈窗）
+            if (window.stageRect) {
+                const r = window.stageRect;
+                const stageBox = document.createElement('div');
+                stageBox.style.cssText = 'position:absolute;left:' + r.left + 'px;top:' + r.top
+                    + 'px;width:500px;height:850px;transform:scale(' + r.scale
+                    + ');transform-origin:top left;display:flex;justify-content:center;'
+                    + 'align-items:center;pointer-events:none;';
+                const popEl = overlay.querySelector('.lp-pop');
+                popEl.style.pointerEvents = 'auto';
+                stageBox.appendChild(popEl);
+                overlay.appendChild(stageBox);
+            }
+            return overlay;
+        },
+
+        /**
+         * 晉升彈窗：這一局讓玩家走到新的站點時，於結算後立刻出現。
+         *
+         * 兩種型態：
+         *   · 小階（例如「書僮二階」）→ 領取階段稱號，回到青雲梯
+         *   · 需應試的文位（縣案首以後）→ 引導玩家前往江南小院考棚
+         */
+        showPromotionPopup: function (station) {
+            if (!station) { this.show(); return; }
+            const isExamRank = station.type === 'rank' && station.isExam;
+            const isRank = station.type === 'rank';
+
+            let html;
+            if (isExamRank) {
+                html = '<h2>學問已成，可赴科場</h2>'
+                    + '<p>閣下苦讀不輟，已具應試「<b>' + station.name + '</b>」之學力。'
+                    + '惟功名須經場屋一試方得冊封 —— 可即刻前往江南小院考棚報名，'
+                    + '亦可再溫書數日，待胸有成竹再去。</p>'
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">稍後再說</button>'
+                    + '<button class="lp-pop-btn" id="lpPopExam">前往考棚應試</button>'
+                    + '</div>';
+            } else {
+                html = '<h2>恭喜晉階</h2>'
+                    + '<p>積跬步以至千里。閣下已通過此階全部關卡，'
+                    + '榮登「<b>' + station.name + '</b>」' + (isRank ? '文位' : '') + '。'
+                    + '新的詩篇已在前方等候。</p>'
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn" id="lpPopClaim">領取「' + station.name + '」</button>'
+                    + '</div>';
+            }
+
+            const overlay = this._makePopup(html);
+            if (window.SoundManager && window.SoundManager.playJoyfulTriple) {
+                window.SoundManager.playJoyfulTriple();
+            }
+
+            const backToPath = () => {
+                overlay.remove();
+                // 回到青雲梯主介面，讓玩家親眼看到自己已經站上新的一階
+                this.show();
+                setTimeout(() => this.scrollToCurrent(true), 120);
+            };
+
+            const btnClaim = overlay.querySelector('#lpPopClaim');
+            if (btnClaim) btnClaim.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                backToPath();
+            };
+            const btnLater = overlay.querySelector('#lpPopLater');
+            if (btnLater) btnLater.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                backToPath();
+            };
+            const btnExam = overlay.querySelector('#lpPopExam');
+            if (btnExam) btnExam.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                overlay.remove();
+                this.hide();
+                // 沿用江南小院既有的考棚流程（達標→付文錢→應試→領獎狀）
+                if (window.CollectionDialog && window.CollectionDialog.show) {
+                    window.CollectionDialog.show();
+                    setTimeout(() => {
+                        if (typeof window.CollectionDialog.openExam === 'function') {
+                            window.CollectionDialog.openExam();
+                        }
+                    }, 350);
+                }
+            };
+        },
+
+        /** 溫習確認彈窗：點到已走過的舊站點時出現 */
+        showReviewConfirm: function (station, onAgree) {
+            const html = '<h2>溫故知新</h2>'
+                + '<p>「<b>' + station.name + '</b>」是你已經走過的路。'
+                + '在這裡重玩<b>不會增加晉升局數</b>，純粹供你溫習舊作；'
+                + '過關仍可照常獲得文錢與積分。<br><br>'
+                + '想繼續往前走，請點選道路最上方的站。</p>'
+                + '<div class="lp-pop-footer">'
+                + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopCancel">取消</button>'
+                + '<button class="lp-pop-btn" id="lpPopReview">同意溫習</button>'
+                + '</div>';
+            const overlay = this._makePopup(html);
+            overlay.querySelector('#lpPopCancel').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playCloseItem();
+                overlay.remove();
+            };
+            overlay.querySelector('#lpPopReview').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                overlay.remove();
+                if (typeof onAgree === 'function') onAgree();
+            };
         },
 
         /** 捲動到玩家目前所在的站（道路由下往上，故需換算） */

@@ -498,7 +498,13 @@ const ScoreManager = {
         // ── 累計局數（青雲梯「第 X 局」與頂端「局數」的來源）──────────
         // 不論是不是重複練同一個關卡編號、不論換了哪一款遊戲，
         // 只要贏了一局就 +1，確保玩家看到的是連續遞增的數字。
-        data.pathRounds = (data.pathRounds || 0) + 1;
+        //
+        // ⚠️ 例外：溫習舊文位不累計。否則玩家可以回頭刷早期的簡單題目
+        //    把局數灌上去，「局數」就失去「我學到哪裡」的意義。
+        //    溫習仍然照常給文錢與積分，只是不計入局數。
+        if (!this.isReviewMode()) {
+            data.pathRounds = (data.pathRounds || 0) + 1;
+        }
         needsSave = true;
 
         // 個別通關紀錄（選關介面的星星顯示用）
@@ -549,6 +555,19 @@ const ScoreManager = {
     //  在現有詩庫中數學上無解，玩家會永遠卡死。
     //  因此逃生口是必需品，不是加值功能。
     // ══════════════════════════════════════════════════════════════════
+
+    // ── 溫習模式旗標（青雲梯回頭練舊文位時開啟）──────────────────────
+    // 只存在記憶體中，不寫入存檔：離開遊戲後自然失效。
+    _reviewMode: false,
+
+    /** 由 learningPath.js 在派出「舊文位」的題目前後設定 */
+    setReviewMode: function (on) {
+        this._reviewMode = !!on;
+    },
+
+    isReviewMode: function () {
+        return !!this._reviewMode;
+    },
 
     /** 內部共用：寫回玩家存檔並同步雲端（模組外不得直接碰 localStorage） */
     _persist: function (data) {
@@ -1083,6 +1102,12 @@ window.ScoreManager = ScoreManager;
  */
 window.FMRoundLabel = function (levelIndex) {
     try {
+        // 溫習舊文位 → 直接標示「溫習」。
+        // ⚠️ 這一局不累計局數，若照樣顯示「第 21 局」會讓玩家誤以為
+        //    自己仍在往前推進（實際上溫習不會增加晉升進度）。
+        if (ScoreManager.isReviewMode && ScoreManager.isReviewMode()) {
+            return '溫習';
+        }
         // 青雲梯進行中 → 顯示累計局數（含本局）
         if (window.LevelTable && window.LevelTable.getContext()) {
             const d = ScoreManager.loadPlayerData();

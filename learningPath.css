@@ -373,3 +373,97 @@
         transition: none;
     }
 }
+
+/* ── 晉升／溫習彈窗 ──────────────────────────────────────────────────
+   視覺上比照 achievement.js 的「即時獎狀彈窗」，但 class 一律用 lp- 前綴，
+   避免跨模組共用 class 造成全域污染（見「花月開發常見錯誤與解法」§1.2）。
+   層級 4200：需高於資料頁（2100），但低於選擇器（10000）。 */
+.lp-pop-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(24, 16, 8, 0.62);
+    z-index: 4200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Noto Serif TC", "Microsoft JhengHei", serif;
+}
+
+.lp-pop {
+    width: 420px;
+    max-width: 88%;
+    box-sizing: border-box;
+    padding: 26px 28px 20px;
+    border-radius: 16px;
+    background: radial-gradient(ellipse at 50% 20%,
+            var(--fm-paper-light, hsl(44, 63%, 90%)) 0%,
+            var(--fm-paper-card, hsl(43, 72%, 94%)) 55%,
+            var(--fm-paper, hsl(43, 53%, 82%)) 100%);
+    border: 3px solid var(--fm-border-strong, hsl(35, 43%, 52%));
+    box-shadow: 0 12px 34px rgba(40, 24, 10, .45);
+    text-align: center;
+    animation: lp-pop-in .28s ease-out;
+}
+
+@keyframes lp-pop-in {
+    from { transform: scale(.86); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+.lp-pop h2 {
+    margin: 0 0 12px;
+    font-size: 30px;
+    letter-spacing: .08em;
+    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+}
+
+.lp-pop p {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.75;
+    text-align: left;
+    color: var(--fm-ink, hsl(30, 22%, 18%));
+}
+
+.lp-pop p b {
+    color: var(--fm-gold, hsl(40, 66%, 40%));
+}
+
+.lp-pop-footer {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.lp-pop-btn {
+    flex: 1 1 auto;
+    padding: 11px 14px;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: bold;
+    letter-spacing: .06em;
+    color: var(--fm-paper-light, hsl(44, 63%, 90%));
+    background: linear-gradient(135deg,
+            var(--fm-cinnabar-bright, hsl(8, 56%, 51%)),
+            var(--fm-cinnabar, hsl(6, 63%, 46%)));
+    box-shadow: 0 3px 0 hsla(28, 40%, 28%, .35);
+    cursor: pointer;
+}
+
+.lp-pop-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 hsla(28, 40%, 28%, .35);
+}
+
+/* 次要按鈕（稍後再說／取消） */
+.lp-pop-btn-sub {
+    flex: 0 0 auto;
+    color: var(--fm-ink-soft, hsl(30, 25%, 23%));
+    background: transparent;
+    border: 2px solid var(--fm-border, hsl(40, 47%, 71%));
+    box-shadow: none;
+    font-weight: normal;
+}
