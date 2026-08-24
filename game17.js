@@ -71,27 +71,27 @@
             '小學': {
                 timeLimitRate: 5, baseSpeed: 50, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 10000,
                 poemMinRating: 6, lineCount: 4, singleCharProb: 0.0, closeNeighborProb: 0.70, hint: 'all',
-                maxMistakeCount: 8
+                maxMistakeCount: 8, minChars: 8, maxChars: 9999
             },
             '中學': {
                 timeLimitRate: 4, baseSpeed: 55, minPadsPerRow: 4, maxPadsPerRow: 5, sinkDelay: 7000,
                 poemMinRating: 5, lineCount: 4, singleCharProb: 0.15, closeNeighborProb: 0.50, hint: 'sentence',
-                maxMistakeCount: 6
+                maxMistakeCount: 6, minChars: 8, maxChars: 9999
             },
             '高中': {
                 timeLimitRate: 3.5, baseSpeed: 60, minPadsPerRow: 3, maxPadsPerRow: 5, sinkDelay: 6000,
                 poemMinRating: 4, lineCount: 4, singleCharProb: 0.20, closeNeighborProb: 0.30, hint: 'all',
-                maxMistakeCount: 5
+                maxMistakeCount: 5, minChars: 8, maxChars: 9999
             },
             '大學': {
                 timeLimitRate: 2, baseSpeed: 75, minPadsPerRow: 3, maxPadsPerRow: 4, sinkDelay: 5000,
                 poemMinRating: 3, lineCount: 6, singleCharProb: 0.25, closeNeighborProb: 0.20, hint: 'sentence',
-                maxMistakeCount: 4
+                maxMistakeCount: 4, minChars: 8, maxChars: 9999
             },
             '研究所': {
                 timeLimitRate: 1.5, baseSpeed: 90, minPadsPerRow: 2, maxPadsPerRow: 4, sinkDelay: 4000,
                 poemMinRating: 3, lineCount: 8, singleCharProb: 0.3, closeNeighborProb: 0.10, hint: 'none',
-                maxMistakeCount: 3
+                maxMistakeCount: 3, minChars: 8, maxChars: 9999
             },
         },
         gameStartTime: null,
@@ -276,7 +276,7 @@
             const result = getSharedRandomPoem(
                 s.poemMinRating,
                 s.lineCount, s.lineCount,   // minLines = maxLines = lineCount
-                8, 9999,                    // minChars 固定 8，maxChars 無上限
+                s.minChars, s.maxChars,     // 固定寬鬆值，行數才是實際難度控制項
                 '', seed, 'game17'
             );
             if (result) {

@@ -34,11 +34,11 @@
         //grid: [行, 列]
         //questionCount: 每行要問幾個字
         difficultySettings: {
-            '小學': { timeLimitRate: 8, poemMinRating: 6, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 2], questionCount: 1 },
-            '中學': { timeLimitRate: 4, poemMinRating: 5, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 3], questionCount: 3 },
-            '高中': { timeLimitRate: 3, poemMinRating: 4, maxMistakeCount: 3, answerAtLine: 0, grid: [4, 3], questionCount: 4 },
-            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, grid: [4, 4], questionCount: 6 },
-            '研究所': { timeLimitRate: 1, poemMinRating: 3, maxMistakeCount: 1, answerAtLine: 1, grid: [5, 4], questionCount: 7 }
+            '小學': { timeLimitRate: 8, poemMinRating: 6, maxMistakeCount: 5, answerAtLine: 2, grid: [3, 2], questionCount: 1, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '中學': { timeLimitRate: 4, poemMinRating: 5, maxMistakeCount: 4, answerAtLine: 2, grid: [3, 3], questionCount: 3, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '高中': { timeLimitRate: 3, poemMinRating: 4, maxMistakeCount: 3, answerAtLine: 0, grid: [4, 3], questionCount: 4, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 0, grid: [4, 4], questionCount: 6, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '研究所': { timeLimitRate: 1, poemMinRating: 3, maxMistakeCount: 1, answerAtLine: 1, grid: [5, 4], questionCount: 7, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 }
         },
 
         // 動態載入 game2.css：若頁面尚未載入過此樣式表，才建立 <link> 標籤插入 <head>，
@@ -373,7 +373,7 @@
             // 關鍵字模式（isLevelMode）下會額外傳入關卡序號，確保每關詩詞可重現。
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
-                2, 2, 8, 30,
+                settings.minLines, settings.maxLines, settings.minChars, settings.maxChars,
                 this.selectedKeyword,
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game2'

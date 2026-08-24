@@ -87,23 +87,23 @@
         difficultySettings: {
             '小學': {
                 timeLimitRate: 10, maxLives: 6, descentSpeed: 20, bombInterval: 5, driftMin: 20, driftMax: 30,
-                arcRaiderInterval: 20, poemMinRating: 6, lineCount: 4, goldBorderHint: true
+                arcRaiderInterval: 20, poemMinRating: 6, lineCount: 4, goldBorderHint: true, minChars: 8, maxChars: 9999
             },
             '中學': {
                 timeLimitRate: 8, maxLives: 5, descentSpeed: 20, bombInterval: 4, driftMin: 40, driftMax: 60,
-                arcRaiderInterval: 18, poemMinRating: 5, lineCount: 4, goldBorderHint: true
+                arcRaiderInterval: 18, poemMinRating: 5, lineCount: 4, goldBorderHint: true, minChars: 8, maxChars: 9999
             },
             '高中': {
                 timeLimitRate: 6, maxLives: 4, descentSpeed: 20, bombInterval: 3, driftMin: 60, driftMax: 80,
-                arcRaiderInterval: 16, poemMinRating: 4, lineCount: 6, goldBorderHint: false
+                arcRaiderInterval: 16, poemMinRating: 4, lineCount: 6, goldBorderHint: false, minChars: 8, maxChars: 9999
             },
             '大學': {
                 timeLimitRate: 4, maxLives: 3, descentSpeed: 20, bombInterval: 2.5, driftMin: 80, driftMax: 100,
-                arcRaiderInterval: 14, poemMinRating: 3, lineCount: 8, goldBorderHint: false
+                arcRaiderInterval: 14, poemMinRating: 3, lineCount: 8, goldBorderHint: false, minChars: 8, maxChars: 9999
             },
             '研究所': {
                 timeLimitRate: 3, maxLives: 2, descentSpeed: 20, bombInterval: 2, driftMin: 80, driftMax: 100,
-                arcRaiderInterval: 12, poemMinRating: 3, lineCount: 10, goldBorderHint: false
+                arcRaiderInterval: 12, poemMinRating: 3, lineCount: 10, goldBorderHint: false, minChars: 8, maxChars: 9999
             }
         },
 
@@ -432,8 +432,8 @@
                 ? getSharedRandomPoem(
                     s.poemMinRating,
                     s.lineCount, s.lineCount, // minLines = maxLines = lineCount（固定取整句數）
-                    8,    // 固定 minChars=8（同 game16），確保能找到詩
-                    9999, // 固定 maxChars=9999（無上限，行數由 lineCount 控制）
+                    s.minChars, // 固定寬鬆值（同 game16），確保能找到詩
+                    s.maxChars, // 無上限，行數由 lineCount 控制
                     '', this.isLevelMode ? this.currentLevelIndex : null, 'game19'
                 )
                 : null;

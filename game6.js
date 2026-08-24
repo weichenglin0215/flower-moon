@@ -90,11 +90,11 @@
             //speedInc: 速度增量
             //maxSpeed: 最大速度
             //lineCount: 敵人波次詩句數
-            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 6, fireRate: 0.8, baseSpeed: 50, speedInc: 5, maxSpeed: 200, lineCount: 2 },
-            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, fireRate: 0.75, baseSpeed: 50, speedInc: 6, maxSpeed: 250, lineCount: 4 },
-            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 4, fireRate: 0.7, baseSpeed: 50, speedInc: 7, maxSpeed: 300, lineCount: 6 },
-            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.65, baseSpeed: 50, speedInc: 8, maxSpeed: 350, lineCount: 8 },
-            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.6, baseSpeed: 50, speedInc: 9, maxSpeed: 400, lineCount: 8 }
+            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 6, fireRate: 0.8, baseSpeed: 50, speedInc: 5, maxSpeed: 200, lineCount: 2, minChars: 8, maxChars: 200 },
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, fireRate: 0.75, baseSpeed: 50, speedInc: 6, maxSpeed: 250, lineCount: 4, minChars: 8, maxChars: 200 },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 4, fireRate: 0.7, baseSpeed: 50, speedInc: 7, maxSpeed: 300, lineCount: 6, minChars: 8, maxChars: 200 },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.65, baseSpeed: 50, speedInc: 8, maxSpeed: 350, lineCount: 8, minChars: 8, maxChars: 200 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, fireRate: 0.6, baseSpeed: 50, speedInc: 9, maxSpeed: 400, lineCount: 8, minChars: 8, maxChars: 200 }
         },
 
         enemyDirection: 1, // 1 向右, -1 向左
@@ -452,7 +452,7 @@
                 if (typeof POEMS !== 'undefined') {
                     const result = getSharedRandomPoem(
                         minRating,
-                        settings.lineCount, settings.lineCount, 8, 200, "", // 確保選取符合 lineCount 參數的行數，並放寬最大字數限制
+                        settings.lineCount, settings.lineCount, settings.minChars, settings.maxChars, "", // 確保選取符合 lineCount 參數的行數，並放寬最大字數限制
                         this.isLevelMode ? this.currentLevelIndex : null, // Seed only in level mode
                         'game6'
                     );

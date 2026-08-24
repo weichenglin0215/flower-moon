@@ -33,11 +33,11 @@
         // decoyType：crossTopic / sameAuthor / sameAuthorClose（同詩人/微差）
         // comboCap：連擊倍率封頂
         difficultySettings: {
-            '小學': { timeLimitRate: 40, poemMinRating: 6, maxMistakeCount: 5, questionCount: 10, candidateCount: 4, decoyType: 'crossTopic', comboCap: 2 },
-            '中學': { timeLimitRate: 30, poemMinRating: 5, maxMistakeCount: 5, questionCount: 12, candidateCount: 4, decoyType: 'crossTopic', comboCap: 3 },
-            '高中': { timeLimitRate: 25, poemMinRating: 4, maxMistakeCount: 4, questionCount: 15, candidateCount: 4, decoyType: 'crossTopic', comboCap: 3 },
-            '大學': { timeLimitRate: 20, poemMinRating: 3, maxMistakeCount: 3, questionCount: 18, candidateCount: 4, decoyType: 'sameAuthor', comboCap: 5 },
-            '研究所': { timeLimitRate: 15, poemMinRating: 3, maxMistakeCount: 3, questionCount: 20, candidateCount: 4, decoyType: 'sameAuthorClose', comboCap: 10 }
+            '小學': { timeLimitRate: 40, poemMinRating: 6, maxMistakeCount: 5, questionCount: 10, candidateCount: 4, decoyType: 'crossTopic', comboCap: 2, poemMinLines: 2, poemMaxLines: 12, poemMinChars: 8, poemMaxChars: 80 },
+            '中學': { timeLimitRate: 30, poemMinRating: 5, maxMistakeCount: 5, questionCount: 12, candidateCount: 4, decoyType: 'crossTopic', comboCap: 3, poemMinLines: 2, poemMaxLines: 12, poemMinChars: 8, poemMaxChars: 80 },
+            '高中': { timeLimitRate: 25, poemMinRating: 4, maxMistakeCount: 4, questionCount: 15, candidateCount: 4, decoyType: 'crossTopic', comboCap: 3, poemMinLines: 2, poemMaxLines: 12, poemMinChars: 8, poemMaxChars: 80 },
+            '大學': { timeLimitRate: 20, poemMinRating: 3, maxMistakeCount: 3, questionCount: 18, candidateCount: 4, decoyType: 'sameAuthor', comboCap: 5, poemMinLines: 2, poemMaxLines: 12, poemMinChars: 8, poemMaxChars: 80 },
+            '研究所': { timeLimitRate: 15, poemMinRating: 3, maxMistakeCount: 3, questionCount: 20, candidateCount: 4, decoyType: 'sameAuthorClose', comboCap: 10, poemMinLines: 2, poemMaxLines: 12, poemMinChars: 8, poemMaxChars: 80 }
         },
 
         // 動態載入 game34 專屬樣式表（避免重複插入）
@@ -302,7 +302,8 @@
                 let result = null;
                 for (let tryI = 0; tryI < 8; tryI++) {
                     const r = getSharedRandomPoem(
-                        settings.poemMinRating, 2, 12, 8, 80,
+                        settings.poemMinRating, settings.poemMinLines, settings.poemMaxLines,
+                        settings.poemMinChars, settings.poemMaxChars,
                         "", seed !== null ? (seed + tryI * 7) : null, 'game34_' + q + '_' + tryI
                     );
                     if (!r) continue;

@@ -67,11 +67,11 @@
         // hintDuration: 下一個字提示閃爍持續時間,
         // lostInt/lostDur: 小精靈故意失誤的相隔時間與失誤持續時間
         difficultySettings: {
-            '小學': { timeLimitRate: 10, poemMinRating: 6, maxMistakeCount: 7, monsters: 2, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500 },
-            '中學': { timeLimitRate: 9, poemMinRating: 5, maxMistakeCount: 6, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000 },
-            '高中': { timeLimitRate: 8, poemMinRating: 4, maxMistakeCount: 5, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500 },
-            '大學': { timeLimitRate: 7, poemMinRating: 3, maxMistakeCount: 4, monsters: 4, answerLen: 12, hintDuration: -1, lostInt: 0, lostDur: 500 },
-            '研究所': { timeLimitRate: 6, poemMinRating: 3, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0 }
+            '小學': { timeLimitRate: 10, poemMinRating: 6, maxMistakeCount: 7, monsters: 2, answerLen: 5, hintDuration: -1, lostInt: -2000, lostDur: 1500, minLines: 2, maxLines: 4, minChars: 10, maxChars: 100 },
+            '中學': { timeLimitRate: 9, poemMinRating: 5, maxMistakeCount: 6, monsters: 3, answerLen: 7, hintDuration: -1, lostInt: -1000, lostDur: 1000, minLines: 2, maxLines: 4, minChars: 10, maxChars: 100 },
+            '高中': { timeLimitRate: 8, poemMinRating: 4, maxMistakeCount: 5, monsters: 4, answerLen: 10, hintDuration: -1, lostInt: -500, lostDur: 500, minLines: 2, maxLines: 4, minChars: 10, maxChars: 100 },
+            '大學': { timeLimitRate: 7, poemMinRating: 3, maxMistakeCount: 4, monsters: 4, answerLen: 12, hintDuration: -1, lostInt: 0, lostDur: 500, minLines: 2, maxLines: 4, minChars: 10, maxChars: 100 },
+            '研究所': { timeLimitRate: 6, poemMinRating: 3, maxMistakeCount: 3, monsters: 4, answerLen: 14, hintDuration: -1, lostInt: 0, lostDur: 0, minLines: 2, maxLines: 4, minChars: 10, maxChars: 100 }
         },
 
         // 迷宮版面配置 (1 = 牆壁, 0 = 通道, 2 = 鬼屋)
@@ -731,7 +731,7 @@
             // 使用共享的隨機詩詞，傳入種子
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
-                2, 4, 10, 100, "",
+                settings.minLines, settings.maxLines, settings.minChars, settings.maxChars, "",
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game5'
             );
