@@ -92,27 +92,27 @@
         */
         difficultySettings: {
             '小學': {
-                speed: 400, decoyCount: 0, poemMinRating: 6, minChars: 10, maxChars: 14,
+                speed: 400, decoyCount: 0, poemMinRating: 6, minLines: 2, maxLines: 4, minChars: 10, maxChars: 14,
                 timeLimitRate: 6, showHint: 999, maxShowCount: 4, maxMistakeCount: 5,
                 wallMargin: 3, showFadding: 3, gridTransparency: 0.8   // showHint金黃底色永遠顯示
             },
             '中學': {
-                speed: 360, decoyCount: 0, poemMinRating: 5, minChars: 14, maxChars: 20,
+                speed: 360, decoyCount: 0, poemMinRating: 5, minLines: 2, maxLines: 4, minChars: 14, maxChars: 20,
                 timeLimitRate: 6, showHint: 10, maxShowCount: 8, maxMistakeCount: 4,
                 wallMargin: 2, showFadding: 4, gridTransparency: 0.4   // showHint金黃底色顯示 10 秒後回復白底
             },
             '高中': {
-                speed: 340, decoyCount: 0, poemMinRating: 4, minChars: 20, maxChars: 28,
+                speed: 340, decoyCount: 0, poemMinRating: 4, minLines: 4, maxLines: 4, minChars: 20, maxChars: 28,
                 timeLimitRate: 6, showHint: 3, maxShowCount: 12, maxMistakeCount: 3,
                 wallMargin: 1, showFadding: 3, gridTransparency: 0.2   // showHint金黃底色顯示 3 秒後回復白底
             },
             '大學': {
-                speed: 320, decoyCount: 2, poemMinRating: 4, minChars: 20, maxChars: 56,
+                speed: 320, decoyCount: 2, poemMinRating: 4, minLines: 4, maxLines: 4, minChars: 20, maxChars: 56,
                 timeLimitRate: 6, showHint: 1, maxShowCount: 16, maxMistakeCount: 2,
                 wallMargin: 1, showFadding: 5, gridTransparency: 0.1   // showHint金黃底色僅顯示 1 秒
             },
             '研究所': {
-                speed: 300, decoyCount: 6, poemMinRating: 3, minChars: 28, maxChars: 56,
+                speed: 300, decoyCount: 6, poemMinRating: 3, minLines: 4, maxLines: 4, minChars: 28, maxChars: 56,
                 timeLimitRate: 6, showHint: 0, maxShowCount: 20, maxMistakeCount: 1,
                 wallMargin: 0, showFadding: 7, gridTransparency: 0.0   // showHint完全不顯示金黃提示
             },
@@ -300,10 +300,9 @@
         // ================================================================
         selectPoem: function () {
             const settings = this.difficultySettings[this.difficulty];
-            const minLines = settings.minChars <= 14 ? 2 : 4;
             const seed = this.isLevelMode ? this.currentLevelIndex : null;
             const result = (typeof getSharedRandomPoem === 'function')
-                ? getSharedRandomPoem(settings.poemMinRating, minLines, 4,
+                ? getSharedRandomPoem(settings.poemMinRating, settings.minLines, settings.maxLines,
                     settings.minChars, settings.maxChars, '', seed, 'game15')
                 : null;
 
