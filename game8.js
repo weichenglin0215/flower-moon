@@ -43,11 +43,11 @@
         //    （七言為上限，即 minLines × 7），否則該難度永遠取不到題。
         //    例：小學 minLines:2 → 兩句最多 14 字，minChars 不可超過 14。
         difficultySettings: {
-            '小學': { timeLimitRate: 1, poemMinRating: 6, maxMistakeCount: 6, hints: 'all', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 2, minChars: 8, maxChars: 14 },
-            '中學': { timeLimitRate: 1, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, minChars: 20, maxChars: 28 },
-            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, minChars: 20, maxChars: 56 },
-            '大學': { timeLimitRate: 1.5, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, minChars: 20, maxChars: 56 },
-            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, minChars: 20, maxChars: 56 }
+            '小學': { timeLimitRate: 1, poemMinRating: 6, maxMistakeCount: 6, hints: 'all', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 2, minChars: 8, maxChars: 14, maxLines: 10 },
+            '中學': { timeLimitRate: 1, poemMinRating: 5, maxMistakeCount: 5, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, minChars: 20, maxChars: 28, maxLines: 10 },
+            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 4, hints: 'startEnd', splitPath: true, obstacles: 0, decoyPool: 'normal', minLines: 4, minChars: 20, maxChars: 56, maxLines: 10 },
+            '大學': { timeLimitRate: 1.5, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'normal', minLines: 6, minChars: 20, maxChars: 56, maxLines: 10 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 3, hints: 'start', splitPath: false, obstacles: 0, decoyPool: 'hard', minLines: 8, minChars: 20, maxChars: 56, maxLines: 10 }
         },
 
 
@@ -316,7 +316,7 @@
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
                 settings.minLines,
-                10,
+                settings.maxLines,
                 settings.minChars,
                 settings.maxChars,
                 "",

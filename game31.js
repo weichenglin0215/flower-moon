@@ -46,7 +46,12 @@
            decoyLevel：替身字相似度等級 1~5
            distractorLevel：干擾字相似度等級 1~5
            showDecoyHint：是否高亮替身字
-           lineCount：局內題數（=要拿幾句來出題）
+           lineCount：局內題數（=要拿幾句來出題），同時是選詩的 minLines
+           maxLines / minChars / maxChars：選詩條件
+             ⚠️ 這三個原本是由 lineCount 推算的（maxLines = max(lineCount+4, 14)、
+                minChars = lineCount×3），改成明寫之後就不會自動跟著跑。
+                調整 lineCount 時請一併更新，並以
+                `node tools/verify_game_params.js` 確認解出率仍是 100%。
            minDecoyCount / maxDecoyCount：每一句最少 / 最多有多少個替身（混淆）字
              —— 若某句字數少於 minDecoyCount，則以該句字數為上限（保底至少 1）
              —— 玩家答對「該句所有替身字」才進入下一句；只要答錯其中任何一個 → 扣心 + 揭示 + 進下一句
@@ -55,27 +60,27 @@
             '小學': {
                 timeLimitRate: 9, poemMinRating: 6, maxMistakeCount: 5, decoyLevel: 1,
                 distractorLevel: 1, showDecoyHint: true, lineCount: 4,
-                minDecoyCount: 1, maxDecoyCount: 1
+                minDecoyCount: 1, maxDecoyCount: 1, maxLines: 14, minChars: 12, maxChars: 100
             },
             '中學': {
                 timeLimitRate: 9, poemMinRating: 5, maxMistakeCount: 4, decoyLevel: 2,
-                distractorLevel: 2, showDecoyHint: true, lineCount: 6,
-                minDecoyCount: 1, maxDecoyCount: 2
+                distractorLevel: 2, showDecoyHint: true, lineCount: 4,
+                minDecoyCount: 1, maxDecoyCount: 2, maxLines: 14, minChars: 12, maxChars: 100
             },
             '高中': {
                 timeLimitRate: 9, poemMinRating: 4, maxMistakeCount: 3, decoyLevel: 3,
-                distractorLevel: 3, showDecoyHint: false, lineCount: 8,
-                minDecoyCount: 1, maxDecoyCount: 2
+                distractorLevel: 3, showDecoyHint: false, lineCount: 4,
+                minDecoyCount: 1, maxDecoyCount: 2, maxLines: 14, minChars: 12, maxChars: 100
             },
             '大學': {
                 timeLimitRate: 9, poemMinRating: 3, maxMistakeCount: 2, decoyLevel: 4,
-                distractorLevel: 4, showDecoyHint: false, lineCount: 12,
-                minDecoyCount: 1, maxDecoyCount: 3
+                distractorLevel: 4, showDecoyHint: false, lineCount: 4,
+                minDecoyCount: 1, maxDecoyCount: 3, maxLines: 14, minChars: 12, maxChars: 100
             },
             '研究所': {
                 timeLimitRate: 9, poemMinRating: 3, maxMistakeCount: 1, decoyLevel: 5,
-                distractorLevel: 5, showDecoyHint: false, lineCount: 16,
-                minDecoyCount: 2, maxDecoyCount: 3
+                distractorLevel: 5, showDecoyHint: false, lineCount: 4,
+                minDecoyCount: 2, maxDecoyCount: 3, maxLines: 14, minChars: 12, maxChars: 100
             }
         },
 
@@ -300,9 +305,9 @@
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
                 settings.lineCount,
-                Math.max(settings.lineCount + 4, 14),
-                settings.lineCount * 3,
-                100,
+                settings.maxLines,
+                settings.minChars,
+                settings.maxChars,
                 '',
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game31'

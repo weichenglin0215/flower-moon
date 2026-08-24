@@ -27,18 +27,18 @@
         //rows:總行數, cols:每行字數
         //mode: all:全部顯示, seq:依序顯示
         //feedback: keep:翻開之後保留翻開狀態, hide:翻開之後再蓋回
-        //minLines:最少顯示行數, maxLines:最多顯示行數
-        //minChars:最少顯示字數, maxChars:最多顯示字數
+        //minLines/maxLines/minChars/maxChars：送進 getSharedRandomPoem 的選詩條件
+        //showMaxChars：本局最多顯示幾個字（受網格總格數再次限制）
         //slowFlipChars:翻開較慢的字數，預設為35，避免拖慢翻開時間長度，可改成3。
         //舉例：若slowFlipChars = 3，欲翻開文字數為10個(不包括新增翻開字)，前7個字以0.2秒速度翻開，最後3個字會以0.5秒速度翻開。
         //passChars:起始顯示字數，一開始翻開較多字數來加快遊戲進行節奏，預設為0
         //revealStep:每輪增加顯示的字數
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', minLines: 1, maxLines: 2, minChars: 5, maxChars: 7, slowFlipChars: 7, passChars: 0, revealStep: 1 },
-            '中學': { poemMinRating: 5, maxMistakeCount: 8, rows: 5, cols: 3, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, slowFlipChars: 7, passChars: 3, revealStep: 1 },
-            '高中': { poemMinRating: 4, maxMistakeCount: 10, rows: 5, cols: 4, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 4, minChars: 14, maxChars: 21, slowFlipChars: 7, passChars: 6, revealStep: 2 },
-            '大學': { poemMinRating: 3, maxMistakeCount: 12, rows: 6, cols: 5, mode: 'all', feedback: 'hide', minLines: 3, maxLines: 4, minChars: 20, maxChars: 28, slowFlipChars: 7, passChars: 9, revealStep: 2 },
-            '研究所': { poemMinRating: 2, maxMistakeCount: 14, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', minLines: 4, maxLines: 6, minChars: 28, maxChars: 35, slowFlipChars: 7, passChars: 12, revealStep: 3 }
+            '小學': { poemMinRating: 6, maxMistakeCount: 6, rows: 4, cols: 3, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 8, maxChars: 30, showMaxChars: 7, slowFlipChars: 7, passChars: 0, revealStep: 1 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 8, rows: 5, cols: 3, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 8, maxChars: 30, showMaxChars: 14, slowFlipChars: 7, passChars: 3, revealStep: 1 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 10, rows: 5, cols: 4, mode: 'all', feedback: 'keep', minLines: 2, maxLines: 2, minChars: 8, maxChars: 30, showMaxChars: 21, slowFlipChars: 7, passChars: 6, revealStep: 2 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 12, rows: 6, cols: 5, mode: 'all', feedback: 'hide', minLines: 2, maxLines: 2, minChars: 8, maxChars: 30, showMaxChars: 28, slowFlipChars: 7, passChars: 9, revealStep: 2 },
+            '研究所': { poemMinRating: 2, maxMistakeCount: 14, rows: 7, cols: 5, mode: 'seq', feedback: 'hide', minLines: 2, maxLines: 2, minChars: 8, maxChars: 30, showMaxChars: 35, slowFlipChars: 7, passChars: 12, revealStep: 3 }
         },
 
         // 動態載入本遊戲專屬的 CSS 檔案（若尚未載入過才會插入 link 標籤）
@@ -280,7 +280,7 @@
             // 產生詩詞題目，並傳入隨機種子（關卡模式下可依關卡索引產生固定題目）
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
-                2, 2, 8, 30, "",
+                settings.minLines, settings.maxLines, settings.minChars, settings.maxChars, "",
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game11'
             );
@@ -299,8 +299,8 @@
             };
             this.updatePoemInfoVisibility(false);
 
-            // 取出詩詞純文字，最多取 maxChars 個字，同時不超過網格總格數
-            const rawChars = result.lines.join('').split('').slice(0, settings.maxChars);
+            // 取出詩詞純文字，最多取 showMaxChars 個字，同時不超過網格總格數
+            const rawChars = result.lines.join('').split('').slice(0, settings.showMaxChars);
             const numGrids = settings.rows * settings.cols;
 
             this.poemChars = [];

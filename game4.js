@@ -34,11 +34,11 @@
         //showDelay: 顯示延遲時間
         //singleCharReaction: 單字反應對錯，true=單字反應對錯，false=整句反應對錯
         difficultySettings: {
-            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0, singleCharReaction: true },
-            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 4, singleCharReaction: true },
-            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 6, maxAddDecoyChars: 12, showDelay: 8, singleCharReaction: false },
-            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 6, maxAddDecoyChars: 15, showDelay: 12, singleCharReaction: false },
-            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 6, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false }
+            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, maxMaskCount: 3, maxAddDecoyChars: 6, showDelay: 0, singleCharReaction: true, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 5, answerAtLine: 2, maxMaskCount: 5, maxAddDecoyChars: 8, showDelay: 4, singleCharReaction: true, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 6, answerAtLine: 0, maxMaskCount: 6, maxAddDecoyChars: 12, showDelay: 8, singleCharReaction: false, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 7, answerAtLine: 1, maxMaskCount: 6, maxAddDecoyChars: 15, showDelay: 12, singleCharReaction: false, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 8, answerAtLine: 3, maxMaskCount: 6, maxAddDecoyChars: 20, showDelay: 200, singleCharReaction: false, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 }
         },
 
         // 常用字庫已移至 script.js 的 window.SharedDecoy 中
@@ -342,7 +342,7 @@
             // 使用共用邏輯取得隨機詩詞 (要求至少 2 句)，傳入種子
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
-                2, 2, 8, 30, "",
+                settings.minLines, settings.maxLines, settings.minChars, settings.maxChars, "",
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game4'
             );

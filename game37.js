@@ -66,11 +66,11 @@
         //maxChars:最多字數
         //maxOptionCount:答案宮格最多可出現的按鈕數（1/2/4/9/16/25/36），超過此數會被縮減為不超過上限的最大合法宮格
         difficultySettings: {
-            '小學': { timeMutiply: 1.6, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 20, maxOptionCount: 9 },
-            '中學': { timeMutiply: 2.0, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28, maxOptionCount: 16 },
-            '高中': { timeMutiply: 2.4, poemMinRating: 4, maxMistakeCount: 4, minChars: 28, maxChars: 40, maxOptionCount: 25 },
-            '大學': { timeMutiply: 2.8, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56, maxOptionCount: 36 },
-            '研究所': { timeMutiply: 3.2, poemMinRating: 3, maxMistakeCount: 2, minChars: 28, maxChars: 120, maxOptionCount: 36 }
+            '小學': { timeMutiply: 1.6, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 20, maxOptionCount: 9, minLines: 4, maxLines: 8 },
+            '中學': { timeMutiply: 2.0, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28, maxOptionCount: 16, minLines: 4, maxLines: 8 },
+            '高中': { timeMutiply: 2.4, poemMinRating: 4, maxMistakeCount: 4, minChars: 28, maxChars: 40, maxOptionCount: 25, minLines: 4, maxLines: 8 },
+            '大學': { timeMutiply: 2.8, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56, maxOptionCount: 36, minLines: 4, maxLines: 8 },
+            '研究所': { timeMutiply: 3.2, poemMinRating: 3, maxMistakeCount: 2, minChars: 28, maxChars: 120, maxOptionCount: 36, minLines: 4, maxLines: 8 }
         },
         gameStartTime: null,
 
@@ -331,8 +331,8 @@
         selectPoem: function (settings) {
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
-                4,
-                8,
+                settings.minLines,
+                settings.maxLines,
                 settings.minChars,
                 settings.maxChars,
                 "",

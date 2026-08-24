@@ -40,11 +40,11 @@
         //hideMode 隱藏模式 line2:第二行, random1or2:隨機只有第一行或只有第二行, line1or12:隨機第一行或第一加第二行, both:第一行與第二行
         //total:總字數, cols:每行字數
         difficultySettings: {
-            '小學': { timeLimitRate: 3, poemMinRating: 6, maxMistakeCount: 4, minShowCount: 1, maxShowCount: 4, minTotalHideCount: 4, memorySeconds: 5, isSequentialOpen: true, isSequentialHide: true, hasDistractors: false, showDelay: 0, hideMode: 'line2', total: 6, cols: 3 },
-            '中學': { timeLimitRate: 2, poemMinRating: 5, maxMistakeCount: 6, minShowCount: 1, maxShowCount: 3, minTotalHideCount: 6, memorySeconds: 7, isSequentialOpen: true, isSequentialHide: false, hasDistractors: false, showDelay: 8, hideMode: 'random1or2', total: 8, cols: 4 },
-            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 8, minShowCount: 2, maxShowCount: 3, minTotalHideCount: 8, memorySeconds: 10, isSequentialOpen: true, isSequentialHide: false, hasDistractors: true, showDelay: 16, hideMode: 'line1or12', total: 10, cols: 5 },
-            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 10, memorySeconds: 12, isSequentialOpen: false, isSequentialHide: false, hasDistractors: true, showDelay: 24, hideMode: 'both', total: 12, cols: 4 },
-            '研究所': { timeLimitRate: 3, poemMinRating: 2, maxMistakeCount: 14, minShowCount: 0, maxShowCount: 0, minTotalHideCount: 10, memorySeconds: 15, isSequentialOpen: false, isSequentialHide: false, hasDistractors: true, showDelay: 32, hideMode: 'both', total: 16, cols: 4 }
+            '小學': { timeLimitRate: 3, poemMinRating: 6, maxMistakeCount: 4, minShowCount: 1, maxShowCount: 4, minTotalHideCount: 4, memorySeconds: 5, isSequentialOpen: true, isSequentialHide: true, hasDistractors: false, showDelay: 0, hideMode: 'line2', total: 6, cols: 3, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '中學': { timeLimitRate: 2, poemMinRating: 5, maxMistakeCount: 6, minShowCount: 1, maxShowCount: 3, minTotalHideCount: 6, memorySeconds: 7, isSequentialOpen: true, isSequentialHide: false, hasDistractors: false, showDelay: 8, hideMode: 'random1or2', total: 8, cols: 4, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 8, minShowCount: 2, maxShowCount: 3, minTotalHideCount: 8, memorySeconds: 10, isSequentialOpen: true, isSequentialHide: false, hasDistractors: true, showDelay: 16, hideMode: 'line1or12', total: 10, cols: 5, minLines: 2, maxLines: 2, minChars: 12, maxChars: 30 },
+            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 10, memorySeconds: 12, isSequentialOpen: false, isSequentialHide: false, hasDistractors: true, showDelay: 24, hideMode: 'both', total: 12, cols: 4, minLines: 2, maxLines: 2, minChars: 12, maxChars: 30 },
+            '研究所': { timeLimitRate: 3, poemMinRating: 2, maxMistakeCount: 14, minShowCount: 0, maxShowCount: 0, minTotalHideCount: 10, memorySeconds: 15, isSequentialOpen: false, isSequentialHide: false, hasDistractors: true, showDelay: 32, hideMode: 'both', total: 16, cols: 4, minLines: 2, maxLines: 2, minChars: 10, maxChars: 30 }
         },
         showTimeout: null,
         cluesRevealed: false,
@@ -322,13 +322,15 @@
             while (attempts < 100) {
                 attempts++;
                 // 傳入種子
-                const requiredChars = Math.max(8, (settings.minTotalHideCount || 2) + (settings.minShowCount || 1) * 2);
+                // 題目至少要有足夠的字可以遮：以設定值為準，但不得低於「遮字數 + 露字數」的需求
+                const requiredChars = Math.max(settings.minChars,
+                    (settings.minTotalHideCount || 2) + (settings.minShowCount || 1) * 2);
                 const result = getSharedRandomPoem(
                     settings.poemMinRating || 4,
-                    2,
-                    2,
+                    settings.minLines,
+                    settings.maxLines,
                     requiredChars,
-                    30,
+                    settings.maxChars,
                     "",
                     this.isLevelMode ? this.currentLevelIndex : null,
                     'game12'

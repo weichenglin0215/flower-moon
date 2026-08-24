@@ -98,11 +98,11 @@
          *   maxMistakeCount：可點錯幾次（紅心數）
          */
         difficultySettings: {
-            '小學': { timeLimitRate: 3.0, poemMinRating: 6, charsPerLine: 5, useColor: true, useShape: true, invertMix: false, showQuestion: 5, maxMistakeCount: 6 },
-            '中學': { timeLimitRate: 2.6, poemMinRating: 5, charsPerLine: 5, useColor: true, useShape: true, invertMix: false, showQuestion: 4, maxMistakeCount: 5 },
-            '高中': { timeLimitRate: 2.2, poemMinRating: 4, charsPerLine: 5, useColor: true, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 4 },
-            '大學': { timeLimitRate: 2.0, poemMinRating: 3, charsPerLine: 7, useColor: false, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 3 },
-            '研究所': { timeLimitRate: 1.8, poemMinRating: 3, charsPerLine: 7, useColor: false, useShape: false, invertMix: true, showQuestion: 2, maxMistakeCount: 2 }
+            '小學': { timeLimitRate: 3.0, poemMinRating: 6, charsPerLine: 5, useColor: true, useShape: true, invertMix: false, showQuestion: 5, maxMistakeCount: 6, minLines: 2, maxLines: 2 },
+            '中學': { timeLimitRate: 2.6, poemMinRating: 5, charsPerLine: 5, useColor: true, useShape: true, invertMix: false, showQuestion: 4, maxMistakeCount: 5, minLines: 2, maxLines: 2 },
+            '高中': { timeLimitRate: 2.2, poemMinRating: 4, charsPerLine: 5, useColor: true, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 4, minLines: 2, maxLines: 2 },
+            '大學': { timeLimitRate: 2.0, poemMinRating: 3, charsPerLine: 7, useColor: false, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 3, minLines: 2, maxLines: 2 },
+            '研究所': { timeLimitRate: 1.8, poemMinRating: 3, charsPerLine: 7, useColor: false, useShape: false, invertMix: true, showQuestion: 2, maxMistakeCount: 2, minLines: 2, maxLines: 2 }
         },
 
         // ====================================================================
@@ -373,7 +373,9 @@
             for (let attempt = 0; attempt < 40; attempt++) {
                 const seed = this.isLevelMode ? (this.currentLevelIndex + attempt * 1000) : null;
                 const r = getSharedRandomPoem(
-                    settings.poemMinRating, 2, 2, totalChars, totalChars, '', seed, 'game40'
+                    // 字數必須恰為 charsPerLine × 2（兩句等長），故由設定推算而非另設鍵值
+                    settings.poemMinRating, settings.minLines, settings.maxLines,
+                    totalChars, totalChars, '', seed, 'game40'
                 );
                 if (r && r.lines && r.lines.length === 2 &&
                     r.lines[0].length === n && r.lines[1].length === n) {

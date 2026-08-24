@@ -32,11 +32,11 @@
         // metaDistractors:每個隱藏欄位額外增加的干擾項,
         // charDistractors:每個隱藏字額外增加的干擾項
         difficultySettings: {
-            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 3, metaHideCount: 1, charHideCount: 1, metaDistractors: 2, charDistractors: 5 },
-            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 3, metaHideCount: 2, charHideCount: 3, metaDistractors: 2, charDistractors: 3 },
-            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 2, metaHideCount: 3, charHideCount: 5, metaDistractors: 2, charDistractors: 3 },
-            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 2, metaHideCount: 3, charHideCount: 7, metaDistractors: 2, charDistractors: 2 },
-            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 1, metaHideCount: 3, charHideCount: 9, metaDistractors: 2, charDistractors: 1 }
+            '小學': { timeLimitRate: 6, poemMinRating: 6, maxMistakeCount: 3, metaHideCount: 1, charHideCount: 1, metaDistractors: 2, charDistractors: 5, minLines: 2, maxLines: 2, minChars: 10, maxChars: 40 },
+            '中學': { timeLimitRate: 5, poemMinRating: 5, maxMistakeCount: 3, metaHideCount: 2, charHideCount: 3, metaDistractors: 2, charDistractors: 3, minLines: 2, maxLines: 2, minChars: 10, maxChars: 40 },
+            '高中': { timeLimitRate: 4, poemMinRating: 4, maxMistakeCount: 2, metaHideCount: 3, charHideCount: 5, metaDistractors: 2, charDistractors: 3, minLines: 2, maxLines: 2, minChars: 10, maxChars: 40 },
+            '大學': { timeLimitRate: 3, poemMinRating: 3, maxMistakeCount: 2, metaHideCount: 3, charHideCount: 7, metaDistractors: 2, charDistractors: 2, minLines: 2, maxLines: 2, minChars: 10, maxChars: 40 },
+            '研究所': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 1, metaHideCount: 3, charHideCount: 9, metaDistractors: 2, charDistractors: 1, minLines: 2, maxLines: 2, minChars: 10, maxChars: 40 }
         },
 
         // 動態載入本遊戲專屬的 CSS 檔（game13.css），避免重複插入 <link>
@@ -250,7 +250,7 @@
         // 成功則設定 this.currentPoem / this.lines 並回傳 true，失敗回傳 false
         selectRandomPoem: function () {
             const settings = this.difficultySettings[this.difficulty];
-            const result = getSharedRandomPoem(settings.poemMinRating, 2, 2, 10, 40, "", this.isLevelMode ? this.currentLevelIndex : null, 'game13');
+            const result = getSharedRandomPoem(settings.poemMinRating, settings.minLines, settings.maxLines, settings.minChars, settings.maxChars, "", this.isLevelMode ? this.currentLevelIndex : null, 'game13');
             if (!result) return false;
             this.currentPoem = result.poem;
             // 限制詩詞名稱長度為 7 個字

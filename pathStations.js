@@ -83,10 +83,61 @@
     // 難度層的學習順序。青雲梯依此把整個題庫串成一條「學習序列」。
     const TIER_SEQ = ['小學', '中學', '高中', '大學', '研究所'];
 
-    // ── 一關要用幾種不同的提取方式通過（企畫書 8.2）────────────────────
-    // 必通關卡數 = 該詩的題目單元數 × 3 種不同提取方式。
-    // 這個「×3」不只是計數，它保證每一首詩都被三種不同的記憶通道各碰過一次。
-    const CHANNELS_PER_LEVEL = 3;
+    // 標點符號正則 —— 與 levelTable.js / script.js 的清洗規則保持一致，
+    // 否則算出來的「字數」會把標點一起算進去，長短判斷就會失準。
+    const PUNCT = /[，。？！、：；「」『』\s]/g;
+
+    /** 一首詩去除標點後的總字數（排序的次要依據） */
+    function countChars(poem) {
+        return (poem.content || []).reduce(
+            (sum, line) => sum + (line || '').replace(PUNCT, '').length, 0);
+    }
+
+    /** 一首詩的實際句數（空行是分段標記，不計） */
+    function countLines(poem) {
+        return (poem.content || []).filter(
+            line => (line || '').replace(PUNCT, '').length > 0).length;
+    }
+
+    // ── 長篇的判準：句數 ───────────────────────────────────────────────
+    // 題庫的句數中位數是 4~8 句（絕句 4 句、律詩 8 句），
+    // 12 句約為律詩的 1.5 倍，超過就明顯是需要多花力氣啃的長篇。
+    // ⚠️ 不用字數判斷：必通關卡是依詩句評價挑的，還有 MAX_UNITS_PER_POEM
+    //    上限，所以 840 字的〈長恨歌〉與 176 字的〈將進酒〉工作量相同
+    //    （皆為 6 個單元）。真正造成疲乏的是連續站都在啃長篇。
+    const LONG_POEM_LINES = 12;
+
+    // 「超長篇」——〈將進酒〉30 句、〈滕王閣序〉60 句、〈琵琶行〉88 句、
+    // 〈長恨歌〉120 句這一級。長篇的站數在中後期會多到無法全部拉開
+    // （評價 5 有 15 首長篇卻只有 20 站），此時優先保證這一級彼此離最遠。
+    const SUPER_LONG_POEM_LINES = 20;
+
+    /**
+     * 把 items 平均擺進一個長度 n 的陣列，回傳該陣列（未填處為 null）。
+     * 第 k 個放在 (k+0.5)/len 的位置，撞位就往後找 —— 兩兩之間的間隔
+     * 因此接近 n/len，是「平均散開」能達到的最大值。
+     */
+    function placeEvenly(items, n) {
+        const placed = new Array(n).fill(null);
+        items.forEach((it, k) => {
+            let s = Math.min(n - 1, Math.floor((k + 0.5) * n / items.length));
+            while (placed[s]) s = (s + 1) % n;
+            placed[s] = it;
+        });
+        return placed;
+    }
+
+    // 兩首長篇之間至少要隔幾站。
+    // 之所以不是「不同站就好」：出題有機會取用上一站或下一站的題目當作
+    // 溫習，長篇排在隔壁站時連複習都是長篇，玩家沒有喘息空間。
+    const LONG_POEM_MIN_GAP = 2;
+
+    // ── 一個題目單元要玩幾局（企畫書 8.2）─────────────────────────────
+    // 必通關卡數 = 該詩的題目單元數 × 每個單元 3 局。
+    // 這 3 局必須用 3 款不同的遊戲（見 learningPath.pickGame）——
+    // 同樣兩句話用同一款遊戲玩第二次就沒有難度了。
+    // ⚠️ 「通道」種類的保證在站的層級（一站十幾局涵蓋 3 種通道），不在這裡。
+    const PLAYS_PER_UNIT = 3;
 
     const PathStations = {
         _cache: null,
@@ -133,7 +184,13 @@
 
             const poems = LT.getPoems ? LT.getPoems() : [];
             const ratingById = {};
-            poems.forEach(p => { ratingById[p.id] = p.rating || 0; });
+            const charsById = {};
+            const linesById = {};
+            poems.forEach(p => {
+                ratingById[p.id] = p.rating || 0;
+                charsById[p.id] = countChars(p);
+                linesById[p.id] = countLines(p);
+            });
 
             const seen = {};
             const order = [];
@@ -143,15 +200,97 @@
                 LT.getTierPoemOrder(tier).forEach((pid, idx) => {
                     if (seen[pid]) return;
                     seen[pid] = true;
-                    fresh.push({ id: pid, tier: tier, rating: ratingById[pid] || 0, ord: idx });
+                    fresh.push({
+                        id: pid, tier: tier, ord: idx,
+                        rating: ratingById[pid] || 0,
+                        chars: charsById[pid] || 0,
+                        lines: linesById[pid] || 0
+                    });
                 });
-                // 評價高（易）者先學；同評價則維持關卡表原本的順序
-                fresh.sort((a, b) => (b.rating - a.rating) || (a.ord - b.ord));
-                fresh.forEach(f => order.push({ id: f.id, tier: f.tier, rating: f.rating }));
+                // 評價高（易）者先學；同評價則短詩先學（篇幅是評價之外的第二道難度）
+                fresh.sort((a, b) =>
+                    (b.rating - a.rating) || (a.lines - b.lines) || (a.chars - b.chars) || (a.ord - b.ord));
+                this.spreadLongPoems(fresh).forEach(f => order.push({
+                    id: f.id, tier: f.tier, rating: f.rating, chars: f.chars, lines: f.lines
+                }));
             });
 
             this._learnOrder = order;
             return order;
+        },
+
+        /**
+         * 同評價內把「長篇」平均散開。
+         *
+         * ── 判準是句數，不是字數 ────────────────────────────────────────
+         * 一首詩的實際工作量不等於字數：必通關卡是由 selectUnitsForPoem
+         * 依**詩句評價**挑出來的，而且上限為 MAX_UNITS_PER_POEM。
+         * 〈長恨歌〉雖有 840 字 120 句，達到評價門檻的聯句只有少數，
+         * 最後也只產生 6 個必修單元 —— 與 176 字的〈將進酒〉完全一樣。
+         * 所以真正讓玩家疲乏的是「連續好幾站都在啃長篇」這件事本身，
+         * 不是某一站的字數總量。判準因此取句數（LONG_POEM_LINES）。
+         *
+         * ── 為什麼光排序不夠 ────────────────────────────────────────────
+         * 若只依長度由短到長排，長篇會全部擠在同評價的尾端，變成連續好幾站
+         * 都是長篇。實測舊版就出現過站 28~31 連四站分別是〈將進酒〉30 句、
+         * 〈滕王閣序〉60 句、〈琵琶行〉88 句、〈長恨歌〉120 句。
+         *
+         * 這還會連帶影響複習品質 —— 出題有機會取用上一站或下一站的題目
+         * 當作溫習，長篇連站時連「複習」都是長篇，玩家完全沒有喘息。
+         *
+         * ── 作法 ────────────────────────────────────────────────────────
+         * 把長篇平均插進整個評價區段（第 k 首長篇放在 (k+0.5)/L 的位置），
+         * 空檔全部由短詩依長度遞增填滿。這樣相鄰兩首長篇之間會隔進最多的
+         * 短詩，難度也仍隨站數穩定遞增。
+         *
+         * ⚠️ 能拉開多遠取決於題庫本身：某個評價若長篇佔比太高，就算平均
+         *    散開也還是會靠得很近。因此 build() 之後一律以 getLoadReport()
+         *    複查實際的站距，不能改完就假設它對了。
+         */
+        spreadLongPoems: function (list) {
+            const out = [];
+            let i = 0;
+            while (i < list.length) {
+                let j = i;
+                while (j < list.length && list[j].rating === list[i].rating) j++;
+                const bucket = list.slice(i, j);          // 已依長度由短到長
+                i = j;
+
+                const longs = bucket.filter(p => p.lines >= LONG_POEM_LINES);
+                const shorts = bucket.filter(p => p.lines < LONG_POEM_LINES);
+
+                // 沒有長篇（例如評價 7 全是絕句），或全部都是長篇 —— 都無從散開，
+                // 維持原順序即可，免得平白打亂既有的學習序列。
+                if (!longs.length || !shorts.length) {
+                    bucket.forEach(b => out.push(b));
+                    continue;
+                }
+
+                // ── 第一層：先把「超長篇」在長篇序列裡彼此拉到最開 ──────
+                // 中後期一站放 4~6 首，站數變少而長篇比例反而上升
+                // （評價 5：15 首長篇對 20 站），此時不可能每一首都拉開 2 站。
+                // 既然只能取捨，就優先保證〈長恨歌〉〈琵琶行〉這一級離最遠，
+                // 12~19 句的中長篇則容許靠近一些。
+                const supers = longs.filter(p => p.lines >= SUPER_LONG_POEM_LINES);
+                const mids = longs.filter(p => p.lines < SUPER_LONG_POEM_LINES);
+                let longOrder = longs;
+                if (supers.length && mids.length) {
+                    longOrder = placeEvenly(supers, longs.length);
+                    let mi = 0;
+                    for (let s = 0; s < longOrder.length; s++) {
+                        if (!longOrder[s]) longOrder[s] = mids[mi++];
+                    }
+                }
+
+                // ── 第二層：把長篇序列平均插進整個評價區段，空檔填短詩 ──
+                const slots = placeEvenly(longOrder, bucket.length);
+                let si = 0;
+                for (let s = 0; s < slots.length; s++) {
+                    if (!slots[s]) slots[s] = shorts[si++];
+                }
+                slots.forEach(p => out.push(p));
+            }
+            return out;
         },
 
         /** 題庫實際可供學習的詩詞總數 */
@@ -249,6 +388,8 @@
                 const slice = learnOrder.slice(st.poemFrom, st.poemTo);
                 st.poemIds = slice.map(p => p.id);
                 st.tier = slice.length ? slice[0].tier : (stations[i - 1] ? stations[i - 1].tier : '小學');
+                // 這一站要背的總字數，供 getLoadReport 檢查相鄰站的負荷是否失衡
+                st.chars = slice.reduce((sum, p) => sum + (p.chars || 0), 0);
 
                 // 必通關卡：把這一站的詩，依各自所屬的難度層取出全部關卡。
                 // ⚠️ 一站有可能跨難度層（例如小學只有 12 首，塾生那一站就會
@@ -259,7 +400,7 @@
                 });
 
                 st.units = units;
-                st.requiredClears = units.length * CHANNELS_PER_LEVEL;
+                st.requiredClears = units.length * PLAYS_PER_UNIT;
             }
 
             this._cache = stations;
@@ -371,7 +512,7 @@
          * 只是那邊還要交叉比對玩家目前的通關紀錄。這裡只回傳「總共需要幾關」，
          * 不含玩家進度，可在沒有 window/localStorage 的 Node 環境下使用。
          *
-         * @returns {number} 必通關卡總次數（= 關卡數 × getChannelsPerLevel()）
+         * @returns {number} 必通關卡總次數（= 關卡數 × getPlaysPerUnit()）
          */
         getCumulativeUnits: function (rankName) {
             const ms = this.getMilestones();
@@ -380,12 +521,18 @@
             const list = this.getPoemUnits().slice(0, ms[idx].poems);
             let total = 0;
             list.forEach(p => { total += (p.units || []).length; });
-            return total * this.getChannelsPerLevel();
+            return total * this.getPlaysPerUnit();
         },
 
-        /** 每一關需要幾種不同的提取方式才算完成 */
-        getChannelsPerLevel: function () {
-            return CHANNELS_PER_LEVEL;
+        /**
+         * 一個題目單元要玩幾局才算完成（每一局必須是不同的遊戲）。
+         *
+         * ⚠️ 舊名為 getPlaysPerUnit，語意是「幾種通道」。通道種類的保證
+         *    已上移到「站」的層級（一站十幾局涵蓋 3 種通道），單元層改為
+         *    「3 款不同遊戲」，因此更名以免誤導。
+         */
+        getPlaysPerUnit: function () {
+            return PLAYS_PER_UNIT;
         },
 
         /**
@@ -416,6 +563,81 @@
             const total = this.getTotalPoems();
             return RANK_MILESTONES.map(m =>
                 ({ name: m.name, poems: m.poems < 0 ? total : Math.min(m.poems, total) }));
+        },
+
+        /**
+         * 站點負荷檢查（供 tools/dump_path.js 與企畫書對帳用）。
+         *
+         * 交錯排序只保證「相鄰兩首不會同時是長詩」，但站點邊界是由文位里程碑
+         * 切出來的，不保證落在偶數位；一旦錯位，仍可能有某一站同時吃到兩首長詩。
+         * 這個函式把這種站點揪出來，讓排序規則的效果可以被實際驗證，
+         * 而不是「改完就相信它對了」。
+         *
+         * @returns {Array<{index, name, chars, units, poems, reasons:string[]}>}
+         *          只回傳有問題的站；空陣列 = 全部通過。
+         */
+        getLoadReport: function () {
+            const stations = this.build();
+            const LT = this.getLevelTable();
+            const poems = LT && LT.getPoems ? LT.getPoems() : [];
+            const linesById = {};
+            const titleById = {};
+            poems.forEach(p => {
+                linesById[p.id] = countLines(p);
+                titleById[p.id] = p.title || ('#' + p.id);
+            });
+
+            const out = [];
+            let lastLongAt = -99;          // 上一個含長篇的站索引
+            let lastLongName = '';
+
+            stations.forEach((st, i) => {
+                const ids = st.poemIds || [];
+                const n = ids.length || 1;
+                const longs = ids.filter(id => (linesById[id] || 0) >= LONG_POEM_LINES);
+                const reasons = [];
+
+                // (1) 同一站塞了太多長篇
+                if (longs.length > 1 && longs.length > n / 2) {
+                    reasons.push('這一站 ' + n + ' 首裡有 ' + longs.length + ' 首長篇（' +
+                        longs.map(id => titleById[id] + ' ' + linesById[id] + '句').join('、') + '）');
+                }
+
+                // (2) 兩個「超長篇」站靠太近 —— 溫習會取用鄰站題目，
+                //     超長篇連站等於連複習都在啃長篇。
+                //
+                // ⚠️ 只對超長篇把關。中長篇（12~19 句）在中後期密度太高，
+                //    數學上不可能全部拉開（評價 5 有 15 首長篇卻只有 20 站，
+                //    不相鄰最多只能用 10 站），全部列出來只是噪音。
+                const supers = ids.filter(id => (linesById[id] || 0) >= SUPER_LONG_POEM_LINES);
+                if (supers.length) {
+                    const gap = i - lastLongAt;
+                    if (gap < LONG_POEM_MIN_GAP) {
+                        reasons.push('距上一個超長篇站僅 ' + gap + ' 站（' + lastLongName +
+                            '），需至少相隔 ' + LONG_POEM_MIN_GAP + ' 站');
+                    }
+                    lastLongAt = i;
+                    lastLongName = titleById[supers[0]] + ' ' + linesById[supers[0]] + '句';
+                }
+
+                // (3) 與前一站相比必通關卡暴增（玩家會感覺突然卡死）
+                const prev = stations[i - 1];
+                if (prev && prev.requiredClears &&
+                    st.requiredClears >= prev.requiredClears * 2.5) {
+                    reasons.push('必通關卡 ' + prev.requiredClears +
+                        ' → ' + st.requiredClears + '，較前一站暴增');
+                }
+
+                if (reasons.length) {
+                    out.push({
+                        index: i, name: st.name, chars: st.chars,
+                        units: st.requiredClears,
+                        poems: ids.map(id => titleById[id] + '(' + linesById[id] + '句)'),
+                        reasons: reasons
+                    });
+                }
+            });
+            return out;
         },
 
         /** 統計資訊（供驗證腳本與企畫書對帳用） */

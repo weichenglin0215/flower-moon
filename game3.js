@@ -38,11 +38,11 @@
         //incrementSpeed: 速度增長量
         //maxSpeed: 最大速度
         difficultySettings: {
-            '小學': { poemMinRating: 6, maxMistakeCount: 10, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.006, maxSpeed: 0.10 },
-            '中學': { poemMinRating: 5, maxMistakeCount: 9, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.008, maxSpeed: 0.12 },
-            '高中': { poemMinRating: 4, maxMistakeCount: 8, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.010, maxSpeed: 0.16 },
-            '大學': { poemMinRating: 3, maxMistakeCount: 7, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.012, maxSpeed: 0.2 },
-            '研究所': { poemMinRating: 3, maxMistakeCount: 6, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.014, maxSpeed: 0.24 }
+            '小學': { poemMinRating: 6, maxMistakeCount: 10, sentenceMinRating: 5, minOptions: 1, maxOptions: 2, isStrictOrder: false, incrementSpeed: 0.006, maxSpeed: 0.10, minLines: 4, maxLines: 10, minChars: 20, maxChars: 100 },
+            '中學': { poemMinRating: 5, maxMistakeCount: 9, sentenceMinRating: 3, minOptions: 1, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.008, maxSpeed: 0.12, minLines: 4, maxLines: 10, minChars: 20, maxChars: 100 },
+            '高中': { poemMinRating: 4, maxMistakeCount: 8, sentenceMinRating: 2, minOptions: 2, maxOptions: 3, isStrictOrder: false, incrementSpeed: 0.010, maxSpeed: 0.16, minLines: 4, maxLines: 10, minChars: 20, maxChars: 100 },
+            '大學': { poemMinRating: 3, maxMistakeCount: 7, sentenceMinRating: 1, minOptions: 3, maxOptions: 4, isStrictOrder: true, incrementSpeed: 0.012, maxSpeed: 0.2, minLines: 4, maxLines: 10, minChars: 20, maxChars: 100 },
+            '研究所': { poemMinRating: 3, maxMistakeCount: 6, sentenceMinRating: 1, minOptions: 3, maxOptions: 5, isStrictOrder: true, incrementSpeed: 0.014, maxSpeed: 0.24, minLines: 4, maxLines: 10, minChars: 20, maxChars: 100 }
         },
 
         // 動態載入 game3.css 樣式表（避免重複載入）
@@ -383,10 +383,10 @@
             // 依難度設定的最低評分等條件，向共用函式取得隨機（或指定關卡對應）的詩詞片段
             const result = getSharedRandomPoem(
                 setting.poemMinRating || 4,
-                4,
-                10,
-                20,
-                100,
+                setting.minLines,
+                setting.maxLines,
+                setting.minChars,
+                setting.maxChars,
                 "",
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game3'

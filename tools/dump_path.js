@@ -68,7 +68,7 @@ function summary() {
     lines.push('  （區段 = 這個文位自己 4 階的關卡總和；累積 = 從開局到此文位的總量，決定能否應試）');
     PathStations.getMilestones().forEach(m => {
         const segUnits = PathStations.getRankUnits(m.name).length;
-        const segNeed = segUnits * PathStations.getChannelsPerLevel();
+        const segNeed = segUnits * PathStations.getPlaysPerUnit();
         const cumNeed = PathStations.getCumulativeUnits(m.name);
         lines.push(`  ${m.name.padEnd(4, '　')} 累積詩 ${String(m.poems).padStart(3)} 首` +
             `　區段必通 ${String(segNeed).padStart(4)} 次　→　累積必通 ${String(cumNeed).padStart(5)} 次`);
@@ -130,13 +130,38 @@ function toMarkdown() {
     return out.join('\n');
 }
 
+/**
+ * 站點負荷檢查報告。
+ *
+ * 學習序列會在同評價內把長篇平均散開（見 pathStations.spreadLongPoems），
+ * 目的是避免連續好幾站都在啃長篇 —— 出題有機會取用鄰站題目當溫習，
+ * 長篇連站等於連複習都沒得喘息。但能拉開多遠受題庫本身的密度限制，
+ * 所以必須實際驗證，不能改完就當它對了。空清單代表全部通過。
+ */
+function loadReport() {
+    const report = PathStations.getLoadReport();
+    const lines = ['', '══ 站點負荷檢查 ══'];
+    if (!report.length) {
+        lines.push('✅ 沒有失衡的站點');
+        return lines.join('\n');
+    }
+    lines.push(`⚠ ${report.length} 個站點負荷偏重（多半是題庫裡本來就有的超長篇，無法再拆）：`);
+    report.forEach(r => {
+        lines.push(`  站${r.index} ${r.name}　${r.poems.join('、')}　必通 ${r.units} 次`);
+        r.reasons.forEach(m => lines.push(`      → ${m}`));
+    });
+    return lines.join('\n');
+}
+
 if (mode === 'md') {
     const target = path.join(rootDir, 'note', '青雲梯站點清單.md');
     fs.writeFileSync(target, toMarkdown(), 'utf8');
     console.log('已輸出：' + path.relative(rootDir, target));
     console.log('');
     console.log(summary());
+    console.log(loadReport());
 } else {
     console.log(summary());
     console.log(detail(mode === 'all' ? stations.length : 20));
+    console.log(loadReport());
 }

@@ -52,11 +52,11 @@
         //難度參數詳細說明，hasHint: true表示有提示，undo: true表示有撤銷，moveLimit: 0表示沒有移動次數上限，exchangeQuantity: 2表示控制題目難度的預先的交換螺絲數，totalNumberOfExchange: 16表示題目總共預先交換的次數(越多次越難)
         //color: hard, expert 可使用深色且難以辨識的顏色
         difficultySettings: {
-            '小學': { timeLimit: 90, poemMinRating: 6, bolts: 6, emptyBolts: 2, hasHint: 'all', undo: true, moveLimit: 0, exchangeQuantity: 2, totalNumberOfExchange: 16 },
-            '中學': { timeLimit: 120, poemMinRating: 5, bolts: 6, emptyBolts: 2, hasHint: 'firstEnd', undo: true, moveLimit: 0, exchangeQuantity: 3, totalNumberOfExchange: 24 },
-            '高中': { timeLimit: 150, poemMinRating: 4, bolts: 6, emptyBolts: 2, hasHint: 'first', undo: true, moveLimit: 0, exchangeQuantity: 4, totalNumberOfExchange: 32 },
-            '大學': { timeLimit: 180, poemMinRating: 3, bolts: 6, emptyBolts: 2, hasHint: 'end', undo: true, moveLimit: 0, exchangeQuantity: 5, totalNumberOfExchange: 48 },
-            '研究所': { timeLimit: 240, poemMinRating: 2, bolts: 6, emptyBolts: 2, hasHint: 'none', undo: false, moveLimit: 0, color: 'hard', exchangeQuantity: 7, totalNumberOfExchange: 56 }
+            '小學': { timeLimit: 90, poemMinRating: 6, bolts: 6, emptyBolts: 2, hasHint: 'all', undo: true, moveLimit: 0, exchangeQuantity: 2, totalNumberOfExchange: 16, minLines: 4, maxLines: 4, minChars: 16, maxChars: 40 },
+            '中學': { timeLimit: 120, poemMinRating: 5, bolts: 6, emptyBolts: 2, hasHint: 'firstEnd', undo: true, moveLimit: 0, exchangeQuantity: 3, totalNumberOfExchange: 24, minLines: 4, maxLines: 4, minChars: 16, maxChars: 40 },
+            '高中': { timeLimit: 150, poemMinRating: 4, bolts: 6, emptyBolts: 2, hasHint: 'first', undo: true, moveLimit: 0, exchangeQuantity: 4, totalNumberOfExchange: 32, minLines: 4, maxLines: 4, minChars: 16, maxChars: 40 },
+            '大學': { timeLimit: 180, poemMinRating: 3, bolts: 6, emptyBolts: 2, hasHint: 'end', undo: true, moveLimit: 0, exchangeQuantity: 5, totalNumberOfExchange: 48, minLines: 4, maxLines: 4, minChars: 16, maxChars: 40 },
+            '研究所': { timeLimit: 240, poemMinRating: 2, bolts: 6, emptyBolts: 2, hasHint: 'none', undo: false, moveLimit: 0, color: 'hard', exchangeQuantity: 7, totalNumberOfExchange: 56, minLines: 4, maxLines: 4, minChars: 16, maxChars: 40 }
         },
 
         loadCSS: function () {
@@ -315,7 +315,7 @@
             // 使用共用邏輯取得隨機詩詞，傳入種子
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
-                4, 4, 16, 40, "",
+                settings.minLines, settings.maxLines, settings.minChars, settings.maxChars, "",
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game9'
             );

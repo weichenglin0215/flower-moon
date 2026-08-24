@@ -49,11 +49,11 @@
         // minMaskCount / maxMaskCount: 可見句的字元遮罩數量
         // optionCount: 答案選項總數
         difficultySettings: {
-            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 3, formats: ['A'], minMaskCount: 0, maxMaskCount: 0, optionCount: 4 },
-            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 3, formats: ['A', 'B'], minMaskCount: 0, maxMaskCount: 2, optionCount: 5 },
-            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, formats: ['B'], minMaskCount: 1, maxMaskCount: 4, optionCount: 6 },
-            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, formats: ['B', 'C'], minMaskCount: 3, maxMaskCount: 5, optionCount: 7 },
-            '研究所': { timeLimit: 10, poemMinRating: 3, maxMistakeCount: 1, formats: ['B', 'C'], minMaskCount: 4, maxMaskCount: 6, optionCount: 8 }
+            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 3, formats: ['A'], minMaskCount: 0, maxMaskCount: 0, optionCount: 4, maxLines: 6, minChars: 8, maxChars: 60 },
+            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 3, formats: ['A', 'B'], minMaskCount: 0, maxMaskCount: 2, optionCount: 5, maxLines: 6, minChars: 8, maxChars: 60 },
+            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, formats: ['B'], minMaskCount: 1, maxMaskCount: 4, optionCount: 6, maxLines: 6, minChars: 8, maxChars: 60 },
+            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, formats: ['B', 'C'], minMaskCount: 3, maxMaskCount: 5, optionCount: 7, maxLines: 6, minChars: 8, maxChars: 60 },
+            '研究所': { timeLimit: 10, poemMinRating: 3, maxMistakeCount: 1, formats: ['B', 'C'], minMaskCount: 4, maxMaskCount: 6, optionCount: 8, maxLines: 6, minChars: 8, maxChars: 60 }
         },
 
         // ------------------------------------------------------------
@@ -316,7 +316,8 @@
             // 共用題庫選取，融入 gameKey 確保不同遊戲同關卡題目不同
             const result = getSharedRandomPoem(
                 settings.poemMinRating,
-                needLines, Math.max(needLines, 6), 8, 60, "",
+                // minLines 由題型 A/B/C 決定，不隨難度層變動，故不放進 difficultySettings
+                needLines, Math.max(needLines, settings.maxLines), settings.minChars, settings.maxChars, "",
                 this.isLevelMode ? this.currentLevelIndex : null,
                 'game20'
             );

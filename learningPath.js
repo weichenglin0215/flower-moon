@@ -14,8 +14,9 @@
    ── 與舊版最大的差異 ────────────────────────────────────────────────
    舊版用「積分」決定玩家走到哪一站，代表反覆刷低難度遊戲就能升到大儒。
    新版改用「必通關卡」：
-     · 一首詩的必通關卡 = 該詩的題目單元 × 3 種**不同提取方式**
-     · 一關要用三種不同記憶通道各通過一次才算完成
+     · 一首詩的必通關卡 = 該詩的題目單元 × 每個單元 3 局
+     · 一個單元的 3 局必須用 3 款**不同遊戲**（同款玩第二次就沒難度了）
+     · 一站的十幾局**整體**至少要涵蓋 3 種不同的記憶通道
      · 積分完全不參與進度判定（只留在排行榜與統計）
    這樣「文位」才真的代表「我學會了幾首詩」。
    ========================================================================== */
@@ -42,7 +43,7 @@
     //
     //    同一首詩用不同通道各碰一次，效果遠勝同一通道碰很多次
     //    （交錯練習 / desirable difficulty）。因此換遊戲不只是防無聊，
-    //    它本身就是教學法 —— 這也是「一關要三種通道」的由來。
+    //    它本身就是教學法 —— 這也是「一站要涵蓋三種通道」的由來。
     const GAME_CHANNELS = {
         // 語感記憶：整句節奏與詞序
         1: '語感', 4: '語感', 20: '語感', 31: '語感',
@@ -74,9 +75,29 @@
         37: '步步為陣', 40: '點兵成詩'
     };
 
+    // ── 通道出現權重（作者定案）─────────────────────────────────────────
+    // 語感 : 字序 : 空間 : 背景 : 推理 = 12 : 3 : 3 : 1 : 1
+    //
+    // 用意是讓玩家仍有機會碰到各種類型的遊戲，但把大部分局數留給「語感」——
+    // 語感題型的變化度最高，字序類（如步步驚心）題型變化小，出太多會膩。
+    //
+    // ⚠️ 權重只在「該文位已解鎖的通道」之間分配。書僮只有語感/字序/空間，
+    //    因此在那一站實際上是 12:3:3。等蒙童解鎖推理、童生解鎖背景之後，
+    //    比例才會逐步逼近上面的設定值。
+    const CHANNEL_WEIGHTS = {
+        '語感': 12, '字序': 3, '空間': 3, '背景': 1, '推理': 1
+    };
+
+    // 一站的十幾局整體至少要涵蓋幾種通道
+    const MIN_CHANNELS_PER_STATION = 3;
+
+    // 站尾保留幾局做「刻意補缺」：進入最後這幾局時若通道種類還不足，
+    // 就不再依權重隨機，改成指定挑還沒出現過的通道。
+    const DELIBERATE_TAIL_ROUNDS = 3;
+
     // ── 遊戲切換規則的參數（企畫書 10.2）───────────────────────────────
     const MAX_SAME_GAME_STREAK = 3;   // 同一款遊戲最多連續幾局
-    const RECENT_WINDOW = 5;          // 排除最近幾局出現過的（關卡 × 遊戲）組合
+    const RECENT_WINDOW = 5;          // 排除最近幾局出現過的（單元 × 遊戲）組合
 
     // ── 捐納跳關（企畫書 8.3）──────────────────────────────────────────
     // 積分原本是軟性門檻，卡住也能刷過去；改為硬性關卡後就是硬牆了。
@@ -102,7 +123,6 @@
         // 遊戲切換用的短期記憶（僅存活於本次工作階段）
         _recent: [],          // 最近幾局的「tier|level|game」字串
         _lastGame: null,
-        _lastChannel: null,
         _sameGameStreak: 0,
         _pendingUnit: null,   // 上一次派出去、尚未確認通過的關卡
         _currentStation: null,// 玩家目前正在闖的那一站
@@ -128,10 +148,15 @@
         // ══════════════════════════════════════════════════════════════
 
         /**
-         * 建立「關卡 → 已通過的提取方式」對照表。
+         * 建立「題目單元 → 已用哪幾款遊戲通過」對照表。
          *
-         * ⚠️ 一定要快取：計算已學首數需走訪 346 首詩約 970 關，
-         *    若每一關都呼叫 loadPlayerData（會 JSON.parse 整份存檔），
+         * ⚠️ 記錄的是**遊戲**不是通道。
+         *    通道種類的保證在「站」的層級（一站十幾局要涵蓋 3 種通道，
+         *    見 pickGame 的站尾補缺規則）；單元層級要管的是別讓同樣的
+         *    兩句話用同一款遊戲重複玩 —— 第二次就沒有難度了。
+         *
+         * ⚠️ 一定要快取：計算已學首數需走訪 346 首詩約 970 個單元，
+         *    若每一個都呼叫 loadPlayerData（會 JSON.parse 整份存檔），
          *    光是開啟青雲梯就要解析近千次存檔。這裡改成整份只讀一次。
          *
          * ⚠️ 只採計列入必通關卡的 14 款遊戲；被移出的四款（21/23/33/36）
@@ -146,8 +171,7 @@
                 const lc = data.levelCleared || {};
                 for (const gameKey in lc) {
                     const no = parseInt(String(gameKey).replace('game', ''), 10);
-                    const ch = GAME_CHANNELS[no];
-                    if (!ch || REVIEW_ONLY_GAMES[no]) continue;
+                    if (!GAME_CHANNELS[no] || REVIEW_ONLY_GAMES[no]) continue;
                     const byTier = lc[gameKey] || {};
                     for (const tier in byTier) {
                         const arr = byTier[tier];
@@ -155,7 +179,7 @@
                         for (let i = 0; i < arr.length; i++) {
                             const k = tier + '|' + arr[i];
                             if (!map[k]) map[k] = {};
-                            map[k][ch] = true;
+                            map[k][no] = true;
                         }
                     }
                 }
@@ -166,7 +190,7 @@
                     for (let i = 0; i < arr.length; i++) donated[tier + '|' + arr[i]] = true;
                 }
             }
-            this._progressCache = { channels: map, donated: donated };
+            this._progressCache = { games: map, donated: donated };
             return this._progressCache;
         },
 
@@ -176,21 +200,55 @@
         },
 
         /**
-         * 取得某一關已經用哪幾種提取方式通過了。
-         * @returns {Object} 以通道名稱為 key 的集合（用物件模擬 Set，相容舊瀏覽器）
+         * 取得某個題目單元已經用哪幾款遊戲通過了。
+         * @returns {Object} 以遊戲編號為 key 的集合（用物件模擬 Set，相容舊瀏覽器）
          */
-        getLevelChannels: function (tier, level) {
+        getLevelGames: function (tier, level) {
             const c = this.buildProgressCache();
-            return c.channels[tier + '|' + level] || {};
+            return c.games[tier + '|' + level] || {};
         },
 
-        /** 這一關是否已完成（已用三種不同提取方式通過，或已捐納跳過） */
+        /** 這個題目單元已完成的局數（已用幾款不同遊戲通過） */
+        getUnitPlays: function (tier, level) {
+            return Object.keys(this.getLevelGames(tier, level)).length;
+        },
+
+        /** 這個題目單元是否已完成（已用三款不同遊戲通過，或已捐納跳過） */
         isUnitDone: function (unit) {
             const c = this.buildProgressCache();
             if (c.donated[unit.tier + '|' + unit.level]) return true;
             const need = window.PathStations
-                ? window.PathStations.getChannelsPerLevel() : 3;
-            return Object.keys(this.getLevelChannels(unit.tier, unit.level)).length >= need;
+                ? window.PathStations.getPlaysPerUnit() : 3;
+            return this.getUnitPlays(unit.tier, unit.level) >= need;
+        },
+
+        /**
+         * 這一站目前的局數進度與「已經出現過哪些通道」。
+         *
+         * 這是站尾補缺規則的依據：一站的十幾局整體要涵蓋至少 3 種通道，
+         * 因此必須知道還剩幾局、以及目前湊到幾種通道。
+         * 完全由既有存檔推導，不需要新增任何欄位。
+         *
+         * @returns {{done:number, total:number, channels:Object}}
+         */
+        getStationRounds: function (station) {
+            const units = (station && station.units) || [];
+            const per = window.PathStations
+                ? window.PathStations.getPlaysPerUnit() : 3;
+            const cache = this.buildProgressCache();
+            let done = 0;
+            const channels = {};
+            units.forEach(u => {
+                // 捐納跳關的單元沒有實際遊玩，但要算進「這一站已推進多少」
+                if (cache.donated[u.tier + '|' + u.level]) { done += per; return; }
+                const games = this.getLevelGames(u.tier, u.level);
+                Object.keys(games).forEach(no => {
+                    done++;
+                    const ch = GAME_CHANNELS[no];
+                    if (ch) channels[ch] = true;
+                });
+            });
+            return { done: done, total: units.length * per, channels: channels };
         },
 
         /**
@@ -228,14 +286,14 @@
             const next = stations[idx + 1];
             if (!cur || !next) return empty;   // 已經是最後一站（大儒）
 
-            const per = PS.getChannelsPerLevel();
+            const per = PS.getPlaysPerUnit();
             let done = 0;
             (cur.units || []).forEach(u => {
                 if (window.ScoreManager && window.ScoreManager.isLevelDonated(u.tier, u.level)) {
                     done += per;
                     return;
                 }
-                done += Math.min(per, Object.keys(this.getLevelChannels(u.tier, u.level)).length);
+                done += Math.min(per, this.getUnitPlays(u.tier, u.level));
             });
             return { nextName: next.name, done: done, total: cur.requiredClears };
         },
@@ -543,9 +601,9 @@
             const u = this._pendingUnit;
             this._pendingUnit = null;
             if (!u || !window.ScoreManager) return;
-            // 這一關的提取方式集合沒有增加，視為這一次沒過
-            const nowCount = Object.keys(this.getLevelChannels(u.tier, u.level)).length;
-            if (nowCount <= u.channelsBefore) {
+            // 這個單元的通關遊戲集合沒有增加，視為這一次沒過
+            const nowCount = this.getUnitPlays(u.tier, u.level);
+            if (nowCount <= u.playsBefore) {
                 window.ScoreManager.recordLevelFail(u.tier, u.level);
             }
         },
@@ -780,15 +838,48 @@
         },
 
         /**
-         * 決定這一次要玩哪一款遊戲（企畫書 10.2）。
+         * 依通道權重隨機挑一種通道。
+         * 只在傳入的候選通道之間分配 —— 例如書僮還沒解鎖背景與推理，
+         * 12:3:3:1:1 在那一站就會正規化成 12:3:3。
+         */
+        pickChannelByWeight: function (channels) {
+            if (!channels.length) return null;
+            let total = 0;
+            channels.forEach(c => { total += (CHANNEL_WEIGHTS[c] || 1); });
+            let r = Math.random() * total;
+            for (let i = 0; i < channels.length; i++) {
+                r -= (CHANNEL_WEIGHTS[channels[i]] || 1);
+                if (r <= 0) return channels[i];
+            }
+            return channels[channels.length - 1];
+        },
+
+        /**
+         * 決定這一次要玩哪一款遊戲。
          *
-         * 依序套用四條規則，每一條都只在「篩完還有候選」時才生效，
-         * 避免規則太嚴導致無games可選：
-         *   1. 優先補上這一關還缺的提取方式（這是必通關卡的核心）
+         * ── 兩層規則 ────────────────────────────────────────────────────
+         * 單元層（同一組詩句的那 3 局）：必須是 3 款不同的遊戲。
+         *   同樣兩句話用同一款遊戲玩第二次就沒有難度了。
+         *
+         * 站層（一站十幾局的整體）：至少要涵蓋 3 種不同通道，
+         *   讓玩家享受到不同類型遊戲的樂趣。
+         *
+         * ── 為什麼通道保證放在站層而不是單元層 ──────────────────────────
+         * 若要求「每個單元都要集滿 3 種不同通道」，一個 N 單元的站對每種
+         * 通道的需求量就固定是 N 次，總局數 3N —— 權重只能改變順序，
+         * 改不了比例，語感永遠被鎖在 1/3。實測純加權重數字分毫未變。
+         * 改放在站層之後，權重才真正生效（語感 33.3% → 58.5%）。
+         *
+         * ── 挑選順序 ────────────────────────────────────────────────────
+         *   1. 排除這個單元已經玩過的遊戲
          *   2. 同一款遊戲最多連續 3 局
-         *   3. 優先跨提取方式（與上一局不同通道）
-         *   4. 長題目遊戲不連續出現兩次
-         *   5. 排除最近 5 局出現過的（關卡 × 遊戲）組合
+         *   3. 長題目遊戲不連續出現兩次
+         *   4. 排除最近 5 局出現過的（單元 × 遊戲）組合
+         *   5. 依 12:3:3:1:1 權重挑通道；但若已進入這一站的最後 3 局
+         *      而通道種類還不足 3 種，就改成刻意挑還沒出現過的通道
+         *   6. 在該通道的候選遊戲中隨機挑一款
+         *
+         * 每一條篩選都只在「篩完還有候選」時才生效，避免規則太嚴導致無遊戲可選。
          */
         pickGame: function (rankName, unit, exclude) {
             const skip = exclude || [];
@@ -803,28 +894,47 @@
                 return f.length ? f : list;
             };
 
-            // 1. 這一關還缺哪些提取方式
-            const done = unit ? this.getLevelChannels(unit.tier, unit.level) : {};
-            let cands = narrow(pool, g => !done[GAME_CHANNELS[g]]);
+            // 1. 這個單元已經玩過的遊戲不再重複
+            const played = unit ? this.getLevelGames(unit.tier, unit.level) : {};
+            let cands = narrow(pool, g => !played[g]);
 
             // 2. 同一款不得連續超過上限
             if (this._sameGameStreak >= MAX_SAME_GAME_STREAK) {
                 cands = narrow(cands, g => g !== this._lastGame);
             }
-            // 3. 優先換一種記憶通道
-            if (this._lastChannel) {
-                cands = narrow(cands, g => GAME_CHANNELS[g] !== this._lastChannel);
-            }
-            // 4. 長題目不連續
+            // 3. 長題目不連續
             if (this._lastGame && LONG_GAMES[this._lastGame]) {
                 cands = narrow(cands, g => !LONG_GAMES[g]);
             }
-            // 5. 排除最近出現過的（關卡 × 遊戲）組合
+            // 4. 排除最近出現過的（單元 × 遊戲）組合
             if (unit) {
                 cands = narrow(cands, g => this._recent.indexOf(unit.tier + '|' + unit.level + '|' + g) === -1);
             }
 
-            return cands[Math.floor(Math.random() * cands.length)];
+            // 5. 挑通道
+            const byChannel = {};
+            cands.forEach(g => {
+                const c = GAME_CHANNELS[g];
+                (byChannel[c] = byChannel[c] || []).push(g);
+            });
+            let channels = Object.keys(byChannel);
+
+            const st = this._currentStation;
+            if (st && channels.length > 1) {
+                const prog = this.getStationRounds(st);
+                const left = prog.total - prog.done;
+                const got = Object.keys(prog.channels).length;
+                if (left <= DELIBERATE_TAIL_ROUNDS && got < MIN_CHANNELS_PER_STATION) {
+                    // 站尾補缺：剩沒幾局了，通道種類還不夠 —— 刻意挑沒出現過的
+                    const missing = channels.filter(c => !prog.channels[c]);
+                    if (missing.length) channels = missing;
+                }
+            }
+
+            // 6. 在該通道裡隨機挑一款
+            const ch = this.pickChannelByWeight(channels);
+            const list = byChannel[ch] || cands;
+            return list[Math.floor(Math.random() * list.length)];
         },
 
         /** 記下這一局，供切換規則參考 */
@@ -832,7 +942,6 @@
             if (gameNo === this._lastGame) this._sameGameStreak++;
             else this._sameGameStreak = 1;
             this._lastGame = gameNo;
-            this._lastChannel = GAME_CHANNELS[gameNo] || null;
             if (unit) {
                 this._recent.push(unit.tier + '|' + unit.level + '|' + gameNo);
                 while (this._recent.length > RECENT_WINDOW) this._recent.shift();
@@ -894,7 +1003,7 @@
             this._pendingUnit = {
                 tier: unit.tier,
                 level: unit.level,
-                channelsBefore: Object.keys(this.getLevelChannels(unit.tier, unit.level)).length
+                playsBefore: this.getUnitPlays(unit.tier, unit.level)
             };
 
             this.launchGame(gameNo, unit.tier, unit.level);
@@ -1067,7 +1176,7 @@
             this._pendingUnit = {
                 tier: unit.tier,
                 level: unit.level,
-                channelsBefore: Object.keys(this.getLevelChannels(unit.tier, unit.level)).length
+                playsBefore: this.getUnitPlays(unit.tier, unit.level)
             };
 
             // 換遊戲時先關掉目前這一款，避免兩個 overlay 疊著
