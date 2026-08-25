@@ -70,6 +70,55 @@
             }
         },
 
+        // ── 文錢異動的唯一收口 ────────────────────────────────────────
+        //
+        // ⚠️ 為什麼要有這支函式：
+        //    改版前文錢散落在 9 個地方各自 `data.silver += x`
+        //    （collection.js 7 處、achievement.js 1 處、scoreManager.js 1 處），
+        //    雲端完全看不見「玩遊戲以外」的文錢流向，
+        //    導致「玩家遊戲日曆」無法把兩種文錢分開統計。
+        //    收口成一支函式之後，未來新增任何文錢來源都會自動留下雲端流水帳。
+        //
+        // ⚠️ 這支函式**不負責存檔**：
+        //    呼叫端（尤其 collection.js）通常會在同一批操作裡連帶改動
+        //    inventory / plots / teaHouses 等欄位，最後才呼叫一次 save(this.data)。
+        //    若在這裡自行 save，會先寫入一份半成品，隨即又被呼叫端的 save 覆蓋，
+        //    徒增一次無謂的 localStorage 寫入與雲端同步排程。
+        //    因此呼叫端原本的 save(data) 一律保留不動。
+        //
+        // @param {object} data   呼叫端持有的存檔物件（會被就地修改 silver 欄位）
+        // @param {number} amount 正值＝獲得，負值＝花費
+        // @param {string} source 來源代碼，需與 silver_events.source 一致：
+        //                        cert / rank / harvest / tea / wine / scribe /
+        //                        sell / decorate / exam_fee
+        // @param {string} [note] 除錯用備註（獎狀 achId、物品名稱…）
+        // @returns {number} 異動後的文錢餘額
+        addSilver: function (data, amount, source, note) {
+            if (!data) return 0;
+            amount = Math.round(Number(amount) || 0);
+            if (amount === 0) return data.silver || 0;
+
+            data.silver = (data.silver || 0) + amount;
+
+            // 寫雲端流水帳。失敗不可影響本機文錢的發放 ——
+            // 餘額的權威永遠是本機存檔（並隨 player_saves.collection 上雲），
+            // silver_events 只是統計用的流水帳，少一筆不影響玩家權益。
+            try {
+                if (window.SupabaseClient
+                    && typeof window.SupabaseClient.logSilverEvent === 'function') {
+                    window.SupabaseClient.logSilverEvent({
+                        amount: amount,
+                        source: source || 'other',
+                        note:   note || null
+                    });
+                }
+            } catch (e) {
+                console.warn('[FMCollectionSave] 文錢流水帳寫入失敗:', e);
+            }
+
+            return data.silver;
+        },
+
         save: function (data) {
             if (!data) return false;
             data.timestamps = data.timestamps || {};

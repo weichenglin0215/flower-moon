@@ -274,6 +274,12 @@ const ScoreManager = {
                 const silverGained = Math.floor(finalScore / 100);
                 if (silverGained > 0) {
                     const collData = window.FMCollectionSave.load();
+                    // ⚠️ 這裡刻意**不**走 FMCollectionSave.addSilver。
+                    //    addSilver 會順帶寫一筆 silver_events 流水帳，
+                    //    但「玩遊戲賺的文錢」在雲端是由 game_logs 的 trigger
+                    //    自行以 floor(score/100) 推算的（規則與下面這行相同）。
+                    //    若這裡也寫流水帳，遊戲日曆的文錢會被重複計算一次。
+                    //    詳見 note/排行榜彙總表_SQL草案.sql 第 2 節與 7.4 節。
                     collData.silver = (collData.silver || 0) + silverGained;
                     window.FMCollectionSave.save(collData);
                     // 若「江南小院」畫面正開著，即時刷新 HUD

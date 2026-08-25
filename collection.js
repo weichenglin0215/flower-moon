@@ -1330,7 +1330,7 @@
             const def = POT_KINDS[p.kind];
             const tier = this.rollTier(p.seedTier, p.overdueLevel || 0);
             const price = def.prices[tier][1];
-            this.data.silver += price;
+            window.FMCollectionSave.addSilver(this.data, price, 'harvest', p.kind + '_' + tier);
             this.addInv(p.kind, tier);
             this.data.plots[idx] = window.FMCollectionSave.emptyPlot();
             this.showToast('採得 ' + p.kind + '（' + tier + '），售 ' + price + ' 文錢');
@@ -1418,7 +1418,7 @@
             const def = TEA_KINDS[h.kind];
             const tier = this.rollTier(h.seedTier, h.overdueLevel || 0);
             const price = def.prices[tier][1];
-            this.data.silver += price;
+            window.FMCollectionSave.addSilver(this.data, price, 'tea', h.kind + '_' + tier);
             this.addInv(h.kind, tier);
             this.data.teaHouses[idx] = window.FMCollectionSave.emptyTeaHouse();
             this.showToast('取得 ' + h.kind + '（' + tier + '），售 ' + price + ' 文錢');
@@ -1459,7 +1459,7 @@
             const def = WINE_KINDS[w.kind];
             const tier = this.rollTier(w.riceTier, w.openOverdueLevel || 0);
             const price = def.prices[tier][1];
-            this.data.silver += price;
+            window.FMCollectionSave.addSilver(this.data, price, 'wine', w.kind + '_' + tier);
             this.addInv(w.kind, tier);
             this.data.wines[idx] = window.FMCollectionSave.emptyWine();
             this.showToast('得 ' + w.kind + '（' + tier + '），售 ' + price + ' 文錢');
@@ -1515,7 +1515,8 @@
                 total += price;
                 this.addInv(b.kind, b.tier);
             });
-            this.data.silver += total;
+            const bookCount = s.books.length;
+            window.FMCollectionSave.addSilver(this.data, total, 'scribe', '抄本 ' + bookCount + ' 本');
             s.books = [];
             s.lastClaimTs = Date.now();   // 自動續抄：時間戳重設
             this.showToast('取回抄本，共得 ' + total + ' 文錢，已續抄');
@@ -1739,7 +1740,7 @@
                     btn.addEventListener('click', () => {
                         this.data.inventory[k]--;
                         if (this.data.inventory[k] <= 0) delete this.data.inventory[k];
-                        this.data.silver += price;
+                        window.FMCollectionSave.addSilver(this.data, price, 'sell', name + '_' + tier);
                         window.FMCollectionSave.save(this.data);
                         this.renderShopBody('inv');
                         this.refreshHUD();
@@ -1754,7 +1755,7 @@
         /** 購買：花/茶/米 → 入種子袋(seedBag)；古玩 → 直接入存貨(inventory) */
         buy: function (cat, name, tier, buyPrice) {
             if (this.data.silver < buyPrice) { this.showToast('盤纏不足'); return; }
-            this.data.silver -= buyPrice;
+            window.FMCollectionSave.addSilver(this.data, -buyPrice, 'decorate', name + '_' + tier);
             if (cat === 'curio') {
                 this.addInv(name, tier);
                 this.showToast('購得 ' + name + ' ' + tier);
@@ -1864,7 +1865,7 @@
             if (this.data.silver < fee) { this.showToast('盤纏不足'); return; }
 
             // 扣入場費並存檔
-            this.data.silver -= fee;
+            window.FMCollectionSave.addSilver(this.data, -fee, 'exam_fee', rank.name);
             window.FMCollectionSave.save(this.data);
             this.refreshHUD();
 

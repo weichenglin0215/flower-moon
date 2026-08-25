@@ -435,6 +435,17 @@
                             <div class="lp-stat"><span class="lp-stat-label">局數</span><span class="lp-stat-value" id="lpRounds">0</span></div>
                             <div class="lp-stat"><span class="lp-stat-label">文錢</span><span class="lp-stat-value" id="lpSilver">0</span></div>
                         </div>
+                        <button class="pc-entry-btn" id="lpBtnCalendar" title="遊戲日曆" aria-label="遊戲日曆">
+                            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                                <rect x="3" y="5" width="18" height="16" rx="2.5"
+                                      fill="none" stroke="currentColor" stroke-width="2"/>
+                                <path d="M3 10 H21 M8 3 V7 M16 3 V7"
+                                      fill="none" stroke="currentColor" stroke-width="2"
+                                      stroke-linecap="round"/>
+                                <rect x="7" y="13" width="3.2" height="3.2" fill="currentColor"/>
+                                <rect x="13.8" y="13" width="3.2" height="3.2" fill="currentColor"/>
+                            </svg>
+                        </button>
                     </div>
                     <div class="lp-progress-bar"><div class="lp-progress-fill" id="lpProgFill"></div></div>
                     <div class="lp-progress-text" id="lpProgText"></div>
@@ -468,6 +479,16 @@
             overlay.querySelector('#lpBtnGo').addEventListener('click', () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.scrollToCurrent(true);
+            });
+
+            // 遊戲日曆入口（playerCalendar.js）
+            // ⚠️ 每次開啟前先清快取：玩家通常是剛打完幾局才來看日曆，
+            //    若沿用 60 秒內的舊資料，剛才那幾局不會出現，看起來像壞掉。
+            overlay.querySelector('#lpBtnCalendar').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                if (!window.PlayerCalendar) return;
+                window.PlayerCalendar.clearCache();
+                window.PlayerCalendar.show();
             });
 
             this.overlay = overlay;

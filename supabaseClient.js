@@ -352,19 +352,97 @@
             if (!currentId) return; // 未綁定引繼碼則不記錄
 
             try {
-                await supabase
-                    .from('game_logs')
-                    .insert({
-                        player_id:  currentId,
-                        played_at:  new Date().toISOString(),
-                        duration_s: Math.round(opts.durationS || 0), // 本局遊玩時長（秒）
-                        game_no:    opts.gameNo || 0,
-                        difficulty: opts.difficulty || '',
-                        score:      opts.score || 0,
-                        is_win:     opts.isWin !== false
-                    });
+                // 這一局屬於關卡模式（青雲梯／關卡選擇器）還是自由練習？
+                //
+                // ⚠️ 刻意在這裡自行判斷，而不是要求 41 個 logGame 呼叫點多傳一個參數。
+                //    LevelTable 的關卡情境由 level-selector.js／learningPath.js 設定，
+                //    difficulty-selector.js 進入隨機練習前會 clearContext()，
+                //    因此「情境是否存在」正好等於「這局算不算晉升局」。
+                //    結算動畫期間玩家不可能離開關卡，此時讀取仍然有效。
+                const isRanked = !!(window.LevelTable
+                    && typeof window.LevelTable.getContext === 'function'
+                    && window.LevelTable.getContext());
+
+                const payload = {
+                    player_id:  currentId,
+                    played_at:  new Date().toISOString(),
+                    duration_s: Math.round(opts.durationS || 0), // 本局遊玩時長（秒）
+                    game_no:    opts.gameNo || 0,
+                    difficulty: opts.difficulty || '',
+                    score:      opts.score || 0,
+                    is_win:     opts.isWin !== false,
+                    is_ranked:  isRanked
+                };
+
+                const { error } = await supabase.from('game_logs').insert(payload);
+
+                if (error) {
+                    // 資料庫尚未新增 is_ranked 欄位時（PostgREST 42703 / PGRST204），
+                    // 退回舊格式再寫一次。
+                    //
+                    // ⚠️ 這個保險非常重要：supabase-js 不會 throw，只會把錯誤放在
+                    //    回傳值裡，所以少了這段，「JS 先上線、SQL 還沒跑」的空窗期
+                    //    會讓**每一局的 LOG 都靜默寫不進去**，而且外面的 try/catch
+                    //    完全攔不到。作法比照 saveGameToCloud 對 collection 欄位的處理。
+                    const code = String(error.code || '');
+                    const msg  = String(error.message || '');
+                    if (code === '42703' || code === 'PGRST204' || msg.indexOf('is_ranked') >= 0) {
+                        console.warn('[雲端] game_logs 尚無 is_ranked 欄位，本次改存舊格式。'
+                            + '請執行 note/排行榜彙總表_SQL草案.sql 第 1.4 節。');
+                        delete payload.is_ranked;
+                        const retry = await supabase.from('game_logs').insert(payload);
+                        if (retry.error) console.warn('LOG 寫入失敗:', retry.error.message);
+                    } else {
+                        console.warn('LOG 寫入失敗:', msg);
+                    }
+                }
             } catch (e) {
                 console.warn('LOG 寫入失敗:', e);
+            }
+        },
+
+        /**
+         * 寫入一筆文錢流水帳到 Supabase silver_events 資料表。
+         *
+         * ⚠️ 只記「玩遊戲以外」的文錢異動（獎狀、晉升文位、江南小院經營、消費）。
+         *    玩遊戲賺的文錢刻意不寫這裡 —— 它可以由 game_logs.score 直接推算
+         *    （floor(score/100)，與 ScoreManager.saveScore 同一條規則），
+         *    重複記錄只會製造兩份可能對不起來的數字。
+         *
+         * ⚠️ 這張表是統計用的流水帳，不是餘額的權威來源。
+         *    餘額的權威是本機存檔的 collection.silver（隨 player_saves 上雲）。
+         *
+         * 一律由 FMCollectionSave.addSilver 呼叫，其他地方不要直接呼叫，
+         * 否則本機餘額與流水帳會不同步。
+         *
+         * @param {object} opts - { amount, source, note }
+         *   amount: 正值＝獲得，負值＝花費
+         *   source: cert / rank / harvest / tea / wine / scribe / sell / decorate / exam_fee
+         */
+        logSilverEvent: async function (opts) {
+            if (!this.init()) return;
+            const currentId = localStorage.getItem('flower_moon_id');
+            if (!currentId) return; // 未綁定引繼碼則不記錄（與 logGame 一致）
+            if (!opts || !opts.amount) return;
+
+            try {
+                // supabase-js 不會 throw，錯誤只會出現在回傳值裡，必須自己檢查。
+                // silver_events 尚未建立時這裡會持續告警，正好提醒 SQL 還沒跑。
+                const { error } = await supabase
+                    .from('silver_events')
+                    .insert({
+                        player_id:   currentId,
+                        occurred_at: new Date().toISOString(),
+                        amount:      Math.round(opts.amount),
+                        source:      opts.source || 'other',
+                        note:        opts.note || null
+                    });
+                if (error) {
+                    console.warn('[雲端] 文錢流水帳寫入失敗（不影響本機文錢餘額）:',
+                        error.message);
+                }
+            } catch (e) {
+                console.warn('文錢流水帳寫入失敗:', e);
             }
         }
     };

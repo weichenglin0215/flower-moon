@@ -1,0 +1,473 @@
+/* ==========================================================================
+   花月 · 玩家遊戲日曆 playerCalendar.css
+   --------------------------------------------------------------------------
+   對應企劃書：note/玩家遊戲日曆_企劃書.md
+   資料來源  ：note/排行榜彙總表_SQL草案.sql 的 player_daily_stats
+               （RPC: get_player_calendar / get_player_month_summary）
+
+   所有 class 一律使用 pc- 前綴，避免全域 CSS 污染
+   （見「花月開發常見錯誤與解法」§1.2 / 資料類型規範 §3.1）。
+
+   尺寸一律使用 px：舞台由 screen_adaptive.js 整體 scale()，
+   內部維持固定邏輯尺寸 500×850。
+
+   ── 字體尺寸與顏色改用 learningPath.css 的設計變數 ─────────────────────
+   本檔案不再自己定義字級或色票，而是直接引用 learningPath.css 的
+   :root 變數（--lp-fs-*／--lp-text-*／--lp-bg-*，共 5 級字體 + 18 色）。
+   這麼做有兩個理由：
+     ① 日曆是從青雲梯頂部列的入口鈕開啟的，learningPath.css 必定已載入，
+        直接共用同一套變數不會有「變數不存在」的風險。
+     ② 兩個模組的視覺語言統一之後，以後想調整全站的字級或配色，
+        只需要改 learningPath.css 的 :root 一個地方，日曆會跟著變。
+   每個變數後面仍附上與該變數目前解析結果相同的 hsl()/px 備援值，
+   萬一日曆被獨立載入（learningPath.css 未載入）時也不會整頁跑版。
+
+   ⚠️ 日曆原本的五段色階（--pc-lv1~lv5／--pc-board-default）已經拿掉，
+      改直接引用 --lp-bg-green-light／--lp-bg-blue-deep／--lp-bg-red-light／
+      --lp-bg-purple-deep／--lp-bg-gold-light 這五個 learningPath 既有色票
+      （色相與原本的色階完全對應，只是換成共用色票的精確數值，見下方
+      「五段色階」區塊的個別註解）。
+   ========================================================================== */
+
+.pc-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 500px;
+    height: 850px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 半透明遮罩：原本是純黑遮罩，併入共用色票後改借用赭金深色
+       （與 learningPath.css 的 .lp-pop-overlay 遮罩用同一顆變數），
+       兩個模組的彈窗背景會是同一種暗褐色調而非一黑一褐，視覺更統一。
+       想單純調整遮罩深淺，改最後的透明度數字即可。 */
+    background: hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    /* 全站層級約定（見 learningPath.css 開頭）：
+       遊戲/青雲梯 1000 < 疊加型資料頁 2100 < 資料頁內部彈窗 3000~4500
+       日曆由青雲梯開啟，屬「資料頁內部彈窗」，與晉升彈窗（4200）同層 */
+    z-index: 4200;
+    font-family: "Noto Serif TC", "Microsoft JhengHei", serif;
+}
+
+.pc-overlay.hidden {
+    display: none !important;
+}
+
+/* ── 主卡 ──────────────────────────────────────────────────────────────── */
+.pc-container {
+    position: relative;
+    width: 458px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    border: 3px solid var(--lp-bg-gold-light, hsl(40, 66%, 40%));
+    box-shadow: 0 10px 26px hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.45);
+    animation: pc-card-in .26s ease-out;
+}
+
+@keyframes pc-card-in {
+    from {
+        opacity: 0;
+        transform: scale(.94);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ── board-top：30px 色條，依「本月累積總局數」變色 ─────────────────────
+   門檻 = 格子色階的每日下限 × 15 天（企劃書 §3.C）：
+     0 淺咖啡 / 1+ 綠 / 225+ 藍 / 450+ 紅 / 900+ 紫 / 1800+ 金黃
+   五段色階與下方 .pc-cell.pc-lv1~lv5 共用完全相同的五個 --lp-bg-* 變數，
+   這是刻意的設計要求（企劃書 §4 創新點 2）：格子與色條必須是同一套視覺語言，
+   改色階時務必兩邊一起改。 */
+.pc-board-top {
+    height: 30px;
+    /* 預設淺咖啡色：借用米白深色（learningPath 的宣紙漸層邊緣色） */
+    background: var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
+    transition: background .35s ease;
+}
+
+.pc-board-top.pc-board-lv1 {
+    background: var(--lp-bg-green-light, hsl(150, 45%, 58%));
+}
+
+.pc-board-top.pc-board-lv2 {
+    background: var(--lp-bg-blue-deep, hsl(211, 42%, 62%));
+}
+
+.pc-board-top.pc-board-lv3 {
+    background: var(--lp-bg-red-light, hsl(8, 56%, 51%));
+}
+
+.pc-board-top.pc-board-lv4 {
+    background: var(--lp-bg-purple-deep, hsl(281, 30%, 58%));
+}
+
+.pc-board-top.pc-board-lv5 {
+    background: var(--lp-bg-gold-light, hsl(40, 66%, 40%));
+}
+
+/* ── 標題列 ────────────────────────────────────────────────────────────── */
+.pc-header {
+    position: relative;
+    padding: 10px 46px 8px;
+    text-align: center;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    border-bottom: 1px solid hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.16);
+}
+
+.pc-title {
+    /* 26px 直接對應 learningPath 的「中字」，即彈窗大標題與文位站站名 */
+    font-size: var(--lp-fs-md, 26px);
+    font-weight: bold;
+    letter-spacing: 0.14em;
+    color: var(--lp-text-cinnabar, hsl(6, 63%, 46%));
+}
+
+.pc-close-btn {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--lp-text-faint, hsl(35, 38%, 39%));
+    /* 原本 28px 剛好卡在「中字」與「大字」正中間，取跟隔壁 .pc-title
+       同一級（中字），讓整條標題列的字重感覺一致 */
+    font-size: var(--lp-fs-lg, 30px);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pc-close-btn:active {
+    background: hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.06);
+}
+
+/* ── 月份切換列 ────────────────────────────────────────────────────────── */
+.pc-month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 8px 0 6px;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+}
+
+.pc-month-btn {
+    width: 40px;
+    height: 34px;
+    border: 1px solid var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
+    border-radius: 9px;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    color: var(--lp-text-ink, hsl(29, 23%, 20%));
+    font-size: var(--lp-fs-md, 18px);
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pc-month-btn:active {
+    background: var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
+}
+
+/* 已經是最新月份時，「下個月」鈕停用（不允許翻到未來） */
+.pc-month-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.pc-month-label {
+    min-width: 150px;
+    text-align: center;
+    font-size: var(--lp-fs-sm, 22px);
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    color: var(--lp-text-ink, hsl(29, 23%, 20%));
+}
+
+/* ── 星期列 ────────────────────────────────────────────────────────────── */
+.pc-weekday-row {
+    display: grid;
+    grid-template-columns: repeat(7, 56px);
+    gap: 5px;
+    justify-content: center;
+    padding: 4px 0 2px;
+}
+
+.pc-weekday {
+    text-align: center;
+    font-size: var(--lp-fs-xs, 18px);
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    color: var(--lp-text-faint, hsl(35, 38%, 39%));
+}
+
+/* ── 月曆本體 ──────────────────────────────────────────────────────────── */
+.pc-grid-wrap {
+    position: relative;
+    padding: 4px 0 10px;
+    /* 手勢切月：避免瀏覽器把水平滑動解讀成上一頁／下一頁 */
+    touch-action: pan-y;
+    overflow: hidden;
+}
+
+.pc-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 56px);
+    gap: 5px;
+    justify-content: center;
+    transition: transform .15s ease, opacity .15s ease;
+}
+
+/* 切月過場：先滑出、換完資料再滑入（企劃書 §2.C） */
+.pc-grid.pc-slide-left {
+    transform: translateX(-26px);
+    opacity: 0;
+}
+
+.pc-grid.pc-slide-right {
+    transform: translateX(26px);
+    opacity: 0;
+}
+
+.pc-cell {
+    position: relative;
+    height: 56px;
+    border-radius: 9px;
+    border: 1px solid hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.16);
+    /* 無紀錄／預設底色：米白淺 */
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+    /* ⚠️ 手機上單格僅 56px，接近觸控下限。
+       格子本身即為觸控區，靠 gap 保留視覺留白，
+       不再向內縮小可點範圍（企劃書 §2.B）。 */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 空白補位格（該月第一天之前、最後一天之後） */
+.pc-cell.pc-cell-blank {
+    border-color: transparent;
+    background: transparent;
+}
+
+/* 未來的日子：比一般格子更淺、不可點 */
+.pc-cell.pc-cell-future {
+    background: hsl(from var(--lp-bg-cream-light, hsl(43, 72%, 94%)) h s l / 0.45);
+    border-style: dashed;
+}
+
+.pc-cell-date {
+    font-size: var(--lp-fs-xs, 18px);
+    font-weight: bold;
+    color: var(--lp-text-faint, hsl(29, 23%, 28%));
+}
+
+.pc-cell-count {
+    font-size: var(--lp-fs-xs, 18px);
+    font-weight: bold;
+    margin-top: 2px;
+    color: var(--lp-text-faint, hsl(29, 23%, 28%));
+    opacity: 0.85;
+}
+
+/* 有紀錄的格子：可點，並在按下時給明確回饋 */
+.pc-cell.pc-cell-has-data {
+    cursor: pointer;
+}
+
+.pc-cell.pc-cell-has-data:active {
+    transform: scale(1.08);
+}
+
+/* 今天：外圈硃紅描邊 */
+.pc-cell.pc-cell-today {
+    box-shadow: 0 0 0 2px var(--lp-bg-red-deep, hsl(6, 63%, 46%));
+}
+
+/* 被選中查看明細的格子 */
+.pc-cell.pc-cell-selected {
+    box-shadow: 0 0 0 3px var(--lp-bg-gold-light, hsl(40, 66%, 40%));
+}
+
+/* ── 五段色階：局數愈多顏色愈深 ──────────────────────────────────────────
+   直接引用 learningPath.css 的五個 --lp-bg-* 色票，與 .pc-board-top 的
+   五段色條完全共用同一組變數（見上方 board-top 區塊的說明）。 */
+.pc-cell.pc-lv1 {
+    background: var(--lp-bg-green-light, hsl(150, 45%, 58%));
+}
+
+.pc-cell.pc-lv2 {
+    background: var(--lp-bg-blue-deep, hsl(211, 42%, 62%));
+}
+
+.pc-cell.pc-lv3 {
+    background: var(--lp-bg-red-light, hsl(8, 56%, 51%));
+}
+
+.pc-cell.pc-lv4 {
+    background: var(--lp-bg-purple-deep, hsl(281, 30%, 58%));
+}
+
+.pc-cell.pc-lv5 {
+    background: var(--lp-bg-gold-light, hsl(40, 66%, 40%));
+}
+
+/* 深色底（lv2 藍／lv3 紅／lv4 紫／lv5 金）改用米白字才有足夠對比；
+   lv1 綠底色夠淺，維持預設的墨黑字即可。
+   ⚠️ lv5 併入共用色票後（金色由 l55% 降到 l40%）明顯變暗，原本沒有
+      套用米白字，這次一併加進來，否則格子裡的數字會看不清楚。 */
+.pc-cell.pc-lv2 .pc-cell-date,
+.pc-cell.pc-lv3 .pc-cell-date,
+.pc-cell.pc-lv4 .pc-cell-date,
+.pc-cell.pc-lv5 .pc-cell-date,
+.pc-cell.pc-lv2 .pc-cell-count,
+.pc-cell.pc-lv3 .pc-cell-count,
+.pc-cell.pc-lv4 .pc-cell-count,
+.pc-cell.pc-lv5 .pc-cell-count {
+    color: var(--lp-text-cream, hsl(44, 63%, 90%));
+}
+
+/* ── 下緣月度統計列 ────────────────────────────────────────────────────── */
+.pc-footer {
+    padding: 9px 16px 12px;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    border-top: 1px solid hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.16);
+}
+
+.pc-footer-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 14px;
+    font-size: var(--lp-fs-xs, 18px);
+    color: var(--lp-text-ink, hsl(29, 23%, 20%));
+    line-height: 1.6;
+}
+
+.pc-footer-label {
+    color: var(--lp-text-faint, hsl(35, 38%, 39%));
+    font-size: var(--lp-fs-xs, 18px);
+    font-weight: bold;
+    letter-spacing: 0.06em;
+}
+
+.pc-footer-value {
+    font-weight: bold;
+    color: var(--lp-text-cinnabar, hsl(6, 63%, 46%));
+}
+
+/* 空月份／未綁定引繼碼時的提示 */
+.pc-empty {
+    padding: 6px 10px;
+    text-align: center;
+    font-size: var(--lp-fs-xs, 18px);
+    line-height: 1.7;
+    color: var(--lp-text-faint, hsl(35, 38%, 39%));
+}
+
+.pc-empty.hidden {
+    display: none !important;
+}
+
+/* ── 當日明細小卡 ──────────────────────────────────────────────────────
+   浮在月曆上方，不另開全螢幕彈窗，避免疊層過深（企劃書 §3.A）。      */
+.pc-daycard {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 268px;
+    padding: 14px 18px 12px;
+    border-radius: 14px;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    border: 2px solid var(--lp-bg-gold-light, hsl(40, 66%, 40%));
+    box-shadow: 0 8px 20px hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.35);
+    z-index: 5;
+    animation: pc-card-in .18s ease-out;
+}
+
+.pc-daycard.hidden {
+    display: none !important;
+}
+
+.pc-daycard-title {
+    /* 21px 原本卡在小字與中字之間，取「小字」是因為彈窗標題比日曆
+       主標題（.pc-title, 中字）低一級，維持標題層級感 */
+    font-size: var(--lp-fs-sm, 22px);
+    font-weight: bold;
+    text-align: center;
+    letter-spacing: 0.08em;
+    color: var(--lp-text-cinnabar, hsl(6, 63%, 46%));
+    margin-bottom: 8px;
+}
+
+.pc-daycard-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: var(--lp-fs-xs, 18px);
+    line-height: 1.85;
+    color: var(--lp-text-ink, hsl(29, 23%, 20%));
+}
+
+.pc-daycard-row-label {
+    color: var(--lp-text-faint, hsl(35, 38%, 39%));
+    font-size: var(--lp-fs-xs, 18px);
+}
+
+.pc-daycard-row-value {
+    font-weight: bold;
+}
+
+.pc-daycard-close {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 7px 0;
+    border: 1px solid var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
+    border-radius: 9px;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    color: var(--lp-text-ink, hsl(29, 23%, 20%));
+    font-family: inherit;
+    font-size: var(--lp-fs-xs, 18px);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+}
+
+.pc-daycard-close:active {
+    background: var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
+}
+
+/* ── 青雲梯頂部列的日曆入口按鈕 ────────────────────────────────────────
+   ⚠️ 這個 class 屬於日曆模組（由 playerCalendar.js 插入 DOM），
+      因此樣式定義在此檔，不寫進 learningPath.css。                    */
+.pc-entry-btn {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border: 1px solid var(--lp-bg-gold-light, hsl(40, 66%, 40%));
+    border-radius: 10px;
+    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    color: var(--lp-text-cinnabar, hsl(6, 63%, 46%));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+.pc-entry-btn:active {
+    background: var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
+}

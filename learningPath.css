@@ -6,21 +6,139 @@
    尺寸一律使用 px：舞台由 screen_adaptive.js 整體 scale()，
    內部維持固定邏輯尺寸 500×850。
 
-   配色沿用共用主題 theme_xuanzhi.css 的宣紙色系（--fm-* 變數），
-   並一律附上後備值，確保主題檔未載入時仍能正常顯示。
+   ── 給想調整介面的人看這裡 ─────────────────────────────────────────────
+   本檔案由上到下大致依「畫面由上到下的視覺順序」排列，共分七大區塊：
+     ① .lp-overlay      整個青雲梯畫面的最外層容器（背景、尺寸、層級）
+     ② .lp-notice        卡關提示列（畫面最上方、文位框上面那條）
+     ③ .lp-header 系列   文位框（文位名稱／已學／局數／文錢／進度條）
+     ④ .lp-scroll/.lp-track  可拖曳捲動的道路本體（站點都畫在這裡面）
+     ⑤ .lp-station 系列  單一站點的外觀（圖示圓圈／進度圈／站名文字）
+     ⑥ .lp-locate-btn    右下角「回到目前關卡」定位鈕
+     ⑦ .lp-pop 系列      晉升／溫習確認彈窗（全螢幕跳出的對話框）
+
+   要調整某個畫面元素時，直接搜尋對應的 class 名稱即可找到位置。
+   每個屬性後面能改的東西都在該行或該行上方的註解裡說明。
+
+   ── 字體尺寸與顏色一律改用下面的「設計變數」，不再各自寫死數字 ─────────
+   全檔案原本散落著十幾種不同的 font-size 與幾十處各自微調的顏色，
+   統一收斂成「5 種字級 ＋ 18 種顏色」的固定色票／字級表之後：
+     · 想讓整個畫面的字都變大一級，只要改最上面 :root 那幾行變數即可，
+       不必再去每個 class 底下逐一微調。
+     · 想換整體配色主題（例如想讓文位框改成偏藍色系），
+       改對應的 --lp-bg-*／--lp-text-* 那一行，所有引用它的地方會一起變色。
+   原本每個數字各自有些微差異（例如 15px／16px／17px 這種差 1px 的情況），
+   已依「選最接近的字級」原則統一收攏，屬於刻意的簡化，不是誤植。
    ========================================================================== */
 
+:root {
+    /* ══════════════════════════════════════════════════════════════════
+       字體尺寸：5 級（xs → sm → md → lg → xl，由小到大）
+       全檔案所有 font-size 都改成引用這 5 個變數之一（選最接近原本數值的
+       那一級）。想整體放大／縮小字級，只要調整這裡的數字即可。
+       ══════════════════════════════════════════════════════════════════ */
+    --lp-fs-xs: 18px;
+    /* 最小字：欄位小標籤、站點下方的遊戲名副標 */
+    --lp-fs-sm: 22px;
+    /* 次小字：一般說明文字、彈窗內文、次要按鈕文字 */
+    --lp-fs-md: 26px;
+    /* 中字：小站圖示裡的數字、文位站站名 */
+    --lp-fs-lg: 30px;
+    /* 大字：文錢／積分等強調數值 */
+    --lp-fs-xl: 36px;
+    /* 最大字：文位稱號「書僮」「秀才」、彈窗大標題 */
+
+    /* ══════════════════════════════════════════════════════════════════
+       字體顏色：6 種（只給「文字顏色」用，也就是 CSS 的 color 屬性）
+       每個變數優先沿用共用主題 theme_xuanzhi.css 的 --fm-* 變數，
+       若主題檔未載入才退回後面的 hsl() 備援值。
+       ══════════════════════════════════════════════════════════════════ */
+    --lp-text-cinnabar: var(--fm-cinnabar, hsl(0, 63%, 46%));
+    /* 硃紅字：文位稱號「書僮」、文位站站名、彈窗大標題、定位鈕圖示 */
+    --lp-text-gold: var(--fm-gold, hsl(40, 66%, 40%));
+    /* 金字：文錢／積分等數值強調、彈窗內文中 <b> 標記的關鍵字 */
+    --lp-text-ink: hsl(29, 23%, 12%);
+    /* 墨黑：一般內文主文字（提示列文字、站名、彈窗說明段落） */
+    --lp-text-faint: var(--fm-ink-faint, hsl(35, 38%, 28%));
+    /* 淡墨：次要標籤／副標文字（欄位小標籤、站點下方遊戲名） */
+    --lp-text-cream: var(--fm-paper-light, hsl(44, 63%, 90%));
+    /* 米白字：畫在深色或彩色底上的文字（按鈕字、圖示裡的字） */
+    --lp-text-muted: hsl(30, 24%, 20%);
+    /* 灰赭消光字：未解鎖／停用狀態的文字，通常再疊一層較低透明度使用 */
+
+    /* ══════════════════════════════════════════════════════════════════
+       其餘顏色：12 種（背景／邊框／陰影／描邊用，不用在文字上）
+       依「米白、金、紅、綠、藍、紫」六個色系、每色系各兩種深淺排列。
+       藍與紫本檔目前還沒有實際用到，是刻意先建好、留給以後新增功能
+       （例如未來要做的狀態提示、成就等級色…）直接取用，色相特意對齊
+       playerCalendar.css 日曆色階的藍／紫，讓兩個模組以後看起來是同一套色系。
+       ══════════════════════════════════════════════════════════════════ */
+
+    /* 米白（宣紙）：畫面與卡片最主要的底色 */
+    --lp-bg-cream-light: var(--fm-paper-card, hsl(43, 72%, 94%));
+    /* 較亮的米白：卡片底色、圖示外框、進度圈中的實心環 */
+    --lp-bg-cream-deep: var(--fm-paper-deep, hsl(42, 48%, 76%));
+    /* 較暗的米白：漸層邊緣、一般邊框（原本的 --fm-border 也併入這裡） */
+
+    /* 金（赭金）：強調用金色系；深色那支同時兼作全檔案的「陰影／暗邊」色 */
+    --lp-bg-gold-light: var(--fm-gold, hsl(40, 66%, 40%));
+    /* 明亮金色：文位站圖示、進度條漸層起點、邊框（原本的 --fm-border-strong 也併入這裡） */
+    --lp-bg-gold-deep: hsl(35, 48%, 24%);
+    /* 暗赭色：全檔案所有「陰影／立體厚度」效果統一用這個顏色搭配各自的透明度 */
+
+    /* 紅（硃砂）：花月的主強調色，遍布邊框／按鈕／圖示 */
+    --lp-bg-red-light: var(--fm-cinnabar-bright, hsl(8, 56%, 51%));
+    /* 明亮硃紅：進度圈前景弧線、按鈕漸層的亮端 */
+    --lp-bg-red-deep: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    /* 主要硃紅：提示列邊框、考棚站圖示、按鈕漸層的暗端、晉升光暈 */
+
+    /* 綠（青碧）：目前只用在小站圖示與定位鈕的鍵盤焦點外框 */
+    --lp-bg-green-light: hsl(150, 45%, 58%);
+    /* 較亮青碧：本檔目前未使用，預留給日後 hover／成功狀態 */
+    --lp-bg-green-deep: var(--fm-celadon, hsl(150, 37%, 40%));
+    /* 主要青碧：小站（一般練習站）圖示底色、定位鈕 focus 外框 */
+
+    /* 藍：本檔目前未使用，預留給日後的狀態提示色 */
+    --lp-bg-blue-light: hsl(211, 50%, 74%);
+    --lp-bg-blue-deep: hsl(211, 42%, 62%);
+
+    /* 紫：本檔目前未使用，預留給日後的狀態提示色 */
+    --lp-bg-purple-light: hsl(281, 38%, 72%);
+    --lp-bg-purple-deep: hsl(281, 30%, 58%);
+}
+
+/* ── 語法說明：hsl(from var(--x) h s l / 0.35) ────────────────────────
+   下面很多地方（尤其陰影）會寫成這種形式，意思是「借用 --x 這個顏色的
+   色相/飽和度/明度，但把透明度換成自己需要的數值」。
+   這是為了讓同一個顏色可以在不同地方用不同深淺的透明度呈現（例如陰影
+   通常比邊框更透明），同時仍然只有「一個」顏色來源可以調整——
+   要改陰影或邊框的顏色，永遠只需要改上面 :root 裡對應的那個變數本身，
+   不用一個一個去改每處透明度不同的陰影。
+   （這是 2023 年後主流瀏覽器都支援的標準 CSS 語法，不需要額外套件。）
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ══════════════════════════════════════════════════════════════════════
+   ① 整體外殼：.lp-overlay
+   青雲梯畫面最外層的容器，決定「背景色」「畫面尺寸」「顯示/隱藏」。
+   ══════════════════════════════════════════════════════════════════════ */
 .lp-overlay {
     position: fixed;
     top: 0;
     left: 0;
+    /* ⚠️ 這兩個尺寸是「邏輯尺寸」，對應 screen_adaptive.js 的 500×850 舞台。
+       不要為了「想放大整個畫面」而改這兩個數字 —— 那是全站縮放系統的基準，
+       改了會跟其他頁面（遊戲、選單…）的比例對不上。想放大內部元素請調整
+       下面各個站點/文字/圖示自己的 px 尺寸，而不是這裡。 */
     width: 500px;
     height: 850px;
-    /* 宣紙底：中心受光、邊緣略暗 */
+    /* 宣紙底色：從米白淺色中心，往米白深色邊緣淡出的放射狀漸層。
+       想換整個畫面的底色主色調，改 :root 裡的 --lp-bg-cream-light /
+       --lp-bg-cream-deep 這兩個變數即可，全檔案共用同一組米白色票。 */
     background: radial-gradient(ellipse at 50% 32%,
-            var(--fm-paper-light, hsl(44, 63%, 90%)) 0%,
-            var(--fm-paper, hsl(43, 53%, 82%)) 58%,
-            var(--fm-paper-deep, hsl(42, 48%, 76%)) 100%);
+            var(--lp-bg-cream-light) 0%,
+            var(--lp-bg-cream-deep) 100%);
+    /* flex 直排：由上而下依序是 .lp-notice → .lp-header → .lp-scroll，
+       這三塊誰在上誰在下就是由 HTML 裡的先後順序決定，這裡的 flex 只負責
+       讓它們垂直排列並讓 .lp-scroll 自動撐滿剩餘空間（見下方 flex: 1 1 auto）。 */
     display: flex;
     flex-direction: column;
     /* ⚠️ 層級必須與「遊戲」同層（1000），不可更高。
@@ -30,19 +148,34 @@
        青雲梯屬於被疊的主畫面，若 z-index 高於資料頁（2100）就會反過來蓋住它們。
        全站層級約定：
          遊戲/青雲梯 1000 < 疊加型資料頁 2100 < 資料頁內部彈窗 3000~4500
-         < 選擇器 10000 < 舒壓頁 20000 < 漢堡選單 30000 */
+         < 選擇器 10000 < 舒壓頁 20000 < 漢堡選單 30000
+       ⚠️ 不要為了「想讓某個東西蓋住青雲梯」而隨便調高這個數字，
+          應該去改「那個東西」自己的 z-index，讓它落在上面約定的正確層級。 */
     z-index: 1000;
     overflow: hidden;
+    /* 全站統一字體：想換字體（例如想用更粗獷或更秀氣的字型）改這裡，
+       但要注意其他頁面（遊戲、選單）多半也用同一組字體堆疊，
+       只改這裡只會影響青雲梯本身。 */
     font-family: "Noto Serif TC", "Microsoft JhengHei", serif;
 }
 
+/* JS 用 classList.toggle('hidden', ...) 控制整頁顯示/隱藏，
+   不要直接改 display 或用 visibility，否則會跟這個規則打架。 */
 .lp-overlay.hidden {
     display: none !important;
 }
 
-/* ── 卡關提示列：提供捐納跳關（企畫書 8.3）──────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   ② 卡關提示列：.lp-notice
+   畫面最上方、文位框（.lp-header）上面那一條「捐納跳關」提示列。
+   平常是隱藏的（JS 加上 hidden class），只有玩家連續卡關達門檻才會出現。
+   ══════════════════════════════════════════════════════════════════════ */
 .lp-notice {
+    /* flex: 0 0 auto 代表「不隨可用空間伸縮，高度依內容自然決定」，
+       這條規則在本檔案很多地方重複出現，意思都一樣：這塊區域高度固定。 */
     flex: 0 0 auto;
+    /* 外距：想調整這條提示列跟畫面邊緣、跟下方文位框的間距，改這裡的
+       上/左右/下四個數字（順序：上 左右 下）。 */
     margin: 0 20px 8px;
     padding: 9px 14px;
     border-radius: 12px;
@@ -50,70 +183,96 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    background: var(--fm-paper-light, hsl(44, 63%, 90%));
-    border: 1px solid var(--fm-cinnabar, hsl(6, 63%, 46%));
-    box-shadow: 0 2px 6px rgba(60, 40, 20, .18);
+    /* 底色米白淺、邊框硃紅深，用來營造「警示但不刺眼」的視覺。
+       想讓提示更醒目/更低調，可以調整 border 的顏色或加粗 border-width。 */
+    background: var(--lp-bg-cream-light);
+    border: 1px solid var(--lp-bg-red-deep);
+    /* 陰影：借用赭金深色，透明度 0.18（見上方語法說明） */
+    box-shadow: 0 2px 6px hsl(from var(--lp-bg-gold-deep) h s l / 0.18);
 }
 
 .lp-notice.hidden {
     display: none !important;
 }
 
+/* 提示列左側的說明文字（例如「已連續失敗 3 次，可花費文錢跳過」） */
 .lp-notice-text {
-    font-size: 15px;
-    color: var(--fm-ink, hsl(30, 22%, 18%));
+    font-size: var(--lp-fs-sm);
+    color: var(--lp-text-ink);
     line-height: 1.4;
 }
 
+/* 提示列右側的「捐納跳過」按鈕本體 */
 .lp-notice-btn {
     flex: 0 0 auto;
     padding: 6px 12px;
     border: none;
     border-radius: 9px;
     font-family: inherit;
-    font-size: 14px;
-    color: var(--fm-paper-light, hsl(44, 63%, 90%));
-    background: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    font-size: var(--lp-fs-xs);
+    color: var(--lp-text-cream);
+    /* 按鈕底色＝硃紅（跟提示列邊框同色），想換按鈕顏色改 --lp-bg-red-deep */
+    background: var(--lp-bg-red-deep);
     cursor: pointer;
     white-space: nowrap;
 }
 
+/* 按下按鈕時輕微下沉，給予「有按到」的觸覺回饋 */
 .lp-notice-btn:active {
     transform: translateY(1px);
 }
 
-/* ── 頂部資訊框：文位 / 已學首數 / 文錢 / 文名 ────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   ③ 頂部文位框：.lp-header 系列
+   顯示「文位名稱 / 已學首數 / 局數 / 文錢」與晉升進度條的卡片。
+   這是玩家一打開青雲梯最先看到、也最常盯著看的區域。
+   ══════════════════════════════════════════════════════════════════════ */
 .lp-header {
     flex: 0 0 auto;
+    /* 外距：文位框跟畫面上緣、左右邊、下方道路區的間距，改這裡 */
     margin: 16px 20px 10px;
+    /* 內距：卡片內部文字跟卡片邊框的留白空間，想讓卡片看起來「更擠」或
+       「更寬鬆」改這裡 */
     padding: 12px 18px;
     border-radius: 14px;
-    background: var(--fm-paper-card, hsl(43, 72%, 94%));
-    border: 3px solid var(--fm-border-strong, hsl(35, 43%, 52%));
-    box-shadow: 0 4px 10px hsla(38, 50%, 31%, 0.22);
+    /* 卡片底色：米白淺，跟畫面背景（米白深）拉出層次感 */
+    background: var(--lp-bg-cream-light);
+    /* 卡片邊框：想讓文位框更醒目/更厚重，加粗這個數字（目前 3px），
+       或改 --lp-bg-gold-light 換整體邊框色調 */
+    border: 3px solid var(--lp-bg-gold-light);
+    box-shadow: 0 4px 10px hsl(from var(--lp-bg-gold-deep) h s l / 0.22);
 }
 
+/* 文位框內部的「上排」：左邊文位名稱、右邊三欄數值 */
 .lp-header-main {
     display: flex;
     align-items: center;
+    /* space-between 讓左邊的文位名稱跟右邊的數值群自動被推到兩端，
+       中間留白會自動撐開；若之後要在中間再塞東西（例如日曆入口鈕），
+       它會被夾在 justify-content 的空隙裡，兩端仍會維持貼齊。 */
     justify-content: space-between;
     gap: 12px;
 }
 
+/* 左側大字「書僮」「秀才」等文位稱號 */
 .lp-rank {
-    font-size: 34px;
+    /* 想讓文位稱號看起來更氣派，改用更大的字級變數（目前已是最大級 xl）；
+       想換顏色，改 --lp-text-cinnabar（目前是硃紅，跟整體配色的強調色一致） */
+    font-size: var(--lp-fs-xl);
     font-weight: bold;
-    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    color: var(--lp-text-cinnabar);
     letter-spacing: 0.1em;
     white-space: nowrap;
 }
 
-/* 右側兩欄數值：總積分與文錢 */
+/* 右側「已學／局數／文錢」三欄數值的外層容器 */
 .lp-stats {
     display: flex;
+    /* 三欄之間的間距，改這個數字可以讓三個數值欄位更擠或更鬆 */
     gap: 16px;
 }
 
+/* 單一欄位（例如「已學 12/346」），標籤在上、數值在下 */
 .lp-stat {
     display: flex;
     flex-direction: column;
@@ -121,55 +280,77 @@
     line-height: 1.15;
 }
 
+/* 欄位的小標籤文字（「已學」「局數」「文錢」這幾個字） */
 .lp-stat-label {
-    font-size: 13px;
-    color: var(--fm-ink-faint, hsl(35, 38%, 39%));
+    font-size: var(--lp-fs-xs);
+    color: var(--lp-text-faint);
     letter-spacing: 0.06em;
 }
 
+/* 欄位的數值本體（例如「12 / 346」「0」「200」） */
 .lp-stat-value {
-    font-size: 22px;
+    /* 想讓數字更顯眼，改用更大的字級變數，或換成更亮的顏色 */
+    font-size: var(--lp-fs-md);
     font-weight: bold;
-    color: var(--fm-gold, hsl(40, 66%, 40%));
+    /* 金色數值，呼應「文錢」「積分」這類遊戲貨幣的既有配色慣例 */
+    color: var(--lp-text-gold);
+    /* tabular-nums：讓數字寬度固定，數字變動時（例如文錢增加）
+       不會因為字寬不一而讓版面跳動 */
     font-variant-numeric: tabular-nums;
 }
 
-/* 文位下方的橫條進度條：距離下一站還差多少分 */
+/* 文位下方的橫條進度條外框：顯示「距離下一站還差多少局」的視覺化長條 */
 .lp-progress-bar {
     margin-top: 10px;
+    /* 進度條粗細，想要更粗/更細改這個高度 */
     height: 12px;
-    background: hsla(38, 50%, 31%, 0.14);
-    border: 1px solid var(--fm-border, hsl(40, 47%, 71%));
+    /* 進度條「底色」（尚未完成的部分），借用赭金深色、壓低透明度 */
+    background: hsl(from var(--lp-bg-gold-deep) h s l / 0.14);
+    border: 1px solid var(--lp-bg-cream-deep);
     border-radius: 6px;
+    /* 必須有 overflow: hidden，否則內部的 .lp-progress-fill 圓角會蓋不住 */
     overflow: hidden;
 }
 
+/* 進度條「已完成」的填充部分，寬度由 JS 動態設定 style.width */
 .lp-progress-fill {
     height: 100%;
     width: 0;
+    /* 填充色是金→硃紅的橫向漸層，想換整體進度條顏色改這兩個變數 */
     background: linear-gradient(90deg,
-            var(--fm-gold, hsl(40, 66%, 40%)) 0%,
-            var(--fm-cinnabar-bright, hsl(8, 56%, 51%)) 100%);
+            var(--lp-bg-gold-light) 0%,
+            var(--lp-bg-red-light) 100%);
     border-radius: 6px;
+    /* 進度變化時的動畫時間，想要更快/更慢的過場改這個數字 */
     transition: width 0.6s ease-out;
 }
 
+/* 進度條下方的文字說明（例如「還差 3 局晉升」） */
 .lp-progress-text {
     margin-top: 6px;
-    font-size: 15px;
-    color: var(--fm-ink-soft, hsl(30, 25%, 23%));
+    font-size: var(--lp-fs-xs);
+    color: var(--lp-text-ink);
     text-align: right;
 }
 
-/* ── 可拖曳的道路區（無捲動軸）───────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   ④ 可拖曳的道路本體：.lp-scroll / .lp-track
+   文位框下方、佔滿剩餘空間的捲動區域，所有「站點」（.lp-station）
+   都是用絕對定位擺在 .lp-track 裡面，位置由 JS 計算後寫入 style。
+   本區塊本身不畫任何看得見的東西，主要負責「怎麼捲動」。
+   ══════════════════════════════════════════════════════════════════════ */
 .lp-scroll {
+    /* flex: 1 1 auto = 自動撐滿 .lp-header 與畫面下緣之間的剩餘高度 */
     flex: 1 1 auto;
     overflow-y: auto;
     overflow-x: hidden;
     position: relative;
+    /* 滑鼠停在道路上顯示「可抓取」游標，配合 JS 的拖曳邏輯 */
     cursor: grab;
     -webkit-overflow-scrolling: touch;
-    /* 隱藏捲動軸：改以手指／滑鼠拖曳操作（含慣性） */
+    /* 隱藏瀏覽器原生捲動軸：因為改成手指／滑鼠拖曳操作（含慣性），
+       原生捲動軸留著反而畫面雜亂。若想恢復原生捲動軸，
+       把下面三行連同 ::-webkit-scrollbar 規則一起刪掉即可。 */
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -180,24 +361,38 @@
     display: none;
 }
 
+/* 道路軌道本身：寬度固定跟舞台等寬（500px），
+   高度由 JS 依「總共有幾個站點」動態計算並寫入 style.height，
+   讓道路可以無限往下延伸而不受畫面高度限制。 */
 .lp-track {
     position: relative;
     width: 500px;
 }
 
-/* ── 站點 ───────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   ⑤ 單一站點的外觀：.lp-station 系列
+   道路上每一個「圓圈+文字」的組合，一個站點對應一次晉升關卡或小階。
+   站點分兩種：小站（.lp-minor-station，一般練習站）與
+   文位站（.lp-rank-station，晉升到新文位的里程碑站），
+   外觀大小、顏色都不同，方便玩家一眼看出哪些是重要節點。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* 單一站點的最外層容器：定位＋內部圖示與文字水平排列 */
 .lp-station {
+    /* JS 會設定 left/top 決定這個站點在道路上的座標，
+       translate(-50%, -50%) 讓座標點對齊圖示的正中心，而不是左上角 */
     position: absolute;
     transform: translate(-50%, -50%);
     display: flex;
     flex-direction: row;
     align-items: center;
+    /* 圖示跟旁邊文字之間的間距 */
     gap: 10px;
     cursor: pointer;
     user-select: none;
 }
 
-/* 圖示與進度圈疊在一起 */
+/* 圖示（圓圈）跟疊在上面的進度圈（.lp-ring）共用的定位容器 */
 .lp-station-icon-wrap {
     position: relative;
     display: flex;
@@ -206,65 +401,82 @@
     flex: 0 0 auto;
 }
 
+/* 圓圈圖示本體：站點編號或圖案畫在這個圓圈裡 */
 .lp-station-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     font-weight: bold;
-    color: var(--fm-paper-card, hsl(43, 72%, 94%));
-    box-shadow: 0 4px 0 hsla(28, 40%, 28%, 0.35), 0 6px 12px hsla(38, 50%, 31%, 0.28);
+    color: var(--lp-text-cream);
+    /* 兩層陰影疊加：第一、二層都借用赭金深色，只是透明度不同——
+       第一層模擬立體的「厚度」（像實體印章壓下去的感覺，較不透明），
+       第二層是較透明的柔和環境陰影。想讓圖示看起來更扁平，把第一層拿掉即可。 */
+    box-shadow: 0 4px 0 hsl(from var(--lp-bg-gold-deep) h s l / 0.35),
+        0 6px 12px hsl(from var(--lp-bg-gold-deep) h s l / 0.28);
+    /* hover/點擊時的位移動畫時間，見下方 :hover / :active 規則 */
     transition: transform 0.15s ease-out;
 }
 
-/* 小站：較小的圓點（青碧） */
+/* 小站（一般練習站）：較小的青碧色圓點 */
 .lp-minor-station .lp-station-icon {
+    /* 想調整小站圖示的大小，改 width/height（記得 font-size 也要跟著調，
+       否則文字會太大或太小塞不進圓圈） */
     width: 44px;
     height: 44px;
-    font-size: 19px;
-    background: var(--fm-celadon, hsl(150, 37%, 40%));
-    border: 3px solid var(--fm-paper-card, hsl(43, 72%, 94%));
+    font-size: var(--lp-fs-md);
+    background: var(--lp-bg-green-deep);
+    border: 3px solid var(--lp-bg-cream-light);
 }
 
-/* 文位站：較大的印章造型（金赭） */
+/* 文位站（晉升里程碑站）：較大的金赭色印章造型 */
 .lp-rank-station .lp-station-icon {
+    /* 文位站刻意比小站大一號（64px vs 44px），讓玩家一眼看出哪些是
+       重要的晉升節點；想讓對比更明顯可以再加大這個數字 */
     width: 64px;
     height: 64px;
-    font-size: 28px;
-    background: var(--fm-gold, hsl(40, 66%, 40%));
-    border: 4px solid var(--fm-paper-card, hsl(43, 72%, 94%));
+    font-size: var(--lp-fs-xl);
+    background: var(--lp-bg-gold-light);
+    border: 4px solid var(--lp-bg-cream-light);
 }
 
-/* 考棚站（縣案首以後需通過科舉考試的文位）：朱砂 */
+/* 考棚站（縣案首以後需通過科舉考試的文位）：改成硃砂色，
+   跟一般文位站（金赭色）做出區隔，提醒玩家這一站需要額外去考試 */
 .lp-exam-station .lp-station-icon {
-    background: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    background: var(--lp-bg-red-deep);
 }
 
-/* ── 四段式進度圈（僅目前站顯示）───────────────────────────────────── */
+/* ── 四段式進度圈：只有「目前所在站」會顯示這圈 SVG 圓環進度 ──────── */
 .lp-ring {
+    /* 疊在站點圖示正中央、不接收滑鼠事件（點擊會穿透到底下的 .lp-station） */
     position: absolute;
     left: 50%;
     top: 50%;
+    /* rotate(-90deg) 讓進度圈從正上方（12 點鐘方向）開始畫，
+       而不是 SVG 預設的 3 點鐘方向 */
     transform: translate(-50%, -50%) rotate(-90deg);
     pointer-events: none;
 }
 
+/* 進度圈的「底環」（尚未完成的部分），借用赭金深色、壓低透明度 */
 .lp-ring-bg {
-    stroke: hsla(38, 50%, 31%, 0.18);
+    stroke: hsl(from var(--lp-bg-gold-deep) h s l / 0.18);
 }
 
+/* 進度圈的「前景環」（已完成的部分），想換進度圈顏色改 --lp-bg-red-light */
 .lp-ring-fg {
-    stroke: var(--fm-cinnabar-bright, hsl(8, 56%, 51%));
+    stroke: var(--lp-bg-red-light);
 }
 
-/* ── 站點文字：文位名稱 + 遊戲名與關卡編號 ─────────────────────────── */
+/* ── 站點旁的文字：文位名稱 + 該站要玩的遊戲名稱 ───────────────────── */
 .lp-station-text {
     display: flex;
     flex-direction: column;
     white-space: nowrap;
 }
 
-/* 標籤在右邊時文字靠左、在左邊時文字靠右，讓文字永遠朝向圓圈外側 */
+/* 站點在道路左右交錯排列時，文字要跟著站在「外側」，
+   避免文字被畫面邊緣裁切。JS 會依站點在畫面左/右決定加上哪個 class。 */
 .lp-label-right .lp-station-text {
     align-items: flex-start;
 }
@@ -273,99 +485,125 @@
     align-items: flex-end;
 }
 
+/* 站名文字本體（小站顯示遊戲名稱，文位站顯示文位稱號） */
 .lp-station-label {
-    font-size: 16px;
+    font-size: var(--lp-fs-sm);
     font-weight: bold;
-    color: var(--fm-ink, hsl(28, 26%, 24%));
+    color: var(--lp-text-ink);
 }
 
+/* 文位站的站名要比小站更醒目：字更大、顏色改硃紅 */
 .lp-rank-station .lp-station-label {
-    font-size: 20px;
-    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    font-size: var(--lp-fs-md);
+    color: var(--lp-text-cinnabar);
 }
 
+/* 站名下方的小字副標（例如遊戲名稱＋第幾局） */
 .lp-station-game {
     margin-top: 2px;
-    font-size: 13px;
-    color: var(--fm-ink-faint, hsl(35, 38%, 39%));
+    font-size: var(--lp-fs-xs);
+    color: var(--lp-text-faint);
 }
 
-/* ── 三種狀態：已完成／目前／未解鎖 ─────────────────────────────────── */
+/* ── 三種站點狀態：已完成／目前所在／尚未解鎖 ──────────────────────
+   JS 依站點狀態加上 .lp-done / .lp-current / .lp-locked 三選一的 class。 */
+
+/* 已完成的站：稍微降低飽和度＋輕微透明，表示「已走過」但不搶眼 */
 .lp-done .lp-station-icon {
     filter: saturate(0.7) brightness(1.05);
     opacity: 0.85;
 }
 
+/* 目前所在的站：加一圈米白描邊 + 更強的硃紅光暈，讓玩家一眼找到自己在哪 */
 .lp-current .lp-station-icon {
-    box-shadow: 0 4px 0 hsla(28, 40%, 28%, 0.35),
-        0 0 0 3px var(--fm-paper-card, hsl(43, 72%, 94%)),
-        0 6px 16px hsla(6, 63%, 46%, 0.45);
+    box-shadow: 0 4px 0 hsl(from var(--lp-bg-gold-deep) h s l / 0.35),
+        0 0 0 3px var(--lp-bg-cream-light),
+        0 6px 16px hsl(from var(--lp-bg-red-deep) h s l / 0.45);
 }
 
+/* 目前所在站的站名加底線強調 */
 .lp-current .lp-station-label {
     text-decoration: underline;
     text-underline-offset: 4px;
 }
 
-/* 未解鎖：淡化為赭灰，但文字仍可辨識（文位與關卡一律顯示） */
+/* 尚未解鎖的站：整體淡化為米白深色，但文字仍要可辨識
+  （企劃要求：文位與關卡編號在未解鎖時也要顯示，不能整個藏起來）
+   ⚠️ 原本這裡是低飽和度的灰赭色，併入 12 色票後改用 --lp-bg-cream-deep，
+      彩度會比原本略高一點點，屬於色票統一後可接受的細微差異。 */
 .lp-locked .lp-station-icon {
-    background: hsl(38, 16%, 68%);
-    border-color: hsla(43, 40%, 92%, 0.9);
-    color: hsla(28, 20%, 35%, 0.55);
-    box-shadow: 0 3px 0 hsla(28, 30%, 30%, 0.18);
+    background: var(--lp-bg-cream-deep);
+    border-color: hsl(from var(--lp-bg-cream-light) h s l / 0.9);
+    color: hsl(from var(--lp-text-muted) h s l / 0.55);
+    box-shadow: 0 3px 0 hsl(from var(--lp-bg-gold-deep) h s l / 0.18);
 }
 
 .lp-locked .lp-station-label {
-    color: hsla(28, 24%, 30%, 0.5);
+    color: hsl(from var(--lp-text-muted) h s l / 0.5);
 }
 
 .lp-locked .lp-station-game {
-    color: hsla(35, 30%, 38%, 0.45);
+    color: hsl(from var(--lp-text-faint) h s l / 0.45);
 }
 
+/* 滑鼠移到「未鎖定」的站點上時，圖示微微浮起放大（純桌機體驗，
+   手機觸控沒有 hover 狀態，不受影響） */
 .lp-station:not(.lp-locked):hover .lp-station-icon {
     transform: translateY(-3px) scale(1.07);
 }
 
+/* 按下「未鎖定」的站點時，圖示下沉縮小，給予按壓回饋 */
 .lp-station:not(.lp-locked):active .lp-station-icon {
     transform: translateY(2px) scale(0.94);
 }
 
-/* ── 右下角「回到目前關卡」定位鈕（比照地圖類 App 的重新定位鈕）────── */
+/* ══════════════════════════════════════════════════════════════════════
+   ⑥ 右下角定位鈕：.lp-locate-btn
+   點下去會捲動道路回到「目前所在站」，比照地圖類 App 的「重新定位」鈕。
+   ══════════════════════════════════════════════════════════════════════ */
 .lp-locate-btn {
+    /* 固定貼在畫面右下角，數字是離右邊界與下邊界的距離 */
     position: absolute;
     right: 18px;
     bottom: 18px;
+    /* 按鈕整體大小，想要更大更好按（尤其手機）可以加大這兩個數字 */
     width: 54px;
     height: 54px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
-    background: var(--fm-paper-card, hsl(43, 72%, 94%));
-    border: 3px solid var(--fm-border-strong, hsl(35, 43%, 52%));
+    color: var(--lp-text-cinnabar);
+    background: var(--lp-bg-cream-light);
+    border: 3px solid var(--lp-bg-gold-light);
     border-radius: 12px;
     cursor: pointer;
-    box-shadow: 0 4px 10px hsla(38, 50%, 31%, 0.35);
+    box-shadow: 0 4px 10px hsl(from var(--lp-bg-gold-deep) h s l / 0.35);
     transition: transform 0.15s ease-out;
+    /* z-index: 5 只需要比 .lp-track 裡的站點高即可，不需要對到全站的
+       1000/2100/4200 那套約定 —— 這顆按鈕跟站點都在同一個 .lp-overlay
+       (z-index 1000) 內部，這裡的 5 只是「同一層裡誰疊在誰上面」。 */
     z-index: 5;
 }
 
+/* 滑鼠懸停時輕微浮起（桌機體驗） */
 .lp-locate-btn:hover {
     transform: translateY(-2px);
 }
 
+/* 按下時下沉縮小，給予按壓回饋 */
 .lp-locate-btn:active {
     transform: translateY(2px) scale(0.95);
 }
 
+/* 鍵盤 Tab 移動焦點到按鈕時的高亮外框（無障礙輔助） */
 .lp-locate-btn:focus-visible {
-    outline: 3px solid var(--fm-celadon, hsl(150, 37%, 40%));
+    outline: 3px solid var(--lp-bg-green-deep);
     outline-offset: 2px;
 }
 
-/* 尊重使用者的減少動態偏好 */
+/* 尊重使用者系統設定的「減少動態」偏好：關閉圖示與按鈕的位移/縮放動畫，
+   避免對動態敏感的使用者感到不適。這是無障礙規範，不建議刪除。 */
 @media (prefers-reduced-motion: reduce) {
 
     .lp-station-icon,
@@ -374,14 +612,25 @@
     }
 }
 
-/* ── 晉升／溫習彈窗 ──────────────────────────────────────────────────
-   視覺上比照 achievement.js 的「即時獎狀彈窗」，但 class 一律用 lp- 前綴，
-   避免跨模組共用 class 造成全域污染（見「花月開發常見錯誤與解法」§1.2）。
-   層級 4200：需高於資料頁（2100），但低於選擇器（10000）。 */
+/* ══════════════════════════════════════════════════════════════════════
+   ⑦ 晉升／溫習彈窗：.lp-pop 系列
+   玩家晉升到新站，或點擊已走過的舊站要溫習時，跳出的全螢幕確認對話框。
+   視覺上刻意比照 achievement.js 的「即時獎狀彈窗」風格，
+   但 class 一律用 lp- 前綴，避免跨模組共用 class 造成全域污染
+   （見「花月開發常見錯誤與解法」§1.2）。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* 彈窗最外層的半透明遮罩，蓋住整個畫面。
+   底色借用赭金深色、壓低透明度，看起來仍近似原本的暗褐色遮罩。 */
 .lp-pop-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(24, 16, 8, 0.62);
+    /* 遮罩深淺：透明度數字越大（最大 1）遮罩越不透明、底下畫面越看不見 */
+    background: hsl(from var(--lp-bg-gold-deep) h s l / 0.62);
+    /* 層級 4200：需高於一般資料頁（2100），但低於選擇器（10000）。
+       這個彈窗屬於「資料頁內部彈窗」層級（3000~4500 區間），
+       想讓別的彈窗蓋過它或被它蓋過，調整那個彈窗自己的 z-index
+       落在這個區間內的正確相對位置即可，不要隨便亂改這裡的數字。 */
     z-index: 4200;
     display: flex;
     align-items: center;
@@ -389,81 +638,106 @@
     font-family: "Noto Serif TC", "Microsoft JhengHei", serif;
 }
 
+/* 彈窗卡片本體 */
 .lp-pop {
+    /* 卡片寬度：想讓對話框更寬/更窄改這裡；max-width 確保手機小螢幕
+       不會被撐爆（88% 代表最多佔螢幕寬度的 88%） */
     width: 420px;
     max-width: 88%;
     box-sizing: border-box;
+    /* 內距：上 左右 下，卡片內部文字跟卡片邊緣的留白 */
     padding: 26px 28px 20px;
     border-radius: 16px;
+    /* 跟整體宣紙背景同一套米白色票的放射狀漸層，但中心更亮，
+       營造「聚光燈打在這張卡片上」的效果 */
     background: radial-gradient(ellipse at 50% 20%,
-            var(--fm-paper-light, hsl(44, 63%, 90%)) 0%,
-            var(--fm-paper-card, hsl(43, 72%, 94%)) 55%,
-            var(--fm-paper, hsl(43, 53%, 82%)) 100%);
-    border: 3px solid var(--fm-border-strong, hsl(35, 43%, 52%));
-    box-shadow: 0 12px 34px rgba(40, 24, 10, .45);
+            var(--lp-bg-cream-light) 0%,
+            var(--lp-bg-cream-light) 55%,
+            var(--lp-bg-cream-deep) 100%);
+    border: 3px solid var(--lp-bg-gold-light);
+    box-shadow: 0 12px 34px hsl(from var(--lp-bg-gold-deep) h s l / 0.45);
     text-align: center;
+    /* 彈出動畫：見下方 @keyframes lp-pop-in，想改動畫速度改這個時間 */
     animation: lp-pop-in .28s ease-out;
 }
 
+/* 彈窗登場動畫：從稍微縮小＋透明，長大到正常大小＋不透明 */
 @keyframes lp-pop-in {
-    from { transform: scale(.86); opacity: 0; }
-    to   { transform: scale(1);   opacity: 1; }
+    from {
+        transform: scale(.86);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
+/* 彈窗標題（例如「恭喜晉階」「學問已成，可赴科場」） */
 .lp-pop h2 {
     margin: 0 0 12px;
-    font-size: 30px;
+    font-size: var(--lp-fs-xl);
     letter-spacing: .08em;
-    color: var(--fm-cinnabar, hsl(6, 63%, 46%));
+    color: var(--lp-text-cinnabar);
 }
 
+/* 彈窗內文說明段落 */
 .lp-pop p {
     margin: 0;
-    font-size: 17px;
+    font-size: var(--lp-fs-sm);
     line-height: 1.75;
     text-align: left;
-    color: var(--fm-ink, hsl(30, 22%, 18%));
+    color: var(--lp-text-ink);
 }
 
+/* 內文中用 <b> 標記的關鍵字（例如站名、文位名稱），改成金色強調 */
 .lp-pop p b {
-    color: var(--fm-gold, hsl(40, 66%, 40%));
+    color: var(--lp-text-gold);
 }
 
+/* 彈窗底部的按鈕列（一個或兩個按鈕並排） */
 .lp-pop-footer {
     margin-top: 20px;
     display: flex;
+    /* 按鈕之間的間距 */
     gap: 10px;
     justify-content: center;
 }
 
+/* 主要按鈕（例如「領取」「前往考棚應試」）：硃紅漸層、視覺最搶眼 */
 .lp-pop-btn {
     flex: 1 1 auto;
     padding: 11px 14px;
     border: none;
     border-radius: 10px;
     font-family: inherit;
-    font-size: 17px;
+    font-size: var(--lp-fs-sm);
     font-weight: bold;
     letter-spacing: .06em;
-    color: var(--fm-paper-light, hsl(44, 63%, 90%));
+    color: var(--lp-text-cream);
+    /* 主按鈕底色：想換整個彈窗的強調色，改這兩個變數 */
     background: linear-gradient(135deg,
-            var(--fm-cinnabar-bright, hsl(8, 56%, 51%)),
-            var(--fm-cinnabar, hsl(6, 63%, 46%)));
-    box-shadow: 0 3px 0 hsla(28, 40%, 28%, .35);
+            var(--lp-bg-red-light),
+            var(--lp-bg-red-deep));
+    /* 立體浮起感：下方一條實心陰影模擬按鈕的厚度 */
+    box-shadow: 0 3px 0 hsl(from var(--lp-bg-gold-deep) h s l / 0.35);
     cursor: pointer;
 }
 
+/* 按下主按鈕時：整個往下移動，同時把陰影的高度也跟著縮短，
+   模擬「按鈕被壓下去」的立體效果 */
 .lp-pop-btn:active {
     transform: translateY(2px);
-    box-shadow: 0 1px 0 hsla(28, 40%, 28%, .35);
+    box-shadow: 0 1px 0 hsl(from var(--lp-bg-gold-deep) h s l / 0.35);
 }
 
-/* 次要按鈕（稍後再說／取消） */
+/* 次要按鈕（例如「稍後再說」「取消」）：外框樣式、不搶主按鈕的風采 */
 .lp-pop-btn-sub {
     flex: 0 0 auto;
-    color: var(--fm-ink-soft, hsl(30, 25%, 23%));
+    color: var(--lp-text-ink);
     background: transparent;
-    border: 2px solid var(--fm-border, hsl(40, 47%, 71%));
+    border: 2px solid var(--lp-bg-cream-deep);
     box-shadow: none;
     font-weight: normal;
 }

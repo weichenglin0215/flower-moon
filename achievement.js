@@ -2199,7 +2199,8 @@
             if (window.FMCollectionSave) {
                 try {
                     const collData = window.FMCollectionSave.load();
-                    collData.silver = (collData.silver || 0) + silverReward;
+                    // 走統一收口，順帶留下雲端流水帳（source='cert'）供遊戲日曆統計
+                    window.FMCollectionSave.addSilver(collData, silverReward, 'cert', achId);
                     window.FMCollectionSave.save(collData);
                     // 若收集系統畫面正開著，即時刷新 HUD 上的銀兩數字
                     if (window.Collection && typeof window.Collection.refreshHud === 'function') {
