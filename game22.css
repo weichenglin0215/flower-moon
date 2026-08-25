@@ -316,3 +316,26 @@
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
 }
+
+/* 空白格提示：showEmptyDelay 秒後出現，提醒玩家此區域不需放拼圖 */
+/* 無邊框、緊密相鄰，形成一大片淡紅色區域（與 GAME23 同一套視覺） */
+.game22-cell-empty-hint {
+    position: absolute;
+    box-sizing: border-box;
+    background: hsla(0, 100%, 50%, 0.25);
+    border: none;
+    pointer-events: none;
+    z-index: 0;
+    /* 最底層，在 cell-bg 與 piece 下方 */
+    animation: game22-hint-fadein 0.8s ease;
+}
+
+@keyframes game22-hint-fadein {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

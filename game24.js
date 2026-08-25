@@ -28,14 +28,17 @@
         poemLines: [],           // 詩句陣列（每行為一句純文字）
         targetChars: [],         // 全詩所有字（合併後的單字陣列），用於計算時限
         currentLineIndex: 0,     // 當前正在收集的句子索引
-        currentLineChars: [],    // 當前句去重後的目標字陣列
-        collectProgress: {},     // 當前句字頻收集進度 { 字: 已收集次數 }
+        // 當前句的目標字符（token）陣列 —— 依 CharToken.tokenize 產生。
+        // ⚠️ 不再去重：一句詩若有重複字（例「喝酒且呵呵」），兩個「呵」是
+        //    '呵#0'、'呵#1' 兩個獨立字符，顏色／形狀不同，也必須各自湊齊。
+        currentLineChars: [],
+        collectProgress: {},     // 當前句收集進度 { 字符token: 已收集次數 }
         collectTarget: 0,        // 每字需收集次數
 
         // ── 棋盤相關 ──
         rows: 8,
         cols: 7,
-        board: [],               // 二維陣列：{ char, isPower:'h'|'v'|'star'|null, id }
+        board: [],               // 二維陣列：{ char（目標字為 token、干擾字為純字元）, isPower, id }
         cellElements: [],        // 對應 DOM
         cellIdCounter: 0,
 
@@ -453,15 +456,11 @@
         // ── 開始當前句的收集 ──
         startCurrentLine: function () {
             const line = this.poemLines[this.currentLineIndex] || '';
-            // 句中去重後的目標字
-            const uniqueChars = [];
-            const seen = {};
-            for (const ch of line) {
-                if (!seen[ch]) { seen[ch] = true; uniqueChars.push(ch); }
-            }
-            this.currentLineChars = uniqueChars;
+            // 句中每個字都是獨立字符（重複字不再合併，見 CharToken 說明）
+            const lineTokens = window.CharToken.tokenize(line);
+            this.currentLineChars = lineTokens;
             this.collectProgress = {};
-            uniqueChars.forEach(ch => { this.collectProgress[ch] = 0; });
+            lineTokens.forEach(tk => { this.collectProgress[tk] = 0; });
             this._prevCollectProgress = {}; // 換句時重置進度燈快照，避免誤觸 just-lit
 
             this.updateLineDisplay();
@@ -588,7 +587,7 @@
                 const c = this.getColorForChar(ch);
                 // data-char 供字魂特效定位（落點為這張卡）
                 html += `<span class="game24-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g24-h:${c.hue};--g24-s:${c.sat}%;--g24-l:${c.lum}%;--g24-text:${c.textColor}">`
-                    + `<span class="game24-char-tile">${ch}</span>`
+                    + `<span class="game24-char-tile">${window.CharToken.base(ch)}</span>`
                     + `<span class="game24-char-count"><span class="game24-char-num">${got}</span>/<span class="game24-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
             });
@@ -743,7 +742,8 @@
                     div.dataset.r = r;
                     div.dataset.c = c;
                     const t = this.board[r][c];
-                    div.textContent = t.char;
+                    // 目標字塊存的是 token（呵#0），畫面只顯示字本身
+                    div.textContent = window.CharToken.base(t.char);
                     // 字體 = 方框 80%
                     div.style.fontSize = cellFontPx + 'px';
                     // 干擾字（非當前句目標）使用低飽和灰調，讓玩家一眼識別「真目標」
@@ -1323,7 +1323,7 @@
             }
             const soul = document.createElement('div');
             soul.className = 'game24-soul';
-            soul.textContent = ch;
+            soul.textContent = window.CharToken.base(ch);
             soul.style.left = start.x + 'px';
             soul.style.top = start.y + 'px';
             wrapper.appendChild(soul);
@@ -1598,12 +1598,10 @@
                     return; // 終止整個 stage 鏈
                 }
                 const line = this.poemLines[this.currentLineIndex] || '';
-                const uniqueChars = [];
-                const seen = {};
-                for (const ch of line) if (!seen[ch]) { seen[ch] = true; uniqueChars.push(ch); }
-                this.currentLineChars = uniqueChars;
+                const lineTokens = window.CharToken.tokenize(line);
+                this.currentLineChars = lineTokens;
                 this.collectProgress = {};
-                uniqueChars.forEach(ch => { this.collectProgress[ch] = 0; });
+                lineTokens.forEach(tk => { this.collectProgress[tk] = 0; });
                 this._prevCollectProgress = {};
                 this.updateLineDisplay();
                 this._updateMovesLabel();

@@ -1069,12 +1069,14 @@
             const el = document.getElementById('game15-hearts');
             if (!el) return;
             let html = '';
+            // 已扣除的顆數（= 上限 − 剩餘命）；空心由最左邊往右累積，與其他遊戲一致
+            const used = Math.max(0, this.maxMistakeCount - this.hearts);
             for (let i = 0; i < this.maxMistakeCount; i++) {
-                // 剩餘命：紅心實心♥；已扣除：空心♡（顏色淡化）
-                if (i < this.hearts) {
-                    html += `<span class="heart">♥</span>`;
-                } else {
+                // 已扣除：空心♡（顏色淡化）；剩餘命：紅心實心♥
+                if (i < used) {
                     html += `<span class="heart empty">♡</span>`;
+                } else {
+                    html += `<span class="heart">♥</span>`;
                 }
             }
             el.innerHTML = html;

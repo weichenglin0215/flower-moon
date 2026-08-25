@@ -80,6 +80,10 @@
 
         // ---- 拖曳狀態 ----
         drag: null,
+
+        // 空白格（非題目區）提示：計時器把柄與「是否已顯示」旗標
+        _emptyHintTimer: null,
+        _showEmptyHintsFlag: false,
         _pieceIdSeq: 1,
 
         // ---- 難度設定 ----
@@ -89,12 +93,16 @@
         // showHintInGrid : 主句格子是否以黃色底色標示
         // minPieceArea   : 切割時的最小片格數（避免過小片）
         // gridLines      : 詩句行數
+        // showEmptyDelay : 開局後 N 秒，在「非題目區」（expected 為 null 的空格，
+        //                  常見於長短句的詞）顯示 25% 紅色提示區塊；0 = 永不顯示。
+        //                  與 GAME23 同一套做法：不禁止把碎片拖進該區域，
+        //                  只用顏色提示「這裡不是答案區」，避免玩家以為是 BUG。
         difficultySettings: {
-            '小學': { timeLimit: 60, poemMinRating: 6, poemType: '五言', hintLineDelay: 10, hintCharCount: 999, showHintInGrid: true, minPieceArea: 3, gridLines: 4 },
-            '中學': { timeLimit: 90, poemMinRating: 5, poemType: '七言', hintLineDelay: 20, hintCharCount: 7, showHintInGrid: true, minPieceArea: 2, gridLines: 4 },
-            '高中': { timeLimit: 130, poemMinRating: 4, poemType: '七言', hintLineDelay: 30, hintCharCount: 5, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
-            '大學': { timeLimit: 160, poemMinRating: 3, poemType: '七言', hintLineDelay: 40, hintCharCount: 3, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
-            '研究所': { timeLimit: 200, poemMinRating: 3, poemType: '七言', hintLineDelay: 999, hintCharCount: 0, showHintInGrid: false, minPieceArea: 2, gridLines: 4 }
+            '小學': { showEmptyDelay: 10, timeLimit: 60, poemMinRating: 6, poemType: '七言', hintLineDelay: 10, hintCharCount: 999, showHintInGrid: true, minPieceArea: 3, gridLines: 4 },
+            '中學': { showEmptyDelay: 20, timeLimit: 90, poemMinRating: 5, poemType: '七言', hintLineDelay: 20, hintCharCount: 7, showHintInGrid: true, minPieceArea: 2, gridLines: 4 },
+            '高中': { showEmptyDelay: 30, timeLimit: 130, poemMinRating: 4, poemType: '七言', hintLineDelay: 30, hintCharCount: 5, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
+            '大學': { showEmptyDelay: 60, timeLimit: 160, poemMinRating: 3, poemType: '七言', hintLineDelay: 40, hintCharCount: 3, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
+            '研究所': { showEmptyDelay: 90, timeLimit: 200, poemMinRating: 3, poemType: '七言', hintLineDelay: 999, hintCharCount: 0, showHintInGrid: false, minPieceArea: 2, gridLines: 4 }
         },
 
         // ------------------------------------------------------------
@@ -270,6 +278,32 @@
             });
         },
 
+        // 啟動「空白格提示」計時器：showEmptyDelay 秒後把非題目區塗成淡紅色
+        _startEmptyHintTimer: function () {
+            this._stopEmptyHintTimer();
+            // 上一局若已顯示提示，重來時要先清掉（retryGame 的 renderAll 早於本函式）
+            const wasShown = this._showEmptyHintsFlag;
+            this._showEmptyHintsFlag = false;
+            if (wasShown) this.renderGrid();
+            const s = this.difficultySettings[this.difficulty];
+            const delay = (s && s.showEmptyDelay) || 0;
+            if (delay <= 0) return;           // 0 = 永不顯示
+            this._emptyHintTimer = setTimeout(() => {
+                this._emptyHintTimer = null;
+                if (!this.isActive) return;
+                this._showEmptyHintsFlag = true;
+                this.renderGrid();            // 只重繪格子層
+            }, delay * 1000);
+        },
+
+        // 清除空白格提示計時器（換局／離開遊戲都要呼叫，避免上一局的計時器殘留）
+        _stopEmptyHintTimer: function () {
+            if (this._emptyHintTimer) {
+                clearTimeout(this._emptyHintTimer);
+                this._emptyHintTimer = null;
+            }
+        },
+
         // 停止遊戲：清除拖曳/計時器/提示計時器，隱藏容器並還原頁面捲動狀態
         stopGame: function () {
             this._clearDrag();
@@ -277,6 +311,8 @@
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.hintTimer) { clearInterval(this.hintTimer); this.hintTimer = null; }
             if (this.hintDelayHandle) { clearTimeout(this.hintDelayHandle); this.hintDelayHandle = null; }
+            this._stopEmptyHintTimer();
+            this._showEmptyHintsFlag = false;
             this._hintSession++;
             if (this.container) this.container.classList.add('hidden');
             document.body.style.overflow = '';
@@ -305,6 +341,7 @@
 
             this.prepareChallenge();
             this.startHintReveal();
+            this._startEmptyHintTimer();
             this.startTimer();
             document.getElementById('game22-retryGame-btn').disabled = false;
             document.getElementById('game22-newGame-btn').disabled = false;
@@ -325,6 +362,7 @@
             this.scramblePieces();
             this.renderAll();
             this.startHintReveal();
+            this._startEmptyHintTimer();
             this.startTimer();
             document.getElementById('game22-retryGame-btn').disabled = false;
             document.getElementById('game22-newGame-btn').disabled = false;
@@ -560,14 +598,14 @@
             return g;
         },
 
-        // 檢查某片以 (r,c) 為錨點放上棋盤是否合法：需在範圍內、對應格非空格（expected 非 null）、
-        // 且未被其他片佔用（ignorePieceId 用於「忽略自己」的情境，例如同片重新試放）
+        // 檢查某片以 (r,c) 為錨點放上棋盤是否合法：需在範圍內、且未被其他片佔用
+        // （ignorePieceId 用於「忽略自己」的情境，例如同片重新試放）
+        // ⚠️ 與 GAME23 統一：允許放在盤面任意格，不再限制 expected 是否為 null。
+        //    勝利判定只比對 expected 非 null 的格子，所以放在空白區不會誤判過關。
         canPlacePieceOnGrid: function (piece, r, c, ignorePieceId) {
             for (const [dr, dc] of piece.cells) {
                 const rr = r + dr, cc = c + dc;
                 if (rr < 0 || rr >= this.gridRows || cc < 0 || cc >= this.gridCols) return false;
-                // 空格（expected null）不能放
-                if (this.expected[rr][cc] == null) return false;
                 const occ = this.gridState[rr][cc];
                 if (occ != null && occ !== ignorePieceId) return false;
             }
@@ -614,6 +652,23 @@
             grid.innerHTML = '';
             grid.style.width = (this.gridCols * CELL_PX + 4) + 'px';//加 4 因為最右邊的答案棒有點凸出去
             grid.style.height = (this.gridRows * CELL_PX + 4) + 'px';//加 4 因為最下面的答案棒有點凸出去
+
+            // 0. 空白格提示層（showEmptyDelay 觸發後才顯示）
+            //    無邊框、緊密相鄰，形成一整片淡紅色區域，告訴玩家這裡不是答案區
+            if (this._showEmptyHintsFlag) {
+                for (let r = 0; r < this.gridRows; r++) {
+                    for (let c = 0; c < this.gridCols; c++) {
+                        if (this.expected[r][c] != null) continue;
+                        const hint = document.createElement('div');
+                        hint.className = 'game22-cell-empty-hint';
+                        hint.style.left = (c * CELL_PX) + 'px';
+                        hint.style.top = (r * CELL_PX) + 'px';
+                        hint.style.width = CELL_PX + 'px';
+                        hint.style.height = CELL_PX + 'px';
+                        grid.appendChild(hint);
+                    }
+                }
+            }
 
             // 1. 底層：每格的背景（顯示提示字、提示行高亮）
             const s = this.difficultySettings[this.difficulty];
@@ -930,9 +985,8 @@
             const conflictIds = new Set();
             for (const [dr, dc] of piece.cells) {
                 const rr = targetRow + dr, cc = targetCol + dc;
-                if (rr < 0 || rr >= this.gridRows || cc < 0 || cc >= this.gridCols
-                    || this.expected[rr][cc] == null) {
-                    // 越界 → 整片回原位
+                if (rr < 0 || rr >= this.gridRows || cc < 0 || cc >= this.gridCols) {
+                    // 越界 → 整片回原位（空白區不再視為越界，允許放入）
                     this.restoreSnapshot(snapshot);
                     this.renderAll();
                     return;

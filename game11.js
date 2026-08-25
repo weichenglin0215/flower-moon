@@ -398,7 +398,7 @@
             }
         },
 
-        // 依目前失誤次數，更新紅心顯示為實心（未失誤）或空心（已失誤）
+        // 依目前失誤次數，更新紅心顯示為實心（未失誤）或空心（已失誤）—— 由最左邊往右扣
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game11-hearts .fm-heart');
             hearts.forEach((h, i) => {

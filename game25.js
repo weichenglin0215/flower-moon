@@ -33,21 +33,24 @@
 
         // ── 逐句出題（抄襲 GAME24：一次只出一句，完成後表演過場再出下一句）──
         currentLineIndex: 0,     // 當前正在收集的句子索引
-        currentLineChars: [],    // 當前句去重後的目標字陣列
+        // 當前句的目標字符（token）陣列 —— 依 CharToken.tokenize 產生。
+        // ⚠️ 不再去重：句中重複字（例「呵呵」）會是 '呵#0'、'呵#1' 兩個獨立字符，
+        //    顏色／形狀不同，連珠時也不互通，必須各自湊齊。
+        currentLineChars: [],
         collectTarget: 0,        // 當前難度每字需收集次數
-        collectProgress: {},     // 當前句每字已收集次數
+        collectProgress: {},     // 當前句每個字符（token）已收集次數
         _prevCollectProgress: {},// 進度快照（用於 just-lit 彈跳判定）
 
         // ── 棋盤相關 ──
         rows: 8,
         cols: 7,
-        board: [],               // 二維陣列：{ char, verseIndex:int|null, id }
+        board: [],               // 二維陣列：{ char（字符 token）, verseIndex:int|null, id }
         cellElements: [],        // 對應 DOM
         cellIdCounter: 0,
 
         // ── 玩家互動 ──
         isDragging: false,
-        dragStartChar: null,     // 起點字
+        dragStartChar: null,     // 起點字符（token；顯示時需經 CharToken.base）
         currentPath: [],         // 拖曳路徑 [{ r, c }, ...]
         isAnimating: false,      // 連鎖/補位動畫鎖
         movesLeft: 0,            // 剩餘步數（步數模式）
@@ -77,15 +80,16 @@
          * collectTarget ：每字需收集次數
          */
         difficultySettings: {
-            '小學':   { timeLimitRate: 0, moveLimitRate: 0.8,  poemMinRating: 6, rowsCfg: 7, colsCfg: 7, sameHint: 'all',  verseMult: 3, refillBias: 0.80, hintDelay: 3, minLines: 2, maxLines: 2, minChars: 5,  maxChars: 14, collectTarget: 2 },
-            '中學':   { timeLimitRate: 0, moveLimitRate: 0.7,  poemMinRating: 5, rowsCfg: 7, colsCfg: 7, sameHint: 'all',  verseMult: 3, refillBias: 0.60, hintDelay: 3, minLines: 2, maxLines: 2, minChars: 5,  maxChars: 14, collectTarget: 3 },
-            '高中':   { timeLimitRate: 0, moveLimitRate: 0.6,  poemMinRating: 4, rowsCfg: 8, colsCfg: 7, sameHint: 'half', verseMult: 3, refillBias: 0.50, hintDelay: 5, minLines: 4, maxLines: 4, minChars: 7,  maxChars: 28, collectTarget: 3 },
-            '大學':   { timeLimitRate: 0, moveLimitRate: 0.55, poemMinRating: 3, rowsCfg: 9, colsCfg: 7, sameHint: 'none', verseMult: 5, refillBias: 0.30, hintDelay: 0, minLines: 4, maxLines: 4, minChars: 7,  maxChars: 28, collectTarget: 4 },
-            '研究所': { timeLimitRate: 0, moveLimitRate: 0.5,  poemMinRating: 3, rowsCfg: 10, colsCfg: 8, sameHint: 'none', verseMult: 5, refillBias: 0.00, hintDelay: 0, minLines: 4, maxLines: 4, minChars: 7,  maxChars: 28, collectTarget: 5 }
+            '小學': { timeLimitRate: 0, moveLimitRate: 0.8, poemMinRating: 6, rowsCfg: 7, colsCfg: 7, sameHint: 'all', verseMult: 3, refillBias: 0.80, hintDelay: 3, minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, collectTarget: 2 },
+            '中學': { timeLimitRate: 0, moveLimitRate: 0.7, poemMinRating: 5, rowsCfg: 7, colsCfg: 7, sameHint: 'all', verseMult: 3, refillBias: 0.60, hintDelay: 3, minLines: 2, maxLines: 2, minChars: 10, maxChars: 14, collectTarget: 3 },
+            '高中': { timeLimitRate: 0, moveLimitRate: 0.6, poemMinRating: 4, rowsCfg: 8, colsCfg: 7, sameHint: 'half', verseMult: 3, refillBias: 0.50, hintDelay: 5, minLines: 4, maxLines: 4, minChars: 20, maxChars: 28, collectTarget: 3 },
+            '大學': { timeLimitRate: 0, moveLimitRate: 0.55, poemMinRating: 3, rowsCfg: 9, colsCfg: 7, sameHint: 'none', verseMult: 5, refillBias: 0.30, hintDelay: 0, minLines: 4, maxLines: 4, minChars: 20, maxChars: 28, collectTarget: 4 },
+            '研究所': { timeLimitRate: 0, moveLimitRate: 0.5, poemMinRating: 3, rowsCfg: 10, colsCfg: 8, sameHint: 'none', verseMult: 5, refillBias: 0.00, hintDelay: 0, minLines: 4, maxLines: 4, minChars: 20, maxChars: 28, collectTarget: 5 }
         },
 
-        // 全詩去重後字陣列（依首次出現順序）— 用作 360° HUE 等分基準
-        // 同字必同色：相同字在 uniquePoemChars 的索引相同 → 計算出同樣的色相
+        // 全詩去重後字陣列（依首次出現順序）── 目前僅保留供除錯參考；
+        // 配色實際是以 currentLineChars（字符 token 陣列）為索引基準，
+        // 重複字已拆成獨立字符，不再「同字必同色」。
         uniquePoemChars: [],
         // 本局起始步數（仿 game24，用於紅白倒數框分段）
         maxMoves: 0,
@@ -426,14 +430,11 @@
         startCurrentLine: function () {
             const line = this.poemLines[this.currentLineIndex] || '';
             // 句中去重後的目標字
-            const uniqueChars = [];
-            const seen = {};
-            for (const ch of line) {
-                if (!seen[ch]) { seen[ch] = true; uniqueChars.push(ch); }
-            }
-            this.currentLineChars = uniqueChars;
+            // 句中每個字都是獨立字符（重複字不再合併，見 CharToken 說明）
+            const lineTokens = window.CharToken.tokenize(line);
+            this.currentLineChars = lineTokens;
             this.collectProgress = {};
-            uniqueChars.forEach(ch => { this.collectProgress[ch] = 0; });
+            lineTokens.forEach(tk => { this.collectProgress[tk] = 0; });
             this._prevCollectProgress = {};
 
             this.updateFreqLine();
@@ -514,15 +515,19 @@
             return tile;
         },
 
-        // 從「當前句」中該字的出現位置隨機選一個作為 verseIndex（順序成詩以句內字序為準）
-        pickVerseIndexFor: function (ch) {
+        // 取得該字符在句中的位置作為 verseIndex（順序成詩以句內字序為準）。
+        // ⚠️ token 已標明「第幾次出現」（呵#1 = 第二個呵），因此位置是唯一確定的，
+        //    不必再隨機挑 —— 這也讓「兩個呵」各自對應到自己的字序。
+        pickVerseIndexFor: function (token) {
             const line = this.poemLines[this.currentLineIndex] || '';
+            const ch = window.CharToken.base(token);
+            const nth = window.CharToken.index(token);
             const positions = [];
             for (let i = 0; i < line.length; i++) {
                 if (line[i] === ch) positions.push(i);
             }
             if (positions.length === 0) return null;
-            return positions[Math.floor(Math.random() * positions.length)];
+            return positions[Math.min(nth, positions.length - 1)];
         },
 
         // 加權字塊抽選：僅取自當前句目標字，依「尚缺次數」加權（refillBias 控制加權強度）
@@ -576,7 +581,8 @@
                     div.style.fontSize = cellFontPx + 'px';
                     const t = this.board[r][c];
                     if (t) {
-                        div.textContent = t.char;
+                        // 字塊存的是字符 token（呵#0），畫面只顯示字本身
+                        div.textContent = window.CharToken.base(t.char);
                         // 套用共用 TileStyleUtils 分組配色，與上方進度字塊(char-tile)保持一致
                         const col = this.getColorForChar(t.char);
                         if (col) {
@@ -667,7 +673,7 @@
             cell.el.classList.add('start-selected');
             cell.el.classList.add('in-path');
             this.applySameHints(cell.r, cell.c);
-            this.setPathPreview(tile.char);
+            this.setPathPreview(window.CharToken.base(tile.char));
             this.drawCurrentPath();
 
             if (window.SoundManager) window.SoundManager.playOpenItem();
@@ -717,7 +723,7 @@
             this.currentPath.push({ r: cell.r, c: cell.c });
             cell.el.classList.add('in-path');
             // 路徑預覽：以同字串聯顯示（用於玩家確認路徑長度）
-            this.setPathPreview(this.dragStartChar.repeat(this.currentPath.length));
+            this.setPathPreview(window.CharToken.base(this.dragStartChar).repeat(this.currentPath.length));
             this.drawCurrentPath();
             if (window.SoundManager && window.SoundManager.playMelodyNote) {
                 window.SoundManager.playMelodyNote((this.currentPath.length - 1) % 21);
@@ -731,7 +737,7 @@
             const popped = this.currentPath.pop();
             const el = this.cellElements[popped.r] && this.cellElements[popped.r][popped.c];
             if (el) el.classList.remove('in-path');
-            this.setPathPreview(this.dragStartChar.repeat(this.currentPath.length));
+            this.setPathPreview(window.CharToken.base(this.dragStartChar).repeat(this.currentPath.length));
             this.drawCurrentPath();
         },
 
@@ -1099,12 +1105,10 @@
                     return;
                 }
                 const line = this.poemLines[this.currentLineIndex] || '';
-                const uniqueChars = [];
-                const seen = {};
-                for (const ch of line) if (!seen[ch]) { seen[ch] = true; uniqueChars.push(ch); }
-                this.currentLineChars = uniqueChars;
+                const lineTokens = window.CharToken.tokenize(line);
+                this.currentLineChars = lineTokens;
                 this.collectProgress = {};
-                uniqueChars.forEach(ch => { this.collectProgress[ch] = 0; });
+                lineTokens.forEach(tk => { this.collectProgress[tk] = 0; });
                 this._prevCollectProgress = {};
                 this.updateFreqLine();
                 this.updateMovesLabel();
@@ -1284,7 +1288,7 @@
                 const justDone = animateNewlyLit && done && prev < target;
                 const col = this.getColorForChar(ch);
                 html += `<span class="game25-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g25-h:${col.hue};--g25-s:${col.sat}%;--g25-l:${col.lum}%;--g25-text:${col.textColor}">`
-                    + `<span class="game25-char-tile">${ch}</span>`
+                    + `<span class="game25-char-tile">${window.CharToken.base(ch)}</span>`
                     + `<span class="game25-char-count"><span class="game25-char-num">${got}</span>/<span class="game25-char-den">${target}</span></span>`
                     + `</span>`;
             });
@@ -1489,7 +1493,7 @@
             } else { endX = start.x; endY = -20; }
             const soul = document.createElement('div');
             soul.className = 'game25-soul';
-            soul.textContent = ch;
+            soul.textContent = window.CharToken.base(ch);
             soul.style.left = start.x + 'px';
             soul.style.top = start.y + 'px';
             wrapper.appendChild(soul);

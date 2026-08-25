@@ -821,11 +821,14 @@
             }
         },
 
-        // 依目前錯誤次數，將已用完的紅心改為空心（♡）
+        // 依目前錯誤次數，將已用完的紅心改為空心（♡）—— 由最左邊往右扣（同其他遊戲）
+        // ⚠️ 原本的判斷式是 `i > this.mistakeCount`，數量是錯的：
+        //    第一次失誤只剩 2 顆實心、第二次反而變 3 顆、第三次變 4 顆（愈扣愈多）。
+        //    正確算法是「前 mistakeCount 顆為空心」。
         updateHearts: function () {
             const hearts = document.querySelectorAll('#game12-hearts .fm-heart');
             hearts.forEach((h, i) => {
-                if (i > this.mistakeCount) {
+                if (i < this.mistakeCount) {
                     h.classList.add('empty');
                     h.textContent = '♡';
                 } else {

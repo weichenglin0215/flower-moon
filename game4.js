@@ -389,7 +389,14 @@
                 const lineChars = lineNum === 1 ? chars1 : chars2;
                 // 洗牌選取要隱藏的字
                 const shuffled = [...lineChars].sort(() => Math.random() - 0.5);
-                const numToMask = Math.min(lineChars.length, settings.maxMaskCount);
+                // ⚠️ 每一句至少保留一個字不挖空。
+                //    原本 numToMask 可以等於整句字數，五言詩（或更短的句子）碰上
+                //    maxMaskCount = 6 就會整句變成「◎◎◎◎◎」，玩家看不出這是哪一句，
+                //    只能盲猜。這裡把上限壓到「字數 - 1」，因為 shuffled 已洗過牌，
+                //    保留下來的那個字自然落在隨機位置。
+                //    （單字句無字可留，維持原本行為全部挖空）
+                const maxMaskable = Math.max(1, lineChars.length - 1);
+                const numToMask = Math.min(maxMaskable, settings.maxMaskCount);
                 const picked = shuffled.slice(0, numToMask).map(c => ({ ...c, line: lineNum }));
                 this.hiddenPositions.push(...picked);
             });

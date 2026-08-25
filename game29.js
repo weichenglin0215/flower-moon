@@ -32,7 +32,10 @@
         poemLines: [],            // 詩句陣列
         targetChars: [],          // 全詩字陣列（去標點）── 用於時限計算
         currentLineIndex: 0,      // 當前句索引
-        currentLineChars: [],     // 當前句去重後的目標字
+        // 當前句的目標字符（token）陣列 —— 依 CharToken.tokenize 產生。
+        // ⚠️ 不再去重：句中重複字會是 '呵#0'、'呵#1' 兩個獨立字符，
+        //    色相不同、也不能互相消除，必須各自湊齊。
+        currentLineChars: [],
         collectProgress: {},      // { 字: 已收集次數 }
         collectTarget: 1,         // 每字需收集次數
 
@@ -46,7 +49,7 @@
         centerY: 300,             // 中心發射台 Y
 
         // ── 字球長龍 ──
-        dragon: [],               // [{char, s}]，s = 沿軌道弧長位置（0 為入口，trackTotalLen 為終點）
+        dragon: [],               // [{char（字符 token）, s}]，s = 沿軌道弧長位置（0 為入口，trackTotalLen 為終點）
         dragonSpeed: 0,           // 每毫秒沿軌道前進的弧長（px/ms）
 
         // ── 發射台 ──
@@ -469,11 +472,8 @@
         // ── 開始當前句的收集 ──
         startCurrentLine: function () {
             const line = this.poemLines[this.currentLineIndex] || '';
-            const uniqueChars = [];
-            const seen = {};
-            for (const ch of line) {
-                if (!seen[ch]) { seen[ch] = true; uniqueChars.push(ch); }
-            }
+            // 句中每個字都是獨立字符（重複字不再合併，見 CharToken 說明）
+            const uniqueChars = window.CharToken.tokenize(line);
             this.currentLineChars = uniqueChars;
             this.collectProgress = {};
             uniqueChars.forEach(ch => { this.collectProgress[ch] = 0; });
@@ -503,7 +503,7 @@
                 // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
                 const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
                 html += `<span class="game29-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g29-h:${c.hue};--g29-s:${c.sat}%;--g29-l:${c.lum}%;--g29-text:${c.textColor}">`
-                    + `<span class="game29-char-tile">${ch}</span>`
+                    + `<span class="game29-char-tile">${window.CharToken.base(ch)}</span>`
                     + `<span class="game29-char-count"><span class="game29-char-num">${got}</span>/<span class="game29-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
             });
@@ -518,13 +518,13 @@
             const el2 = document.getElementById('game29-after-next-char');
             const afterWrap = document.querySelector('.game29-after-wrap');
             if (settings.previewCount >= 1) {
-                if (el) el.textContent = this.nextChar || '－';
+                if (el) el.textContent = window.CharToken.base(this.nextChar) || '－';
             } else {
                 if (el) el.textContent = '？';
             }
             if (settings.previewCount >= 2) {
                 if (afterWrap) afterWrap.style.display = '';
-                if (el2) el2.textContent = this.afterNextChar || '－';
+                if (el2) el2.textContent = window.CharToken.base(this.afterNextChar) || '－';
             } else {
                 if (afterWrap) afterWrap.style.display = 'none';
             }
@@ -1008,7 +1008,7 @@
             } else { endX = start.x; endY = -20; }
             const soul = document.createElement('div');
             soul.className = 'game29-soul';
-            soul.textContent = ch;
+            soul.textContent = window.CharToken.base(ch);
             soul.style.left = start.x + 'px';
             soul.style.top = start.y + 'px';
             wrapper.appendChild(soul);
@@ -1188,7 +1188,8 @@
             ctx.font = `900 ${Math.floor(R * 1.1)}px "Noto Serif TC", serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(ch || '', x, y + R * 0.04);
+            // 字球存的是字符 token（呵#0），畫面只畫字本身
+            ctx.fillText(window.CharToken.base(ch) || '', x, y + R * 0.04);
         },
 
         // 繪製正在飛行中的字球，含同色系尾焰（模擬飛出的殘影拖尾）

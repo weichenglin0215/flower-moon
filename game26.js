@@ -30,7 +30,10 @@
         poemLines: [],            // 詩句陣列
         targetChars: [],          // 全詩字陣列（去標點）── 用於時限計算
         currentLineIndex: 0,      // 當前句索引
-        currentLineChars: [],     // 當前句去重後的目標字
+        // 當前句的目標字符（token）陣列 —— 依 CharToken.tokenize 產生。
+        // ⚠️ 不再去重：句中重複字會是 '呵#0'、'呵#1' 兩個獨立字符，
+        //    色相不同、也不能互相消除，必須各自湊齊。
+        currentLineChars: [],
         collectProgress: {},      // { 字: 已收集次數 }
         collectTarget: 1,         // 每字需收集次數（泡泡龍每消除一群算 +1）
 
@@ -39,7 +42,7 @@
         rows: 0,                  // 當前已有泡泡的列數
         cols: 8,                  // 偶數列泡泡數
         maxRows: 14,              // 棋盤最大列數（觸頂判定）
-        cellsByRow: [],           // [row][col] = { char, alive } 或 null
+        cellsByRow: [],           // [row][col] = { char（字符 token）, alive } 或 null
         bubbleR: 30,              // 泡泡半徑（邏輯像素）
         rowHeight: 0,             // 行距（√3 × R）
         boardOriginX: 0,          // 棋盤起點 X
@@ -426,14 +429,11 @@
         // 開始當前句的收集
         startCurrentLine: function () {
             const line = this.poemLines[this.currentLineIndex] || '';
-            const uniqueChars = [];
-            const seen = {};
-            for (const ch of line) {
-                if (!seen[ch]) { seen[ch] = true; uniqueChars.push(ch); }
-            }
-            this.currentLineChars = uniqueChars;
+            // 句中每個字都是獨立字符（重複字不再合併，見 CharToken 說明）
+            const lineTokens = window.CharToken.tokenize(line);
+            this.currentLineChars = lineTokens;
             this.collectProgress = {};
-            uniqueChars.forEach(ch => { this.collectProgress[ch] = 0; });
+            lineTokens.forEach(tk => { this.collectProgress[tk] = 0; });
 
             this.updateLineDisplay();
             this.generateWall();
@@ -465,7 +465,7 @@
                 // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
                 const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
                 html += `<span class="game26-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g26-h:${c.hue};--g26-s:${c.sat}%;--g26-l:${c.lum}%;--g26-text:${c.textColor}">`
-                    + `<span class="game26-char-tile">${ch}</span>`
+                    + `<span class="game26-char-tile">${window.CharToken.base(ch)}</span>`
                     + `<span class="game26-char-count"><span class="game26-char-num">${got}</span>/<span class="game26-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
             });
@@ -475,7 +475,7 @@
 
         updateNextPreview: function () {
             const el = document.getElementById('game26-next-char');
-            if (el) el.textContent = this.nextChar || '－';
+            if (el) el.textContent = window.CharToken.base(this.nextChar) || '－';
         },
 
         // 生成初始泡泡牆
@@ -922,9 +922,10 @@
 
         // 碎句成詩偵測：墜落泡泡群是否含詩句連續字段（≥3 字）
         detectVerseInDrop: function (dropped) {
+            // ⚠️ 這裡是「和詩句原文比對」，必須換回顯示字元（呵#0 → 呵）
             const chars = dropped.map(d => {
                 const cell = this.cellsByRow[d.r] && this.cellsByRow[d.r][d.c];
-                return cell ? cell.char : '';
+                return cell ? window.CharToken.base(cell.char) : '';
             }).filter(c => c);
             if (chars.length < 3) return false;
             const charSet = {};
@@ -1083,7 +1084,7 @@
             } else { endX = start.x; endY = -20; }
             const soul = document.createElement('div');
             soul.className = 'game26-soul';
-            soul.textContent = ch;
+            soul.textContent = window.CharToken.base(ch);
             soul.style.left = start.x + 'px';
             soul.style.top = start.y + 'px';
             wrapper.appendChild(soul);
@@ -1217,7 +1218,8 @@
             ctx.font = `900 ${Math.floor(this.bubbleR * 1.05)}px "Noto Serif TC", serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(ch || '', x, y + r * 0.04);
+            // 泡泡存的是字符 token（呵#0），畫面只畫字本身
+            ctx.fillText(window.CharToken.base(ch) || '', x, y + r * 0.04);
         },
 
         // 繪製瞄準虛線：含反彈預判（依難度）

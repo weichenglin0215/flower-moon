@@ -33,7 +33,7 @@
         // ── 盤面 ──
         rows: 6,
         cols: 6,
-        board: [],                  // [row][col] = { char } 或 null（已消除）
+        board: [],                  // [row][col] = { char（詩字為字符 token、干擾字為純字元） } 或 null
         cellElements: [],           // [row][col] = DOM 元素
         tilesLeft: 0,               // 剩餘字牌數量
 
@@ -53,7 +53,9 @@
         startTime: 0,
         gameStartTime: null,
 
-        // 全詩去重後字陣列（首次出現順序）— 同字同色的 HUE 索引基準
+        // 全詩的字符（token）陣列（依 CharToken.tokenize，順序同原文）— 同色同形的索引基準
+        // ⚠️ 不再去重：全詩若出現重複字（例兩個「呵」），會是 '呵#0'、'呵#1' 兩個獨立字符，
+        //    顏色／形狀不同，配對時也不互通（呵#0 只能配呵#0），進度列因此顯示完整詩句。
         uniquePoemChars: [],
 
         // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
@@ -366,12 +368,8 @@
             this.currentPoem = result.poem;
             this.poemLines = result.lines;
             this.targetChars = this.poemLines.join('').split('');
-            // 全詩去重後字（首次出現順序）— 同字同色 HUE 索引基準
-            const seen = {};
-            this.uniquePoemChars = [];
-            for (const ch of this.targetChars) {
-                if (!seen[ch]) { seen[ch] = true; this.uniquePoemChars.push(ch); }
-            }
+            // 全詩字符（token）陣列 — 同色同形的索引基準；重複字各自獨立
+            this.uniquePoemChars = window.CharToken.tokenize(this.targetChars.join(''));
 
             // 顯示詩名 — 全名截 12 字 + 全名放 title 屬性供 hover 顯示
             const fullName = `${this.currentPoem.title}/${this.currentPoem.dynasty}/${this.currentPoem.author}`;
@@ -399,7 +397,8 @@
 
             // 1) 詩字陣列：循環取自 targetChars，每字偶數張
             const charBag = [];
-            const uniqChars = Array.from(new Set(this.targetChars));
+            // 每個字符（token）都是獨立的一組，重複字各自成組
+            const uniqChars = this.uniquePoemChars.slice();
             // 至少每字 2 張
             let idx = 0;
             while (charBag.length < poemCount) {
@@ -438,7 +437,8 @@
 
             // 2) 干擾字：從 decoyPool 隨機抽，每字 2 張
             const decoyBag = [];
-            const decoySet = new Set(uniqChars);  // 排除詩字
+            // 排除詩字：干擾字比對的是「顯示字元」，所以要把 token 還原成字
+            const decoySet = new Set(window.CharToken.bases(uniqChars));
             const decoyAvailable = this.decoyPool.split('').filter(c => !decoySet.has(c));
             // 洗牌
             for (let i = decoyAvailable.length - 1; i > 0; i--) {
@@ -712,7 +712,8 @@
                     div.style.height = tileH + 'px';
                     const data = this.board[r][c];
                     if (data) {
-                        div.textContent = data.char;
+                        // 字牌存的是字符 token（呵#0），畫面只顯示字本身
+                        div.textContent = window.CharToken.base(data.char);
                         // 同字同色：依字在 uniquePoemChars 索引等分 360°
                         const hue = this.getHueForChar(data.char);
                         div.style.setProperty('--g28-h', hue);
@@ -814,7 +815,7 @@
                 // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
                 const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
                 html += `<span class="game28-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g28-h:${c.hue};--g28-s:${c.sat}%;--g28-l:${c.lum}%;--g28-text:${c.textColor}">`
-                    + `<span class="game28-char-tile">${ch}</span>`
+                    + `<span class="game28-char-tile">${window.CharToken.base(ch)}</span>`
                     + `<span class="game28-char-count"><span class="game28-char-num">${got}</span>/<span class="game28-char-den">${total}</span></span>`
                     + `</span>`;
             });
@@ -879,7 +880,7 @@
             } else { endX = start.x; endY = -20; }
             const soul = document.createElement('div');
             soul.className = 'game28-soul';
-            soul.textContent = ch;
+            soul.textContent = window.CharToken.base(ch);
             soul.style.left = start.x + 'px';
             soul.style.top = start.y + 'px';
             wrapper.appendChild(soul);
@@ -927,8 +928,9 @@
             // 順序加成判定
             const settings = this.difficultySettings[this.difficulty];
             let bonus = 1;
+            // ⚠️ 與詩句原文比序，需把 token 還原成顯示字元
             if (this.orderProgress < this.targetChars.length &&
-                this.targetChars[this.orderProgress] === charMatched) {
+                this.targetChars[this.orderProgress] === window.CharToken.base(charMatched)) {
                 this.orderProgress++;
                 this.orderStreak++;
                 if (this.orderStreak >= 2) bonus = settings.orderBonus;

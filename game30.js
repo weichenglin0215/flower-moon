@@ -29,10 +29,10 @@
         currentPoem: null,
         poemLines: [],
         targetChars: [],          // 全詩去標點後的字陣列（含順序）
-        collectProgress: {},      // { 字: 已收集次數（每字最終目標 = 出現次數） }
+        collectProgress: {},      // { 字符token: { need, have } }；每個字符各需收集 1 組三連
 
         // ── 牌山 ──
-        tiles: [],                // 牌山所有字牌 { id, char, layer, x, y, w, h, el, removed }
+        tiles: [],                // 牌山所有字牌 { id, char（詩字為字符 token）, layer, x, y, w, h, el, removed }
         TILE_W: 50,
         TILE_H: 60,
         // 牌山內邏輯區寬 / 高（CSS 中 wrapper height=460, 我們留邊距）
@@ -59,6 +59,9 @@
         animLocked: false,
 
         // 全詩去重後字陣列（首次出現順序）— 同字同色 HUE 索引基準
+        // 全詩字符（token）陣列（順序同原文）— 同色同形的索引基準。
+        // ⚠️ 不再去重：重複字會是 '呵#0'、'呵#1' 兩個獨立字符，顏色／形狀不同，
+        //    也不能互相湊三連，進度列因此完整呈現整句詩。
         uniquePoemChars: [],
 
         // ── 委派給 window.TilePresentation：跨 game24~game30 統一的色相/配色實作 ──
@@ -299,14 +302,12 @@
             document.getElementById('game30-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
 
-            // 初始化收集進度：每個詩字目標 = 出現次數
+            // 初始化收集進度：每個「字符」各需收集 1 組三連
+            // （重複字已在 uniquePoemChars 拆成獨立字符，所以不再用「出現次數」當目標）
             this.collectProgress = {};
-            this.targetChars.forEach(ch => {
-                this.collectProgress[ch] = this.collectProgress[ch] || { need: 0, have: 0 };
-                this.collectProgress[ch].need++;
+            this.uniquePoemChars.forEach(tk => {
+                this.collectProgress[tk] = { need: 1, have: 0 };
             });
-            // 重置 have
-            Object.keys(this.collectProgress).forEach(k => this.collectProgress[k].have = 0);
 
             // 重新生成牌山（重來也重生）
             this.generateTower();
@@ -362,12 +363,8 @@
             infoEl.title = fullName;
             infoEl.dataset.poemId = this.currentPoem.id;
 
-            // 全詩去重後字（首次出現順序）— 同字同色 HUE 索引基準
-            const seen = {};
-            this.uniquePoemChars = [];
-            for (const ch of this.targetChars) {
-                if (!seen[ch]) { seen[ch] = true; this.uniquePoemChars.push(ch); }
-            }
+            // 全詩字符（token）陣列 — 同色同形的索引基準；重複字各自獨立
+            this.uniquePoemChars = window.CharToken.tokenize(this.targetChars.join(''));
             infoEl.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (window.openPoemDialogById) window.openPoemDialogById(this.currentPoem.id);
@@ -388,18 +385,28 @@
 
             // ── (A) 計算「3 的倍數」總張數 ──
             // total 不一定是 3 的倍數，調整：取最接近且 ≤ total 的 3 倍數
-            const totalAdj = Math.floor(total / 3) * 3;
+            let totalAdj = Math.floor(total / 3) * 3;
 
             // ── (B) 詩字 / 干擾字數量分配（皆為 3 的倍數） ──
             let decoyTriples = Math.floor((totalAdj * settings.decoyRatio) / 3);
             let poemTriples = totalAdj / 3 - decoyTriples;
             if (poemTriples < 1) { poemTriples = 1; decoyTriples = totalAdj / 3 - 1; }
 
-            // ── (C) 詩字選哪些？依字頻加權，每字配 N 個 triple ──
-            // 統計詩字字頻
+            // ⚠️ 每個字符都必須在牌山上湊得到三連，否則進度列永遠有一格填不滿 → 過不了關。
+            //    難度設定的 totalTiles 若不足以容納「字符數 × 3」，這裡把牌數往上補足。
+            //    （只調整本局實際發牌張數，未更動 difficultySettings 的內容）
+            const tokenCount = this.uniquePoemChars.length;
+            if (poemTriples < tokenCount) {
+                poemTriples = tokenCount;
+                totalAdj = (poemTriples + decoyTriples) * 3;
+            }
+
+            // ── (C) 詩字選哪些？每個「字符」各配 N 個 triple ──
+            // ⚠️ 以字符（token）為單位：重複字各自成組，牌山上兩個「呵」是不同顏色、
+            //    不能互相湊三連的兩種牌。
+            const uniqPoemChars = this.uniquePoemChars.slice();
             const freq = {};
-            this.targetChars.forEach(ch => { freq[ch] = (freq[ch] || 0) + 1; });
-            const uniqPoemChars = Object.keys(freq);
+            uniqPoemChars.forEach(tk => { freq[tk] = 1; });
 
             // 為了「保證每個詩字至少 3 張」，先給每個詩字 1 個 triple
             const tripleAlloc = {};   // char -> triple 個數
@@ -425,7 +432,9 @@
             }
 
             // ── (D) 干擾字三連 ──
-            const decoyAvailable = this.decoyPool.split('').filter(c => !uniqPoemChars.includes(c));
+            // 干擾字比對的是「顯示字元」，所以要把 token 還原成字再排除
+            const poemBaseSet = new Set(window.CharToken.bases(uniqPoemChars));
+            const decoyAvailable = this.decoyPool.split('').filter(c => !poemBaseSet.has(c));
             // 洗牌
             for (let i = decoyAvailable.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -569,7 +578,8 @@
             sorted.forEach(t => {
                 const el = document.createElement('div');
                 el.className = 'game30-tile';
-                el.textContent = t.char;
+                // 字牌存的是字符 token（呵#0），畫面只顯示字本身
+                el.textContent = window.CharToken.base(t.char);
                 el.style.left = t.x + 'px';
                 el.style.top = t.y + 'px';
                 el.style.zIndex = 10 + t.layer * 10;
@@ -750,7 +760,7 @@
                 slot.className = 'game30-slot';
                 if (i < this.buffer.length) {
                     slot.classList.add('filled');
-                    slot.textContent = this.buffer[i].char;
+                    slot.textContent = window.CharToken.base(this.buffer[i].char);
                     slot.dataset.tid = this.buffer[i].tileId;
                 }
                 container.appendChild(slot);
@@ -808,8 +818,9 @@
             let bonus = 1;
             const isPoemChar = this.collectProgress[ch] !== undefined;
             if (isPoemChar) {
+                // ⚠️ 與詩句原文比序，需把 token 還原成顯示字元
                 if (this.orderIdx < this.targetChars.length &&
-                    this.targetChars[this.orderIdx] === ch) {
+                    this.targetChars[this.orderIdx] === window.CharToken.base(ch)) {
                     // 完美命中順序
                     this.orderIdx++;
                     this.orderStreak++;
@@ -916,7 +927,7 @@
             } else { endX = sx; endY = -20; }
             const soul = document.createElement('div');
             soul.className = 'game30-soul';
-            soul.textContent = ch;
+            soul.textContent = window.CharToken.base(ch);
             soul.style.left = sx + 'px';
             soul.style.top = sy + 'px';
             overlay.appendChild(soul);
@@ -988,7 +999,7 @@
                 const justDone = animateNewlyLit && done && prevHave < p.need;
                 const hue = this.getHueForChar(ch);
                 html += `<span class="game30-tracker-item ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g30-h:${hue}">`
-                    + `<span class="game30-tracker-tile">${ch}</span>`
+                    + `<span class="game30-tracker-tile">${window.CharToken.base(ch)}</span>`
                     + `<span class="game30-tracker-count"><span class="game30-tracker-num">${have}</span>/<span class="game30-tracker-den">${p.need}</span></span>`
                     + `</span>`;
             });

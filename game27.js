@@ -31,14 +31,17 @@
         poemLines: [],
         targetChars: [],          // 全詩字陣列（去標點），用於時限計算與加權生成
         currentLineIndex: 0,
-        currentLineChars: [],     // 當前句去重後的目標字
+        // 當前句的目標字符（token）陣列 —— 依 CharToken.tokenize 產生。
+        // ⚠️ 不再去重：句中重複字會是 '呵#0'、'呵#1' 兩個獨立字符，
+        //    顏色／形狀不同、也不能互相消除，必須各自湊齊。
+        currentLineChars: [],
         collectProgress: {},      // { 字: 已收集次數 }
         collectTarget: 1,         // 每字所需收集次數（每次消除 +1）
 
         // ── 棋盤 ──
         cols: 6,
         rows: 12,
-        grid: [],                 // [row][col] = { char } 或 null
+        grid: [],                 // [row][col] = { char（字符 token） } 或 null
 
         // ── 當前下落磚塊 ──
         currentBrick: null,       // { shape: [[r,c],...], chars: [str,...], pivot:[r,c], r, c }
@@ -437,11 +440,8 @@
         // ── 進入當前句的收集 ──
         startCurrentLine: function () {
             const line = this.poemLines[this.currentLineIndex] || '';
-            const uniqueChars = [];
-            const seen = {};
-            for (const ch of line) {
-                if (!seen[ch]) { seen[ch] = true; uniqueChars.push(ch); }
-            }
+            // 句中每個字都是獨立字符（重複字不再合併，見 CharToken 說明）
+            const uniqueChars = window.CharToken.tokenize(line);
             this.currentLineChars = uniqueChars;
             this.collectProgress = {};
             uniqueChars.forEach(ch => { this.collectProgress[ch] = 0; });
@@ -479,7 +479,7 @@
                 // ⚠️ 使用共用 TilePresentation 取得完整分組配色（同 game24 頂端字塊）
                 const c = this.getColorForChar(ch) || { hue: this.getHueForChar(ch), sat: 60, lum: 75, textColor: 'hsl(220, 30%, 14%)' };
                 html += `<span class="game27-char-group ${done ? 'done' : ''}${justDone ? ' just-lit' : ''}" data-char="${ch}" style="--g27-h:${c.hue};--g27-s:${c.sat}%;--g27-l:${c.lum}%;--g27-text:${c.textColor}">`
-                    + `<span class="game27-char-tile">${ch}</span>`
+                    + `<span class="game27-char-tile">${window.CharToken.base(ch)}</span>`
                     + `<span class="game27-char-count"><span class="game27-char-num">${got}</span>/<span class="game27-char-den">${this.collectTarget}</span></span>`
                     + `</span>`;
             });
@@ -862,7 +862,7 @@
             } else { endX = start.x; endY = -20; }
             const soul = document.createElement('div');
             soul.className = 'game27-soul';
-            soul.textContent = ch;
+            soul.textContent = window.CharToken.base(ch);
             soul.style.left = start.x + 'px';
             soul.style.top = start.y + 'px';
             wrapper.appendChild(soul);
@@ -1053,7 +1053,8 @@
             ctx.font = `900 ${fontSize}px "Noto Serif TC", serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(ch || '', x + S / 2, y + S / 2 + S * 0.03);
+            // 格子存的是字符 token（呵#0），畫面只畫字本身
+            ctx.fillText(window.CharToken.base(ch) || '', x + S / 2, y + S / 2 + S * 0.03);
         },
 
         // ── 預覽：將下一塊、下下塊畫進 4×4 mini grid ──
@@ -1096,7 +1097,7 @@
                     const ch = charMap[`${r},${c}`];
                     if (ch) {
                         div.classList.add('filled');
-                        div.textContent = ch;
+                        div.textContent = window.CharToken.base(ch);
                     }
                     el.appendChild(div);
                 }

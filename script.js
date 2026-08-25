@@ -793,6 +793,90 @@ window.sharedSplitLine = function sharedSplitLine(line, singleCharProb) {
 };
 
 // =============================================================================
+// 重複字「獨立字符」工具 (CharToken)
+// -----------------------------------------------------------------------------
+// 為什麼需要它：
+//   GAME24~GAME30 的目標字原本以「字元本身」作為身分（collectProgress['呵']、
+//   tile.char === '呵'），因此一句詩若出現重複字（例：「喝酒且呵呵」的兩個「呵」），
+//   目標字清單只能保留一個，玩家看到的題目卡少了一個字，會誤以為是 BUG。
+//
+// 作法：
+//   把「第 n 次出現的某字」轉成獨立的字符（token）字串 —— 「呵#0」「呵#1」。
+//   ① 身分比對（三連、收集進度、路徑相連…）直接比對 token 字串 →
+//      兩個「呵」互不相通，必須各自湊齊，達成「解題辨識上獨立」。
+//   ② 配色／形狀走 TilePresentation，索引為 token 在目標陣列中的位置 →
+//      兩個「呵」自然拿到不同色相與不同形狀，達成「視覺辨識上獨立」。
+//   ③ 顯示一律經過 CharToken.base()，畫面上仍是「呵」。
+//
+// 為什麼分隔符選 '#'：
+//   詩詞內容不會出現 '#'，且它在 CSS 屬性選擇器（[data-char="呵#1"]）與
+//   HTML 屬性中都安全，主控台除錯時也一眼看得懂。
+//
+// 注意：base() 對「沒有 # 的一般字元」是安全的（原樣回傳），
+//       所以干擾字可以維持純字元，不必特別處理。
+// =============================================================================
+window.CharToken = {
+   SEP: '#',
+
+   /**
+    * 將字串切成「每次出現都是獨立身分」的 token 陣列。
+    * 例：'呵呵大笑' → ['呵#0', '呵#1', '大#0', '笑#0']
+    * @param {string} str 來源字串（通常是一句詩或整首詩的純文字）
+    * @returns {string[]} token 陣列，順序與原字串一致
+    */
+   tokenize: function (str) {
+      const seen = {};
+      const out = [];
+      for (const ch of (str || '')) {
+         const n = seen[ch] || 0;
+         seen[ch] = n + 1;
+         out.push(ch + this.SEP + n);
+      }
+      return out;
+   },
+
+   /**
+    * 取得 token 的顯示字元；傳入一般字元（干擾字）時原樣回傳。
+    * @param {string} token 'ch#n' 或一般字元
+    * @returns {string} 顯示用字元
+    */
+   base: function (token) {
+      if (!token) return token;
+      const i = token.indexOf(this.SEP);
+      return i > 0 ? token.slice(0, i) : token;
+   },
+
+   /**
+    * 取得 token 的出現序號（第幾次出現，0-based）；一般字元回傳 0。
+    * @param {string} token 'ch#n' 或一般字元
+    * @returns {number}
+    */
+   index: function (token) {
+      if (!token) return 0;
+      const i = token.indexOf(this.SEP);
+      return i > 0 ? (parseInt(token.slice(i + 1), 10) || 0) : 0;
+   },
+
+   /**
+    * 是否為本工具產生的 token（用於防呆與除錯）。
+    * @param {string} token
+    * @returns {boolean}
+    */
+   isToken: function (token) {
+      return typeof token === 'string' && token.indexOf(this.SEP) > 0;
+   },
+
+   /**
+    * 把 token 陣列轉成顯示字元陣列（例：計算時限、比對詩句時使用）。
+    * @param {string[]} tokens
+    * @returns {string[]}
+    */
+   bases: function (tokens) {
+      return (tokens || []).map(t => this.base(t));
+   }
+};
+
+// =============================================================================
 // 字塊分組配色工具 (TileStyleUtils)
 // -----------------------------------------------------------------------------
 // 適用於「多字一組必須同色、組與組之間需可辨識」的遊戲類型（如 GAME24~30 連珠/拼組玩法）。
