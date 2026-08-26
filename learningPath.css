@@ -446,6 +446,46 @@
     background: var(--lp-bg-red-deep);
 }
 
+/* ── 第四態「可應試」：已走到考試站、但該文位還沒考過 ────────────────
+   （見 note/文位晉升與獎勵規劃_青雲梯新版.md §7）
+   這不只是標記，它本身就是一顆按鈕：點下去直接前往江南小院考棚。
+   刻意用硃紅底＋米白字，與站點圖示的金色形成對比，讓玩家一眼看到
+   「這裡還有事情要做」。                                              */
+.lp-exam-badge {
+    position: absolute;
+    /* 掛在圖示右下角外緣，不遮住圖示本身的文字 */
+    right: -10px;
+    bottom: -8px;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: var(--lp-bg-red-deep);
+    color: var(--lp-text-cream);
+    font-size: var(--lp-fs-xs);
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 2px solid var(--lp-bg-cream-light);
+    box-shadow: 0 2px 5px hsl(from var(--lp-bg-gold-deep) h s l / 0.4);
+    /* 緩慢脈動吸引注意；尊重「減少動態」偏好的使用者（見檔末 media query） */
+    animation: lp-exam-pulse 1.8s ease-in-out infinite;
+    z-index: 2;
+}
+
+.lp-exam-badge:active {
+    transform: translateY(1px);
+}
+
+@keyframes lp-exam-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+}
+
+/* 未解鎖的站不會有「應試」標記，但保險起見一併壓掉 */
+.lp-locked .lp-exam-badge {
+    display: none;
+}
+
 /* ── 四段式進度圈：只有「目前所在站」會顯示這圈 SVG 圓環進度 ──────── */
 .lp-ring {
     /* 疊在站點圖示正中央、不接收滑鼠事件（點擊會穿透到底下的 .lp-station） */
@@ -609,6 +649,11 @@
     .lp-station-icon,
     .lp-locate-btn {
         transition: none;
+    }
+
+    /* 「應試」標記的脈動同樣關閉，改以靜態外觀呈現 */
+    .lp-exam-badge {
+        animation: none;
     }
 }
 

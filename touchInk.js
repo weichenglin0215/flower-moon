@@ -49,6 +49,15 @@
     var dpr = 1;                    // 實際使用的解析度倍率
     var running = false;            // rAF 迴圈是否運轉中
     var enabled = true;             // 模組總開關
+    // 「外部強制播放」的有效期限（performance.now() 時間戳）。
+    // ⚠️ 這個變數是為了修一個很難察覺的 bug：burst() 雖然刻意不看 enabled，
+    //    但它最後呼叫的 startLoop() 卻有 `if (!enabled) return`，
+    //    於是在 enabled=false 的頁面（例如青雲梯）粒子被生出來了、
+    //    繪製迴圈卻沒啟動，畫面上什麼都沒有。
+    //    症狀非常詭異：第一次播放看得到（那時 enabled 還是預設的 true），
+    //    只要玩家在青雲梯點過任何一下，menu.js 就會把 enabled 關掉，
+    //    第二次之後就再也看不到星星了。
+    var forceUntil = 0;
     var lastTime = 0;               // 上一影格時間戳
     var aliveCount = 0;             // 目前存活粒子數
 
@@ -87,11 +96,39 @@
         resize();
     }
 
-    // 視窗尺寸變更時重設 canvas 解析度
+    /**
+     * 重設 canvas 解析度。
+     *
+     * ⚠️ 這裡曾經有一個會讓整個特效**完全看不見**的 bug：
+     *    舊版直接 `canvas.width = window.innerWidth * dpr`，但 init() 執行時
+     *    innerWidth 有機會還是 0（版面尚未完成、開場動畫期間、分頁在背景中
+     *    載入、iOS Safari 網址列尚未收合…）。一旦寫入 0，canvas 的繪圖緩衝區
+     *    就是 0×0，之後畫什麼都不會出現 —— 而唯一會修正它的是 window 的
+     *    resize 事件，偏偏「使用者沒有改變視窗大小」時那個事件永遠不會來，
+     *    於是特效就這樣安靜地死掉，且 CSS 尺寸看起來完全正常（1280×720），
+     *    從外觀完全看不出問題在哪。
+     *
+     *    修正有三層：
+     *      ① innerWidth 為 0 時退回 documentElement.clientWidth
+     *      ② 量不到尺寸就「不要寫入」，保留上一次的有效值，絕不寫 0
+     *      ③ 由 onPointerDown 每次互動前呼叫，尺寸不對就自動補救（自我修復）
+     *
+     * @returns {boolean} 是否成功取得有效尺寸
+     */
     function resize() {
         dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-        canvas.width = Math.round(window.innerWidth * dpr);
-        canvas.height = Math.round(window.innerHeight * dpr);
+        var w = window.innerWidth || document.documentElement.clientWidth || 0;
+        var h = window.innerHeight || document.documentElement.clientHeight || 0;
+        if (w < 1 || h < 1) return false;   // 尺寸還沒準備好 → 維持原值，不要寫入 0
+
+        var cw = Math.round(w * dpr), ch = Math.round(h * dpr);
+        // 尺寸沒變就不重設：寫入 canvas.width 會清空畫布，
+        // 每次 pointerdown 都重設會把still存活的粒子全部抹掉。
+        if (canvas.width !== cw || canvas.height !== ch) {
+            canvas.width = cw;
+            canvas.height = ch;
+        }
+        return true;
     }
 
     // ====== 畫面顏色取樣（實際顯示像素） ======
@@ -269,6 +306,9 @@
     // ====== 觸控事件 ======
     function onPointerDown(e) {
         if (!enabled) return;
+        // 自我修復：init() 當下若量不到視窗尺寸，canvas 會是 0×0 而完全畫不出東西。
+        // 每次互動前確認一次（尺寸相同時 resize 內部會直接略過，不會清空畫布）。
+        resize();
         pointers[e.pointerId] = {
             x: e.clientX, y: e.clientY,
             vx: 0, vy: 0,
@@ -329,8 +369,18 @@
     }
 
     // ====== 主迴圈 ======
+    /**
+     * 目前是否應該繪製？
+     * enabled 是 menu.js 依頁面控制的「手指拖曳特效」開關；
+     * forceUntil 則是 burst() 這類「程式主動播放的一次性演出」的強制期限，
+     * 兩者任一成立就要跑迴圈。
+     */
+    function isActive() {
+        return enabled || performance.now() < forceUntil;
+    }
+
     function startLoop() {
-        if (running || !enabled) return;
+        if (running || !isActive()) return;
         running = true;
         lastTime = performance.now();
         requestAnimationFrame(tick);
@@ -448,6 +498,16 @@
         window.addEventListener('pointerup', onPointerUp, { passive: true });
         window.addEventListener('pointercancel', onPointerUp, { passive: true });
         window.addEventListener('resize', resize);
+        // 手機上網址列收合／鍵盤彈出時 innerHeight 會變，但不一定觸發 resize，
+        // 因此一併監聽 visualViewport（與 screen_adaptive.js 的作法一致）。
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', resize);
+        }
+        // init 當下若尺寸還沒準備好（回傳 false），等版面穩定後再試一次
+        if (!resize()) {
+            requestAnimationFrame(function () { resize(); });
+            window.addEventListener('load', resize, { once: true });
+        }
         // 頁面進背景：清空所有粒子並停止迴圈，避免背景耗電
         document.addEventListener('visibilitychange', function () {
             if (document.hidden) {
@@ -470,11 +530,46 @@
         },
         /** 除錯用：直接測試指定螢幕座標的顏色取樣結果（正式版可移除） */
         _sample: function (x, y) { return sampleColorAt(x, y); },
+        /**
+         * 外部特效專用：在指定螢幕座標噴一撮粒子。
+         *
+         * ⚠️ 刻意**不受 enabled 開關影響**。
+         *    enabled 是 menu.js 依「目前在哪一頁」控制的「手指拖曳特效」總開關
+         *    （見 menu.js 的 TOUCH_EFFECTS 表），而這支是給晉升慶祝動畫這類
+         *    「由程式主動播放的一次性演出」使用的，兩者用途不同：
+         *    玩家在青雲梯把手指拖曳特效關掉，不代表晉升動畫也不該有星星。
+         *
+         * ⚠️ 座標是 CSS 像素的「螢幕座標」（與 clientX/clientY 同一套），
+         *    內部繪製時才乘上 dpr，呼叫端不需要自己換算。
+         *
+         * @param {number} x,y     噴發位置（螢幕座標）
+         * @param {number} vx,vy   帶給粒子的初速（px/s），通常傳拖曳方向的速度
+         * @param {number} [count] 顆數，預設 12
+         * @param {object} [color] {r,g,b}，預設沿用淡金色
+         */
+        burst: function (x, y, vx, vy, count, color) {
+            if (!canvas) return;
+            resize();                     // 確保 canvas 有正確尺寸（見 resize 的說明）
+            // 開啟／延長強制播放期限：涵蓋粒子最長壽命（LIFE_MAX），
+            // 讓最後一撮粒子也能完整飄完再停機。
+            forceUntil = performance.now() + LIFE_MAX * 1000 + 500;
+            var n = count === undefined ? 12 : count;
+            var col = color || { r: 235, g: 205, b: 130 };
+            for (var i = 0; i < n; i++) {
+                spawnParticle(x, y, col, vx || 0, vy || 0);
+            }
+            if (!running) startLoop();
+        },
+
         /** 啟用特效 */
         enable: function () { enabled = true; },
         /** 停用特效並立即清空畫面 */
         disable: function () {
             enabled = false;
+            // ⚠️ 演出進行中（burst 的強制期限內）只關開關、不清畫面。
+            //    否則玩家在晉升動畫播放期間隨手點一下，menu.js 就會依當前頁面
+            //    重新套用設定而呼叫 disable()，把演出中的粒子整個抹掉。
+            if (performance.now() < forceUntil) return;
             for (var i = 0; i < MAX_PARTICLES; i++) pool[i].alive = false;
             aliveCount = 0;
             pointers = {};

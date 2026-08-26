@@ -3,8 +3,17 @@
  * 沿用 achievement.js 的 overlay/registerOverlayResize 架構
  * 資料來源：
  *   - Supabase player_saves（總分、文位、各遊戲統計、詩詞）
- *   - Supabase game_logs（短期/速通/時長）
+ *   - Supabase RPC（短期／單遊戲／時長三張榜）：
+ *       get_short_board / get_game_board / get_time_board
+ *     背後讀的是彙總表 player_daily_stats 與 player_game_stats，
+ *     而**不是** game_logs 明細（見 note/排行榜彙總表_SQL草案.sql）。
  *   - 無雲端綁定 ID 時，僅顯示自己一筆（本地 ScoreManager 資料）
+ *
+ * ⚠️ 為什麼不再直接查 game_logs：
+ *    ① game_logs 有 90 天保留期，明細會被清掉，歷史排名會跟著消失；
+ *    ② PostgREST 預設一次只回 1000 列，舊版「撈全表再用 JS 加總」的寫法
+ *       在資料量超過 1000 局之後就一直在靜默算錯。
+ *    RPC 一律在資料庫端加總、排序、限筆後才回傳，兩個問題一次解決。
  */
 (function () {
     'use strict';
@@ -466,78 +475,97 @@
             return data || [];
         },
 
-        /** 短期榜：依日/週/月區間從 game_logs 加總 */
+        /**
+         * 短期榜：日／週／月區間總分。
+         *
+         * ⚠️ 改版前是 `select('player_id,score')` 撈明細回前端自己加總，
+         *    但那句沒有分頁也沒有 limit，PostgREST 預設只回 1000 列 ——
+         *    也就是說資料量一超過 1000 局，這張榜早就在靜默算錯了。
+         *    現在改由 get_short_board 在資料庫端加總、排序、限筆後才回傳，
+         *    回來的永遠就是正確的前 50 名。
+         *
+         * ⚠️ 區間起點改由資料庫端以 Asia/Taipei 計算（見 SQL 草案 §5.1），
+         *    不再用瀏覽器本地時區推算，跨時區或半夜前後不會再對不上。
+         */
         fetchShortBoard: async function (slice) {
             const sb = this.getSupabase();
             if (!sb) return this.fallbackSinglePlayer();
-            const since = this.sliceSince(slice);
+
             const cacheKey = 'short_' + slice;
             if (this.cache[cacheKey] && (Date.now() - this.cache[cacheKey].ts < 60_000)) {
                 return this.cache[cacheKey].data;
             }
-            const { data, error } = await sb.from('game_logs')
-                .select('player_id,score')
-                .gte('played_at', since.toISOString());
-            if (error) throw error;
-            const map = {};
-            (data || []).forEach(r => {
-                map[r.player_id] = (map[r.player_id] || 0) + (r.score || 0);
+
+            // p_slice 接受 'day' | 'week' | 'month' | 'all'，
+            // 與這裡的 slice（子選單的 value）同名，直接傳即可。
+            const { data, error } = await sb.rpc('get_short_board', {
+                p_slice: slice || 'day',
+                p_limit: 50
             });
-            const rows = Object.keys(map).map(pid => ({
-                id: pid,
-                nickname: (pid.split('#')[0] || pid),
-                total_score: map[pid]
-            })).sort((a, b) => b.total_score - a.total_score).slice(0, 50);
+            if (error) throw error;
+
+            const rows = (data || []).map(r => ({
+                id:          r.player_id,
+                // RPC 已 join player_saves，拿得到玩家自訂暱稱與真實階級，
+                // 不必再從引繼碼硬切字串（舊寫法 pid.split('#')[0]）。
+                nickname:    r.nickname,
+                global_rank: r.global_rank,
+                total_score: Number(r.total_score) || 0
+            }));
+
             this.cache[cacheKey] = { ts: Date.now(), data: rows };
             return rows;
         },
 
-        /** 單遊戲榜：分高分 / 速通 / 累計通關 */
+        /**
+         * 單遊戲榜：高分 / 速通 / 累計通關，三者共用同一支 RPC。
+         *
+         * ⚠️ 改版前這三種榜是「兩套資料源」：高分與速通撈 game_logs 明細，
+         *    累計通關卻讀 player_saves.games[gameKey].playCount。後者不分難度，
+         *    跟榜單標題寫的「某難度」根本對不上（選研究所也是看全難度總和）。
+         *    現在三種全部走 player_game_stats，資料源統一、難度也正確。
+         *
+         * ⚠️ 高分／速通改版前只撈前 200 筆再用 JS 去重取每人最佳，
+         *    第 200 名之後的玩家紀錄根本進不了榜。現在由資料庫端直接
+         *    對「每人一列」的彙總表排序，不會再漏人。
+         */
         fetchGameBoard: async function (sub, gameKey, difficulty) {
             const sb = this.getSupabase();
             if (!sb) return this.fallbackSinglePlayer();
+
             const gameNo = parseInt(gameKey.replace('game', ''), 10) || 0;
-            if (sub === 'highScore' || sub === 'speedrun') {
-                const cacheKey = 'gb_' + sub + '_' + gameKey + '_' + difficulty;
-                if (this.cache[cacheKey] && (Date.now() - this.cache[cacheKey].ts < 60_000)) {
-                    return this.cache[cacheKey].data;
-                }
-                const orderField = (sub === 'highScore') ? 'score' : 'duration_s';
-                const ascending = (sub === 'speedrun');
-                const { data, error } = await sb.from('game_logs')
-                    .select('player_id,score,duration_s')
-                    .eq('game_no', gameNo)
-                    .eq('difficulty', difficulty)
-                    .eq('is_win', true)
-                    .order(orderField, { ascending })
-                    .limit(200);
-                if (error) throw error;
-                // 每位玩家只取最佳一筆
-                const seen = {};
-                const rows = [];
-                (data || []).forEach(r => {
-                    if (seen[r.player_id]) return;
-                    seen[r.player_id] = 1;
-                    rows.push({
-                        id: r.player_id,
-                        nickname: r.player_id.split('#')[0] || r.player_id,
-                        total_score: (sub === 'speedrun') ? r.duration_s : r.score,
-                        _isTime: sub === 'speedrun'
-                    });
-                    if (rows.length >= 50) return;
-                });
-                this.cache[cacheKey] = { ts: Date.now(), data: rows };
-                return rows;
-            } else {
-                // 累計通關次數：從 player_saves.games[gameKey].playCount 排序
-                const players = await this.fetchPlayers('total_score');
-                return players.map(p => ({
-                    id: p.id, nickname: p.nickname,
-                    total_score: (p.games && p.games[gameKey]) ? (p.games[gameKey].playCount || 0) : 0,
-                    global_rank: p.global_rank
-                })).filter(r => r.total_score > 0)
-                  .sort((a, b) => b.total_score - a.total_score).slice(0, 50);
+            const cacheKey = 'gb_' + sub + '_' + gameKey + '_' + difficulty;
+            if (this.cache[cacheKey] && (Date.now() - this.cache[cacheKey].ts < 60_000)) {
+                return this.cache[cacheKey].data;
             }
+
+            // ⚠️ 子選單的 value 是 'playCount'，但 RPC 認得的是 'clearCount'。
+            //    兩者名稱不一致，若直接把 'playCount' 傳下去，SQL 的 case 會
+            //    落入 else 分支回傳「最高分」——榜單標題寫著累計通關、
+            //    數字卻是分數，而且完全不會報錯。這一行就是在擋這件事。
+            const mode = (sub === 'playCount') ? 'clearCount' : sub;
+
+            const { data, error } = await sb.rpc('get_game_board', {
+                p_game_no:    gameNo,
+                p_difficulty: difficulty,
+                p_mode:       mode,
+                p_limit:      50
+            });
+            if (error) throw error;
+
+            const rows = (data || []).map(r => ({
+                id:          r.player_id,
+                nickname:    r.nickname,
+                global_rank: r.global_rank,
+                total_score: Number(r.value) || 0,
+                // 速通榜的數值是秒數，renderList 會依這個旗標格式化成 mm:ss
+                _isTime:     (sub === 'speedrun'),
+                _bestScore:  r.best_score,
+                _winCount:   r.win_count
+            }));
+
+            this.cache[cacheKey] = { ts: Date.now(), data: rows };
+            return rows;
         },
 
         fetchDiffBoard: async function (sub) {
@@ -587,48 +615,38 @@
             })).sort((a, b) => b.total_score - a.total_score).slice(0, 50);
         },
 
+        /**
+         * 總遊玩時長榜。
+         *
+         * ⚠️ 改版前是 `select('player_id,duration_s')` 撈**整張 game_logs**
+         *    再回前端加總，同樣沒有分頁 —— 實際上永遠只拿得到前 1000 列，
+         *    這張榜在資料量長大之後就一直是錯的。現在改由資料庫端加總。
+         */
         fetchTimeBoard: async function (sub) {
             const sb = this.getSupabase();
             if (!sb) return this.fallbackSinglePlayer();
-            if (sub === 'totalTime') {
-                const cacheKey = 'totalTime';
-                if (this.cache[cacheKey] && (Date.now() - this.cache[cacheKey].ts < 60_000)) {
-                    return this.cache[cacheKey].data;
-                }
-                const { data, error } = await sb.from('game_logs')
-                    .select('player_id,duration_s');
-                if (error) throw error;
-                const map = {};
-                (data || []).forEach(r => {
-                    map[r.player_id] = (map[r.player_id] || 0) + (r.duration_s || 0);
-                });
-                const rows = Object.keys(map).map(pid => ({
-                    id: pid,
-                    nickname: pid.split('#')[0] || pid,
-                    total_score: map[pid],
-                    _isTime: true
-                })).sort((a, b) => b.total_score - a.total_score).slice(0, 50);
-                this.cache[cacheKey] = { ts: Date.now(), data: rows };
-                return rows;
-            }
-            // streak：暫無欄位，回傳本地玩家自身
-            return this.fallbackSinglePlayer();
-        },
 
-        sliceSince: function (slice) {
-            const now = new Date();
-            const d = new Date(now);
-            if (slice === 'day') d.setHours(0, 0, 0, 0);
-            else if (slice === 'week') {
-                const dow = d.getDay() || 7;
-                d.setDate(d.getDate() - (dow - 1));
-                d.setHours(0, 0, 0, 0);
-            } else if (slice === 'month') {
-                d.setDate(1); d.setHours(0, 0, 0, 0);
-            } else {
-                d.setFullYear(1970, 0, 1); d.setHours(0, 0, 0, 0);
+            // streak（連續登入）目前資料層還沒有對應欄位，維持原本的行為
+            if (sub !== 'totalTime') return this.fallbackSinglePlayer();
+
+            const cacheKey = 'totalTime';
+            if (this.cache[cacheKey] && (Date.now() - this.cache[cacheKey].ts < 60_000)) {
+                return this.cache[cacheKey].data;
             }
-            return d;
+
+            const { data, error } = await sb.rpc('get_time_board', { p_limit: 50 });
+            if (error) throw error;
+
+            const rows = (data || []).map(r => ({
+                id:          r.player_id,
+                nickname:    r.nickname,
+                global_rank: r.global_rank,
+                total_score: Number(r.duration_sum) || 0,
+                _isTime:     true
+            }));
+
+            this.cache[cacheKey] = { ts: Date.now(), data: rows };
+            return rows;
         },
 
         /** 無雲端綁定或查詢失敗時，至少把自己列出來 */

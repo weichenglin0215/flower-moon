@@ -565,6 +565,118 @@
                 ({ name: m.name, poems: m.poems < 0 ? total : Math.min(m.poems, total) }));
         },
 
+        // ══════════════════════════════════════════════════════════════
+        //  文位晉升獎勵（note/文位晉升與獎勵規劃_青雲梯新版.md §3、§4）
+        //
+        //  ⚠️ 為什麼獎勵計算放在 pathStations.js：
+        //     發放獎勵的時機有兩個完全不同的入口 ——
+        //       · 青雲梯走到新站（learningPath.js）
+        //       · 考棚考試通過（exam.js）
+        //     兩邊都需要「這個文位值多少文錢」「小站該分多少」的同一套算法。
+        //     站點與文位的權威資料本來就在本檔，把算法放這裡才不會出現
+        //     兩份會各自飄移的實作。
+        // ══════════════════════════════════════════════════════════════
+
+        /**
+         * 某個文位的晉升獎勵文錢總額。
+         *
+         * ⚠️ 數字來源是 achievement.js 的 rankRewards 表，本檔只取其中的
+         *    silver 欄位、**刻意不取 score** —— 新規則下晉升只給文錢，
+         *    積分退回純統計用途（企劃書 §2）。
+         *    之所以不把數字複製一份到本檔，是為了避免同一組獎勵金額在兩處
+         *    各自維護而慢慢對不上；achievement.js 在 index.html 的載入順序
+         *    雖然在本檔之後，但本函式只在玩家實際晉升時才被呼叫，
+         *    那時所有模組早已載入完畢。
+         *
+         * @param {string} rankName 文位名稱，例如 '蒙童'
+         * @returns {number} 文錢總額；查無資料時回 0
+         */
+        getRankSilver: function (rankName) {
+            const table = (window.AchievementDialog && window.AchievementDialog.rankRewards) || null;
+            if (!table || !table[rankName]) return 0;
+            return Math.max(0, Math.floor(table[rankName].silver || 0));
+        },
+
+        /**
+         * 取得「通往某個文位的路上」夾了幾個小站，以及那些小站的索引。
+         *
+         * ⚠️ 站點陣列的排法是：
+         *      [文位A] [A二階] [A三階] [準B] [文位B] [B二階] …
+         *    也就是說「通往文位 B 的小站」，它們的 rankName 其實是 **A**
+         *    （小站掛在前一個文位底下，見 build()）。這一點很容易寫反，
+         *    因此這支函式一律以「目標文位」為參數，內部自行往前找。
+         *
+         * @param {string} rankName 目標文位名稱（例如 '蒙童'）
+         * @returns {{count:number, indexes:number[], prevRankName:string}}
+         */
+        getGradeStationsBeforeRank: function (rankName) {
+            const stations = this.build();
+            const empty = { count: 0, indexes: [], prevRankName: '' };
+
+            // 先找到目標文位站的位置
+            let rankIdx = -1;
+            for (let i = 0; i < stations.length; i++) {
+                if (stations[i].type === 'rank' && stations[i].name === rankName) { rankIdx = i; break; }
+            }
+            if (rankIdx <= 0) return empty;  // 找不到，或它是第一個文位（書僮，前面沒有小站）
+
+            // 從它往前數，直到碰到上一個文位站為止
+            const indexes = [];
+            for (let i = rankIdx - 1; i >= 0; i--) {
+                if (stations[i].type === 'rank') {
+                    return { count: indexes.length, indexes: indexes.reverse(), prevRankName: stations[i].name };
+                }
+                indexes.push(i);
+            }
+            return { count: indexes.length, indexes: indexes.reverse(), prevRankName: '' };
+        },
+
+        /**
+         * 某個小站（grade 站）該發多少文錢。
+         *
+         * 規則（企劃書 §4.1）：
+         *   每小站文錢 = floor(目標文位獎勵總額 / 該文位前面的小站數)
+         *   · 一律無條件捨去小數，不四捨五入
+         *   · 捨去後若為 0，一律改發 1 —— 不能出現「晉升卻得 0 文錢」
+         *   · 除不盡的餘數直接丟棄，不併入任何一站
+         *     （因此走完一個文位的所有小站，累計會 ≤ 該文位總額）
+         *
+         * @param {object} station build() 產出的站點物件，需為 type==='grade'
+         * @returns {number} 該站應發的文錢，非小站或查無資料時回 0
+         */
+        getGradeStationSilver: function (station) {
+            if (!station || station.type !== 'grade') return 0;
+
+            // 小站掛在「前一個文位」底下，它要通往的是**下一個**文位
+            const targetRank = this.getNextRankNameAfter(station.rankName);
+            if (!targetRank) return 0;
+
+            const total = this.getRankSilver(targetRank);
+            if (total <= 0) return 0;
+
+            const info = this.getGradeStationsBeforeRank(targetRank);
+            const n = info.count > 0 ? info.count : 1;
+
+            return Math.max(1, Math.floor(total / n));
+        },
+
+        /** 某個文位的「下一個」文位名稱；已是最後一個則回空字串 */
+        getNextRankNameAfter: function (rankName) {
+            const ms = RANK_MILESTONES;
+            for (let i = 0; i < ms.length - 1; i++) {
+                if (ms[i].name === rankName) return ms[i + 1].name;
+            }
+            return '';
+        },
+
+        /** 這個文位是否需要通過考試才能取得（縣案首起） */
+        isExamRank: function (rankName) {
+            const ms = RANK_MILESTONES;
+            const from = ms.findIndex(m => m.name === EXAM_FROM_RANK);
+            const at = ms.findIndex(m => m.name === rankName);
+            return from >= 0 && at >= 0 && at >= from;
+        },
+
         /**
          * 站點負荷檢查（供 tools/dump_path.js 與企畫書對帳用）。
          *

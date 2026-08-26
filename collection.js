@@ -1797,10 +1797,11 @@
          * ===================================================== */
         openExam: function () {
             this.hidePopup();
-            const score = this.getCurrentScore();
             const nextRank = this.nextExamRank();
             let html = '<div class="fm-collection-popup-title">考棚</div>';
-            html += '<div class="fm-collection-popup-row"><span>目前積分</span><span>' + score.toLocaleString() + '</span></div>';
+            // ⚠️ 舊版這裡有一列「目前積分」。新規則下積分與應試資格完全無關
+            //    （企劃書 §6），留著只會讓玩家誤以為要靠刷分才能應試，故移除。
+            //    資格改看下方的「必通關卡」與「已學詩詞」兩列。
             if (!nextRank) {
                 html += '<div class="fm-collection-popup-row">已達大儒之境，無更高功名可考。</div>';
             } else {
@@ -1851,11 +1852,22 @@
             return 0;
         },
 
+        /**
+         * 下一個還沒考過的文位。
+         *
+         * ⚠️ 舊版是走訪 ScoreManager.ranks（積分門檻序列）來取得文位順序，
+         *    等於把考試資格綁在積分上。新規則下積分完全不參與文位判定
+         *    （note/文位晉升與獎勵規劃_青雲梯新版.md §2、§6），
+         *    因此改為直接依 EXAM_RANKS_ORDER 這份「考試文位順序」找。
+         *    是否**有資格**應試另由 LearningPath.getRankExamProgress()
+         *    以青雲梯的必通關卡進度判定（見 openExam）。
+         *
+         * @returns {{name:string}|null} 已全部考完時回 null
+         */
         nextExamRank: function () {
             const passed = this.data.ranks.passed || [];
-            const ranks = (window.ScoreManager && window.ScoreManager.ranks) || [];
-            for (const r of ranks) {
-                if (EXAM_RANKS_ORDER.indexOf(r.name) >= 0 && passed.indexOf(r.name) < 0) return r;
+            for (const name of EXAM_RANKS_ORDER) {
+                if (passed.indexOf(name) < 0) return { name: name };
             }
             return null;
         },

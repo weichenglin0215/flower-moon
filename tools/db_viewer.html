@@ -362,17 +362,8 @@
             font-size: 1.2rem;
         }
 
-        /* 查詢筆數上限輸入框 */
-        #statsLimit {
-            padding: 2px 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 1rem;
-            color: #333;
-            vertical-align: middle;
-            width: 5rem;
-        }
+        /* （原「查詢筆數上限」輸入框的樣式已隨該欄位一併移除，
+            改用彙總表 RPC 後不再有筆數上限，見統計頁的說明註解） */
     </style>
 </head>
 
@@ -811,40 +802,71 @@
             /* ========== 遊戲統計分析 ========== */
             let charts = {};
 
+            /**
+             * 取得「台北今天」的日期字串 YYYY-MM-DD。
+             * ⚠️ 資料庫端的 day 欄位是用 Asia/Taipei 分日的（見 SQL 草案 §1.2），
+             *    這裡若用 toISOString()（UTC）算今天，台灣早上 8 點前會整個差一天。
+             *    舊版正是用 UTC 分日，所以「今天」的卡片在早上常常是空的。
+             */
+            function statsTodayTW() {
+                return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });
+            }
+
+            /**
+             * 載入統計資料。
+             *
+             * ⚠️ 改版重點：不再撈 game_logs 明細回前端加總。
+             *    舊版用 range 分批撈明細、上限最多 5000 筆，但 game_logs 實際已有
+             *    5600+ 筆 —— 也就是說統計圖表早就在「靜默丟掉最舊的資料」。
+             *    現在改呼叫三支 RPC，資料庫端已經彙總好，回傳量只跟
+             *    「日數 / 遊戲數 / 30 名玩家」有關，不隨局數成長，
+             *    也不會再受 PostgREST 預設 1000 列上限影響。
+             */
             async function loadStats() {
                 const supabase = window.SupabaseClient.getClient();
                 if (!supabase) { alert('Supabase 未連線'); return; }
 
                 const dateFrom = document.getElementById('statsFrom').value;
-                const dateTo = document.getElementById('statsTo').value + 'T23:59:59Z';
-                // 讀取上限（最小100、最大5000）
-                const maxLimit = Math.min(Math.max(parseInt(document.getElementById('statsLimit').value) || 1000, 100), 5000);
+                const dateTo = document.getElementById('statsTo').value;
                 document.getElementById('statsStatus').textContent = '載入中...';
 
+                // 頂部四張卡片固定看「今天 / 近 7 天」，與下方圖表的日期範圍無關。
+                // ⚠️ 舊版是從「已載入的明細」去 filter 出今天與近 7 天，所以只要
+                //    使用者把日期範圍調到不含今天，四張卡片就會全部變成 0。
+                //    卡片標題明明寫著「今天」，卻受範圍影響，是舊版的邏輯瑕疵。
+                const today = statsTodayTW();
+                const d7ago = new Date(Date.now() - 6 * 86400000)
+                    .toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });
+
                 try {
-                    // 使用 range 分批撈取，每批最多1000筆，直到達上限或資料耗盡
-                    const BATCH = 1000;
-                    let allLogs = [];
-                    let from = 0;
+                    const [daily, gameDiff, playerRank, week7] = await Promise.all([
+                        supabase.rpc('get_daily_overview', { p_from: dateFrom, p_to: dateTo }),
+                        supabase.rpc('get_game_diff_stats', { p_from: dateFrom, p_to: dateTo }),
+                        supabase.rpc('get_player_rank_stats', { p_from: dateFrom, p_to: dateTo, p_limit: 30 }),
+                        // 近 7 天的四張卡片：直接讀彙總表。
+                        // ⚠️ 為什麼不用 get_daily_overview 的 players 欄位加總：
+                        //    那是「每天各自的不重複人數」，同一個人跨兩天會被算兩次。
+                        //    要算跨日不重複，必須拿到 player_id 自己去重。
+                        //    這張表一位玩家一天只有一列，7 天的資料量極小
+                        //    （實測全表才 157 列），不會有分頁截斷的問題。
+                        supabase.from('player_daily_stats')
+                            .select('player_id, day, games')
+                            .gte('day', d7ago)
+                            .lte('day', today)
+                    ]);
 
-                    while (allLogs.length < maxLimit) {
-                        const batchSize = Math.min(BATCH, maxLimit - allLogs.length);
-                        const { data: batch, error } = await supabase
-                            .from('game_logs')
-                            .select('player_id, played_at, game_no, difficulty, score, is_win, duration_s')
-                            .gte('played_at', dateFrom + 'T00:00:00Z')
-                            .lte('played_at', dateTo)
-                            .order('played_at', { ascending: true })
-                            .range(from, from + batchSize - 1);
+                    if (daily.error) throw daily.error;
+                    if (gameDiff.error) throw gameDiff.error;
+                    if (playerRank.error) throw playerRank.error;
+                    if (week7.error) throw week7.error;
 
-                        if (error) throw error;
-                        allLogs = allLogs.concat(batch);
-                        if (batch.length < batchSize) break; // 資料已全部撈完
-                        from += batchSize;
-                    }
+                    const rows = daily.data || [];
+                    const totalGames = rows.reduce((s, d) => s + Number(d.games || 0), 0);
+                    document.getElementById('statsStatus').textContent =
+                        '區間 ' + rows.length + ' 天、共 ' + totalGames.toLocaleString() + ' 局（已彙總）';
 
-                    document.getElementById('statsStatus').textContent = '共載入 ' + allLogs.length + ' 筆 LOG';
-                    renderStats(allLogs);
+                    renderStats(rows, gameDiff.data || [], playerRank.data || [],
+                        week7.data || [], today);
                 } catch (e) {
                     document.getElementById('statsStatus').textContent = '載入失敗: ' + e.message;
                 }
@@ -862,71 +884,82 @@
                 37: '37步步為陣', 38: '38推枰成詩', 39: '39彈珠成詩', 40: '40點兵成詩'
             };
 
-            function renderStats(logs) {
-                const today = new Date().toISOString().split('T')[0];
-                const d7ago = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
-
-                const todayLogs = logs.filter(l => l.played_at.startsWith(today));
-                const week7Logs = logs.filter(l => l.played_at.split('T')[0] >= d7ago);
-                const todayPlayers = new Set(todayLogs.map(l => l.player_id)).size;
-                const week7Players = new Set(week7Logs.map(l => l.player_id)).size;
+            /**
+             * 繪製統計圖表。
+             * @param {Array} daily      get_daily_overview 的結果（一天一列）
+             * @param {Array} gameDiff   get_game_diff_stats 的結果（遊戲×難度一列）
+             * @param {Array} playerRank get_player_rank_stats 的結果（前 30 名玩家）
+             * @param {Array} week7      近 7 天的 player_daily_stats 原始列（算跨日不重複人數用）
+             * @param {string} today     台北今天的日期字串
+             *
+             * ⚠️ 四個繪圖工具函式（renderChart / renderStackedVBar / renderStackedHBar /
+             *    renderHBar）完全沒有改動，改的只是「餵給它們的資料怎麼來」。
+             */
+            function renderStats(daily, gameDiff, playerRank, week7, today) {
+                // --- 頂部四張卡片（固定看今天 / 近 7 天，與圖表日期範圍無關）---
+                const week7Players = new Set(week7.map(r => r.player_id)).size;
+                const todayRows = week7.filter(r => String(r.day).slice(0, 10) === today);
+                const todayPlayers = new Set(todayRows.map(r => r.player_id)).size;
+                const todayGames = todayRows.reduce((s, r) => s + Number(r.games || 0), 0);
+                const week7Games = week7.reduce((s, r) => s + Number(r.games || 0), 0);
 
                 document.getElementById('statTodayPlayers').textContent = todayPlayers;
                 document.getElementById('statWeekPlayers').textContent = week7Players;
-                document.getElementById('statTodayGames').textContent = todayLogs.length;
-                document.getElementById('statWeekGames').textContent = week7Logs.length;
+                document.getElementById('statTodayGames').textContent = todayGames;
+                document.getElementById('statWeekGames').textContent = week7Games;
 
-                // --- 每日上線人數 & 遊戲局數（過關/失敗分開統計） ---
-                const byDayWin = {}, byDayFail = {}, byDayPlayers = {};
-                logs.forEach(l => {
-                    const d = l.played_at.split('T')[0];
-                    if (l.is_win) byDayWin[d] = (byDayWin[d] || 0) + 1;
-                    else byDayFail[d] = (byDayFail[d] || 0) + 1;
-                    if (!byDayPlayers[d]) byDayPlayers[d] = new Set();
-                    byDayPlayers[d].add(l.player_id);
-                });
-                const days = [...new Set([...Object.keys(byDayWin), ...Object.keys(byDayFail)])].sort();
-                const plyCnts = days.map(d => byDayPlayers[d] ? byDayPlayers[d].size : 0);
-                const dayWinCnts = days.map(d => byDayWin[d] || 0);
-                const dayFailCnts = days.map(d => byDayFail[d] || 0);
+                // --- 每日上線人數 & 遊戲局數（過關/失敗分開統計）---
+                // daily 已經是「一天一列」，不必再自己 group
+                const days = daily.map(d => String(d.day).slice(0, 10));
+                const plyCnts = daily.map(d => Number(d.players || 0));
+                const dayWinCnts = daily.map(d => Number(d.wins || 0));
+                const dayFailCnts = daily.map(d => Number(d.fails || 0));
 
-                // --- 每個遊戲總局數（過關/失敗） ---
-                const byGameWin = {}, byGameFail = {};
-                logs.forEach(l => {
-                    if (l.is_win) byGameWin[l.game_no] = (byGameWin[l.game_no] || 0) + 1;
-                    else byGameFail[l.game_no] = (byGameFail[l.game_no] || 0) + 1;
+                // --- 把 gameDiff（遊戲×難度細格）group 成三張圖需要的形狀 ---
+                const diffOrder = ['小學', '中學', '高中', '大學', '研究所'];
+                const byGameWin = {}, byGameFail = {};      // 每個遊戲
+                const byDiffWin = {}, byDiffFail = {};      // 每種難度
+                const byGameDiffWin = {}, byGameDiffFail = {}; // 遊戲×難度
+
+                gameDiff.forEach(r => {
+                    const gno = r.game_no;
+                    const diff = r.difficulty || '';
+                    const w = Number(r.wins || 0);
+                    const f = Number(r.fails || 0);
+                    const name = GAME_NAMES[gno] || 'Game' + gno;
+
+                    byGameWin[gno] = (byGameWin[gno] || 0) + w;
+                    byGameFail[gno] = (byGameFail[gno] || 0) + f;
+
+                    // ⚠️ 難度為空字串的列要跳過，與舊版 `if (!l.difficulty) return;` 一致
+                    if (diff) {
+                        byDiffWin[diff] = (byDiffWin[diff] || 0) + w;
+                        byDiffFail[diff] = (byDiffFail[diff] || 0) + f;
+                    }
+
+                    if (!byGameDiffWin[name]) byGameDiffWin[name] = {};
+                    byGameDiffWin[name][diff] = (byGameDiffWin[name][diff] || 0) + w;
+                    // 失敗局在這張圖不分難度，統一堆在黑色那一段（沿用舊版作法）
+                    byGameDiffFail[name] = (byGameDiffFail[name] || 0) + f;
                 });
-                const allGameNos = [...new Set([...Object.keys(byGameWin), ...Object.keys(byGameFail)])]
+
+                const allGameNos = Object.keys(byGameWin)
+                    .concat(Object.keys(byGameFail))
+                    .filter((v, i, a) => a.indexOf(v) === i)
                     .sort((a, b) => Number(a) - Number(b));
                 const gameLabels = allGameNos.map(g => GAME_NAMES[g] || 'Game' + g);
                 const gameWinCounts = allGameNos.map(g => byGameWin[g] || 0);
                 const gameFailCounts = allGameNos.map(g => byGameFail[g] || 0);
 
-                // --- 每種難度總局數（過關/失敗） ---
-                const diffOrder = ['小學', '中學', '高中', '大學', '研究所'];
-                const byDiffWin = {}, byDiffFail = {};
-                logs.forEach(l => {
-                    if (!l.difficulty) return;
-                    if (l.is_win) byDiffWin[l.difficulty] = (byDiffWin[l.difficulty] || 0) + 1;
-                    else byDiffFail[l.difficulty] = (byDiffFail[l.difficulty] || 0) + 1;
-                });
-                const allDiffs = [...new Set([...Object.keys(byDiffWin), ...Object.keys(byDiffFail)])]
+                const allDiffs = Object.keys(byDiffWin)
+                    .concat(Object.keys(byDiffFail))
+                    .filter((v, i, a) => a.indexOf(v) === i)
                     .sort((a, b) => diffOrder.indexOf(a) - diffOrder.indexOf(b));
                 const diffWinCounts = allDiffs.map(d => byDiffWin[d] || 0);
                 const diffFailCounts = allDiffs.map(d => byDiffFail[d] || 0);
 
-                // --- 每個遊戲×難度（過關依難度分色 + 失敗黑色） ---
+                // --- 每個遊戲×難度（過關依難度分色 + 失敗黑色）---
                 const diffColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f'];
-                const byGameDiffWin = {}, byGameDiffFail = {};
-                logs.forEach(l => {
-                    const name = GAME_NAMES[l.game_no] || 'Game' + l.game_no;
-                    if (l.is_win) {
-                        if (!byGameDiffWin[name]) byGameDiffWin[name] = {};
-                        byGameDiffWin[name][l.difficulty] = (byGameDiffWin[name][l.difficulty] || 0) + 1;
-                    } else {
-                        byGameDiffFail[name] = (byGameDiffFail[name] || 0) + 1;
-                    }
-                });
                 const gdLabels = [...new Set([...Object.keys(byGameDiffWin), ...Object.keys(byGameDiffFail)])]
                     .sort((a, b) => {
                         const n = s => parseInt(s.match(/\d+/) || [0]);
@@ -965,24 +998,15 @@
                 });
 
                 // --- 玩家總局數排名（前30名，過關/失敗堆疊） ---
-                const byPlayerWin = {}, byPlayerFail = {};
-                logs.forEach(l => {
-                    if (l.is_win) byPlayerWin[l.player_id] = (byPlayerWin[l.player_id] || 0) + 1;
-                    else byPlayerFail[l.player_id] = (byPlayerFail[l.player_id] || 0) + 1;
+                // RPC 已依局數排序並限筆，前端不必再自己 group + sort + slice。
+                // nickname 也由 RPC join player_saves 取得，playerMap 只作為後備。
+                const pgLabels = playerRank.map(p => {
+                    const nick = p.nickname || (playerMap[p.player_id] || {}).nickname
+                        || String(p.player_id).substring(0, 8);
+                    return nick + ' (' + Number(p.games || 0) + '局)';
                 });
-                const byPlayerTotal = {};
-                [...new Set([...Object.keys(byPlayerWin), ...Object.keys(byPlayerFail)])].forEach(id => {
-                    byPlayerTotal[id] = (byPlayerWin[id] || 0) + (byPlayerFail[id] || 0);
-                });
-                const topPlayerGames = Object.entries(byPlayerTotal)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 30);
-                const pgLabels = topPlayerGames.map(([id, total]) => {
-                    const p = playerMap[id];
-                    return (p ? p.nickname : id.substring(0, 8)) + ` (${total}局)`;
-                });
-                const pgWinData = topPlayerGames.map(([id]) => byPlayerWin[id] || 0);
-                const pgFailData = topPlayerGames.map(([id]) => byPlayerFail[id] || 0);
+                const pgWinData = playerRank.map(p => Number(p.wins || 0));
+                const pgFailData = playerRank.map(p => Number(p.fails || 0));
 
                 // --- 渲染圖表 ---
                 // 每日上線人數（非堆疊，unique players）
@@ -1251,7 +1275,10 @@
             <label>結束日期：<input type="date" id="statsTo"></label>
             <button onclick="loadStats()"
                 style="padding:3px 18px;background:#8b0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem;">查詢</button>
-            <label>查詢筆數上限：<input type="number" id="statsLimit" value="1000" min="100" max="5000" step="100"></label>
+            <!-- ⚠️「查詢筆數上限」欄位已移除：改用彙總表 RPC 之後不再撈明細，
+                 沒有任何筆數會被截斷，留著這個欄位反而會讓人誤以為統計有上限。
+                 （舊版上限最大 5000，但 game_logs 早已超過 5600 筆，
+                   等於統計圖表一直在靜默丟掉最舊的資料。） -->
             <span id="statsStatus" style="color:#666;"></span>
         </div>
 

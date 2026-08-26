@@ -92,7 +92,7 @@
         // 統一比例：100 積分 = 1 文錢
         // ══════════════════════════════════════════════════════════
 
-        // 【遊戲別】過關次數獎狀：不分遊戲，統一標準；100 次起每滿 100 次給予相同獎勵，可無限延伸
+        // 【遊戲別】通過勝利次數獎狀：不分遊戲，統一標準；100 次起每滿 100 次給予相同獎勵，可無限延伸
         gameCountRewards: {
             10: { score: 1000, silver: 10 },
             20: { score: 2000, silver: 20 },
@@ -102,31 +102,17 @@
 
         // 【難度別】過關次數獎狀：分五種難度各自一張表，門檻結構同上，獎勵隨難度遞增
         difficultyCountRewards: {
-            '小學': { 10: { score: 300, silver: 3 }, 20: { score: 600, silver: 6 }, 50: { score: 1500, silver: 15 }, 100: { score: 3000, silver: 30 } },
-            '中學': { 10: { score: 600, silver: 6 }, 20: { score: 1200, silver: 12 }, 50: { score: 3000, silver: 30 }, 100: { score: 6000, silver: 60 } },
-            '高中': { 10: { score: 1000, silver: 10 }, 20: { score: 2000, silver: 20 }, 50: { score: 5000, silver: 50 }, 100: { score: 10000, silver: 100 } },
-            '大學': { 10: { score: 2000, silver: 20 }, 20: { score: 4000, silver: 40 }, 50: { score: 10000, silver: 100 }, 100: { score: 20000, silver: 200 } },
-            '研究所': { 10: { score: 3000, silver: 30 }, 20: { score: 6000, silver: 60 }, 50: { score: 15000, silver: 150 }, 100: { score: 30000, silver: 300 } }
+            '小學': { 10: { score: 100, silver: 1 }, 20: { score: 200, silver: 2 }, 50: { score: 500, silver: 5 }, 100: { score: 1000, silver: 10 } },
+            '中學': { 10: { score: 300, silver: 3 }, 20: { score: 600, silver: 6 }, 50: { score: 1500, silver: 15 }, 100: { score: 3000, silver: 30 } },
+            '高中': { 10: { score: 500, silver: 5 }, 20: { score: 1000, silver: 10 }, 50: { score: 2500, silver: 25 }, 100: { score: 5000, silver: 50 } },
+            '大學': { 10: { score: 1000, silver: 10 }, 20: { score: 2000, silver: 20 }, 50: { score: 5000, silver: 50 }, 100: { score: 10000, silver: 100 } },
+            '研究所': { 10: { score: 1500, silver: 15 }, 20: { score: 4000, silver: 40 }, 50: { score: 7500, silver: 75 }, 100: { score: 15000, silver: 150 } }
         },
 
-        // 【關卡挑戰】里程碑獎狀：每個遊戲每累積過關 20 關發一張，最高採計至 300 關
-        levelMilestoneRewards: {
-            20: { score: 1000, silver: 10 },
-            40: { score: 2000, silver: 20 },
-            60: { score: 3000, silver: 30 },
-            80: { score: 4000, silver: 40 },
-            100: { score: 5000, silver: 50 },
-            120: { score: 6000, silver: 60 },
-            140: { score: 7200, silver: 72 },
-            160: { score: 9000, silver: 90 },
-            180: { score: 11000, silver: 110 },
-            200: { score: 13500, silver: 135 },
-            220: { score: 16500, silver: 165 },
-            240: { score: 20000, silver: 200 },
-            260: { score: 24000, silver: 240 },
-            280: { score: 28500, silver: 285 },
-            300: { score: 33000, silver: 330 }
-        },
+        // 【關卡挑戰】里程碑獎狀已取消（note/文位晉升與獎勵規劃_青雲梯新版.md §8）：
+        // 難度選單早已沒有獨立的「關卡挑戰」模式，這組獎狀失去對應場景，
+        // 連同 levelMilestoneRewards 表、getRewardForAchId 的 level_milestone_
+        // 分支、成就頁的渲染區塊與 scoreManager 的解鎖判定一併移除。
 
         // 【文位】階級獎狀：書僮為起始階級，自動擁有無需領取，故不列入表中
         rankRewards: {
@@ -164,10 +150,6 @@
             if (achId.indexOf('rank_') === 0) {
                 const rankName = achId.slice('rank_'.length);
                 return this.rankRewards[rankName] || { score: 0, silver: 0 };
-            }
-            if (achId.indexOf('level_milestone_') === 0) {
-                const milestone = parseInt(achId.slice(achId.lastIndexOf('_') + 1), 10);
-                return this.levelMilestoneRewards[milestone] || { score: 0, silver: 0 };
             }
             // 其餘格式為 `${key}_${threshold}`：key 為難度名稱（小學/中學/高中/大學/研究所）或遊戲代號（gameN）
             const lastUnderscore = achId.lastIndexOf('_');
@@ -1031,131 +1013,9 @@
 
 
 
-            // 2. 渲染【關卡挑戰】成就 (每個遊戲佔一格)
-
-            for (let gameKey in this.gameNames) {
-
-                const gameName = this.gameNames[gameKey];
-
-                const progress = data.levelProgress[gameKey] || {};
-
-                const totalPassed = (progress['小學'] || 0) + (progress['中學'] || 0) + (progress['高中'] || 0) + (progress['大學'] || 0) + (progress['研究所'] || 0);
-
-
-
-                const milestone = Math.floor(totalPassed / 20) * 20;
-
-                const nextMilestone = Math.min(300, milestone + 20);
-
-                const achId = `level_milestone_${gameKey}_${milestone}`;
-
-
-
-                const isClaimed = milestone > 0 && claimStatus.includes(achId);
-
-                const isUnlocked = milestone > 0 && totalPassed >= milestone;
-
-
-
-                const item = document.createElement('div');
-
-                item.className = 'ach-badge-item level-challenge-item';
-
-
-
-                const left = document.createElement('div');
-
-                const displayMilestone = milestone > 0 ? milestone : 20;
-
-                left.innerHTML = `
-
-                    <div class="ach-badge-title">《${gameName}》挑戰 ${displayMilestone} 關</div>
-
-                    <div class="ach-badge-status">關卡挑戰進度 ${totalPassed} / ${nextMilestone}</div>
-
-                `;
-
-
-
-                const right = document.createElement('div');
-
-                right.className = 'ach-item-right';
-
-
-
-                if (milestone === 0) {
-
-                    const span = document.createElement('span');
-
-                    span.style.color = '#ccc';
-
-                    span.textContent = '未達成';
-
-                    right.appendChild(span);
-
-                } else if (isClaimed) {
-
-                    const btn = document.createElement('button');
-
-                    btn.className = 'ach-btn-claim';
-
-                    btn.textContent = '查看獎狀';
-
-                    btn.style.background = 'hsl(44, 60%, 44%)';
-
-                    btn.onclick = () => {
-
-                        this.showCert(this.certImages[Math.floor(milestone / 30) % 10], this.getLevelCertText(gameName, milestone));
-
-                    };
-
-                    right.appendChild(btn);
-
-                    lastUnlockedItem = item;
-
-                } else if (isUnlocked) {
-
-                    const btn = document.createElement('button');
-
-                    btn.className = 'ach-btn-claim claim-pending';
-
-                    btn.textContent = '領取獎狀';
-
-                    btn.dataset.achId = achId;
-
-                    btn.onclick = () => {
-
-                        this.claimAchievementReward(achId, this.certImages[Math.floor(milestone / 30) % 10], this.getLevelCertText(gameName, milestone));
-
-                    };
-
-                    right.appendChild(btn);
-
-                    lastUnlockedItem = item;
-
-                } else {
-
-                    const span = document.createElement('span');
-
-                    span.style.color = '#ccc';
-
-                    span.textContent = '未達成';
-
-                    right.appendChild(span);
-
-                }
-
-
-
-                item.appendChild(left);
-
-                item.appendChild(right);
-
-                badgesContainer.appendChild(item);
-
-            }
-
-
+            // 2.【關卡挑戰】成就區塊已移除
+            //    （note/文位晉升與獎勵規劃_青雲梯新版.md §8）
+            //    難度選單已無獨立關卡模式，此獎狀類別失去對應場景。
 
             // 3. 渲染原有次數成就
 
@@ -2035,7 +1895,17 @@
 
 
 
-            certCard.style.backgroundImage = `url('${imgUrl}')`;
+            // ⚠️ imgUrl 允許傳 null（青雲梯小站晉升的「簡易慶祝動畫」用）：
+            //    此時不掛獎狀底圖，只保留文字與星星特效。
+            //    這是為了不必再寫一支邏輯幾乎重複的動畫函式
+            //    （見 note/文位晉升與獎勵規劃_青雲梯新版.md §5）。
+            if (imgUrl) {
+                certCard.style.backgroundImage = `url('${imgUrl}')`;
+                certCard.classList.remove('cert-no-image');
+            } else {
+                certCard.style.backgroundImage = 'none';
+                certCard.classList.add('cert-no-image');
+            }
 
             certText.textContent = text;
 
@@ -2106,13 +1976,13 @@
                     const curSilver = Math.floor(silverReward * progress);
 
                     // 同時顯示 +積分 與 +文錢
-                    if (silverReward > 0) {
-                        rewardMsg.innerHTML =
-                            `獲贈 ${curScore.toLocaleString()} 積分` +
-                            `<br>獲贈 ${curSilver.toLocaleString()} 文錢`;
-                    } else {
-                        rewardMsg.textContent = `獲贈 ${curScore.toLocaleString()} 積分`;
-                    }
+                    // ⚠️ 積分為 0 時整行不顯示：青雲梯的文位晉升只給文錢、
+                    //    不再給積分（企劃書 §2），若照舊印出「獲贈 0 積分」
+                    //    會讓玩家以為獎勵算錯了。
+                    const parts = [];
+                    if (scoreReward > 0) parts.push(`獲贈 ${curScore.toLocaleString()} 積分`);
+                    if (silverReward > 0) parts.push(`獲贈 ${curSilver.toLocaleString()} 文錢`);
+                    rewardMsg.innerHTML = parts.join('<br>');
 
                     if (progress < 1) {
 
@@ -2138,11 +2008,15 @@
 
 
 
-        getLevelCertText: function (gameName, milestone) {
+        // getLevelCertText 與 showInstantAchievementPop 已移除
+        //（note/文位晉升與獎勵規劃_青雲梯新版.md §8）：
+        // 兩者只服務【關卡挑戰】里程碑獎狀，該類別取消後已無呼叫來源。
+        // ⚠️ 38 個遊戲檔仍寫著
+        //      const achId = ScoreManager.completeLevel(...);
+        //      if (achId && window.AchievementDialog) { ...showInstantAchievementPop... }
+        //    但 completeLevel 已不再回傳里程碑 achId（恆為 null），
+        //    該分支永遠不會執行，因此毋須逐一修改那 38 個檔案。
 
-            return `翰墨清芬，詞海揚名。\n閣下於「${gameName}」展現非凡才思，成功通過 ${milestone} 道關隘。經史合參，雅量高致。願君持此文心，再續一段千古佳話。`;
-
-        },
 
         //領取獎勵
 
@@ -2221,89 +2095,6 @@
 
         },
 
-        //顯示即時成就彈窗
-
-        showInstantAchievementPop: function (achId, gameKey, levelIndex, onComplete) {
-
-            const data = window.ScoreManager.loadPlayerData();
-
-            const gameName = this.gameNames[gameKey] || gameKey;
-
-            const currentRank = data.globalRank || '書僮';
-
-
-
-            const popOverlay = document.createElement('div');
-
-            popOverlay.className = 'ach-instant-pop-overlay';
-
-            popOverlay.innerHTML = `
-
-                <div class="ach-instant-pop">
-
-                    <h2>恭喜榮獲成就</h2>
-
-                    <p>翰墨清芬，詞海揚名。閣下<b>【${currentRank}】</b>銳意進取，終破此關，獲<b>積分萬點</b>以表精誠。願君筆耕不輟，再續錦繡華章。</p>
-
-                    <div class="ach-instant-footer">
-
-                        <button id="instantClaimBtn" class="ach-instant-btn">領取成就</button>
-
-                    </div>
-
-                </div>
-
-            `;
-
-            document.body.appendChild(popOverlay);
-
-            // 以 stageRect 建立 500×850 的邏輯容器，確保彈窗對齊舞台
-            if (window.stageRect) {
-
-                const r = window.stageRect;
-
-                const stageBox = document.createElement('div');
-
-                stageBox.style.cssText = 'position:absolute;left:' + r.left + 'px;top:' + r.top + 'px;width:500px;height:850px;transform:scale(' + r.scale + ');transform-origin:top left;display:flex;justify-content:center;align-items:center;pointer-events:none;';
-
-                const popEl = popOverlay.querySelector('.ach-instant-pop');
-
-                popEl.style.pointerEvents = 'auto';
-
-                popEl.style.width = '460px';
-
-                popEl.style.maxWidth = 'none';
-
-                popEl.style.boxSizing = 'border-box';
-
-                stageBox.appendChild(popEl);
-
-                popOverlay.appendChild(stageBox);
-
-            }
-
-            /* updateResponsiveLayout replaced by registerOverlayResize */
-
-
-
-            document.getElementById('instantClaimBtn').onclick = () => {
-
-                popOverlay.remove();
-
-                const milestone = Math.floor(levelIndex / 20) * 20;
-
-                const cImg = this.certImages[Math.min(9, Math.floor(milestone / 30))];
-
-                const cText = this.getLevelCertText(gameName, milestone);
-
-                this.claimAchievementReward(achId, cImg, cText);
-
-                setTimeout(onComplete, 2500);
-
-            };
-
-        },
-
 
 
         show: function () {
@@ -2356,19 +2147,37 @@
 
 
 
-    // 測試專用：按 Alt+W 觸發「恭喜榮獲成就」彈窗，方便檢視動畫表演
-
+    // 測試專用：檢視晉升慶祝動畫的兩種規模（企劃書 §5）
+    //   Alt + W        → 文位晉升：獎狀圖片＋星星特效（華麗版）
+    //   Alt + Shift + W → 小站晉升：只有星星特效、不掛獎狀圖（簡易版）
+    // ⚠️ 純表演，不發放任何文錢、不寫入任何存檔。
     document.addEventListener('keydown', (e) => {
 
         if (e.altKey && (e.key === 'w' || e.key === 'W')) {
 
             e.preventDefault();
 
-            const dummyId = 'test_ach_' + Date.now();
+            const LP = window.LearningPath;
 
-            AchievementDialog.showInstantAchievementPop(dummyId, 'game1', 20, () => {
+            if (!LP || typeof LP.playPromotionCelebration !== 'function') {
 
-                console.log('測試用成就表演完畢');
+                console.warn('[測試] LearningPath 尚未載入，無法預覽晉升動畫');
+
+                return;
+
+            }
+
+            const isGrade = e.shiftKey;
+
+            const station = isGrade
+
+                ? { type: 'grade', name: '書僮二階', isExam: false }
+
+                : { type: 'rank', name: '蒙童', isExam: false };
+
+            LP.playPromotionCelebration(station, isGrade ? 300 : 900, () => {
+
+                console.log('測試用晉升動畫表演完畢（' + (isGrade ? '小站簡易版' : '文位華麗版') + '）');
 
             });
 

@@ -617,26 +617,46 @@
                 }
             }
 
+            // ── 發放文位晉升獎勵（note/文位晉升與獎勵規劃_青雲梯新版.md §4.2）──
+            // 需應試的文位在「抵達青雲梯站點」時不發獎，通過考試才發，
+            // 這裡就是那個發放時機。走 LearningPath 的統一收口以確保：
+            //   ① 冪等（同一文位只發一次）
+            //   ② 會標記 'rank_<名>' 為 claimed，讓成就頁的「領取獎狀」CTA
+            //      自動消失，不會再讓玩家領第二次
+            let gainedSilver = 0;
+            if (!this._isTestMode && window.LearningPath
+                && typeof window.LearningPath.grantPromotionSilver === 'function') {
+                const total = (window.PathStations && window.PathStations.getRankSilver)
+                    ? window.PathStations.getRankSilver(rankName) : 0;
+                gainedSilver = window.LearningPath.grantPromotionSilver('rank', rankName, total);
+            }
+
             if (window.SoundManager) window.SoundManager.playJoyfulTriple && window.SoundManager.playJoyfulTriple();
 
             const isTest = this._isTestMode;
+            const passLines = [`恭賀！第 ${attemptNo} 次挑戰「${rankName}」，終得中式。`];
+            if (gainedSilver > 0) {
+                passLines.push(`冊封「${rankName}」文位，得文錢 ${gainedSilver.toLocaleString()} 枚。`);
+            }
             this._showResultDialog({
                 title: isTest ? '【測試】金榜題名' : '金榜題名',
                 lines: isTest
                     ? [`（測試模式）已通過「${rankName}」考試，未寫入任何資料。`]
-                    : [
-                        `恭賀！第 ${attemptNo} 次挑戰「${rankName}」，終得中式。`,
-                        '請至「成就與紀錄 → 總覽」領取獎狀，正式冊封文位。'
-                    ],
-                btnText: isTest ? '關閉' : '返回【成就與紀錄】',
+                    : passLines,
+                btnText: isTest ? '關閉' : '敬受榮銜',
                 onClose: () => {
                     this._close();
                     if (isTest) return;
-                    // 正式模式：通過後直接開成就與紀錄，讓玩家立刻領獎狀
-                    if (window.AchievementDialog && window.AchievementDialog.show) {
-                        window.AchievementDialog.show();
-                    } else if (this.callbacks.onPass) {
-                        this.callbacks.onPass();
+                    // 正式模式：文位與文錢在上面就已入帳，這裡只播慶祝動畫。
+                    // ⚠️ 不再導向「成就與紀錄」要玩家去領獎狀——新規則取消了
+                    //    手動領取這一步（企劃書 §5）。
+                    const back = () => { if (this.callbacks.onPass) this.callbacks.onPass(); };
+                    if (window.LearningPath
+                        && typeof window.LearningPath.playPromotionCelebration === 'function') {
+                        window.LearningPath.playPromotionCelebration(
+                            { type: 'rank', name: rankName, isExam: true }, gainedSilver, back);
+                    } else {
+                        back();
                     }
                 }
             });

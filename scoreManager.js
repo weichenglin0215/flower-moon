@@ -172,33 +172,55 @@ const ScoreManager = {
     EXAM_RANK_NAMES: ['縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'],
 
     /**
-     * 依「積分」+「已領獎狀」交叉判定實際文位（供 UI 顯示用）。
-     *  - 書僮 ~ 童生：仍以積分推算
-     *  - 縣案首以上：僅回傳 achievements.claimed 中已領取的最高文位
-     *    未領取者，即便通過考試（ranks.passed）或積分達標，仍顯示上一個已領文位（預設『童生』）
+     * 判定玩家實際的文位（供 UI 顯示用）。
+     *
+     * ⚠️ 新規則（note/文位晉升與獎勵規劃_青雲梯新版.md §2）：
+     *    **積分完全不參與文位判定**，改由兩個來源決定：
+     *      · 縣案首以上 → 是否已通過該文位的考棚考試（ranks.passed）
+     *      · 書僮～童生 → 青雲梯目前所在站點的 rankName（＝學會了幾首詩）
+     *
+     * ⚠️ 相較舊版拿掉了「還要領過獎狀（claimed）」這個條件：
+     *    新規則下考試一通過就自動入帳、不需要玩家手動領取（§5），
+     *    再要求 claimed 只會讓「通過了卻沒去點領取」的舊玩家文位被吃掉。
+     *
+     * ⚠️ 站點推進只看已學詩詞數、考試並不擋路，所以玩家可能已經走過
+     *    縣案首的站卻還沒考。因此站點推出來的文位必須**封頂在最後一個
+     *    免考文位**（童生），不能讓人靠走路直接拿到需要應試的功名。
      */
     getEffectiveRank: function (playerData) {
-        if (!playerData) return this.ranks[0].name;
-        const score = Math.floor(playerData.totalScore || 0);
-        const claimed = (playerData.achievements && playerData.achievements.claimed) || [];
+        const first = this.ranks[0].name;
+        if (!playerData) return first;
+
         const coll = (window.FMCollectionSave && window.FMCollectionSave.load && window.FMCollectionSave.load()) || {};
         const passed = (coll.ranks && coll.ranks.passed) || [];
 
-        // 由高到低找出「已通過考試 且 已領獎狀」的最高文位
+        // 1. 由高到低找出已通過考試的最高文位
         for (let i = this.EXAM_RANK_NAMES.length - 1; i >= 0; i--) {
             const name = this.EXAM_RANK_NAMES[i];
-            if (passed.indexOf(name) >= 0 && claimed.includes('rank_' + name)) return name;
+            if (passed.indexOf(name) >= 0) return name;
         }
 
-        // 尚未領任何考試文位獎狀：以積分推算，但封頂在「童生」
-        let currentRank = this.ranks[0].name;
-        for (let i = 0; i < this.ranks.length; i++) {
-            const r = this.ranks[i];
-            if (this.EXAM_RANK_NAMES.indexOf(r.name) >= 0) break;  // 遇到考試階級即停
-            if (score >= r.minScore) currentRank = r.name;
-            else break;
+        // 2. 尚未考過任何文位：改看青雲梯站點，封頂在最後一個免考文位
+        try {
+            const LP = window.LearningPath, PS = window.PathStations;
+            if (LP && PS && typeof LP.getLearnedPoemCount === 'function') {
+                const stations = PS.build();
+                const idx = PS.getCurrentIndex(LP.getLearnedPoemCount());
+                const st = stations[Math.max(0, Math.min(idx, stations.length - 1))];
+                if (st && st.rankName && this.EXAM_RANK_NAMES.indexOf(st.rankName) < 0) {
+                    return st.rankName;
+                }
+                // 站點已走到需應試的文位但還沒考 → 顯示最後一個免考文位
+                if (st && st.rankName) {
+                    for (let i = this.ranks.length - 1; i >= 0; i--) {
+                        if (this.EXAM_RANK_NAMES.indexOf(this.ranks[i].name) < 0) return this.ranks[i].name;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[ScoreManager] 由青雲梯站點推算文位失敗，退回起始文位:', e);
         }
-        return currentRank;
+        return first;
     },
 
     /**
@@ -250,6 +272,11 @@ const ScoreManager = {
         }
 
         // 更新全局階級
+        // ⚠️ globalRank 現在存的是**積分階級**，純供排行榜與「這位玩家很會玩」
+        //    的表現統計使用，**不再代表玩家的文位**
+        //    （note/文位晉升與獎勵規劃_青雲梯新版.md §2、§8）。
+        //    要拿玩家真正的文位請一律呼叫 getEffectiveRank()，
+        //    它改看青雲梯站點進度與考試通過紀錄，與積分無關。
         data.globalRank = this.getCurrentRank(data.totalScore);
 
         // 紀錄詩詞遊玩次數（與 saveScore 合併為一次 localStorage 寫入）
@@ -530,17 +557,18 @@ const ScoreManager = {
         }
 
         // ─────────────────────────────────────────────────────
-        // 里程碑成就：當全域編號為 20 的倍數 (20, 40, 60, ..., 300)
-        // 不再依賴累計通關次數，與通關順序無關
+        // 【關卡挑戰】里程碑成就已取消
+        //（note/文位晉升與獎勵規劃_青雲梯新版.md §8）
+        // 難度選單已無獨立關卡模式，此獎狀類別失去對應場景。
+        //
+        // ⚠️ 本函式的回傳值 achIdToReturn 因此恆為 null。
+        //    38 個遊戲檔的寫法是
+        //        const achId = ScoreManager.completeLevel(...);
+        //        if (achId && window.AchievementDialog) { ...彈窗... }
+        //        else { showMessage(); }
+        //    回傳 null 會直接走 else 分支（本來就是正確的結算流程），
+        //    所以那 38 個檔案完全不需要修改。
         // ─────────────────────────────────────────────────────
-        if (levelIndex > 0 && levelIndex % 20 === 0) {
-            const achId = `level_milestone_${gameKey}_${levelIndex}`;
-            if (!data.achievements.unlocked.includes(achId)) {
-                data.achievements.unlocked.push(achId);
-                achIdToReturn = achId;
-                needsSave = true;
-            }
-        }
 
         if (needsSave) {
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));

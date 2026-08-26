@@ -47,6 +47,10 @@
     var gl = null;
     var enabled = true;
     var running = false;
+    // 「外部強制播放」的有效期限（performance.now() 時間戳），
+    // 用途與 touchInk.js 的同名變數一致：讓 splatAt() 這種
+    // 由程式主動播放的演出，不受 menu.js 的頁面開關影響。
+    var forceUntil = 0;
     var supported = false;          // WebGL 半浮點是否可用
     var lastTime = 0;
     var lastActive = 0;             // 最後一次觸控互動時間（閒置停機判斷用）
@@ -410,8 +414,13 @@
     }
 
     // ====== 主迴圈 ======
+    /** 目前是否應該模擬？（頁面開關開著、或正處於外部強制播放期間） */
+    function isActive() {
+        return (enabled || performance.now() < forceUntil) && supported;
+    }
+
     function startLoop() {
-        if (running || !enabled || !supported) return;
+        if (running || !isActive()) return;
         running = true;
         lastTime = performance.now();
         requestAnimationFrame(tick);
@@ -533,9 +542,40 @@
     window.WaterFlow = {
         /** 啟用特效 */
         enable: function () { enabled = true; },
+        /**
+         * 外部特效專用：在指定螢幕座標潑一筆染料（煙霧）。
+         *
+         * ⚠️ 刻意**不受 enabled 開關影響**，理由同 TouchInk.burst()：
+         *    enabled 是 menu.js 依「目前在哪一頁」控制的拖曳特效總開關，
+         *    而這支是給晉升慶祝動畫這類「程式主動播放的一次性演出」用的。
+         *
+         * @param {number} x,y   潑濺位置（螢幕座標，與 clientX/clientY 同一套）
+         * @param {number} dx,dy 相對上一次潑濺的位移（螢幕 px），決定水流推力方向
+         * @param {number} [hue] 色相 0~1，省略則隨機
+         * @param {number} [density] 濃度倍率，1 = 手指拖曳時的原始濃度（DYE_INTENSITY）。
+         *                 ⚠️ 只影響這一次呼叫，不會改到玩家平常拖曳的煙霧濃度。
+         */
+        splatAt: function (x, y, dx, dy, hue, density) {
+            if (!supported || !gl) return;
+            forceUntil = performance.now() + IDLE_TIMEOUT_MS;
+            var k = (density === undefined || density <= 0) ? 1 : density;
+            // 濃度倍率直接乘進顏色：splat() 內部會再乘上 DYE_INTENSITY，
+            // 所以這裡乘 k 等同於「這一筆的 DYE_INTENSITY 變成 k 倍」。
+            var color = hsvToRgb(hue === undefined ? Math.random() : hue, 0.85, 1.0);
+            color = { r: color.r * k, g: color.g * k, b: color.b * k };
+            // 推力換算方式與 onPointerMove 完全一致，手感才會相同
+            var fx = (dx || 0) / canvas.clientWidth * SPLAT_FORCE;
+            var fy = (dy || 0) / canvas.clientHeight * SPLAT_FORCE;
+            splat(x, y, fx, fy, color);
+            lastActive = performance.now();
+            startLoop();
+        },
+
         /** 停用特效並立即清空畫面 */
         disable: function () {
             enabled = false;
+            // 演出進行中只關開關、不清畫面（理由同 touchInk.js 的 disable）
+            if (performance.now() < forceUntil) return;
             running = false;
             pointers = {};
             if (gl) {

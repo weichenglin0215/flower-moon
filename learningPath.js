@@ -696,6 +696,16 @@
             this.trackHeight = TOP_PAD + n * SPACING + BOT_PAD;
             const html = [];
 
+            // 已通過考試的文位清單，用來判斷考試站要不要掛「可應試」標記。
+            // ⚠️ 在迴圈外先取一次：這是讀存檔的操作，放進 forEach 會被
+            //    每個站點各讀一遍（站點有近百個）。
+            const passedRanks = (function () {
+                try {
+                    const coll = window.FMCollectionSave && window.FMCollectionSave.load();
+                    return (coll && coll.ranks && coll.ranks.passed) || [];
+                } catch (e) { return []; }
+            })();
+
             this.stations.forEach((st, i) => {
                 const x = 250 + Math.sin(i * 0.62) * AMP;
                 // ⚠️ 由下往上：索引越大越靠近頂端
@@ -705,12 +715,22 @@
                 const isCurrent = i === currentIdx;
                 const isLocked = i > currentIdx;
 
+                // ── 第四態：可應試（企劃書 §7）────────────────────────
+                // 條件是「已經走到這一站（或已走過）＋ 該文位還沒考過」。
+                // ⚠️ 用 i <= currentIdx 而不是 i === currentIdx：青雲梯的
+                //    站點推進只看已學詩詞數，考試並不擋路，所以玩家很可能
+                //    已經走過頭好幾站、卻還沒回頭去考那個文位。這種情況下
+                //    那一站仍然必須標示成「可應試」，否則玩家會找不到入口。
+                const isExamReady = !!st.isExam && i <= currentIdx
+                    && passedRanks.indexOf(st.name) < 0;
+
                 const cls = ['lp-station'];
                 cls.push(st.type === 'rank' ? 'lp-rank-station' : 'lp-minor-station');
                 if (st.isExam) cls.push('lp-exam-station');
                 if (isDone) cls.push('lp-done');
                 if (isCurrent) cls.push('lp-current');
                 if (isLocked) cls.push('lp-locked');
+                if (isExamReady) cls.push('lp-exam-ready');
                 const labelRight = x <= 250;
                 cls.push(labelRight ? 'lp-label-right' : 'lp-label-left');
 
@@ -734,6 +754,7 @@
                     `<div class="lp-station-icon-wrap">` +
                     (isCurrent ? this.buildProgressRing(pct) : '') +
                     `<div class="lp-station-icon">${icon}</div>` +
+                    (isExamReady ? `<div class="lp-exam-badge">應試</div>` : '') +
                     `</div>`;
 
                 html.push(
@@ -752,6 +773,20 @@
                     // 拖曳過就不算點擊，避免滑動時誤觸站點
                     if (this.hasDragged && this.hasDragged()) return;
                     this.onStationClick(parseInt(el.getAttribute('data-idx'), 10));
+                });
+            });
+
+            // 「應試」標記本身就是一顆按鈕，點它直接前往考棚。
+            // ⚠️ 必須 stopPropagation：否則會連帶觸發外層站點的 click，
+            //    變成「開了考棚又同時開一局遊戲」。
+            //    刻意不把整個站點的點擊都改成前往考棚 —— 文位站本身也有
+            //    詩詞要學（poemFrom~poemTo），玩家仍要能點進去練功。
+            track.querySelectorAll('.lp-exam-badge').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.hasDragged && this.hasDragged()) return;
+                    if (window.SoundManager) window.SoundManager.playConfirmItem();
+                    this.goToExam();
                 });
             });
         },
@@ -1234,35 +1269,136 @@
             return overlay;
         },
 
+        // ══════════════════════════════════════════════════════════════
+        //  晉升獎勵發放（note/文位晉升與獎勵規劃_青雲梯新版.md §4、§5）
+        // ══════════════════════════════════════════════════════════════
+
+        /**
+         * 發放晉升獎勵文錢，並記錄「已發放」避免重複。
+         *
+         * ⚠️ 新規則的核心行為翻轉（企劃書 §5）：
+         *    **達成當下就入帳，不需要玩家點擊「領取」**。
+         *    舊規則要玩家按下按鈕才真正發放，萬一玩家故意不按、或按之前
+         *    就關掉視窗，獎勵就永遠拿不到——流程既麻煩又有漏發風險。
+         *    因此本函式是在「彈窗出現之前」就先呼叫，彈窗純粹是表演。
+         *
+         * ⚠️ 冪等性：同一個站／文位只會發一次。
+         *    記錄沿用 playerData.achievements.claimed 這個既有陣列：
+         *      · 小站 → 'lpgrade_<站名>'
+         *      · 文位 → 'rank_<文位名>'（**刻意沿用 achievement.js 的既有 id**）
+         *    文位用同一組 id 是為了讓成就頁的「領取獎狀」CTA 自動消失
+         *    （renderExamCTAs 只找 passed 但尚未 claimed 的文位），
+         *    否則玩家會在成就頁再領一次、造成重複發放。
+         *
+         * @param {string} kind   'grade'（小站）或 'rank'（文位）
+         * @param {string} name   小站名或文位名
+         * @param {number} silver 應發文錢
+         * @returns {number} 實際發放的文錢；0 代表先前已發過，本次不重複發
+         */
+        grantPromotionSilver: function (kind, name, silver) {
+            const amount = Math.max(0, Math.floor(silver || 0));
+            if (!amount || !name) return 0;
+            if (!window.ScoreManager || !window.FMCollectionSave) return 0;
+
+            const achId = (kind === 'rank') ? ('rank_' + name) : ('lpgrade_' + name);
+
+            const data = window.ScoreManager.loadPlayerData();
+            if (!data.achievements) data.achievements = { unlocked: [], progress: {}, claimed: [] };
+            if (!Array.isArray(data.achievements.claimed)) data.achievements.claimed = [];
+            if (data.achievements.claimed.indexOf(achId) >= 0) return 0;  // 已發過
+
+            data.achievements.claimed.push(achId);
+            window.ScoreManager._persist(data);
+
+            // 文錢一律走統一收口，順帶留下雲端流水帳（source='rank'）
+            try {
+                const coll = window.FMCollectionSave.load();
+                window.FMCollectionSave.addSilver(coll, amount, 'rank', name);
+                window.FMCollectionSave.save(coll);
+                if (window.CollectionDialog && typeof window.CollectionDialog.refreshHud === 'function') {
+                    window.CollectionDialog.refreshHud();
+                }
+            } catch (e) {
+                console.warn('[青雲梯] 晉升文錢發放失敗:', e);
+            }
+            return amount;
+        },
+
+        /**
+         * 依站點型態算出這一站該發多少文錢，並實際發放。
+         *
+         * 三種情形（企劃書 §4.2）：
+         *   · 小站            → 目標文位總額 ÷ 小站數（無條件捨去，最低 1）
+         *   · 免考文位        → 該文位的獎勵總額
+         *   · 需應試的文位    → **這裡不發**，等考試通過才由 exam.js 發放。
+         *                       抵達這一站的定位是「取得應試資格」而非「晉升」。
+         *
+         * @returns {number} 實際發放的文錢（0 = 不發或已發過）
+         */
+        grantStationReward: function (station) {
+            if (!station || !window.PathStations) return 0;
+            const PS = window.PathStations;
+
+            if (station.type === 'grade') {
+                return this.grantPromotionSilver('grade', station.name, PS.getGradeStationSilver(station));
+            }
+            if (station.type === 'rank' && !station.isExam) {
+                return this.grantPromotionSilver('rank', station.name, PS.getRankSilver(station.name));
+            }
+            return 0;   // 需應試的文位：資格達成不發獎，通過考試才發
+        },
+
         /**
          * 晉升彈窗：這一局讓玩家走到新的站點時，於結算後立刻出現。
          *
-         * 兩種型態：
-         *   · 小階（例如「書僮二階」）→ 領取階段稱號，回到青雲梯
-         *   · 需應試的文位（縣案首以後）→ 引導玩家前往江南小院考棚
+         * 三種型態（企劃書 §5）：
+         *   · 小階（例如「書僮二階」）→ 簡易全畫面動畫（無獎狀圖）
+         *   · 免考文位（蒙童／塾生／童生）→ 華麗全畫面動畫（獎狀圖＋特效）
+         *   · 需應試的文位（縣案首以後）→ 引導彈窗，導向江南小院考棚
+         *
+         * ⚠️ 獎勵在彈窗出現「之前」就已經發放（見 grantStationReward），
+         *    按鈕只負責關閉彈窗與播放慶祝動畫，不再是領取動作。
          */
         showPromotionPopup: function (station) {
             if (!station) { this.show(); return; }
-            const isExamRank = station.type === 'rank' && station.isExam;
             const isRank = station.type === 'rank';
+            const isExamRank = isRank && station.isExam;
+
+            // ⚠️ 先發獎勵、再顯示彈窗——彈窗只是表演，不是領取動作。
+            const gained = this.grantStationReward(station);
+            const silverLine = gained > 0
+                ? '<br>得文錢 <b>' + gained.toLocaleString() + '</b> 枚。'
+                : '';
 
             let html;
             if (isExamRank) {
+                // 取得應試資格：不發獎勵，導向考棚
                 html = '<h2>學問已成，可赴科場</h2>'
                     + '<p>閣下苦讀不輟，已具應試「<b>' + station.name + '</b>」之學力。'
                     + '惟功名須經場屋一試方得冊封 —— 可即刻前往江南小院考棚報名，'
                     + '亦可再溫書數日，待胸有成竹再去。</p>'
                     + '<div class="lp-pop-footer">'
-                    + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">稍後再說</button>'
-                    + '<button class="lp-pop-btn" id="lpPopExam">前往考棚應試</button>'
+                    + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">容後再議</button>'
+                    + '<button class="lp-pop-btn" id="lpPopExam">即赴科場</button>'
+                    + '</div>';
+            } else if (isRank) {
+                // ⚠️ 標題刻意不用「金榜題名」——那是科舉及第的專稱，
+                //    保留給 exam.js 的考試通過畫面。蒙童／塾生／童生是
+                //    純靠累積學習取得的免考文位，用「積學有成」才貼切，
+                //    也避免兩種完全不同的成就用同一句賀詞。
+                html = '<h2>積學有成</h2>'
+                    + '<p>積跬步以至千里。閣下已通過此階全部關卡，'
+                    + '榮登「<b>' + station.name + '</b>」文位。' + silverLine + '</p>'
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn" id="lpPopClaim">敬受榮銜</button>'
                     + '</div>';
             } else {
-                html = '<h2>恭喜晉階</h2>'
+                html = '<h2>更上一層</h2>'
                     + '<p>積跬步以至千里。閣下已通過此階全部關卡，'
-                    + '榮登「<b>' + station.name + '</b>」' + (isRank ? '文位' : '') + '。'
-                    + '新的詩篇已在前方等候。</p>'
+                    + '進「<b>' + station.name + '</b>」。' + silverLine
+                    + '<br>新的詩篇已在前方等候。</p>'
                     + '<div class="lp-pop-footer">'
-                    + '<button class="lp-pop-btn" id="lpPopClaim">領取「' + station.name + '」</button>'
+                    + '<button class="lp-pop-btn" id="lpPopClaim">拾級而上</button>'
                     + '</div>';
             }
 
@@ -1281,7 +1417,9 @@
             const btnClaim = overlay.querySelector('#lpPopClaim');
             if (btnClaim) btnClaim.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
-                backToPath();
+                overlay.remove();
+                // 全畫面慶祝動畫：文位有獎狀圖、小站只有特效（企劃書 §5）
+                this.playPromotionCelebration(station, gained, backToPath);
             };
             const btnLater = overlay.querySelector('#lpPopLater');
             if (btnLater) btnLater.onclick = () => {
@@ -1292,17 +1430,70 @@
             if (btnExam) btnExam.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 overlay.remove();
-                this.hide();
-                // 沿用江南小院既有的考棚流程（達標→付文錢→應試→領獎狀）
-                if (window.CollectionDialog && window.CollectionDialog.show) {
-                    window.CollectionDialog.show();
-                    setTimeout(() => {
-                        if (typeof window.CollectionDialog.openExam === 'function') {
-                            window.CollectionDialog.openExam();
-                        }
-                    }, 350);
-                }
+                // 沿用江南小院既有的考棚流程（資格達標→付文錢→應試）
+                this.goToExam();
             };
+        },
+
+        /**
+         * 前往江南小院的考棚。
+         * 晉升彈窗的「即赴科場」與站點上的「應試」標記共用這一支，
+         * 避免同一段導頁邏輯在兩處各寫一遍。
+         */
+        goToExam: function () {
+            this.hide();
+            if (window.CollectionDialog && window.CollectionDialog.show) {
+                window.CollectionDialog.show();
+                setTimeout(() => {
+                    if (typeof window.CollectionDialog.openExam === 'function') {
+                        window.CollectionDialog.openExam();
+                    }
+                }, 350);
+            }
+        },
+
+        /**
+         * 晉升後的全畫面慶祝動畫（企劃書 §5）。
+         *
+         * 實際演出由 promotionCelebration.js 負責（三幕：詩句浮現 → 拖曳擾動
+         * → 獎狀浮現）。這裡保留同名函式作為青雲梯對外的統一入口，
+         * exam.js 與 achievement.js 的測試熱鍵也都是打這支。
+         *
+         * ⚠️ 若 promotionCelebration.js 沒載入，就退回 achievement.js 的
+         *    單張獎狀畫面，確保流程不會卡死在沒有動畫的狀態。
+         */
+        playPromotionCelebration: function (station, silver, onDone) {
+            const done = () => { if (typeof onDone === 'function') onDone(); };
+
+            if (window.PromotionCelebration && typeof window.PromotionCelebration.play === 'function') {
+                window.PromotionCelebration.play({ station: station, silver: silver, onDone: done });
+                return;
+            }
+
+            // ── 降級：只顯示獎狀，不播詩句動畫 ──
+            const AD = window.AchievementDialog;
+            if (!AD || typeof AD.showCert !== 'function' || !station) { done(); return; }
+            const isRank = station.type === 'rank';
+            let imgUrl = null;
+            if (isRank && Array.isArray(AD.certImages) && AD.certImages.length) {
+                const ms = (window.PathStations && window.PathStations.getMilestones)
+                    ? window.PathStations.getMilestones() : [];
+                let idx = 0;
+                for (let i = 0; i < ms.length; i++) { if (ms[i].name === station.name) { idx = i; break; } }
+                imgUrl = AD.certImages[Math.min(idx, AD.certImages.length - 1)];
+            }
+            const text = isRank
+                ? `恭賀
+榮登「${station.name}」文位。
+寒窗不負苦心人，願君持此文心，再續錦繡華章。`
+                : `恭賀
+晉「${station.name}」。
+積跬步以至千里，前路尚有好詩相候。`;
+            AD.showCert(imgUrl, text, silver > 0, 0, silver);
+            const overlay = document.getElementById('certOverlay');
+            if (!overlay) { done(); return; }
+            const onClick = () => { overlay.removeEventListener('click', onClick); setTimeout(done, 60); };
+            overlay.addEventListener('click', onClick);
         },
 
         /** 溫習確認彈窗：點到已走過的舊站點時出現 */
