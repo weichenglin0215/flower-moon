@@ -15,37 +15,19 @@
       新版：站點 = 已學詩詞數的里程碑。積分完全不參與進度判定，
             只留在排行榜與統計（見企畫書第六章「四種數值的角色分工」）。
 
-   ── 節奏設計（企畫書 5.1 / 5.2）────────────────────────────────────
-      每週學 1~2 首、每月約 8 首 → 前八個文位剛好一個月一個。
-      每個文位再切成 4 階（本階／二階／三階／準下一階），
-      一階 = 該文位所需詩數 ÷ 4，前期恰好一週一階。
+   ── 節奏設計：直接填表（2026-08-28 定案）─────────────────────────
+      文位間距與小站步調不再由公式（積分、或「每週學幾首×難度層週數」）
+      反推，改成 RANK_TABLE 一張表直接填「這段要切幾個小站」「一站放幾
+      首」，詩詞跨距是算出來的結果，不是輸入。
+      理由：舊的「難度層驅動」公式曾經在文位里程碑剛好卡在難度分界線
+      附近時，讓小站數無預警翻倍或腰斬（同樣跨距 12 首，一段切 5 站、
+      隔壁段卻只切 2 站，純粹是分界線落點的巧合，不是刻意的節奏設計）。
+      直接填表後，之後詩詞庫擴充只需要調整 RANK_TABLE 的數字，不必再去
+      猜測或理解難度分界線落在哪裡。
    ========================================================================== */
 
 (function () {
     'use strict';
-
-    // ── 文位里程碑：累積「已學會（⭑⭑ 以上）」的詩詞首數 ────────────────
-    // 依企畫書第 5.1 節。前八個文位每月一個（每月 8 首），
-    // 之後拉長到 2~3.5 個月一個 —— 後期玩家內在動機已足，不需密集外部獎勵。
-    // ⚠️ 這張表取代了舊版以 scoreManager.ranks 積分門檻推算站點的作法。
-    //    ranks 的積分數值本身**完全保留不動**，只是不再作為升等判定依據。
-    const RANK_MILESTONES = [
-        { name: '書僮', poems: 0 },
-        { name: '蒙童', poems: 8 },
-        { name: '塾生', poems: 16 },
-        { name: '童生', poems: 24 },
-        { name: '縣案首', poems: 32 },   // 自此起需通過考試才能取得
-        { name: '府案首', poems: 40 },
-        { name: '文童', poems: 52 },
-        { name: '秀才', poems: 64 },    // 評價 7~6 全數完成
-        { name: '舉人', poems: 84 },
-        { name: '貢士', poems: 110 },
-        { name: '進士', poems: 142 },   // 評價 7~5 全數完成
-        { name: '探花', poems: 170 },
-        { name: '榜眼', poems: 198 },
-        { name: '狀元', poems: 226 },   // 評價 7~4 全數完成
-        { name: '大儒', poems: -1 }     // -1 = 取實際題庫上限（見 build）
-    ];
 
     // 塾生（含）以後的文位站需通過考試。
     // ⚠️ 2026-08-28 由「縣案首」整段前移到「塾生」，目的是讓玩家**提早**
@@ -57,16 +39,42 @@
     //    這個常數就撐不住，得整組改成逐一列舉——目前沒有那個需求。
     const EXAM_FROM_RANK = '塾生';
 
-    // ── 小站節奏（作者定案）──────────────────────────────────────────
-    // 小站的用途是讓玩家有短期成就感，因此改以**時間**為準而非固定階數：
-    //   小學、中學程度 → 每 1 週一小站
-    //   高中程度       → 每 2 週一小站
-    //   大學、研究所   → 每 3 週一小站
-    // 以「每週學 2 首」換算，即可得出一站該放幾首詩。
-    const POEMS_PER_WEEK = 2;
-    const WEEKS_PER_STATION = {
-        '小學': 1, '中學': 1, '高中': 2, '大學': 3, '研究所': 3
-    };
+    // ── 文位區間表：小站節奏的唯一來源（作者定案）───────────────────
+    // 每一列＝「從上一個文位走到這個文位」要放幾個小站（stationCount）、
+    // 以及每個小站放幾首詩（perStation）。詩詞跨距（這段總共要學幾首）
+    // 完全由這兩欄推算：span = (stationCount + 1) × perStation
+    // （+1 是把「抵達這個文位本身」也算成最後一份）。
+    //
+    // ⚠️ 作者要直接控制的是「這段要切幾個小站」與「一站放幾首」，
+    //    不是詩詞跨距本身——跨距只是算出來的結果，改表只需要調這兩欄。
+    //    這裡故意**不**存 span，就是為了不必自己手算、也不會兩份數字對不上。
+    //    這是全模組唯一一張要手動維護的表，日後詩詞庫擴充只需要調整
+    //    這裡的 stationCount／perStation，不需要再改別的地方。
+    // ⚠️ 每一站的「主要難度層」（st.tier）不是這張表的欄位，一律由
+    //    _finalizeStations 依這一站實際涵蓋的詩自動算出（見該函式），
+    //    就算某個文位區間橫跨兩個難度層也沒關係——區間內本來就有好幾個
+    //    小站可以自然分開難易度，不需要在這張表裡人工指定難度層。
+    // ⚠️ 最後一列（大儒）不受推算出的 span 上限：實際跨距永遠取「題庫剩餘
+    //    全部」，這裡的 stationCount／perStation 只用來決定小站步調該多大——
+    //    即使題庫還沒補到目標量，大儒也照樣涵蓋到題庫實際上限
+    //    （見 _buildMilestones）。
+    const RANK_TABLE = [
+        { name: '書僮', stationCount: 0, perStation: 0 },   // 起點站，前面無跨距
+        { name: '蒙童', stationCount: 3, perStation: 2 },
+        { name: '塾生', stationCount: 3, perStation: 2 },
+        { name: '童生', stationCount: 3, perStation: 2 },
+        { name: '縣案首', stationCount: 3, perStation: 2 },
+        { name: '府案首', stationCount: 3, perStation: 3 },
+        { name: '文童', stationCount: 3, perStation: 3 },
+        { name: '秀才', stationCount: 4, perStation: 3 },
+        { name: '舉人', stationCount: 4, perStation: 4 },
+        { name: '貢士', stationCount: 4, perStation: 4 },
+        { name: '進士', stationCount: 5, perStation: 4 },
+        { name: '探花', stationCount: 5, perStation: 5 },
+        { name: '榜眼', stationCount: 6, perStation: 6 },
+        { name: '狀元', stationCount: 7, perStation: 7 },
+        { name: '大儒', stationCount: 10, perStation: 8 }
+    ];
 
     // ── 必通關卡的單元挑選（作者定案）────────────────────────────────
     // 一首詩不是每一聯都值得列入必修 ——〈長恨歌〉有 120 句，
@@ -326,26 +334,56 @@
         build: function () {
             if (this._cache) return this._cache;
 
-            const LT = this.getLevelTable();
-            if (!LT) return [];
-
             const learnOrder = this.buildLearnOrder();
             const total = learnOrder.length;
             if (!total) return [];
 
-            // 大儒 = 題庫上限
-            const milestones = RANK_MILESTONES.map(m =>
-                ({ name: m.name, poems: m.poems < 0 ? total : Math.min(m.poems, total) }));
+            const milestones = this._buildMilestones(total);
+            const stations = this._buildStationShells(milestones, total);
 
+            this._finalizeStations(stations, learnOrder, total);
+            this._cache = stations;
+            return stations;
+        },
+
+        /**
+         * 依 RANK_TABLE 累加出里程碑表：每個文位「累積應學會幾首詩」，
+         * 以及走到這個文位的路上每個小站放幾首詩（見 RANK_TABLE 開頭註解）。
+         *
+         * ⚠️ 最後一列（大儒）不受累加出的目標值限制：不管題庫目前有沒有補到
+         *    目標總量，大儒永遠涵蓋「題庫實際剩下的全部」——用
+         *    `Math.max(cum, total)` 讓題庫還沒補齊時取累積目標值（再被
+         *    下一行的 `Math.min(..., total)` 夾回題庫實際上限），
+         *    未來題庫長過目標值時則直接取實際上限，兩種情況都對。
+         */
+        _buildMilestones: function (total) {
+            let cum = 0;
+            const out = [];
+            RANK_TABLE.forEach((r, i) => {
+                // +1：stationCount 只算「小站」，不含抵達這個文位本身那一份。
+                const span = (r.stationCount + 1) * r.perStation;
+                cum += span;
+                const isLast = i === RANK_TABLE.length - 1;
+                const target = isLast ? Math.max(cum, total) : cum;
+                out.push({ name: r.name, poems: Math.min(target, total), perStation: r.perStation });
+            });
+            return out;
+        },
+
+        /**
+         * 依里程碑表建出「文位站 + 各階小站」的骨架（尚未填入 poemIds／units）。
+         *
+         * @param {Array} milestones
+         * @param {number} total
+         */
+        _buildStationShells: function (milestones, total) {
             const examFromIdx = milestones.findIndex(m => m.name === EXAM_FROM_RANK);
-
             const stations = [];
 
             for (let i = 0; i < milestones.length; i++) {
                 const cur = milestones[i];
                 const next = milestones[i + 1];
 
-                // 文位站本身
                 stations.push({
                     type: 'rank',
                     name: cur.name,
@@ -358,15 +396,12 @@
                 if (!next) break;
 
                 // ── 文位內的各階（二階／三階／…／準下一個文位）──────────
-                // 階數不再固定，改由「幾週該有一小站」推算：
-                //   一站的詩數 = 每週學幾首 × 該難度層幾週一站
-                //   → 小學/中學 2 首、高中 4 首、大學/研究所 6 首
-                // 難度層取這一段**最後一首詩**所屬的層（較進階的內容主導節奏）。
+                // 階數與每階詩數直接查 RANK_TABLE（next.perStation），
+                // 不再由公式反推。
                 const span = next.poems - cur.poems;
                 if (span <= 0) continue;
 
-                const segTier = learnOrder[Math.min(next.poems - 1, total - 1)].tier;
-                const perStation = POEMS_PER_WEEK * (WEEKS_PER_STATION[segTier] || 1);
+                const perStation = next.perStation;
                 const gradeCount = Math.max(1, Math.ceil(span / perStation));
 
                 for (let k = 1; k < gradeCount; k++) {
@@ -385,8 +420,11 @@
                     });
                 }
             }
+            return stations;
+        },
 
-            // ── 後處理：算出每一站涵蓋的詩、必通關卡與難度層 ────────────
+        /** 後處理：算出每一站涵蓋的詩、必通關卡與難度層 */
+        _finalizeStations: function (stations, learnOrder, total) {
             for (let i = 0; i < stations.length; i++) {
                 const st = stations[i];
                 const next = stations[i + 1];
@@ -409,9 +447,6 @@
                 st.units = units;
                 st.requiredClears = units.length * PLAYS_PER_UNIT;
             }
-
-            this._cache = stations;
-            return stations;
         },
 
         /**
@@ -567,9 +602,8 @@
 
         /** 文位里程碑表（供 UI 與考試模組查詢） */
         getMilestones: function () {
-            const total = this.getTotalPoems();
-            return RANK_MILESTONES.map(m =>
-                ({ name: m.name, poems: m.poems < 0 ? total : Math.min(m.poems, total) }));
+            return this._buildMilestones(this.getTotalPoems())
+                .map(m => ({ name: m.name, poems: m.poems }));
         },
 
         // ══════════════════════════════════════════════════════════════
@@ -669,18 +703,16 @@
 
         /** 某個文位的「下一個」文位名稱；已是最後一個則回空字串 */
         getNextRankNameAfter: function (rankName) {
-            const ms = RANK_MILESTONES;
-            for (let i = 0; i < ms.length - 1; i++) {
-                if (ms[i].name === rankName) return ms[i + 1].name;
+            for (let i = 0; i < RANK_TABLE.length - 1; i++) {
+                if (RANK_TABLE[i].name === rankName) return RANK_TABLE[i + 1].name;
             }
             return '';
         },
 
-        /** 這個文位是否需要通過考試才能取得（縣案首起） */
+        /** 這個文位是否需要通過考試才能取得（塾生起） */
         isExamRank: function (rankName) {
-            const ms = RANK_MILESTONES;
-            const from = ms.findIndex(m => m.name === EXAM_FROM_RANK);
-            const at = ms.findIndex(m => m.name === rankName);
+            const from = RANK_TABLE.findIndex(m => m.name === EXAM_FROM_RANK);
+            const at = RANK_TABLE.findIndex(m => m.name === rankName);
             return from >= 0 && at >= 0 && at >= from;
         },
 
