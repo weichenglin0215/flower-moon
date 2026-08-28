@@ -39,12 +39,6 @@
 
     const ExamEngine = {
 
-        // 每題之間的過場停留時間（毫秒）。太短看不清對錯，
-        // 太長的話大儒那種 228 題的考試會拖得很煩躁。
-        // ⚠️ 放在物件上而不是模組內的 const，是為了讓調校與自動化測試
-        //    可以直接改（const 沒有辦法從外面調整，測一次 24 題要等 26 秒）。
-        INTERSTITIAL_MS: 1100,
-
         _plan: null,
         _questions: [],
         _qi: 0,
@@ -484,7 +478,10 @@
             const p = this._plan;
             const done = this._qi;
             const left = p.totalQuestions - done;
-            // 還有沒有機會及格？不夠了就直接結束，不必硬撐完剩下的題
+            // 還有沒有機會及格？只用來提示，不再拿來提早結束考試——
+            // 玩家已經付了應試費用，就算篤定落榜也該讓他把剩下的題目
+            // 當作練習考完，而不是被腰斬趕出考場（實際回報：花錢應試
+            // 卻一下子就被判離場，玩家會很不爽）。
             const stillPossible = (this._correct + left) >= p.passCount;
 
             const self = this;
@@ -494,14 +491,18 @@
                 + '<div class="exg-prog">第 ' + done + ' / ' + p.totalQuestions + ' 題</div>'
                 + '<div class="exg-score">答對 <b>' + this._correct + '</b>　'
                 + '及格需 <b>' + p.passCount + '</b></div>'
-                + (stillPossible ? '' : '<div class="exg-row exg-warn">已無法達到及格線</div>')
+                + (stillPossible ? '' : '<div class="exg-row exg-warn">已無法達到及格線，仍可作答至考畢</div>')
+                + '<div class="exg-footer"><button class="exg-btn" id="exgNext">知道了</button></div>'
             );
 
-            setTimeout(function () {
+            // 改為玩家自行點擊才進入下一題，看清楚這一題的對錯再繼續。
+            // 及格／落榜的評定彈窗永遠留到所有題目考完才顯示（見上方註解）。
+            this._overlay.querySelector('#exgNext').onclick = function () {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
                 if (self._aborted) return;
-                if (!stillPossible || done >= p.totalQuestions) self._finish();
+                if (done >= p.totalQuestions) self._finish();
                 else self._nextQuestion();
-            }, this.INTERSTITIAL_MS);
+            };
         },
 
         // ══════════════════════════════════════════════════════════
@@ -543,7 +544,7 @@
                         : '')
                     : '<div class="exg-note">' + (this._mode === 'mock'
                         ? '再多練幾次，模擬考不扣文錢。'
-                        : '入場費不予退還，明日可再應試。') + '</div>');
+                        : '入場費不予退還，<br>請重複溫習課程內容，賺取考試費用。<br>充分準備，明日可再應試。') + '</div>');
 
             this._card('<h2>' + title + '</h2>' + body
                 + '<div class="exg-footer"><button class="exg-btn" id="exgClose">' +

@@ -55,10 +55,10 @@
                 this.autoCloseTimeout = setTimeout(() => {
                     //半透明慢慢消失
                     this.overlay.classList.add('hide-fade');
-                }, 2500);
+                }, 12000);
                 this.autoCloseTimeout = setTimeout(() => {
-                    this.hide(); //4秒後完全消失，請參考 introCard.css intro-overlay.hide-fade
-                }, 4000);
+                    this.hide(); //停留12秒 + 1.5秒淡出後完全消失，請參考 introCard.css intro-overlay.hide-fade
+                }, 13500);
             }
         },
 

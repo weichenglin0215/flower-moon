@@ -39,10 +39,10 @@
      *     分數運算則永遠精準。
      * ===================================================================== */
     const RANK_EXAM = {
-        '塾生': { perPoem: 3, pass: [2, 3] },
-        '童生': { perPoem: 3, pass: [2, 3] },
-        '縣案首': { perPoem: 3, pass: [4, 5] },
-        '府案首': { perPoem: 3, pass: [4, 5] },
+        '塾生': { perPoem: 2, pass: [2, 3] },
+        '童生': { perPoem: 2, pass: [2, 3] },
+        '縣案首': { perPoem: 2, pass: [4, 5] },
+        '府案首': { perPoem: 2, pass: [4, 5] },
         '文童': { perPoem: 2, pass: [4, 5] },
         '秀才': { perPoem: 2, pass: [17, 20] },
         '舉人': { perPoem: 2, pass: [17, 20] },

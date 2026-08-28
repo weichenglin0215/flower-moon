@@ -1718,6 +1718,18 @@
             const list = overlay.querySelector('#lpSkipList');
             this._enableDragScroll(list);
 
+            // ⚠️ 預先勾選「最下方」那個可應試的文位（＝離玩家目前程度最近、
+            //    最容易達成的一個），並讓「越級應試」鈕直接呈現可點的硃紅色。
+            //    先前是完全不勾選、鈕維持半透明鎖住樣式，玩家常常誤以為
+            //    整個功能點不動，還沒看清清單就放棄了（回報過）。
+            const usableBtns = overlay.querySelectorAll('.lp-skip-item[data-rank]');
+            if (usableBtns.length) {
+                const defaultBtn = usableBtns[usableBtns.length - 1];
+                defaultBtn.classList.add('lp-skip-picked');
+                picked = defaultBtn.getAttribute('data-rank');
+                goBtn.disabled = false;
+            }
+
             // ⚠️ 預先捲到「第一個可應試的文位」。
             //    清單是文位低者在下，而玩家可考的通常就在最下面那幾列，
             //    預設停在頂端的話玩家會看到一整片鎖住的項目，

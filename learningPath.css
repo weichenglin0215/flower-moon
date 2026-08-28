@@ -527,9 +527,12 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 2px solid var(--lp-bg-cream-deep);
     margin: 12px 0;
-    /* 五列 ×（列高 42 + 間距 6）－ 最後一列不需要間距 = 234px */
-    max-height: 234px;
+    /* 4.5列(故意顯示半列，讓玩家知道可以捲動) ×（列高 42 + 間距 6）－ 最後一列不需要間距 = 220px */
+    max-height: 220px;
     overflow-y: auto;
     /* 捲動軸隱藏，改用手指拖曳（見 _enableDragScroll）。
        ⚠️ 兩者是一組的：只藏捲動軸而不接拖曳，觸控裝置會完全捲不動。 */

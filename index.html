@@ -10,6 +10,11 @@
     <meta name="apple-mobile-web-app-title" content="花月">
     <title>花月 Flower Moon</title>
 
+    <!-- 版本檢查必須放在最前面、比任何其他資源都先請求，
+         偵測到伺服器版本變動就立刻強制重整，避免玩家停留在瀏覽器
+         快取住的舊版本。發布新版時記得同步更新 version.json。 -->
+    <script src="versionCheck.js"></script>
+
     <!-- 基礎樣式，screen_adaptive.css 必須在最前面，不要自作主張去調整順序 -->
     <link rel="stylesheet" href="screen_adaptive.css">
     <!-- 共用宣紙淺色主題變數（--fm-*），需在各遊戲 CSS 之前載入 -->
