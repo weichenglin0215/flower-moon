@@ -76,7 +76,7 @@
         //   讓玩家一眼看出還沒對到的欄位。小學至大學開啟；研究所關閉（最高難度不給提示）。
         difficultySettings: {
             '小學': {
-                timeLimit: 20, poemMinRating: 6, poemType: '七言',
+                timeLimit: 20, poemMinRating: 6, poemType: '五言',
                 hintDelaySec: 8, hintStep: 'progressive', stepInterval: 2,
                 maxFixBarCount: 3, maxDecoyCount: 0, showRightChar: true,
                 showWrongOnTimeout: true

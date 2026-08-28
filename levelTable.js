@@ -71,10 +71,60 @@
         /** 離開關卡模式（回到隨機練習）時清除情境 */
         clearContext: function () {
             this._context = null;
+            // 白名單只在關卡情境下有意義，一併清掉，避免殘留影響自由練習
+            this._allowedPoemIds = null;
         },
 
         getContext: function () {
             return this._context;
+        },
+
+        // ── 青雲梯專用：把候選詩限制在「這一站安排好的詩」之內 ──────────────
+        // ⚠️ 為什麼需要這個白名單
+        //    resolve() 的 B 案（same-cluster）原本是為「關卡模式」設計的：
+        //    找不到合用句子時，改用**同一個題目群**的其他詩，理由是
+        //    「複習的仍然是同一批詩」。但青雲梯的一站只有 2~6 首詩，
+        //    而一個題目群有 4 首，兩者範圍並不相同 —— 於是 B 案會端出
+        //    「同群、但不屬於這一站」的詩。實測 88 站中有 85 站會發生，
+        //    最嚴重的是「蒙童三階」可以拿到〈水調歌頭〉（它的正主是
+        //    22 站之後的「文童三階」）。這與「書僮玩到將進酒」是同一類
+        //    錯誤，只是走的是另一條路徑（那次是跨難度層的整庫隨機）。
+        //
+        //    青雲梯的規則是「只能學這一站排好的詩」，因此進站開局時由
+        //    learningPath.launchGame 設定白名單，resolve() 內所有候選
+        //    （含錨定詩與 B 案）一律先過濾。整站都湊不出合用句子時回傳
+        //    null，交給既有安全網換一款遊戲，而不是換一首站外的詩。
+        //
+        //    level-selector.js 的關卡模式不設白名單，維持原本的 B 案行為。
+        _allowedPoemIds: null,
+
+        /** 設定候選詩白名單（青雲梯進站開局時呼叫；傳空值等同不限制） */
+        setAllowedPoemIds: function (ids) {
+            this._allowedPoemIds = (ids && ids.length) ? ids.slice() : null;
+        },
+
+        /** 解除候選詩白名單 */
+        clearAllowedPoemIds: function () {
+            this._allowedPoemIds = null;
+        },
+
+        // ── 追蹤診斷用：記下 getSharedRandomPoem 最後一次真正回傳的詩 ──────
+        // ⚠️ 這裡記的是「玩家實際看到的詩」，跟 getLevelEntry(tier, levelIndex).p
+        //    這種「這一關『應該』出的錨定詩」是兩回事——正常情況下兩者相同，
+        //    但只要 resolve() 走到 same-poem／same-cluster 分支改用群內其他詩，
+        //    或（改版前）不慎跨難度層洩題，兩者就會不一致。
+        //    supabaseClient.logGame 寫 game_logs.poem_id 時讀的就是這裡，
+        //    目的是能直接拿它跟 station_name 對照，稽核有沒有出錯題目。
+        _lastPoemId: null,
+
+        /** getSharedRandomPoem 每次成功選到詩之後呼叫，記下實際回傳的詩 id */
+        setLastPoemId: function (poemId) {
+            this._lastPoemId = poemId;
+        },
+
+        /** 供 supabaseClient.js 記錄 game_logs.poem_id 用 */
+        getLastPoemId: function () {
+            return this._lastPoemId;
         },
 
         /** 該難度層共有幾關 */
@@ -204,8 +254,12 @@
          *          fallback: 'anchor'      = 用了關卡表錨定的那組詩句（理想情況）
          *                    'same-poem'   = 錨定詩句不合用，改用同一首詩的其他句
          *                    'same-cluster'= 改用同題目群的其他詩（B 案）
-         *          若整個題目群都無法滿足該遊戲需求則回傳 null，
-         *          由呼叫端（script.js）退回原本的隨機選詩邏輯。
+         *                    'same-station'= 改用本站安排、但不同題目群的詩
+         *                                    （僅在青雲梯白名單啟用時才可能出現）
+         *          若所有候選都無法滿足該遊戲需求則回傳 null。
+         *          ⚠️ 青雲梯下呼叫端（script.js）**不會**再退回整庫隨機選詩，
+         *             而是直接判定這一局出不了題，交由 learningPath.launchGame
+         *             自動改派另一款遊戲。詳見 script.js 內的說明。
          */
         resolve: function (tier, levelIndex, req) {
             const table = this.getTable();
@@ -222,13 +276,17 @@
             const anchorPoem = byId[entry.p];
             const clusterIds = tierData.clusters[entry.c] || [];
 
+            // 青雲梯白名單：不在這一站安排的詩一律排除（見 setAllowedPoemIds）
+            const allow = this._allowedPoemIds;
+            const permitted = (pid) => !allow || allow.indexOf(pid) >= 0;
+
             // ── 候選順序（完全決定性，確保同一關永遠出同一題）──────────
             // 1. 錨定詩 + 錨定起始句      → fallback: 'anchor'
             // 2. 錨定詩 + 其他起始句（遞增）→ fallback: 'same-poem'
             // 3. 同題目群其他詩（依群內順序）+ 起始句遞增 → fallback: 'same-cluster'
             const candidates = [];
 
-            if (anchorPoem) {
+            if (anchorPoem && permitted(entry.p)) {
                 candidates.push({ poem: anchorPoem, start: entry.s, kind: 'anchor' });
                 const content = anchorPoem.content || [];
                 for (let s = 0; s + 1 < content.length; s += 2) {
@@ -240,11 +298,30 @@
 
             for (const pid of clusterIds) {
                 if (pid === entry.p) continue;          // 錨定詩已在上面排過
+                if (!permitted(pid)) continue;          // 不屬於這一站的詩，青雲梯下不可用
                 const p = byId[pid];
                 if (!p) continue;
                 const content = p.content || [];
                 for (let s = 0; s + 1 < content.length; s += 2) {
                     candidates.push({ poem: p, start: s, kind: 'same-cluster' });
+                }
+            }
+
+            // 4. 本站安排、但不在這個題目群裡的其他詩 → fallback: 'same-station'
+            //    一站的詩不保證同屬一個 cluster（cluster 固定 4 首、站則 2~6 首），
+            //    少了這一段，白名單啟用後會有一批「明明是本站該學的詩」卻永遠
+            //    進不了候選，白白讓遊戲判定出不了題。這正是玩家說的
+            //    「或許換青雲梯安排好的另一首詩」。
+            if (allow) {
+                for (const pid of allow) {
+                    if (pid === entry.p) continue;
+                    if (clusterIds.indexOf(pid) >= 0) continue;   // 上一段已排過
+                    const p = byId[pid];
+                    if (!p) continue;
+                    const content = p.content || [];
+                    for (let s = 0; s + 1 < content.length; s += 2) {
+                        candidates.push({ poem: p, start: s, kind: 'same-station' });
+                    }
                 }
             }
 

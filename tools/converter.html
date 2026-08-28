@@ -113,13 +113,18 @@
                 <li>貼上到下方的文字框中。</li>
                 <li>按下「轉換」按鈕。</li>
                 <li>複製下方的結果，貼到 <code>data/poems.js</code> 中。</li>
-                <li><strong>複製最下方的「關卡表」，貼到 <code>data/level_table.js</code> 中。</strong></li>
+                <li><strong>複製「關卡表」，貼到 <code>data/level_table.js</code> 中。</strong></li>
+                <li><strong>下載最下方的「青雲梯站點清單」，覆蓋 <code>note/青雲梯站點清單.md</code>。</strong></li>
             </ol>
             <p><strong>✨ 新功能：</strong>注音欄位現在會自動添加大陸拼音和同音常用字！</p>
             <p><strong>⚠️ 重要：</strong>只要詩詞的<strong>評價 (rating)</strong> 有變動，就必須一併更新
                 <code>data/level_table.js</code>。關卡表決定「哪一首詩屬於哪一個難度層」，
                 不更新的話「青雲梯」仍會依照舊表出題
                 （例如把已降為評價 6 的詩留在小學層）。本工具最下方會一併產生。</p>
+            <p><strong>⚠️ 同樣重要：</strong><code>note/青雲梯站點清單.md</code> 也必須一起更新。
+                它是<strong>人工核對「青雲梯每一站該出哪些詩」的唯一依據</strong>——
+                詩詞資料一改，站點分配就跟著變，清單沒同步就會拿舊表去驗新資料，
+                比對結論全部作廢。本工具產生關卡表時會自動一併產生，請記得下載覆蓋。</p>
             <p><strong>✨ 注音欄位寫法：</strong>例如：晞(ㄒㄧ)蒸發、乾燥。自動轉換成：晞(ㄒㄧ)(xī)發音同\"西\"，蒸發、乾燥。</p>
             <p><strong>✨
                     注音欄位寫法：</strong>也可以兩個字一起寫，例如：羅敷(ㄌㄨㄛˊ　ㄈㄨ)人名。戰國時趙王家令王仁妻。自動轉換成：羅敷(ㄌㄨㄛˊ　ㄈㄨ)(luó
@@ -184,9 +189,37 @@
         <div id="levelTableStats" style="margin:0 0 .5rem;font-size:.9rem;line-height:1.7;"></div>
         <pre id="levelTableArea">// 請先點擊《EXCEL資料轉換成程式碼格式》按鈕...</pre>
 
+        <div class="header-container">
+            <h3>青雲梯站點清單：(請下載或複製，覆蓋 note/青雲梯站點清單.md)</h3>
+            <button class="copy-btn" onclick="downloadPathMd()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                下載 .md
+            </button>
+            <button class="copy-btn" onclick="copyToClipboard('pathMdArea')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                複製
+            </button>
+        </div>
+        <p style="margin:.25rem 0 .5rem;font-size:.9rem;opacity:.85;">
+            ⚠️ 這份清單是<strong>人工核對「青雲梯每一站該出哪些詩」的唯一依據</strong>。
+            詩詞資料一改，關卡表與站點分配都會跟著變，這份清單也必須同步覆蓋，
+            否則會拿舊表去驗新資料。
+        </p>
+        <div id="pathMdStats" style="margin:0 0 .5rem;font-size:.9rem;line-height:1.7;"></div>
+        <pre id="pathMdArea">// 請先點擊《EXCEL資料轉換成程式碼格式》按鈕...</pre>
+
         <div class="instructions" style="margin-top:1rem;">
             <h3>只改了 data/poems.js，沒有 Excel 資料？</h3>
-            <p>直接選取現有的 <code>data/poems.js</code>，即可單獨重新產生關卡表：</p>
+            <p>直接選取現有的 <code>data/poems.js</code>，即可單獨重新產生關卡表與站點清單：</p>
             <input type="file" id="poemsFile" accept=".js">
             <span id="poemsFileMsg" style="margin-left:.5rem;"></span>
         </div>
@@ -195,6 +228,13 @@
     <!-- 關卡表產生器：與 `node tools/build_level_table.js` 共用同一份邏輯，
          避免命令列與網頁版兩邊實作走鐘 -->
     <script src="build_level_table.js"></script>
+    <!-- 青雲梯站點清單產生器。
+         levelTable.js / pathStations.js 都是「瀏覽器掛 window、Node 走 module.exports」
+         的雙模組，可以直接在這裡載入重用，不必為網頁版另寫一份。
+         build_path_md.js 同樣與 `node tools/dump_path.js md` 共用實作。 -->
+    <script src="../levelTable.js"></script>
+    <script src="../pathStations.js"></script>
+    <script src="build_path_md.js"></script>
     <script>
         // 繁體中文常用字對照表（按注音分組）
         const COMMON_CHARS = {
@@ -988,10 +1028,72 @@
                 statsEl.innerHTML = '<strong>詩詞總數 ' + poems.length + ' 首　總關卡數 '
                     + r.totalLevels + ' 關</strong>　<span style="opacity:.7">' + sourceNote + '</span><br>' + rows
                     + (r.hasError ? '<br><strong style="color:red">✗ 有難度層關卡數不足，請調整評價分佈。</strong>' : '');
+
+                // 關卡表一變，青雲梯的站點分配就跟著變 → 立刻重產站點清單。
+                // ⚠️ 綁在這裡而不是另外做一顆按鈕：station 清單完全由
+                //    (poems, levelTable) 決定，只要有人忘了按那顆按鈕，
+                //    人工核對就會拿舊表驗新資料 —— 正是這次要解決的問題。
+                buildPathMdFrom(poems, r.table, sourceNote);
             } catch (e) {
                 area.textContent = '// ✗ 產生關卡表失敗：' + e;
                 statsEl.innerHTML = '';
             }
+        }
+
+        // 產生好的站點清單全文，供「下載 .md」使用
+        let pathMdText = '';
+
+        /**
+         * 依詩詞與剛產生的關卡表，產出 note/青雲梯站點清單.md 的內容。
+         * 實作在 build_path_md.js，與 `node tools/dump_path.js md` 完全共用。
+         */
+        function buildPathMdFrom(poems, levelTable, sourceNote) {
+            const area = document.getElementById('pathMdArea');
+            const statsEl = document.getElementById('pathMdStats');
+            if (!area) return;
+            if (!window.FMPathMd) {
+                area.textContent = '// ✗ 找不到 build_path_md.js，請確認它與本檔在同一個 tools/ 目錄下。';
+                if (statsEl) statsEl.innerHTML = '';
+                pathMdText = '';
+                return;
+            }
+            try {
+                const r = window.FMPathMd.generate(poems, levelTable);
+                pathMdText = r.markdown;
+                area.textContent = r.markdown;
+                if (statsEl) {
+                    // 負荷檢查結果一併顯示：長篇是否被平均散開，只有實際跑過才知道
+                    const warn = r.loadReport.indexOf('✅') >= 0
+                        ? '<span style="color:green">✅ 站點負荷檢查通過</span>'
+                        : '<span style="color:#c60">⚠ 有站點負荷偏重，詳見下方清單末段說明</span>';
+                    statsEl.innerHTML = '<strong>站點總數 ' + r.stats.total
+                        + '（文位站 ' + r.stats.rank + '／階站 ' + r.stats.grade + '）'
+                        + '　可學詩詞 ' + r.stats.totalPoems + ' 首</strong>'
+                        + '　<span style="opacity:.7">' + (sourceNote || '') + '</span><br>' + warn;
+                }
+            } catch (e) {
+                area.textContent = '// ✗ 產生站點清單失敗：' + e;
+                if (statsEl) statsEl.innerHTML = '';
+                pathMdText = '';
+            }
+        }
+
+        /** 把站點清單存成 note/青雲梯站點清單.md（瀏覽器只能下載，請自行覆蓋） */
+        function downloadPathMd() {
+            if (!pathMdText) {
+                alert('尚未產生站點清單，請先執行轉換。');
+                return;
+            }
+            // 加 BOM：使用者多半用 Windows 記事本或 Excel 開，沒有 BOM 會變亂碼
+            const blob = new Blob(['﻿' + pathMdText], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '青雲梯站點清單.md';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         }
 
         // 直接載入現有的 data/poems.js 單獨重新產生關卡表

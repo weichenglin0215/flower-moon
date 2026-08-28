@@ -36,7 +36,12 @@
         defaultData: function () {
             return {
                 version: 3,
-                silver: 200,  // 初始給少量盤纏
+                // 初始盤纏。888 取其吉利，也讓新手玩得起前期的考試
+                // （塾生越級 150、童生越級 300），不會一開局就被費用卡住。
+                // ⚠️ 這個值只在「第一次建立存檔」時用得到；已經有存檔的
+                //    玩家不會因為改這裡而補到錢（見 load() 的欄位補齊邏輯，
+                //    它只在 silver 不是數字時才套預設值）。
+                silver: 888,
                 ranks: { passed: [] },
                 plots:  [ this.emptyPlot(), this.emptyPlot(), this.emptyPlot(), this.emptyPlot() ],
                 teas:   [ this.emptyTea(), this.emptyTea() ],

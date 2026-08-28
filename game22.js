@@ -98,7 +98,7 @@
         //                  與 GAME23 同一套做法：不禁止把碎片拖進該區域，
         //                  只用顏色提示「這裡不是答案區」，避免玩家以為是 BUG。
         difficultySettings: {
-            '小學': { showEmptyDelay: 10, timeLimit: 60, poemMinRating: 6, poemType: '七言', hintLineDelay: 10, hintCharCount: 999, showHintInGrid: true, minPieceArea: 3, gridLines: 4 },
+            '小學': { showEmptyDelay: 10, timeLimit: 60, poemMinRating: 6, poemType: '五言', hintLineDelay: 10, hintCharCount: 999, showHintInGrid: true, minPieceArea: 3, gridLines: 4 },
             '中學': { showEmptyDelay: 20, timeLimit: 90, poemMinRating: 5, poemType: '七言', hintLineDelay: 20, hintCharCount: 7, showHintInGrid: true, minPieceArea: 2, gridLines: 4 },
             '高中': { showEmptyDelay: 30, timeLimit: 130, poemMinRating: 4, poemType: '七言', hintLineDelay: 30, hintCharCount: 5, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
             '大學': { showEmptyDelay: 60, timeLimit: 160, poemMinRating: 3, poemType: '七言', hintLineDelay: 40, hintCharCount: 3, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },

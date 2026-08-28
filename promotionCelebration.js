@@ -927,6 +927,50 @@
         //  第三幕：獎狀
         // ══════════════════════════════════════════════════════════
 
+        /**
+         * 算出「恭賀已通過◯◯」「即將進入◯◯課程」該填哪個站名，
+         * 以及這是不是「考試剛通過」的情境（isExamPass）。
+         *
+         * ⚠️ 與 learningPath.js 的 _getPrevNextStationNames 是同一套邏輯
+         *    （含同一份「isExam 與『不在陣列裡』必須同時成立才算考試剛
+         *    通過」的推導理由），這裡另外自己算一份而不是跨檔呼叫，
+         *    理由跟 _collectLines 一樣：本檔一貫透過 window.PathStations
+         *    自己查表、不依賴呼叫端多傳參數。完整理由見 learningPath.js
+         *    同名函式的註解，這裡不重複。
+         *
+         *   · isExamPass＝false（一般抵達，含小站／免考文位／剛抵達但
+         *     還沒考的需應試文位／任何測試預覽用的合成物件）——
+         *     已完成的是「上一站」，即將進入的課程就是 station 自己。
+         *   · isExamPass＝true（只有 exam.js 的合成物件會落到這裡，代表
+         *     考試剛通過）——已完成的就是 station 自己，即將進入的是它
+         *     的下一站。isFinal＝true 僅在「大儒」（整條青雲梯最後一站，
+         *     沒有下一站可進）。
+         *
+         * @returns {{prevName:string, nextName:string, isFinal:boolean, isExamPass:boolean}}
+         */
+        _neighborNames: function (station) {
+            const empty = { prevName: '', nextName: '', isFinal: false, isExamPass: false };
+            const PS = window.PathStations;
+            if (!station || !PS) return empty;
+            const stations = PS.build();
+
+            const foundByReference = stations.indexOf(station) >= 0;
+            const isExamPass = !!station.isExam && !foundByReference;
+
+            if (isExamPass) {
+                const idx = stations.findIndex(s => s.type === 'rank' && s.name === station.name);
+                if (idx < 0) return empty;
+                const next = stations[idx + 1] || null;
+                return { prevName: station.name, nextName: next ? next.name : '', isFinal: !next, isExamPass: true };
+            }
+
+            let idx = stations.indexOf(station);
+            if (idx < 0) idx = stations.findIndex(s => s.type === station.type && s.name === station.name);
+            if (idx < 0) return empty;
+            const prev = idx > 0 ? stations[idx - 1] : null;
+            return { prevName: prev ? prev.name : '', nextName: station.name, isFinal: false, isExamPass: false };
+        },
+
         _showCert: function (station, silver) {
             const finish = () => {
                 // ⚠️ 一定要「先取出回呼、再清場」。
@@ -951,9 +995,20 @@
                 imgUrl = AD.certImages[Math.min(idx, AD.certImages.length - 1)];
             }
 
-            const text = isRank
-                ? `恭賀\n榮登「${station.name}」文位。\n寒窗不負苦心人，願君持此文心，再續錦繡華章。`
-                : `恭賀\n晉「${station.name}」。\n積跬步以至千里，前路尚有好詩相候。`;
+            // 恭賀「剛通過的文位」、告知「即將進入的新課程」；
+            // 大儒是整條青雲梯的終點，考過之後已無新課程，
+            // 改成鼓勵玩家轉去漢堡選單挑喜歡的遊戲衝排行榜積分。
+            const neighbor = this._neighborNames(station);
+            let text;
+            if (neighbor.isExamPass) {
+                text = neighbor.isFinal
+                    ? `恭賀\n寒窗苦讀，終登「${station.name}」之境！\n青雲梯至此已無新詩可修，\n不妨轉戰漢堡選單，挑一款喜愛的遊戲，\n痛快衝一波排行榜積分！`
+                    : `恭賀\n寒窗苦讀，終登「${station.name}」文位！\n即將修習「${neighbor.nextName}」課程，\n願君持此文心，再續錦繡華章。`;
+            } else if (isRank) {
+                text = `恭賀\n已通過「${neighbor.prevName}」全部課程，\n榮登「${station.name}」文位！\n寒窗不負苦心人，願君持此文心，再續錦繡華章。`;
+            } else {
+                text = `恭賀\n已通過「${neighbor.prevName}」全部課程，\n晉「${station.name}」。\n積跬步以至千里，前路尚有好詩相候。`;
+            }
 
             // 第 4 個參數是積分，新規則不發積分故固定 0，只讓文錢數字跑動
             AD.showCert(imgUrl, text, silver > 0, 0, silver);

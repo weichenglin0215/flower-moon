@@ -114,7 +114,7 @@
         //                 1.0 = 每個主句字都盡量預先連上，0 = 完全依機率自由切割。
         difficultySettings: {
             '小學': {
-                timeLimit: 90, poemMinRating: 6, poemType: '七言', mainOrient: 'H',
+                timeLimit: 90, poemMinRating: 6, poemType: '五言', mainOrient: 'H',
                 subMinRating: 5, hintLineDelay: 0, hintCharCount: 999, showHintInGrid: true,
                 decoyCharCount: 0, minPieceArea: 4, showEmptyDelay: 10, linkMainRate: 1.0
             },

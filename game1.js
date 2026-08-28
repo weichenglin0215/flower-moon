@@ -30,11 +30,11 @@
         //minMaskCount: 最少遮罩數量
         //maxMaskCount: 最多遮罩數量
         difficultySettings: {
-            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 4, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
-            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 3, answerAtLine: 0, minMaskCount: 2, maxMaskCount: 3, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
-            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 5, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
-            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 1, minMaskCount: 4, maxMaskCount: 6, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
-            '研究所': { timeLimit: 10, poemMinRating: 2, maxMistakeCount: 1, answerAtLine: 1, minMaskCount: 8, maxMaskCount: 10, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 }
+            '小學': { timeLimit: 12, poemMinRating: 6, maxMistakeCount: 3, answerAtLine: 2, minMaskCount: 1, maxMaskCount: 1, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '中學': { timeLimit: 10, poemMinRating: 5, maxMistakeCount: 3, answerAtLine: 0, minMaskCount: 2, maxMaskCount: 3, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '高中': { timeLimit: 8, poemMinRating: 4, maxMistakeCount: 2, answerAtLine: 0, minMaskCount: 3, maxMaskCount: 5, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '大學': { timeLimit: 6, poemMinRating: 3, maxMistakeCount: 2, answerAtLine: 1, minMaskCount: 4, maxMaskCount: 6, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
+            '研究所': { timeLimit: 4, poemMinRating: 2, maxMistakeCount: 1, answerAtLine: 1, minMaskCount: 8, maxMaskCount: 10, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 }
         },
 
         // 動態載入本遊戲專屬的 CSS 檔（game1.css），避免重複載入（用 id 判斷是否已存在）

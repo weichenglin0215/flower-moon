@@ -363,41 +363,88 @@
                     && typeof window.LevelTable.getContext === 'function'
                     && window.LevelTable.getContext());
 
+                // ── 追蹤診斷用：這一局實際出的詩、屬於青雲梯哪一站 ─────────
+                // 起因：玩家回報「書僮站玩到將進酒」——查證後發現這是真的，
+                // 根因是 getSharedRandomPoem 在 LevelTable.resolve() 找不到
+                // 同層候選詩句時，過去會靜默退回「跨全題庫、不看難度層」的隨機
+                // 選詩（game22 在 poemType:'七言' 且該站詩詞全為五言時最容易
+                // 觸發）；此路徑已在 script.js 修正為直接判定出題失敗，交給
+                // launchGame 既有的「自動換遊戲」安全網處理，不會再跨層洩題。
+                // game_logs 原本完全沒記錄「這局到底出了哪首詩」，只能事後從
+                // player_saves.poem_records 拼湊、且對不到單一局，因此加這兩個
+                // 欄位讓每一局都能被獨立稽核（見 note/排行榜彙總表_SQL草案.sql §8）。
+                //
+                // ⚠️ poem_id 記的是 LevelTable.getLastPoemId()——也就是
+                //    getSharedRandomPoem 這次「真正回傳」的詩，不是「這一關
+                //    應該出的錨定詩」。兩者正常情況下相同，但只要 resolve()
+                //    走到 same-poem／same-cluster 分支改用群內其他詩，就會不同；
+                //    要靠它稽核「有沒有出錯題目」，記的必須是實際出的那首。
+                let poemId = null;
+                let stationName = null;
+                if (window.LevelTable && typeof window.LevelTable.getLastPoemId === 'function') {
+                    poemId = window.LevelTable.getLastPoemId();
+                }
+                if (isRanked && window.LearningPath
+                    && typeof window.LearningPath.getCurrentStation === 'function') {
+                    const st = window.LearningPath.getCurrentStation();
+                    stationName = st ? st.name : null;
+                }
+
                 const payload = {
-                    player_id:  currentId,
-                    played_at:  new Date().toISOString(),
-                    duration_s: Math.round(opts.durationS || 0), // 本局遊玩時長（秒）
-                    game_no:    opts.gameNo || 0,
-                    difficulty: opts.difficulty || '',
-                    score:      opts.score || 0,
-                    is_win:     opts.isWin !== false,
-                    is_ranked:  isRanked
+                    player_id:    currentId,
+                    played_at:    new Date().toISOString(),
+                    duration_s:   Math.round(opts.durationS || 0), // 本局遊玩時長（秒）
+                    game_no:      opts.gameNo || 0,
+                    difficulty:   opts.difficulty || '',
+                    score:        opts.score || 0,
+                    is_win:       opts.isWin !== false,
+                    is_ranked:    isRanked,
+                    poem_id:      poemId,
+                    station_name: stationName
                 };
 
-                const { error } = await supabase.from('game_logs').insert(payload);
-
-                if (error) {
-                    // 資料庫尚未新增 is_ranked 欄位時（PostgREST 42703 / PGRST204），
-                    // 退回舊格式再寫一次。
-                    //
-                    // ⚠️ 這個保險非常重要：supabase-js 不會 throw，只會把錯誤放在
-                    //    回傳值裡，所以少了這段，「JS 先上線、SQL 還沒跑」的空窗期
-                    //    會讓**每一局的 LOG 都靜默寫不進去**，而且外面的 try/catch
-                    //    完全攔不到。作法比照 saveGameToCloud 對 collection 欄位的處理。
-                    const code = String(error.code || '');
-                    const msg  = String(error.message || '');
-                    if (code === '42703' || code === 'PGRST204' || msg.indexOf('is_ranked') >= 0) {
-                        console.warn('[雲端] game_logs 尚無 is_ranked 欄位，本次改存舊格式。'
-                            + '請執行 note/排行榜彙總表_SQL草案.sql 第 1.4 節。');
-                        delete payload.is_ranked;
-                        const retry = await supabase.from('game_logs').insert(payload);
-                        if (retry.error) console.warn('LOG 寫入失敗:', retry.error.message);
-                    } else {
-                        console.warn('LOG 寫入失敗:', msg);
-                    }
-                }
+                await this._insertGameLogWithFallback(payload);
             } catch (e) {
                 console.warn('LOG 寫入失敗:', e);
+            }
+        },
+
+        /**
+         * 寫入 game_logs，欄位不存在時逐一降級重試。
+         *
+         * ⚠️ 這個保險非常重要：supabase-js 不會 throw，只會把錯誤放在
+         *    回傳值裡，所以少了這段，「JS 先上線、SQL 還沒跑」的空窗期
+         *    會讓**每一局的 LOG 都靜默寫不進去**，而且外面的 try/catch
+         *    完全攔不到。作法比照 saveGameToCloud 對 collection 欄位的處理。
+         *
+         *    is_ranked／poem_id／station_name 是分次加上去的欄位，資料庫
+         *    可能只執行過其中幾支 SQL、也可能同時漏了兩三個，因此改成迴圈
+         *    「哪個缺就刪哪個再試」，而不是為每個欄位各寫一段幾乎重複的
+         *    if 分支（那樣少加一段判斷，該欄位缺席時就會整局寫不進去）。
+         */
+        _insertGameLogWithFallback: async function (payload) {
+            const OPTIONAL_COLUMNS = ['station_name', 'poem_id', 'is_ranked'];
+            let attempt = payload;
+            for (let i = 0; i <= OPTIONAL_COLUMNS.length; i++) {
+                const { error } = await supabase.from('game_logs').insert(attempt);
+                if (!error) return;
+
+                const code = String(error.code || '');
+                const msg = String(error.message || '');
+                const isMissingColumn = (code === '42703' || code === 'PGRST204');
+                if (!isMissingColumn) {
+                    console.warn('LOG 寫入失敗:', msg);
+                    return;
+                }
+                const missing = OPTIONAL_COLUMNS.find(col => (col in attempt) && msg.indexOf(col) >= 0);
+                if (!missing) {
+                    console.warn('LOG 寫入失敗（缺少欄位但無法辨識是哪一個）:', msg);
+                    return;
+                }
+                console.warn('[雲端] game_logs 尚無 ' + missing + ' 欄位，本次改存舊格式。'
+                    + '請執行 note/排行榜彙總表_SQL草案.sql 相關章節。');
+                attempt = Object.assign({}, attempt);
+                delete attempt[missing];
             }
         },
 

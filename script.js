@@ -155,6 +155,9 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
             }
             // ★ 只有在確定使用日曆詩時才標記「已消費」（強制模式不消耗名額）
             if (!isForcedCalendar) markDailyFirstGameUsed(gameKey);
+            if (window.LevelTable && typeof window.LevelTable.setLastPoemId === 'function') {
+               window.LevelTable.setLastPoemId(dailyPoem.id);
+            }
             return { poem: dailyPoem, lines: poemLines, startIndex: startIdx };
          }
          // 日曆詩不符合此遊戲需求（行數/字數不合），退回隨機選詩
@@ -169,8 +172,11 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
    //         第 5 關是「不同的詩」，玩家無法用不同遊戲複習同一首詩。
    // 改版後：關卡模式下先查關卡表，讓所有遊戲的「小學第 3 關」都指向同一組詩句。
    //
-   // 查表失敗（該題目群無詩能滿足此遊戲的行數／字數需求）時，
-   // 會直接落回下方原本的隨機選詩邏輯，遊戲不會因此卡死。
+   // ⚠️ 這段註解在 2026-08-27 之前寫的是「查表失敗會落回下方的隨機選詩」——
+   //    那正是「書僮站玩到將進酒」的成因，現已改掉，請勿照舊註解回推行為。
+   //    現行規則：關卡情境存在（青雲梯）時查表失敗一律回傳 null，
+   //    絕不落回整庫隨機；只有自由練習（無情境）才走下方的隨機選詩。
+   //    詳見下方 LevelTable.resolve 呼叫處的說明。
    // ── 參數防呆：先擋掉「數學上不可能成立」的需求 ─────────────────────
    // 各遊戲的 difficultySettings 與呼叫端若不一致，會出現例如
    // minChars(20) > maxChars(14) 這種永遠無解的組合，
@@ -206,8 +212,24 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
             keyword: keyword
          });
          if (fixed) {
+            LevelTable.setLastPoemId(fixed.poem.id);
             return { poem: fixed.poem, lines: fixed.lines, startIndex: fixed.startIndex };
          }
+         // ⚠️ 青雲梯／關卡模式下，這一關被指定的難度層題目群裡找不到任何
+         //    候選句子 —— 絕對不能往下掉進「不分難度層、對整個題庫」的
+         //    隨機選詩（下面那段）。那樣會讓玩家在自己文位以外、甚至遠遠
+         //    更難的詩句被派上場，而畫面與紀錄仍顯示著目前這個難度層，
+         //    這正是「書僮站玩到將進酒」的成因（見
+         //    note/排行榜彙總表_SQL草案.sql 第 8 節的追查紀錄）。
+         //    正確作法是直接判定這一局出不了題，回傳 null，交給呼叫端
+         //    既有的安全網處理：各遊戲會顯示「找不到符合條件的詩詞」，
+         //    learningPath.js 的 launchGame 攔截到這個提示後會自動換一款
+         //    遊戲重試（同一首指定詩、換不同呈現方式），而不是換到別的詩。
+         //
+         //    漢堡選單的自由練習不會走到這裡（那裡進場前會呼叫
+         //    LevelTable.clearContext()，lvCtx 會是 null），因此這個限制
+         //    只影響「學習序列固定」的青雲梯，練習模式仍保有原本的彈性。
+         return null;
       }
    }
 
@@ -343,6 +365,9 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
       if (clean.length > 0) poemLines.push(clean);
    }
 
+   if (window.LevelTable && typeof window.LevelTable.setLastPoemId === 'function') {
+      window.LevelTable.setLastPoemId(chosenPoem.id);
+   }
    return {
       poem: chosenPoem,
       lines: poemLines,

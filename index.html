@@ -160,6 +160,9 @@
     <script src="data/level_table.js"></script>
     <script src="levelTable.js"></script>
     <script src="pathStations.js"></script>
+    <!-- 考試規則層必須排在 pathStations 之後（要用它算考試範圍）、
+         examEngine 與 learningPath 之前（兩者都會查它的規則） -->
+    <script src="examConfig.js"></script>
     <script src="difficulty-selector.js"></script>
     <script src="level-selector.js"></script>
     <script src="playerCalendar.js"></script>
@@ -167,7 +170,10 @@
     <script src="learningPath.js"></script>
     <script src="menu.js"></script>
     <script src="qr-dialog.js"></script>
+    <!-- 舊版四選一問答考試。2026-08-28 起主要路徑改為 examEngine.js，
+         這支只在新引擎未載入時作為降級退路，勿逕行刪除。 -->
     <script src="exam.js"></script>
+    <script src="examEngine.js"></script>
     <script src="poem_dialog.js"></script>
 
     <!-- 主要功能模組 -->

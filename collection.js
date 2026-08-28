@@ -88,7 +88,12 @@
     //
     // 舊版問題：進士～狀元全部卡在 10000 不再成長，但玩家在研究所階段
     // 的文錢收入是小學的 15 倍，等於後期考試形同免費、失去份量。
+    // ⚠️ 塾生／童生是 2026-08-28 考試門檻前移後新增的兩個應試文位。
+    //    金額沿用原本「逐級加倍」的節奏往回推（縣案首 300 → 童生 150 → 塾生 75），
+    //    刻意壓得很低：這兩場的定位是「讓新手先熟悉考試流程」的教學局，
+    //    收費太高會讓玩家不敢嘗試，失去提前接觸考試的意義。
     const EXAM_FEES = {
+        '塾生': 75, '童生': 150,
         '縣案首': 300, '府案首': 600, '文童': 1200, '秀才': 2400,
         '舉人': 4800, '貢士': 7200,
         '進士': 14400, '探花': 28800, '榜眼': 57600,
@@ -96,7 +101,9 @@
     };
     // ⚠️ 必須包含「大儒」：舊版此陣列少了大儒，導致 nextExamRank() 在
     //    玩家考過狀元後直接回傳 null，大儒這個文位永遠考不到。
-    const EXAM_RANKS_ORDER = ['縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'];
+    // ⚠️ 這份清單與 examConfig.js 的 EXAM_RANK_ORDER、scoreManager.js 的
+    //    EXAM_RANK_NAMES 必須一致，三處任一漏改都會產生難以察覺的錯位。
+    const EXAM_RANKS_ORDER = ['塾生', '童生', '縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'];
 
     const PLOT_PRICES = {
         '茶寮': { rank: '童生', price: 500 },
@@ -442,14 +449,29 @@
             if (timeEl) timeEl.textContent = this.currentShichen();
         },
 
+        /**
+         * 江南小院 HUD 顯示的文位。
+         *
+         * ⚠️ 舊版在「還沒考過任何文位」時會退回 `globalRank`，
+         *    而 globalRank 是**積分階級**（getCurrentRank(totalScore)）——
+         *    等於舊的「靠刷積分升文位」機制從這個角落漏了出來：
+         *    玩家反覆刷低難度遊戲把積分衝高，這裡就會顯示秀才、舉人，
+         *    但他其實一首詩都沒學會。這與 §2「積分完全不參與文位判定」相牴觸。
+         *    改為一律走 getEffectiveRank（青雲梯站點進度 + 考試通過紀錄）。
+         *
+         * ⚠️ 也不要直接取 passed 的最後一個元素：那是「最後一次通過的考試」，
+         *    不保證是最高的（陣列順序取決於寫入順序，越級補發時會一次塞好幾個）。
+         *    getEffectiveRank 內部是由高到低找，才是正確的。
+         */
         currentRank: function () {
+            try {
+                if (window.ScoreManager && window.ScoreManager.getEffectiveRank) {
+                    return window.ScoreManager.getEffectiveRank(
+                        window.ScoreManager.loadPlayerData()) || '書僮';
+                }
+            } catch (e) { /* 存檔異常時退回預設 */ }
             const passed = (this.data.ranks && this.data.ranks.passed) || [];
-            if (passed.length === 0) {
-                try { if (window.ScoreManager) return window.ScoreManager.loadPlayerData().globalRank || '書僮'; }
-                catch (e) { }
-                return '書僮';
-            }
-            return passed[passed.length - 1];
+            return passed.length ? passed[passed.length - 1] : '書僮';
         },
 
         currentShichen: function () {
@@ -1853,6 +1875,15 @@
         },
 
         /**
+         * 某文位的報名費。
+         * ⚠️ 對外開放是為了讓 learningPath.js 的站點考試按鈕共用同一份費用表——
+         *    費用若在兩個檔案各寫一份，遲早會改了一邊忘了另一邊。
+         */
+        getExamFee: function (rankName) {
+            return EXAM_FEES[rankName] || 0;
+        },
+
+        /**
          * 下一個還沒考過的文位。
          *
          * ⚠️ 舊版是走訪 ScoreManager.ranks（積分門檻序列）來取得文位順序，
@@ -1876,8 +1907,17 @@
             const fee = EXAM_FEES[rank.name];
             if (this.data.silver < fee) { this.showToast('盤纏不足'); return; }
 
+            // ⚠️ 正式考一天只有一次機會（作者定案）。這道檢查一定要在扣費**之前**，
+            //    否則玩家當天第二次點下去會先被扣錢才被擋下來。
+            const C = window.FMExamConfig;
+            if (C && !C.canAttemptToday(this.data, 'real', rank.name)) {
+                this.showToast('今日已應試過，明日請早。');
+                return;
+            }
+
             // 扣入場費並存檔
             window.FMCollectionSave.addSilver(this.data, -fee, 'exam_fee', rank.name);
+            if (C) C.markAttemptToday(this.data, 'real', rank.name);
             window.FMCollectionSave.save(this.data);
             this.refreshHUD();
 
@@ -1890,7 +1930,16 @@
                 if (wasOpen && typeof this.show === 'function') this.show();
             };
 
-            if (window.Exam && typeof window.Exam.start === 'function') {
+            // ⚠️ 2026-08-28 起考試改由 examEngine.js（實際玩五款遊戲）負責。
+            //    舊的 exam.js（四選一問答）保留但不再是主要路徑，
+            //    只有在新引擎沒載入時才會退回它。
+            if (window.ExamEngine && typeof window.ExamEngine.start === 'function') {
+                window.ExamEngine.start({
+                    rankName: rank.name,
+                    mode: 'real',
+                    onDone: reopenSelf
+                });
+            } else if (window.Exam && typeof window.Exam.start === 'function') {
                 window.Exam.start(rank, {
                     onPass: reopenSelf,
                     onFail: reopenSelf

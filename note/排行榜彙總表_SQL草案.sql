@@ -851,3 +851,125 @@ create index if not exists idx_game_logs_played_at on game_logs (played_at);
 -- 7.5 分日時區：本次改以 Asia/Taipei 分日，與舊前端（UTC 分日）不同，
 --     切換後「今日榜」與 db_viewer 的每日曲線會與舊版有小幅差異，屬正常。
 -- =============================================================================
+
+
+-- =============================================================================
+-- 8. 追蹤診斷欄位：poem_id／station_name（2026-08-27）
+--
+--     起因：玩家回報「書僮站玩到將進酒」。查證後確認為真實 bug，非誤會：
+--       · game22（詩詞拼圖）小學難度的 poemType 設為「七言」，
+--         wantCharsPerLine 有 50% 機率隨機抽到 7；
+--       · 但書僮所在的題目群（cluster）四首詩（遊子吟／靜夜思／相思／
+--         登樂遊原）全部是五言絕句，完全沒有七言句，該群無論如何都湊不出
+--         「連續 4 句、每句剛好 7 字」；
+--       · LevelTable.resolve() 在同層題目群找不到候選時回傳 null，
+--         getSharedRandomPoem() 卻靜默退回「不分難度層、對整個 346 首題庫」
+--         的隨機選詩，只看 rating／行數／字數，完全不管玩家目前站在哪一站；
+--       · 將進酒（id=69，評價 6，七言）符合條件，因此被選中，
+--         而 UI 與 game_logs 記錄的 difficulty 仍停留在「小學」——
+--         看起來像是書僮站出的題，實際上是題庫大逃殺。
+--     已用玩家「酸酸主播」的雲端資料交叉驗證：game_logs 11 筆全數
+--     difficulty=小學、is_ranked=true，player_saves.poem_records 卻記著
+--     "69":{"小學":1}（連同真正該站的 257 靜夜思、266 相思），
+--     time與 game22 局數對得上，確認就是這個路徑觸發的。
+--
+--     這個 bug 不是書僮專屬——任何一站若剛好整群詩句都是五言（或都是七言），
+--     只要有遊戲要求另一種字數，就會觸發同樣的跨題庫洩題，隨機挑到的詩可能
+--     來自題庫中的任何難度（含比玩家目前程度高很多的長篇古詩）。
+--
+--     根本原因已修正（script.js getSharedRandomPoem，2026-08-27）：
+--       · 玩家決議：青雲梯（學習序列固定）與漢堡選單自由練習要分開處理，
+--         前者絕不可以自行跳去清單以外的詩，後者維持原本有彈性的作法。
+--       · 作法：seed!==null 且 LevelTable 有情境（＝青雲梯／關卡模式）時，
+--         LevelTable.resolve() 找不到同層候選就直接 return null，
+--         不再往下掉進不分難度層的整庫隨機；失敗交給呼叫端既有的
+--         「這一關出不了題→自動換一款遊戲」安全網（launchGame 的
+--         alert 攔截）處理。漢堡選單進場前會呼叫 clearContext()，
+--         lvCtx 為 null，因此完全不受影響，原本的彈性選詩邏輯不變。
+--       · 已重現書僮 + game22（要求連續4句、每句7字）情境驗證：
+--         修正前回傳將進酒（id=69，跨題庫），修正後正確回傳 null，
+--         且 game22 自身「終極退讓」（放寬行數、字數）的重試依然
+--         停留在書僮站的詩（257 靜夜思），不會再跑出站外。
+--
+--     這裡接著做玩家要求的追蹤欄位，讓 game_logs 逐局記下「實際出了哪首詩、
+--     屬於青雲梯哪一站」，之後可直接用 SQL 抓出「poem_id 所屬 tier
+--     與 station_name 所屬 tier 不一致」的異常局，不必再靠人工回報才發現
+--     ——即使根因已修，這兩欄仍有意義：可驗證修復後是否真的零發生，
+--     也能抓到未來其他遊戲踩到同一類參數不一致的問題。
+--
+--     poem_id      = LevelTable.getLastPoemId()，即 getSharedRandomPoem
+--                    這次「真正回傳」的詩 id；非關卡模式、或查無資料時為 null。
+--                    ⚠️ 刻意記「玩家實際看到的詩」而非「這一關『應該』出的
+--                    錨定詩」——兩者正常情況下相同，但 resolve() 走到
+--                    same-poem／same-cluster 分支改用群內其他詩時會不同，
+--                    要拿它稽核「有沒有出錯題目」，記的必須是實際那首。
+--     station_name = 這一局所屬的青雲梯站名（含小站，如「書僮二階」）；
+--                    非關卡模式（漢堡選單自由練習）時為 null。
+--
+--     判別方式寫在 supabaseClient.logGame 內部
+--     （LevelTable.getLastPoemId + LearningPath.getCurrentStation），
+--     41 個遊戲呼叫點不必傳這兩個參數。
+-- -----------------------------------------------------------------------------
+alter table game_logs add column if not exists poem_id integer;
+alter table game_logs add column if not exists station_name text;
+
+comment on column game_logs.poem_id is
+    '這一局的錨定詩 id（該關「應出」的詩，非關卡模式或查無資料時為 null）';
+comment on column game_logs.station_name is
+    '這一局所屬的青雲梯站名（含小站）；非關卡模式時為 null';
+
+create index if not exists idx_game_logs_poem_id on game_logs (poem_id);
+
+-- 事後查核用：抓出「is_ranked 但站名/詩詞對不上難度層」的可疑局
+-- （難度層與 poem_id 的對應需另外查 data/level_table.js 各 tier 的 clusters，
+--  這裡先示範最直接的一種：difficulty='小學' 卻出現非小學題庫的高評價長篇）
+--
+-- select player_id, played_at, game_no, difficulty, station_name, poem_id, score
+-- from game_logs
+-- where is_ranked = true
+--   and difficulty = '小學'
+--   and poem_id not in (
+--       -- 小學 tier 實際涵蓋的詩詞 id，需依 data/level_table.js 的
+--       -- tiers.小學.clusters 展開後貼進來，此處留空表示待補
+--   )
+-- order by played_at desc;
+-- =============================================================================
+
+
+-- =============================================================================
+-- 9. 青雲梯出題洩題：第二條路徑（2026-08-27 追加，無 SQL 異動）
+--
+--     第 8 節修掉的是「跨難度層、整庫隨機」那條路徑（將進酒案）。
+--     全面複查後發現**同一類錯誤還有第二條路徑**，且更普遍：
+--
+--     LevelTable.resolve() 的 B 案（fallback='same-cluster'）原本是為
+--     「關卡模式」設計：錨定句不合用時改用**同一題目群**的其他詩，
+--     理由是「複習的仍然是同一批詩」。但兩者範圍根本不同 ——
+--       · 題目群（cluster）固定 4 首
+--       · 青雲梯的一站只有 2~6 首
+--     於是 B 案會端出「同群、但不屬於這一站」的詩。
+--
+--     實測（88 站 × 821 units × 24 種需求組合）：
+--       · 2,694 次出題落在站外，88 站中有 85 站會發生
+--       · 最嚴重：「蒙童三階」可拿到〈水調歌頭〉，
+--         而它的正主是 22 站之後的「文童三階」
+--       · 1,204 次是「超前」（拿到還沒學到的詩），1,490 次是「落後」
+--
+--     修法：LevelTable 新增候選詩白名單
+--       · learningPath.launchGame 開局時 setAllowedPoemIds(station.poemIds)
+--       · resolve() 內所有候選（含錨定詩與 B 案）一律先過濾
+--       · 另新增 fallback='same-station'：本站安排、但不在該題目群裡的詩。
+--         一站的詩不保證同屬一個 cluster，少了這段會有一批「本站該學的詩」
+--         永遠進不了候選，白白讓遊戲判定出不了題（實測這段被用到 2,201 次）
+--       · 離開青雲梯（stopGame）與 clearContext() 都會解除白名單，
+--         漢堡選單自由練習完全不受影響
+--
+--     修正後實測：站外出題 0 次；821 個 unit 沒有任何一個「所有需求都無解」，
+--     不會出現玩家卡在某一關無法繼續的情況。
+--
+--     ⚠️ 刻意不處理的部分：game1／game3／game13／game20 的**干擾項**
+--        （多選題的錯誤選項）仍會取用全題庫。那是選項不是題目，答案本身
+--        永遠來自本站的詩；若把干擾項也限制在本站 2 首詩之內，選項會少到
+--        無法成題、而且答案一眼就能猜到。這是刻意的區別，不是漏網之魚。
+--        這些路徑也不會呼叫 setLastPoemId，因此不影響 game_logs.poem_id。
+-- =============================================================================

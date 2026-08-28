@@ -755,7 +755,31 @@
         // ─────────────────────────────────────────────
         _isTestMode: false,
 
-        startTest: function (rankName) {
+        /**
+         * 測試用開考。
+         *
+         * ⚠️ 2026-08-28 起改走新的 examEngine（實際玩五款遊戲的考試），
+         *    舊的四選一問答只在新引擎沒載入時才會用到。
+         *    新引擎沒有「測試模式」旗標，因此這裡改用**沙箱**的作法：
+         *    把 _writeResult 換成空函式，考完再放回去 ——
+         *    如此測試考試不會寫入任何存檔、不會真的冊封文位、不會扣文錢。
+         *
+         * @param {string} rankName 應試文位
+         * @param {boolean} isSkip  true = 測試越級考試（紅心減半、及格九成）
+         */
+        startTest: function (rankName, isSkip) {
+            const E = window.ExamEngine;
+            if (E && typeof E.start === 'function') {
+                const origWrite = E._writeResult;
+                E._writeResult = function () { /* 測試模式：不寫入任何資料 */ };
+                E.start({
+                    rankName: rankName,
+                    mode: isSkip ? 'skip' : 'real',
+                    onDone: function () { E._writeResult = origWrite; }
+                });
+                return;
+            }
+            // 降級：新引擎未載入時退回舊的四選一問答
             this._isTestMode = true;
             this.start({ name: rankName, minScore: 0 }, {
                 onPass: () => { this._isTestMode = false; },
@@ -770,7 +794,14 @@
             // 確保 exam.css 已載入（測試彈窗與主遊戲共用同一份樣式）
             this._loadCSS();
 
-            const ranks = ['大儒', '狀元', '榜眼', '探花', '進士', '貢士', '舉人', '秀才', '文童', '府案首', '縣案首'];
+            // ⚠️ 文位清單以 FMExamConfig 為準（那是唯一的權威清單），
+            //    才不會漏掉 2026-08-28 新加入的「塾生」「童生」。
+            //    由高到低排列，與舊版一致。
+            const cfg = window.FMExamConfig;
+            const ranks = cfg && cfg.EXAM_RANK_ORDER
+                ? cfg.EXAM_RANK_ORDER.slice().reverse()
+                : ['大儒', '狀元', '榜眼', '探花', '進士', '貢士', '舉人', '秀才',
+                    '文童', '府案首', '縣案首', '童生', '塾生'];
 
             // 對齊 500×850 舞台，位置與縮放由 registerOverlayResize 動態套用
             const wrap = document.createElement('div');
@@ -792,20 +823,28 @@
 
             const sub = document.createElement('div');
             sub.className = 'exam-test-picker-sub';
-            sub.textContent = '此模式不會寫入任何資料（Alt+E 再按一次關閉）';
+            sub.textContent = '左＝一般考試　右＝越級考試（皆不寫入資料，Alt+E 關閉）';
             wrap.appendChild(sub);
 
+            // 兩欄並排：左邊一般考試、右邊同文位的越級考試，
+            // 方便直接比較兩者的題目與難度差異。
+            const grid = document.createElement('div');
+            grid.className = 'exam-test-picker-grid';
             ranks.forEach(name => {
-                const b = document.createElement('button');
-                b.type = 'button';
-                b.className = 'exam-test-picker-btn';
-                b.textContent = name;
-                b.onclick = () => {
-                    wrap.remove();
-                    this.startTest(name);
-                };
-                wrap.appendChild(b);
+                [false, true].forEach(isSkip => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'exam-test-picker-btn'
+                        + (isSkip ? ' exam-test-picker-btn-skip' : '');
+                    b.textContent = isSkip ? name + '（越級）' : name;
+                    b.onclick = () => {
+                        wrap.remove();
+                        this.startTest(name, isSkip);
+                    };
+                    grid.appendChild(b);
+                });
             });
+            wrap.appendChild(grid);
 
             const close = document.createElement('button');
             close.type = 'button';

@@ -376,10 +376,23 @@
     margin-bottom: 16px;
 }
 
+/* 兩欄清單：左欄一般考試、右欄同文位的越級考試。
+   ⚠️ 加入塾生／童生後共 13 個文位 × 2 欄 = 26 顆按鈕，
+      850px 高的舞台放不下，必須讓這一區自己捲動，
+      否則最下面幾個文位會被裁掉、點不到。 */
+.exam-test-picker-grid {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 6px 10px;
+    max-height: 630px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
 .exam-test-picker-btn {
-    width: 220px;
+    width: 200px;
     padding: 4px 0;
-    font-size: 28px;
+    font-size: 22px;
     font-weight: bold;
     background: hsl(30, 20%, 22%);
     color: #f4e4a0;
@@ -389,6 +402,12 @@
     font-family: inherit;
     letter-spacing: 2px;
     transition: background 0.15s;
+}
+
+/* 越級考試那一欄用硃紅邊框區隔，一眼看得出跟左欄不同 */
+.exam-test-picker-btn-skip {
+    border-color: hsl(0, 60%, 55%);
+    color: hsl(20, 80%, 78%);
 }
 
 .exam-test-picker-btn:hover {

@@ -67,8 +67,10 @@ function requirementsOf(no, s) {
         case 20: {
             return (s.formats || ['A']).map(f => {
                 const need = (f === 'A' ? 2 : f === 'B' ? 3 : 4);
-                return { minLines: need, maxLines: Math.max(need, s.maxLines),
-                         minChars: s.minChars, maxChars: s.maxChars };
+                return {
+                    minLines: need, maxLines: Math.max(need, s.maxLines),
+                    minChars: s.minChars, maxChars: s.maxChars
+                };
             });
         }
         case 22: {
@@ -79,19 +81,27 @@ function requirementsOf(no, s) {
             }));
         }
         case 31:
-            return [{ minLines: s.lineCount, maxLines: s.maxLines,
-                      minChars: s.minChars, maxChars: s.maxChars }];
+            return [{
+                minLines: s.lineCount, maxLines: s.maxLines,
+                minChars: s.minChars, maxChars: s.maxChars
+            }];
         case 40:
-            return [{ minLines: s.minLines, maxLines: s.maxLines,
-                      minChars: s.charsPerLine * 2, maxChars: s.charsPerLine * 2 }];
+            return [{
+                minLines: s.minLines, maxLines: s.maxLines,
+                minChars: s.charsPerLine * 2, maxChars: s.charsPerLine * 2
+            }];
         case 12:
-            return [{ minLines: s.minLines, maxLines: s.maxLines,
-                      minChars: Math.max(s.minChars,
-                          (s.minTotalHideCount || 2) + (s.minShowCount || 1) * 2),
-                      maxChars: s.maxChars }];
+            return [{
+                minLines: s.minLines, maxLines: s.maxLines,
+                minChars: Math.max(s.minChars,
+                    (s.minTotalHideCount || 2) + (s.minShowCount || 1) * 2),
+                maxChars: s.maxChars
+            }];
         default:
-            return [{ minLines: s.minLines, maxLines: s.maxLines,
-                      minChars: s.minChars, maxChars: s.maxChars }];
+            return [{
+                minLines: s.minLines, maxLines: s.maxLines,
+                minChars: s.minChars, maxChars: s.maxChars
+            }];
     }
 }
 

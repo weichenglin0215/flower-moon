@@ -247,9 +247,7 @@
 .lp-header-main {
     display: flex;
     align-items: center;
-    /* space-between 讓左邊的文位名稱跟右邊的數值群自動被推到兩端，
-       中間留白會自動撐開；若之後要在中間再塞東西（例如日曆入口鈕），
-       它會被夾在 justify-content 的空隙裡，兩端仍會維持貼齊。 */
+    /* space-between 讓左邊的文位名稱跟右邊的數值群自動被推到兩端 */
     justify-content: space-between;
     gap: 12px;
 }
@@ -325,12 +323,24 @@
     transition: width 0.6s ease-out;
 }
 
+/* 進度條下方那一列：左邊文字說明、右邊日曆入口鈕。
+   ⚠️ 日曆鈕原本掛在 .lp-header-main（文位名稱那一排），改搬到這裡後
+      靠這個 flex row 做「文字置左、按鈕靠右」的排版，不必再各自定位。 */
+.lp-progress-row {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 /* 進度條下方的文字說明（例如「還差 3 局晉升」） */
 .lp-progress-text {
-    margin-top: 6px;
     font-size: var(--lp-fs-xs);
     color: var(--lp-text-ink);
-    text-align: right;
+    /* 文字本身仍靠左；按鈕由 .lp-progress-row 的 space-between 推到最右 */
+    text-align: left;
+    flex: 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -451,11 +461,21 @@
    這不只是標記，它本身就是一顆按鈕：點下去直接前往江南小院考棚。
    刻意用硃紅底＋米白字，與站點圖示的金色形成對比，讓玩家一眼看到
    「這裡還有事情要做」。                                              */
-.lp-exam-badge {
+/* 「模擬考／正式考」兩顆並排的容器。
+   ⚠️ 定位改掛在容器上，兩顆徽章本身不再各自 absolute，
+      否則兩顆會疊在同一個座標上、只看得到一顆。 */
+.lp-exam-badges {
     position: absolute;
-    /* 掛在圖示右下角外緣，不遮住圖示本身的文字 */
     right: -10px;
     bottom: -8px;
+    display: flex;
+    gap: 4px;
+    z-index: 2;
+}
+
+.lp-exam-badge {
+    /* 由 .lp-exam-badges 負責定位，這裡只做外觀 */
+    position: relative;
     padding: 2px 7px;
     border-radius: 8px;
     background: var(--lp-bg-red-deep);
@@ -467,18 +487,134 @@
     cursor: pointer;
     border: 2px solid var(--lp-bg-cream-light);
     box-shadow: 0 2px 5px hsl(from var(--lp-bg-gold-deep) h s l / 0.4);
-    /* 緩慢脈動吸引注意；尊重「減少動態」偏好的使用者（見檔末 media query） */
+}
+
+/* 模擬考：低調的深金色，暗示「這是安全的練習」 */
+.lp-exam-mock {
+    background: var(--lp-bg-gold-deep);
+}
+
+/* 正式考：硃紅 + 脈動，是真正要花錢、有成敗的那一顆。
+   ⚠️ 只有正式考脈動，模擬考不動 —— 兩顆都閃會抵銷彼此的吸睛效果，
+      玩家反而分不出哪一顆才是重點。 */
+.lp-exam-real {
+    background: var(--lp-bg-red-deep);
     animation: lp-exam-pulse 1.8s ease-in-out infinite;
-    z-index: 2;
 }
 
 .lp-exam-badge:active {
     transform: translateY(1px);
 }
 
+/* ── 越級考試選單 ────────────────────────────────────────────────── */
+
+/* 越級彈窗刻意比一般彈窗大：文位清單有九列，用預設的 420px 寬度會很擠。
+   ⚠️ 92%/90% 是相對於 500×850 的舞台，不是瀏覽器視窗 ——
+      .lp-pop 被放進 _makePopup 建立的 500×850 stageBox 裡，
+      百分比因此是以舞台為基準，在各種螢幕上比例都一致。 */
+.lp-pop-skip {
+    width: 92%;
+    max-width: 92%;
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+    /* 卡片自己不捲動，只有中間的清單捲；否則標題與按鈕會跟著捲走 */
+    overflow: hidden;
+}
+
+/* 清單佔滿剩餘高度，但一次只露出五列（第六列被裁掉，暗示還可以往下拖） */
+.lp-skip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 12px 0;
+    /* 五列 ×（列高 42 + 間距 6）－ 最後一列不需要間距 = 234px */
+    max-height: 234px;
+    overflow-y: auto;
+    /* 捲動軸隱藏，改用手指拖曳（見 _enableDragScroll）。
+       ⚠️ 兩者是一組的：只藏捲動軸而不接拖曳，觸控裝置會完全捲不動。 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    /* 拖曳捲動由 JS 處理，關掉瀏覽器自己的觸控捲動以免兩者打架 */
+    touch-action: none;
+}
+
+/* WebKit（Chrome／Safari）的捲動軸要另外用偽元素關掉 */
+.lp-skip-list::-webkit-scrollbar {
+    display: none;
+}
+
+.lp-skip-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    /* 固定列高，.lp-skip-list 的 max-height 是照這個算出「剛好五列」的 */
+    height: 42px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    padding: 0 12px;
+    font-family: inherit;
+    font-size: var(--lp-fs-sm);
+    color: var(--lp-text-cream);
+    background: var(--lp-text-faint);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* 已選取的文位：金色外框標示。真正送出仍要按「應試」鈕。 */
+.lp-skip-picked {
+    background: var(--lp-text-cinnabar);
+    border-color: var(--lp-bg-gold-light);
+    box-shadow: 0 0 0 2px hsl(from var(--lp-bg-gold-light) h s l / 0.35);
+}
+
+/* 不能考的文位：半透明 + 禁用游標（作者指定的呈現方式）。
+   文錢不足也走這個樣式，並在右側直接寫出「不足 N 文錢」。
+   ⚠️ 這些項目刻意**不加 disabled 屬性**（改用 aria-disabled），
+      否則瀏覽器不會在它們身上發出任何指標事件，拖曳捲動就會失效。
+      點擊由 JS 擋掉，見 _enableDragScroll。 */
+.lp-skip-off {
+    opacity: 0.38;
+    cursor: not-allowed;
+    background: var(--lp-bg-gold-deep);
+}
+
+/* 清單裡的文字不要被選取／不要觸發原生拖曳，否則拖到一半會變成選字 */
+.lp-skip-item,
+.lp-skip-name,
+.lp-skip-sub {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.lp-skip-name {
+    font-weight: bold;
+    letter-spacing: 0.1em;
+}
+
+.lp-skip-sub {
+    font-size: var(--lp-fs-xs);
+    opacity: 0.9;
+}
+
+.lp-skip-note {
+    font-size: var(--lp-fs-xs);
+    line-height: 1.7;
+    color: var(--lp-text-faint);
+}
+
 @keyframes lp-exam-pulse {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.08); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
 }
 
 /* 未解鎖的站不會有「應試」標記，但保險起見一併壓掉 */
@@ -748,6 +884,21 @@
     /* 按鈕之間的間距 */
     gap: 10px;
     justify-content: center;
+}
+
+/* 越級彈窗是固定高度的 flex 欄，把按鈕列推到卡片底部，
+   免得清單只有五列時按鈕浮在半空中。 */
+.lp-pop-skip .lp-pop-footer {
+    margin-top: auto;
+}
+
+/* 尚未選擇文位時的「應試」鈕。
+   ⚠️ 一定要有這個樣式：沒有的話按鈕看起來仍然可按，
+      玩家會一直點卻沒有任何反應，以為是壞掉。 */
+.lp-pop-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(0.6);
 }
 
 /* 主要按鈕（例如「領取」「前往考棚應試」）：硃紅漸層、視覺最搶眼 */
