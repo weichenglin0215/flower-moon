@@ -50,6 +50,16 @@
         _overlay: null,
         _aborted: false,
 
+        // 這場考試「正在進行」的旗標：true 的區間＝ start() 到 _finish()。
+        // ⚠️ 存在的理由：考試期間逐題實際玩的那五款遊戲，右上角原本會顯示
+        //    「第 X 局」（見 scoreManager.js 的 window.FMRoundLabel）。那個數字
+        //    讀的是 pathRounds，但考試沙箱把 completeLevel 換成空函式
+        //    （見 _installSandbox），pathRounds 整場考試都不會變動——
+        //    於是玩家會看到同一個局號從第一題重複到最後一題，很困惑。
+        //    FMRoundLabel 用這個旗標判斷「現在是不是在考試」，
+        //    是的話改顯示「考試／越級考試／模擬考」而不是局號。
+        _active: false,
+
         // ══════════════════════════════════════════════════════════
         //  對外介面
         // ══════════════════════════════════════════════════════════
@@ -82,6 +92,7 @@
             this._qi = 0;
             this._correct = 0;
             this._aborted = false;
+            this._active = true;
 
             this._installSandbox();
             this._buildOverlay();
@@ -510,6 +521,7 @@
         // ══════════════════════════════════════════════════════════
 
         _finish: function () {
+            this._active = false;
             this._unpatchGame();
             this._removeSandbox();
 

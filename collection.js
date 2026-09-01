@@ -291,7 +291,23 @@
             this.ctx = this.canvas.getContext('2d');
             this.toast = overlay.querySelector('#fmCollectionToast');
 
-            overlay.querySelector('#fmCollectionClose').addEventListener('click', () => this.hide());
+            // ⚠️ 玩家主動按 ✕ 關閉 → 回到首頁「青雲梯」，與其他紓壓畫面
+            //    （謫仙人／隨遇而安／抽絲剝繭…見 window.FMGoHome）行為一致。
+            //
+            //    不能把這行併進 hide() 本體：hide() 還被 menu.js 的
+            //    closeAllActiveOverlays() 當「純隱藏」呼叫（例如切到別頁時
+            //    順手把江南小院關掉），而 FMGoHome() 內部又會呼叫
+            //    closeAllActiveOverlays() —— 併進去會兩邊互相呼叫成無窮迴圈。
+            //    因此只在「使用者親手點 ✕」這個入口才多做導頁這件事。
+            //
+            //    這也修掉了一個實際會卡住的路徑：從青雲梯站點點「應試」
+            //    （learningPath.goToExam）進來的考棚，會先把青雲梯本身隱藏，
+            //    考完只重開江南小院、青雲梯並未一併恢復；玩家這時關閉
+            //    江南小院，過去只是回到空畫面，現在會正確回到青雲梯。
+            overlay.querySelector('#fmCollectionClose').addEventListener('click', () => {
+                this.hide();
+                if (typeof window.FMGoHome === 'function') window.FMGoHome();
+            });
 
             // 工具列切換
             const self = this;

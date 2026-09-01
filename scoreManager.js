@@ -1158,6 +1158,19 @@ window.ScoreManager = ScoreManager;
  */
 window.FMRoundLabel = function (levelIndex) {
     try {
+        // 考試（正式／越級／模擬）進行中 → 顯示考試種類，不顯示局號。
+        //
+        // ⚠️⚠️ 這個分支必須排在「青雲梯進行中」之前判斷。
+        //    考試逐題實際玩的五款遊戲，也是靠 LevelTable.setContext() 鎖題，
+        //    跟青雲梯正常遊玩用的是同一套機制，getContext() 判斷不出差異。
+        //    而考試沙箱把 completeLevel 換成空函式（examEngine._installSandbox），
+        //    pathRounds 整場考試都不會增加，若沿用下面「第 X 局」的邏輯，
+        //    十幾題會顯示一模一樣的局號，讓玩家誤以為畫面卡住。
+        const EE = window.ExamEngine;
+        if (EE && EE._active) {
+            return EE._mode === 'mock' ? '模擬考'
+                : EE._mode === 'skip' ? '越級考試' : '考試';
+        }
         // 溫習舊文位 → 直接標示「溫習」。
         // ⚠️ 這一局不累計局數，若照樣顯示「第 21 局」會讓玩家誤以為
         //    自己仍在往前推進（實際上溫習不會增加晉升進度）。
