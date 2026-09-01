@@ -22,7 +22,7 @@
     const KEY = 'flowerMoon_collection_v1';
 
     const FMCollectionSave = {
-        // 考試文位清單（依《參加考試_企畫書 v2》）
+        // 考試文位清單（依《青雲梯與文位晉升_總企畫書》）
         _EXAM_RANK_NAMES: ['縣案首','府案首','文童','秀才','舉人','貢士','進士','探花','榜眼','狀元','大儒'],
 
         emptyExamStats: function () {

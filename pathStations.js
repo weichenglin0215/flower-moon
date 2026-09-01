@@ -1,8 +1,7 @@
 /* ==========================================================================
    花月 · 青雲梯站點計算 (pathStations.js)
    --------------------------------------------------------------------------
-   對應企畫書：note/學習道路_重新規劃企劃書.md
-     第五章 文位節奏與四階小稱號
+   對應企畫書：note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md 第二章「青雲梯的結構」
      第八章 必通關卡：定義與規則
 
    ── 這個模組做什麼 ──────────────────────────────────────────────────
@@ -607,7 +606,7 @@
         },
 
         // ══════════════════════════════════════════════════════════════
-        //  文位晉升獎勵（note/文位晉升與獎勵規劃_青雲梯新版.md §3、§4）
+        //  文位晉升獎勵（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）
         //
         //  ⚠️ 為什麼獎勵計算放在 pathStations.js：
         //     發放獎勵的時機有兩個完全不同的入口 ——
@@ -716,6 +715,49 @@
             return from >= 0 && at >= 0 && at >= from;
         },
 
+        /* ====================================================================
+         *  ⭐⭐ 文位名單的唯一真實來源（Single Source of Truth）⭐⭐
+         *  ------------------------------------------------------------------
+         *  ⚠️⚠️ 在此之前，「文位順序」這份名單在專案裡**各自抄了四份**：
+         *        · pathStations.js  RANK_TABLE            （全部 15 個文位）
+         *        · examConfig.js    EXAM_RANK_ORDER       （需應試的 13 個）
+         *        · collection.js    EXAM_RANKS_ORDER      （需應試的 13 個）
+         *        · scoreManager.js  EXAM_RANK_NAMES       （需應試的 13 個）
+         *      三份副本的註解都寫著「三處任一漏改都會產生難以察覺的錯位」，
+         *      而那正是實際發生過的事：2026-08-28 把 EXAM_FROM_RANK 從
+         *      「縣案首」前移到「塾生」時，副本雖然都補上了塾生與童生，
+         *      卻沒有人注意到 grantStationReward 會因此開始跳過這兩個文位，
+         *      於是越級考試靜靜地漏發了 240 文錢（見企畫書附錄 F 問題④）。
+         *
+         *      根治的方法不是「更小心地維護四份」，而是**只留一份**。
+         *      需應試的文位本來就完全等於「RANK_TABLE 中 EXAM_FROM_RANK
+         *      以後的所有文位」，是可以推導出來的，不該手寫。
+         *
+         *  ⚠️ 本區塊的函式**只讀 RANK_TABLE**，不碰詩詞資料，因此可以在
+         *     模組載入當下就安全呼叫（pathStations.js 在 index.html 的
+         *     載入順序早於 examConfig／collection／achievement／scoreManager）。
+         * ================================================================= */
+
+        /** 全部文位名稱，由低到高（書僮 … 大儒） */
+        getAllRankNames: function () {
+            return RANK_TABLE.map(r => r.name);
+        },
+
+        /** 需通過考試的文位名稱，由低到高（塾生 … 大儒） */
+        getExamRankNames: function () {
+            const from = RANK_TABLE.findIndex(r => r.name === EXAM_FROM_RANK);
+            return from < 0 ? [] : RANK_TABLE.slice(from).map(r => r.name);
+        },
+
+        /** 免考文位名稱，由低到高（書僮／蒙童） */
+        getFreeRankNames: function () {
+            const from = RANK_TABLE.findIndex(r => r.name === EXAM_FROM_RANK);
+            return from < 0 ? RANK_TABLE.map(r => r.name) : RANK_TABLE.slice(0, from).map(r => r.name);
+        },
+
+        /** 從哪個文位開始需要考試 */
+        getExamFromRank: function () { return EXAM_FROM_RANK; },
+
         /**
          * 站點負荷檢查（供 tools/dump_path.js 與企畫書對帳用）。
          *
@@ -810,4 +852,39 @@
 
     if (typeof window !== 'undefined') window.PathStations = PathStations;
     if (typeof module !== 'undefined' && module.exports) module.exports = PathStations;
+
+    /* ========================================================================
+     *  文位名單一致性自我檢查
+     *  ------------------------------------------------------------------
+     *  RANK_TABLE 已經是文位名單的唯一真本，但 scoreManager.js 的 `ranks`
+     *  （積分階級表）出於另一個用途，仍然各自列了一份**同名**的 15 個階級。
+     *  那張表本身合法（它是排行榜用的積分門檻），可是只要兩邊的名字或順序
+     *  對不上，getEffectiveRank／成就頁的文位比對就會靜靜地錯位 ——
+     *  正是本專案吃過大虧的那一類錯誤。
+     *
+     *  與其寫註解叫人「記得同步」（實測無效），不如讓程式自己在每次載入時
+     *  對帳一次：不一致就在主控台印出紅字，指出差在哪裡。
+     *  這段只讀資料、不修改任何東西，對正式環境沒有副作用。
+     * ===================================================================== */
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('load', function () {
+            try {
+                const SM = window.ScoreManager;
+                if (!SM || !Array.isArray(SM.ranks)) return;
+                const fromTable = PathStations.getAllRankNames();
+                const fromScore = SM.ranks.map(r => r.name);
+                const same = fromTable.length === fromScore.length
+                    && fromTable.every((n, i) => n === fromScore[i]);
+                if (!same) {
+                    console.error(
+                        '[文位名單不一致] pathStations.RANK_TABLE 與 scoreManager.ranks 對不上，'
+                        + '文位判定會錯位，請立即修正：',
+                        { RANK_TABLE: fromTable, 'ScoreManager.ranks': fromScore }
+                    );
+                }
+            } catch (e) {
+                console.warn('[文位名單] 一致性檢查失敗:', e);
+            }
+        });
+    }
 })();

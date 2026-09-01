@@ -62,22 +62,30 @@
             'game40': '點兵成詩'
         },
 
+        // ── 文位獎狀賀詞 ──────────────────────────────────────────────
+        // ⚠️ 這 15 段賀詞原本全部寫著「修為已達兩萬分」「修為突破三十二萬分」
+        //    這類**積分**敘述，那是舊制「積分升等」留下的文字。
+        //    新規則下文位與積分完全脫鉤（企畫書 §2）：
+        //      · 書僮／蒙童 —— 走完青雲梯該段課程即晉升
+        //      · 塾生以上   —— 必須通過考棚的考試才能冊封
+        //    因此改寫為以「學會了多少詩詞、通過了哪一場試」為主軸的措辭，
+        //    不再出現任何分數。日後調整 rankRewards 的數字也不必再回頭改文案。
         rankCertTexts: {
             '書僮': '自幼好學，手不釋卷。\n今日正式入院為「書僮」，領略墨色清芬。願爾勤勉，志存高遠，於書山之中覓得真意。',
-            '蒙童': '志學之始，啟蒙之初。\n累積修為已達萬分，榮升「蒙童」品階。初入文林，墨香稍染。願君焚膏繼晷，更上層樓。',
-            '塾生': '書塾寒暑，心志益堅。\n閣下學識日進，修為已達兩萬分，獲封「塾生」。勤學如春起之苗，不見其增，日有所長。',
-            '童生': '經史初通，文采斐然。\n恭賀閣下修為跨越四萬分，得授「童生」文位。筆下生風，字句清雅，已具文人之風骨。',
-            '縣案首': '名震黌宮，冠絕全縣。\n閣下修為已達八萬分，於縣試之中脫穎而出，勇奪「縣案首」。才思敏捷，四鄉驚服。',
-            '府案首': '府試揚名，魁首之才。\n恭賀閣下修為累積十六萬分，獲封「府案首」。文章錦繡，氣貫長虹，誠為一府之表率。',
-            '文童': '詞藻華茂，文心雕龍。\n閣下修為突破三十二萬分，晉升「文童」。博覽群書，出口成章，已入大雅之堂。',
-            '秀才': '身入膠庠，士林楷模。\n恭賀閣下修為達六十四萬分，博得「秀才」功名。志慮忠純，文采煥發，堪稱國之棟樑。',
-            '舉人': '蟾宮折桂，名滿杏林。\n閣下修為突破一百二十八萬分，榮登「舉人」之列。鵬程萬里，前途無量，正待大展宏圖。',
-            '貢士': '朝堂受書，天下景仰。\n恭賀閣下修為達二百五十六萬分，获「貢士」之榮。學究天人，德藝雙馨，四海皆知其名。',
-            '進士': '金榜題名，國之重器。\n閣下修為突破五百一十二萬分，高中「進士」。經世致用，翰墨千秋，其名必傳於後世。',
-            '探花': '風流倜儻，才貌雙全。\n恭賀閣下修為達一千零二十四萬分，榮膺「探花」。才情絕世，意氣風發，盡顯名士風流。',
-            '榜眼': '學海無涯，僅次魁星。\n閣下修為突破二千零四十八萬分，获「榜眼」殊榮。文章冠代，識見精深，乃萬人之傑。',
-            '狀元': '文魁天下，獨占鰲頭。\n恭賀閣下修為達四千零九十六萬分，奪取「狀元」極位。筆落驚風雨，詩成泣鬼神，舉世無雙。',
-            '大儒': '德被天下，一代宗師。\n閣下修為已逾八千一百九十二萬分，獲尊「大儒」。學貫古今，德侔天地，萬世之師也。'
+            '蒙童': '志學之始，啟蒙之初。\n閣下拾級而上，已將蒙學詩篇盡數記誦，榮登「蒙童」。初入文林，墨香稍染。願君焚膏繼晷，更上層樓。',
+            '塾生': '書塾寒暑，心志益堅。\n閣下課業既成，復於場屋一試中式，獲封「塾生」。勤學如春起之苗，不見其增，日有所長。',
+            '童生': '經史初通，文采斐然。\n閣下遍誦所習詩詞，應試得中，敕授「童生」文位。筆下生風，字句清雅，已具文人之風骨。',
+            '縣案首': '名震黌宮，冠絕全縣。\n閣下學養既充，於縣試之中脫穎而出，勇奪「縣案首」。才思敏捷，四鄉驚服。',
+            '府案首': '府試揚名，魁首之才。\n閣下詩書滿腹，府試拔得頭籌，獲封「府案首」。文章錦繡，氣貫長虹，誠為一府之表率。',
+            '文童': '詞藻華茂，文心雕龍。\n閣下所學日廣，試中而晉「文童」。博覽群書，出口成章，已入大雅之堂。',
+            '秀才': '身入膠庠，士林楷模。\n閣下窮研篇什，一舉中式，博得「秀才」功名。志慮忠純，文采煥發，堪稱國之棟樑。',
+            '舉人': '蟾宮折桂，名滿杏林。\n閣下詩詞爛熟於心，鄉試題名，榮登「舉人」之列。鵬程萬里，前途無量，正待大展宏圖。',
+            '貢士': '朝堂受書，天下景仰。\n閣下會試中式，獲「貢士」之榮。學究天人，德藝雙馨，四海皆知其名。',
+            '進士': '金榜題名，國之重器。\n閣下歷試不輟，終登甲第，高中「進士」。經世致用，翰墨千秋，其名必傳於後世。',
+            '探花': '風流倜儻，才貌雙全。\n閣下殿試名列第三，榮膺「探花」。才情絕世，意氣風發，盡顯名士風流。',
+            '榜眼': '學海無涯，僅次魁星。\n閣下殿試高居第二，獲「榜眼」殊榮。文章冠代，識見精深，乃萬人之傑。',
+            '狀元': '文魁天下，獨占鰲頭。\n閣下殿試策問第一，奪取「狀元」極位。筆落驚風雨，詩成泣鬼神，舉世無雙。',
+            '大儒': '德被天下，一代宗師。\n閣下遍歷青雲之梯，詩詞無所不通，獲尊「大儒」。學貫古今，德侔天地，萬世之師也。'
         },
 
         certImages: [
@@ -109,7 +117,7 @@
             '研究所': { 10: { score: 1500, silver: 15 }, 20: { score: 4000, silver: 40 }, 50: { score: 7500, silver: 75 }, 100: { score: 15000, silver: 150 } }
         },
 
-        // 【關卡挑戰】里程碑獎狀已取消（note/文位晉升與獎勵規劃_青雲梯新版.md §8）：
+        // 【關卡挑戰】里程碑獎狀已取消（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）：
         // 難度選單早已沒有獨立的「關卡挑戰」模式，這組獎狀失去對應場景，
         // 連同 levelMilestoneRewards 表、getRewardForAchId 的 level_milestone_
         // 分支、成就頁的渲染區塊與 scoreManager 的解鎖判定一併移除。
@@ -209,8 +217,13 @@
                                         <div class="ach-stat-lbl">登入天數</div>
                                     </div>
                                 </div>
-                                <!-- 進階橫欄：從目前文位積分推進至下一文位積分的比例 -->
+                                <!-- 進階橫欄：積分階級的推進比例。
+                                     ⚠️ 這條橫欄與「文位」無關 —— 新規則下積分只作排行榜與
+                                     玩家表現統計（企劃書 §2、§8），文位一律由青雲梯站點
+                                     進度與考試通過紀錄決定。兩者名稱剛好同名，因此這裡
+                                     必須明寫標題，否則玩家會誤以為刷分就能升文位。 -->
                                 <div class="ach-rank-progress-row" id="achRankProgressRow">
+                                    <div style="font-size:13px;opacity:.7;text-align:center;margin-bottom:2px;">積分階級（排行榜統計用，與文位無關）</div>
                                     <div class="ach-rank-progress-labels">
                                         <span id="achRankProgFrom">書僮</span>
                                         <span id="achRankProgScore">0 / 10,000</span>
@@ -729,59 +742,36 @@
 
 
 
-            // 判斷當前文位是否領取
-
-            const rankId = `rank_${currentRankName}`;
-
-            const isRankClaimed = claimed.includes(rankId) || currentRankName === '書僮';
-
-
+            // ── 當前文位顯示 ──────────────────────────────────────────────
+            //
+            // ⚠️ 舊版在這裡還有一個「手動領取」的入口：只要
+            //    `rank_<目前文位>` 不在 achievements.claimed 裡，就把玩家的
+            //    文位名稱整個換成一顆寫著「領取稱號榜單」的按鈕，點下去
+            //    呼叫 claimAchievementReward。這是積分升等時代的遺留，
+            //    新規則下晉升獎勵在達成當下就已入帳（企劃書 §5），
+            //    根本沒有東西可以領。它造成兩個實際問題：
+            //      ① 玩家明明已經晉升，總覽卻看不到自己的文位，
+            //         只看到一句莫名其妙的「領取稱號榜單」。
+            //      ② 點下去會把 rank_X 寫進 claimed，而那正是
+            //         grantPromotionSilver 用來判斷「發過沒」的旗標 ——
+            //         真正晉升時的文錢會被誤判成已發放而永遠拿不到。
+            //    因此這裡一律直接顯示文位名稱，點擊只開啟文位一覽表。
 
             const rankViewEl = document.getElementById('achRankView');
 
-            if (!isRankClaimed) {
+            rankViewEl.textContent = currentRankName;
 
-                rankViewEl.textContent = '領取稱號榜單';
+            rankViewEl.classList.remove('clickable-rank');
 
-                rankViewEl.classList.add('clickable-rank');
+            rankViewEl.style.cursor = 'pointer';
 
-                rankViewEl.onclick = () => {
+            rankViewEl.onclick = () => {
 
-                    const ranks = window.ScoreManager.ranks;
+                if (window.SoundManager) window.SoundManager.playOpenItem && window.SoundManager.playOpenItem();
 
-                    const r = ranks.find(rank => rank.name === currentRankName);
+                this.showRankTablePopup(currentRankName);
 
-                    if (r) {
-
-                        const idx = ranks.indexOf(r);
-
-                        const cImg = this.certImages[Math.min(idx, this.certImages.length - 1)];
-
-                        const cText = this.rankCertTexts[currentRankName] || '恭喜榮升！';
-
-                        this.claimAchievementReward(rankId, cImg, cText);
-
-                    }
-
-                };
-
-            } else {
-
-                rankViewEl.textContent = currentRankName;
-
-                rankViewEl.classList.remove('clickable-rank');
-
-                rankViewEl.style.cursor = 'pointer';
-
-                rankViewEl.onclick = () => {
-
-                    if (window.SoundManager) window.SoundManager.playOpenItem && window.SoundManager.playOpenItem();
-
-                    this.showRankTablePopup(currentRankName);
-
-                };
-
-            }
+            };
 
 
 
@@ -914,44 +904,55 @@
 
 
             // 1. 渲染玩家階級榜單
+            //
+            // ⚠️⚠️ 這一段曾經是整個舊「積分升等」制度最後的殘留，
+            //    判定式是 `totalScore >= r.minScore`，跟青雲梯進度、
+            //    跟考試通過與否**完全無關**。造成的實際災情有兩個：
+            //
+            //    ① 玩家積分早就超過門檻，於是「童生」這種根本還沒考過的
+            //       文位，在成就殿堂冒出一顆「領取獎狀」按鈕。
+            //    ② 那顆按鈕會呼叫 claimAchievementReward('rank_童生')，
+            //       把 `rank_童生` 寫進 achievements.claimed。而新制的
+            //       grantPromotionSilver 正是用同一個旗標做冪等判斷 ——
+            //       將來玩家真的考過童生時，它會認定「已經發過了」而回傳 0，
+            //       **那筆晉升文錢就永遠領不到，而且沒有任何錯誤訊息**。
+            //
+            //    新制下文位晉升「達成即入帳」，本來就沒有手動領取這回事
+            //    （企劃書 §5），因此這裡改成純粹的「成績單」：
+            //    達成與否一律以 getEffectiveRank（站點進度＋考試通過）為準，
+            //    已達成的可以回看獎狀，未達成的顯示未達成，不再有領取動作。
+
+            const effectiveRankName = (window.ScoreManager && window.ScoreManager.getEffectiveRank)
+                ? window.ScoreManager.getEffectiveRank(data)
+                : ranks[0].name;
+            const effectiveRankIdx = ranks.findIndex(x => x.name === effectiveRankName);
 
             ranks.forEach((r, idx) => {
 
-                const rankId = `rank_${r.name}`;
-
-                const isUnlocked = totalScore >= r.minScore;
-
-                const isClaimed = claimStatus.includes(rankId) || r.name === '書僮';
-
-
+                // 文位是依序取得的，因此「索引不超過目前文位」即為已達成
+                const isAchieved = idx <= effectiveRankIdx;
 
                 const item = document.createElement('div');
 
                 item.className = 'ach-badge-item rank-item';
 
-
-
                 const left = document.createElement('div');
 
                 left.innerHTML = `
 
-                    <div class="ach-badge-title">【階級】${r.name}</div>
+                    <div class="ach-badge-title">【文位】${r.name}</div>
 
-                    <div class="ach-badge-status">${isUnlocked ? '已達成' : `還需 ${(r.minScore - totalScore).toLocaleString()} 分`}</div>
+                    <div class="ach-badge-status">${isAchieved ? '已達成' : '未達成'}</div>
 
                 `;
-
-
 
                 const right = document.createElement('div');
 
                 right.className = 'ach-item-right';
 
-
-
                 const certImg = certImages[Math.min(idx, certImages.length - 1)];
 
-                if (isClaimed) {
+                if (isAchieved) {
 
                     const btn = document.createElement('button');
 
@@ -971,24 +972,6 @@
 
                     lastUnlockedItem = item;
 
-                } else if (isUnlocked) {
-
-                    const btn = document.createElement('button');
-
-                    btn.className = 'ach-btn-claim claim-pending';
-
-                    btn.textContent = '領取獎狀';
-
-                    btn.onclick = () => {
-
-                        this.claimAchievementReward(rankId, certImg, this.rankCertTexts[r.name] || '恭喜榮升！');
-
-                    };
-
-                    right.appendChild(btn);
-
-                    lastUnlockedItem = item;
-
                 } else {
 
                     const span = document.createElement('span');
@@ -1001,8 +984,6 @@
 
                 }
 
-
-
                 item.appendChild(left);
 
                 item.appendChild(right);
@@ -1014,7 +995,7 @@
 
 
             // 2.【關卡挑戰】成就區塊已移除
-            //    （note/文位晉升與獎勵規劃_青雲梯新版.md §8）
+            //    （note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）
             //    難度選單已無獨立關卡模式，此獎狀類別失去對應場景。
 
             // 3. 渲染原有次數成就
@@ -1219,7 +1200,13 @@
 
         },
 
-        // 點擊當前文位開啟：所有文位一覽表（文位名 + 積分門檻），右上角 X 關閉
+        // 點擊當前文位開啟：所有文位一覽表，右上角 X 關閉
+        //
+        // ⚠️ 舊版這張表列的是「文位 + 積分門檻」，那是積分升等時代的東西。
+        //    新規則下積分完全不參與文位判定（企劃書 §2），繼續把積分門檻
+        //    擺在「文位一覽」裡，等於明著告訴玩家「刷分就能升文位」，
+        //    與實際規則完全相反。改列真正的判準：該文位要學會幾首詩，
+        //    以及塾生起還需要通過考試。
         showRankTablePopup: function (currentRankName) {
 
             if (!this.overlay) return;
@@ -1229,15 +1216,25 @@
             if (existed) existed.remove();
 
             const ranks = (window.ScoreManager && window.ScoreManager.ranks) || [];
+            const PS = window.PathStations;
+            const milestones = (PS && typeof PS.getMilestones === 'function') ? PS.getMilestones() : [];
+            const msByName = {};
+            milestones.forEach(m => { msByName[m.name] = m.poems; });
 
-            const rows = ranks.map(r => {
+            const currIdx = ranks.findIndex(x => x.name === currentRankName);
+
+            const rows = ranks.map((r, idx) => {
                 const isCurr = (r.name === currentRankName);
                 const rowStyle = isCurr
                     ? 'background:hsla(45,80%,45%,0.28);font-weight:bold;color:hsl(48,90%,80%);'
                     : '';
+                const poems = (msByName[r.name] != null) ? msByName[r.name] + ' 首' : '—';
+                const needExam = (PS && typeof PS.isExamRank === 'function') ? PS.isExamRank(r.name) : false;
+                const state = (idx <= currIdx) ? '已達成' : (needExam ? '需通過考試' : '未達成');
                 return `<tr style="${rowStyle}">
                     <td style="padding:6px 10px;border-bottom:1px solid hsla(45,40%,60%,0.25);text-align:center;">${r.name}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid hsla(45,40%,60%,0.25);text-align:right;">${r.minScore.toLocaleString()}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid hsla(45,40%,60%,0.25);text-align:right;">${poems}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid hsla(45,40%,60%,0.25);text-align:center;">${state}</td>
                 </tr>`;
             }).join('');
 
@@ -1271,7 +1268,8 @@
                         <thead>
                             <tr style="color:hsl(48,80%,70%);">
                                 <th style="padding:6px 10px;border-bottom:2px solid hsla(45,60%,55%,0.5);text-align:center;">文位</th>
-                                <th style="padding:6px 10px;border-bottom:2px solid hsla(45,60%,55%,0.5);text-align:right;">積分門檻</th>
+                                <th style="padding:6px 10px;border-bottom:2px solid hsla(45,60%,55%,0.5);text-align:right;">應學詩詞</th>
+                                <th style="padding:6px 10px;border-bottom:2px solid hsla(45,60%,55%,0.5);text-align:center;">狀態</th>
                             </tr>
                         </thead>
                         <tbody>${rows}</tbody>
@@ -1294,87 +1292,61 @@
             if (!host) return;
             host.innerHTML = '';    // 完全重畫
 
-            const claimed = (data.achievements && data.achievements.claimed) || [];
             const examRankNames = (window.ScoreManager && window.ScoreManager.EXAM_RANK_NAMES) || [];
             const coll = (window.FMCollectionSave && window.FMCollectionSave.load()) || {};
             const passed = (coll.ranks && coll.ranks.passed) || [];
             const stats = coll.examStats || {};
 
-            // 1) 找「已通過考試但未領獎狀」的最低文位（優先領獎狀）
-            let toClaim = null;
-            for (const name of examRankNames) {
-                if (passed.indexOf(name) >= 0 && claimed.indexOf('rank_' + name) < 0) {
-                    toClaim = name; break;
-                }
-            }
+            // ⚠️ 舊版這裡還有一段「已通過考試但未領獎狀 → 顯示領取獎狀」的
+            //    分支，已整段移除：新制的晉升獎勵在考試通過的當下就已入帳
+            //    （企劃書 §5「彈窗只是表演，不是領取動作」），再擺一顆
+            //    領取按鈕只會讓玩家以為還有東西沒拿，而且點下去會污染
+            //    achievements.claimed 這個冪等旗標（詳見成就殿堂那一段的說明）。
 
-            // 2) 找「積分達標但尚未通過考試」的最低文位（催促去考試）
+            // 找「已具應試資格但尚未通過考試」的最低文位（催促去考試）
+            // ⚠️ 資格看必通關卡（企畫書 §6），完全不看積分；
+            //    因此這裡不需要、也不可以再去查 ScoreManager.ranks 的 minScore。
             let toExam = null;
-            if (!toClaim) {
-                for (const name of examRankNames) {
-                    const r = window.ScoreManager.ranks.find(x => x.name === name);
-                    if (!r) continue;
-                    // 應試資格改看必通關卡（企畫書 9.4），不再看積分
-                    const _p = (window.LearningPath && window.LearningPath.getRankExamProgress)
-                        ? window.LearningPath.getRankExamProgress(name) : { ok: false };
-                    if (_p.ok && passed.indexOf(name) < 0) {
-                        toExam = { name: r.name, minScore: r.minScore };
-                        break;
-                    }
+            for (const name of examRankNames) {
+                const _p = (window.LearningPath && window.LearningPath.getRankExamProgress)
+                    ? window.LearningPath.getRankExamProgress(name) : { ok: false };
+                if (_p.ok && passed.indexOf(name) < 0) {
+                    toExam = { name: name };
+                    break;
                 }
             }
 
-            if (!toClaim && !toExam) return;
+            if (!toExam) return;
 
             const wrap = document.createElement('div');
             wrap.id = 'achExamCtaWrap';
             wrap.style.cssText = 'margin-top:10px;display:flex;flex-direction:column;align-items:center;gap:6px;';
 
-            if (toClaim) {
-                // 已通過考試 → 領獎狀
-                const rankIdx = window.ScoreManager.ranks.findIndex(x => x.name === toClaim);
-                const certImg = this.certImages[Math.min(rankIdx, this.certImages.length - 1)];
-                const certText = this.rankCertTexts[toClaim] || '恭喜榮升！';
-                const btn = document.createElement('button');
-                btn.className = 'ach-btn-small claim-pending';
-                btn.style.background = 'linear-gradient(135deg, hsl(48, 85%, 60%), hsl(36, 85%, 40%))';
-                btn.textContent = `領取「${toClaim}」文位獎狀`;
-                btn.onclick = () => {
-                    if (window.SoundManager) window.SoundManager.playConfirmItem();
-                    this.claimAchievementReward('rank_' + toClaim, certImg, certText);
-                };
-                wrap.appendChild(btn);
-                const hint = document.createElement('div');
-                hint.style.cssText = 'font-size:14px;color:hsl(45,80%,70%);';
-                hint.textContent = '已通過考試，請領取獎狀正式冊封';
-                wrap.appendChild(hint);
-            } else if (toExam) {
-                // 積分達標但未考 → 引導到江南小院考棚
-                const st = stats[toExam.name] || { passCount: 0, failCount: 0 };
-                const attemptNo = (st.passCount || 0) + (st.failCount || 0) + 1;
-                const btn = document.createElement('button');
-                btn.className = 'ach-btn-medium claim-pending';
-                btn.style.background = 'linear-gradient(135deg, hsl(0, 65%, 50%), hsl(0, 65%, 35%))';
-                btn.innerHTML = `參加「${toExam.name}」考試 <span style="opacity:.85;font-weight:normal;">（第 ${attemptNo} 次挑戰）</span>`;
-                btn.onclick = () => {
-                    if (window.SoundManager) window.SoundManager.playConfirmItem();
-                    this.hide();
-                    if (window.CollectionDialog && window.CollectionDialog.show) {
-                        window.CollectionDialog.show();
-                    }
-                    setTimeout(() => {
-                        if (window.CollectionDialog && typeof window.CollectionDialog.openExam === 'function') {
-                            window.CollectionDialog.openExam();
-                        }
-                    }, 350);
-                };
-                wrap.appendChild(btn);
-                if (st.failCount > 0) {
-                    const hint = document.createElement('div');
-                    hint.style.cssText = 'font-size:14px;color:hsl(45,60%,68%);';
-                    hint.textContent = `歷次紀錄：通過 ${st.passCount} 次 / 挑戰失敗 ${st.failCount} 次`;
-                    wrap.appendChild(hint);
+            // 已具應試資格但未考 → 引導到江南小院考棚
+            const st = stats[toExam.name] || { passCount: 0, failCount: 0 };
+            const attemptNo = (st.passCount || 0) + (st.failCount || 0) + 1;
+            const btn = document.createElement('button');
+            btn.className = 'ach-btn-medium claim-pending';
+            btn.style.background = 'linear-gradient(135deg, hsl(0, 65%, 50%), hsl(0, 65%, 35%))';
+            btn.innerHTML = `參加「${toExam.name}」考試 <span style="opacity:.85;font-weight:normal;">（第 ${attemptNo} 次挑戰）</span>`;
+            btn.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.hide();
+                if (window.CollectionDialog && window.CollectionDialog.show) {
+                    window.CollectionDialog.show();
                 }
+                setTimeout(() => {
+                    if (window.CollectionDialog && typeof window.CollectionDialog.openExam === 'function') {
+                        window.CollectionDialog.openExam();
+                    }
+                }, 350);
+            };
+            wrap.appendChild(btn);
+            if (st.failCount > 0) {
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:14px;color:hsl(45,60%,68%);';
+                hint.textContent = `歷次紀錄：通過 ${st.passCount} 次 / 挑戰失敗 ${st.failCount} 次`;
+                wrap.appendChild(hint);
             }
 
             host.appendChild(wrap);
@@ -1898,7 +1870,7 @@
             // ⚠️ imgUrl 允許傳 null（青雲梯小站晉升的「簡易慶祝動畫」用）：
             //    此時不掛獎狀底圖，只保留文字與星星特效。
             //    這是為了不必再寫一支邏輯幾乎重複的動畫函式
-            //    （見 note/文位晉升與獎勵規劃_青雲梯新版.md §5）。
+            //    （見 note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）。
             if (imgUrl) {
                 certCard.style.backgroundImage = `url('${imgUrl}')`;
                 certCard.classList.remove('cert-no-image');
@@ -2009,7 +1981,7 @@
 
 
         // getLevelCertText 與 showInstantAchievementPop 已移除
-        //（note/文位晉升與獎勵規劃_青雲梯新版.md §8）：
+        //（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）：
         // 兩者只服務【關卡挑戰】里程碑獎狀，該類別取消後已無呼叫來源。
         // ⚠️ 38 個遊戲檔仍寫著
         //      const achId = ScoreManager.completeLevel(...);
@@ -2021,6 +1993,22 @@
         //領取獎勵
 
         claimAchievementReward: function (achId, imgUrl, text) {
+
+            // ⚠️⚠️ 文位獎狀（rank_*）**絕對不可以**走這條路領取。
+            //    新規則下文位晉升的文錢在達成當下就由
+            //    LearningPath.grantPromotionSilver 入帳（企劃書 §5），
+            //    而它判斷「發過了沒」靠的正是 achievements.claimed 裡的
+            //    `rank_<文位>`。若讓這支舊的手動領取函式也去寫同一個旗標，
+            //    玩家提前點一下，將來真正晉升時就會被判定成「已發過」
+            //    而拿不到那筆文錢，且全程沒有任何錯誤訊息。
+            //    此外這裡還會發積分，也違反「晉升只給文錢」的新規則。
+            //    目前 UI 已經沒有任何入口會傳 rank_ 進來，這道防線是為了
+            //    擋掉日後有人不知情又接回去（成就殿堂就這樣殘留了很久）。
+            if (typeof achId === 'string' && achId.indexOf('rank_') === 0) {
+                console.warn('[成就] 文位獎狀不經手動領取，已改為晉升當下自動入帳：', achId);
+                this.showCert(imgUrl, text, false);
+                return;
+            }
 
             if (window.SoundManager) window.SoundManager.playJoyfulTriple();
 

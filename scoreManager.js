@@ -168,19 +168,31 @@ const ScoreManager = {
         return currentRank;
     },
 
-    // 縣案首起的文位（必須通過考試 + 領取獎狀才生效）
-    // ⚠️ 需通過考試才能取得的文位。2026-08-28 起把門檻從「縣案首」前移到
-    //    「塾生」，因此這裡補上塾生與童生 —— 少補的話，玩家考過塾生後
-    //    getEffectiveRank 仍會把他當成「還沒考過任何文位」，文位顯示會退回
-    //    最後一個免考文位（蒙童），等於考了等於沒考。
-    //    這份清單與 examConfig.js 的 EXAM_RANK_ORDER、collection.js 的
-    //    EXAM_RANKS_ORDER 必須一致；三處任一漏改都會產生難以察覺的錯位。
-    EXAM_RANK_NAMES: ['塾生', '童生', '縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'],
+    /**
+     * 需通過考試才能取得的文位（由低到高）。
+     *
+     * ⚠️ 這裡原本是手抄的字串陣列，與 examConfig.js、collection.js 各有一份
+     *    副本，註解警告「三處任一漏改都會產生難以察覺的錯位」——
+     *    那個錯位真的發生過（企畫書附錄 F 問題④）。現改為向 PathStations
+     *    取唯一真本；用 getter 讓呼叫端 `ScoreManager.EXAM_RANK_NAMES`
+     *    的既有寫法完全不用改。
+     */
+    get EXAM_RANK_NAMES() {
+        const PS = (typeof window !== 'undefined') && window.PathStations;
+        if (PS && typeof PS.getExamRankNames === 'function') {
+            const list = PS.getExamRankNames();
+            if (list && list.length) return list;
+        }
+        // 退路：PathStations 尚未載入 → 由積分階級表扣掉免考文位推導。
+        // 這只是保命，正常情況不會走到。
+        console.warn('[ScoreManager] PathStations 尚未載入，文位名單使用退路推導');
+        return this.ranks.slice(2).map(r => r.name);
+    },
 
     /**
      * 判定玩家實際的文位（供 UI 顯示用）。
      *
-     * ⚠️ 新規則（note/文位晉升與獎勵規劃_青雲梯新版.md §2）：
+     * ⚠️ 新規則（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）：
      *    **積分完全不參與文位判定**，改由兩個來源決定：
      *      · 縣案首以上 → 是否已通過該文位的考棚考試（ranks.passed）
      *      · 書僮～童生 → 青雲梯目前所在站點的 rankName（＝學會了幾首詩）
@@ -209,9 +221,13 @@ const ScoreManager = {
         // 2. 尚未考過任何文位：改看青雲梯站點，封頂在最後一個免考文位
         try {
             const LP = window.LearningPath, PS = window.PathStations;
-            if (LP && PS && typeof LP.getLearnedPoemCount === 'function') {
+            if (LP && PS && typeof LP.getCurrentStationIndex === 'function') {
                 const stations = PS.build();
-                const idx = PS.getCurrentIndex(LP.getLearnedPoemCount());
+                // ⚠️ 一律走 LearningPath 的收口。舊版是
+                //    PS.getCurrentIndex(LP.getLearnedPoemCount())，那會把
+                //    「在自由練習裡亂序學到的詩」也算成課程進度，讓玩家的
+                //    文位憑空前進（見 LearningPath.getPathPoemCount 的說明）。
+                const idx = LP.getCurrentStationIndex();
                 const st = stations[Math.max(0, Math.min(idx, stations.length - 1))];
                 if (st && st.rankName && this.EXAM_RANK_NAMES.indexOf(st.rankName) < 0) {
                     return st.rankName;
@@ -280,7 +296,7 @@ const ScoreManager = {
         // 更新全局階級
         // ⚠️ globalRank 現在存的是**積分階級**，純供排行榜與「這位玩家很會玩」
         //    的表現統計使用，**不再代表玩家的文位**
-        //    （note/文位晉升與獎勵規劃_青雲梯新版.md §2、§8）。
+        //    （note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）。
         //    要拿玩家真正的文位請一律呼叫 getEffectiveRank()，
         //    它改看青雲梯站點進度與考試通過紀錄，與積分無關。
         data.globalRank = this.getCurrentRank(data.totalScore);
@@ -564,7 +580,7 @@ const ScoreManager = {
 
         // ─────────────────────────────────────────────────────
         // 【關卡挑戰】里程碑成就已取消
-        //（note/文位晉升與獎勵規劃_青雲梯新版.md §8）
+        //（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）
         // 難度選單已無獨立關卡模式，此獎狀類別失去對應場景。
         //
         // ⚠️ 本函式的回傳值 achIdToReturn 因此恆為 null。
@@ -588,7 +604,7 @@ const ScoreManager = {
 
     // ══════════════════════════════════════════════════════════════════
     //  青雲梯：關卡失敗計數與捐納跳關
-    //  對應企畫書 note/學習道路_重新規劃企劃書.md 第 8.3 節
+    //  對應企畫書 note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md 第 3.5 節「逃生口：捐納跳關」
     //  ── 為什麼需要 ────────────────────────────────────────────────
     //  積分原本是軟性門檻，卡住也能刷過去；改為「必通關卡」硬性門檻後
     //  就成了硬牆。現成的例子：game37 研究所 minChars:40 配 4 句，

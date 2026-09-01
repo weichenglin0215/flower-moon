@@ -166,7 +166,7 @@ function getSharedRandomPoem(minRating, minLines, maxLines, minChars, maxChars, 
    }
 
    // ── 關卡模式：改由「跨遊戲共用關卡表」決定題目 ─────────────────────
-   // 對應企畫書 note/學習道路與關卡模式_企畫書.md 第五章步驟②。
+   // 對應企畫書 note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md。
    //
    // 改版前：下方會把 gameKey 混入隨機種子，導致 game1 的第 5 關與 game13 的
    //         第 5 關是「不同的詩」，玩家無法用不同遊戲複習同一首詩。

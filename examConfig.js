@@ -1,7 +1,7 @@
 /* ============================================================================
  * examConfig.js —《花月》考試規則層（純資料與計算，不碰畫面）
  * ----------------------------------------------------------------------------
- * 對應規劃：note/文位晉升與獎勵規劃_青雲梯新版.md §10、§11
+ * 對應規劃：note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md
  *
  * ⭐ 這一層負責回答的問題（全部可單獨驗證，不需要開遊戲）
  *     · 這個文位的考試範圍涵蓋哪些詩？
@@ -26,6 +26,40 @@
     const EXAM_GAME_NAMES = {
         13: '人事時地', 20: '丟三落一', 3: '字爬梯', 14: '步步驚心', 37: '步步為陣'
     };
+
+    /* ------------------------------------------------------------------
+     *  五款遊戲的出題比例（作者定案 2026-09-01）
+     *
+     *      人事時地 : 丟三落一 : 字爬梯 : 步步驚心 : 步步為陣
+     *          2    :    2    :   1   :    1    :    1
+     *
+     *  ⚠️ 為什麼要加權：五款等機率時，字爬梯／步步驚心／步步為陣三款
+     *     全都屬於「字序記憶」通道，合計佔了 3/5，整張考卷有六成是
+     *     逐字提取的長題目，玩家反應字序類題目過多。
+     *     提高人事時地（背景知識）與丟三落一（語感）的比例後，
+     *     字序類降到 3/7，考卷的通道分布才接近青雲梯平常的節奏。
+     *
+     *  改比例只要改這張表；權重為 0 等同不出這一款（但仍留在候選清單裡，
+     *  遇到某首詩只有它出得了題時，examEngine 的改派機制照樣找得到它）。
+     * ---------------------------------------------------------------- */
+    const EXAM_GAME_WEIGHTS = { 13: 2, 20: 2, 3: 1, 14: 1, 37: 1 };
+
+    /** 依 EXAM_GAME_WEIGHTS 加權隨機挑一款考試遊戲 */
+    function pickWeightedExamGame() {
+        let total = 0;
+        for (let i = 0; i < EXAM_GAMES.length; i++) {
+            total += EXAM_GAME_WEIGHTS[EXAM_GAMES[i]] || 0;
+        }
+        // 全部權重為 0（設定被改壞）時退回等機率，至少不會出不了題
+        if (total <= 0) return EXAM_GAMES[Math.floor(Math.random() * EXAM_GAMES.length)];
+
+        let r = Math.random() * total;
+        for (let i = 0; i < EXAM_GAMES.length; i++) {
+            r -= (EXAM_GAME_WEIGHTS[EXAM_GAMES[i]] || 0);
+            if (r < 0) return EXAM_GAMES[i];
+        }
+        return EXAM_GAMES[EXAM_GAMES.length - 1];   // 浮點誤差保底
+    }
 
     /* ========================================================================
      *  ⭐⭐ 每個文位的考試參數 ⭐⭐
@@ -54,9 +88,36 @@
         '大儒': { perPoem: 2, pass: [17, 20] }
     };
 
-    // 考試文位的順序（＝ pathStations 的 EXAM_FROM_RANK 之後的所有文位）
-    const EXAM_RANK_ORDER = ['塾生', '童生', '縣案首', '府案首', '文童', '秀才',
-        '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'];
+    // 某個文位在 RANK_EXAM 裡沒有設定時的預設考試規則。
+    // ⚠️ 存在的理由：RANK_EXAM 是「規則參數表」，而「有哪些文位要考試」
+    //    已改由 PathStations 推導。萬一日後有人在 RANK_TABLE 加了新文位
+    //    卻忘了在這裡補參數，有了預設值就只是「用了預設難度」，
+    //    而不是 getPlan() 回 null、考試整個開不起來。
+    const DEFAULT_EXAM_RULE = { perPoem: 2, pass: [17, 20] };
+
+    /**
+     * 需應試文位的順序（由低到高）。
+     *
+     * ⚠️⚠️ 這裡曾經是一份手抄的字串陣列，與 collection.js、scoreManager.js
+     *    各有一份完全相同的副本，三份都靠人力保持同步。實測證明這行不通
+     *    （見企畫書附錄 F 問題④：一次前移造成 240 文錢靜默漏發）。
+     *    現改為向 PathStations 取得唯一真本。
+     *
+     * ⚠️ 用函式而非載入時的常數，是為了完全不依賴 script 標籤的先後順序：
+     *    就算日後有人把 examConfig.js 移到 pathStations.js 前面，
+     *    第一次真正呼叫時 PathStations 也早就載入好了。
+     */
+    function getExamRankOrder() {
+        const PS = (typeof window !== 'undefined') && window.PathStations;
+        if (PS && typeof PS.getExamRankNames === 'function') {
+            const list = PS.getExamRankNames();
+            if (list && list.length) return list;
+        }
+        // 退路：PathStations 尚未載入時，退回 RANK_EXAM 自己的鍵。
+        // 順序與 RANK_TABLE 一致（物件字面值保留插入順序），僅供極端情況保命。
+        console.warn('[考試] PathStations 尚未載入，文位順序退回 RANK_EXAM 的鍵');
+        return Object.keys(RANK_EXAM);
+    }
 
     /* ========================================================================
      *  ⭐⭐ 越級考試參數 ⭐⭐
@@ -95,14 +156,31 @@
 
         EXAM_GAMES: EXAM_GAMES,
         EXAM_GAME_NAMES: EXAM_GAME_NAMES,
-        EXAM_RANK_ORDER: EXAM_RANK_ORDER,
+        EXAM_GAME_WEIGHTS: EXAM_GAME_WEIGHTS,
+        pickWeightedExamGame: pickWeightedExamGame,
         SKIP_SEQUENTIAL_RANKS: SKIP_SEQUENTIAL_RANKS,
+
+        // 需應試文位的順序。用 getter 即時向 PathStations 取，
+        // 呼叫端維持 `C.EXAM_RANK_ORDER` 的既有寫法不必改。
+        get EXAM_RANK_ORDER() { return getExamRankOrder(); },
         SKIP_FEE_MULTIPLIER: SKIP_FEE_MULTIPLIER,
         SKIP_TIME_RATIO: SKIP_TIME_RATIO,
 
-        /** 這個文位需要考試嗎 */
+        /**
+         * 這個文位需要考試嗎。
+         * ⚠️ 以 PathStations（唯一真本）為準，不再看 RANK_EXAM 有沒有這個鍵 ——
+         *    RANK_EXAM 是「考試難度參數表」，不是「哪些文位要考」的名單。
+         *    兩件事混用，就會發生「忘了補參數 ⇒ 這個文位悄悄變成免考」。
+         */
         isExamRank: function (rankName) {
+            const PS = (typeof window !== 'undefined') && window.PathStations;
+            if (PS && typeof PS.isExamRank === 'function') return PS.isExamRank(rankName);
             return !!RANK_EXAM[rankName];
+        },
+
+        /** 取得某文位的考試規則參數（查無設定時退回預設，不會回 null） */
+        getExamRule: function (rankName) {
+            return RANK_EXAM[rankName] || DEFAULT_EXAM_RULE;
         },
 
         /**
@@ -120,7 +198,7 @@
          */
         getScopeStations: function (rankName) {
             const PS = window.PathStations;
-            if (!PS || !RANK_EXAM[rankName]) return [];
+            if (!PS || !this.isExamRank(rankName)) return [];
             const stations = PS.build();
 
             let at = -1;
@@ -155,8 +233,9 @@
          *            passCount, passRateText, stationNames}}
          */
         getPlan: function (rankName, isSkip) {
-            const cfg = RANK_EXAM[rankName];
-            if (!cfg) return null;
+            // 需不需要考試以 PathStations 為準；難度參數查不到就用預設值。
+            if (!this.isExamRank(rankName)) return null;
+            const cfg = this.getExamRule(rankName);
 
             const poemIds = this.getScopePoemIds(rankName);
             const perPoem = cfg.perPoem;
@@ -179,10 +258,13 @@
         },
 
         /**
-         * 產生題目清單：每一首詩出 perPoem 題，每一題各自從五款遊戲隨機挑一款。
+         * 產生題目清單：每一首詩出 perPoem 題，每一題各自**加權**挑一款遊戲。
          *
          * ⚠️ 「每題各自隨機」是作者定案，不是「一首詩固定用同一款遊戲」。
-         *    因此同一首詩的 3 題有機會抽到同一款遊戲兩次，這是預期行為。
+         *    因此同一首詩的多題有機會抽到同一款遊戲兩次，這是預期行為。
+         *
+         * ⚠️ 挑選走 pickWeightedExamGame()，比例見 EXAM_GAME_WEIGHTS
+         *    （人事時地與丟三落一各佔 2/7，其餘三款各 1/7）。
          *
          * @returns {Array<{poemId:number, gameNo:number, index:number}>}
          */
@@ -191,8 +273,7 @@
             const list = [];
             plan.poemIds.forEach(function (pid) {
                 for (let k = 0; k < plan.perPoem; k++) {
-                    const g = EXAM_GAMES[Math.floor(Math.random() * EXAM_GAMES.length)];
-                    list.push({ poemId: pid, gameNo: g, index: 0 });
+                    list.push({ poemId: pid, gameNo: pickWeightedExamGame(), index: 0 });
                 }
             });
             // 洗牌，避免同一首詩的題目全部連在一起
@@ -253,7 +334,7 @@
          * @returns {Array<{name:string, enabled:boolean, reason:string}>}
          */
         getSkipMenu: function (currentRank) {
-            const order = EXAM_RANK_ORDER;
+            const order = getExamRankOrder();
             const curIdx = order.indexOf(currentRank);
             const minIdx = order.indexOf(SKIP_MIN_RANK);
             const freeUntilIdx = order.indexOf(SKIP_FREE_CHOICE_UNTIL);

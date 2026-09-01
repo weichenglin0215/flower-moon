@@ -1,6 +1,6 @@
 /**
  * 考試（考棚）遊戲模組
- * 依《參加考試_企畫書 v2》規格。
+ * 依《青雲梯與文位晉升_總企畫書》規格。
  *
  * 對外 API：
  *   window.Exam.start(rank, { onPass, onFail })
@@ -36,7 +36,15 @@
     //     'C' — 4 句：顯示第 3+4 句，隱藏第 2 句（猜中間句／逆推）
     //   minMaskCount / maxMaskCount:
     //     對每一句可見句施加 0~N 個字元遮罩 ◎，考驗記憶完整度
+    // ⚠️ 2026-08-31 補上「塾生」「童生」兩列。
+    //    2026-08-28 把應試門檻由縣案首前移到塾生之後，這張表卻沒跟著補，
+    //    導致降級路徑（新引擎 ExamEngine 未載入時）一考塾生就會走到
+    //    `console.warn('未知的文位')` 並直接判定失敗——玩家付了報名費卻
+    //    連題目都看不到。難度沿用最寬鬆的那一檔，與新引擎「塾生／童生
+    //    及格線只有 2/3」的定位一致。
     const DIFFICULTY = {
+        '塾生': { hearts: 5, secPerQ: 14, poolMinRating: 6, poolMaxRating: 7, optionCount: 3, formats: ['A'], minMaskCount: 0, maxMaskCount: 0 },
+        '童生': { hearts: 4, secPerQ: 13, poolMinRating: 6, poolMaxRating: 7, optionCount: 3, formats: ['A'], minMaskCount: 0, maxMaskCount: 0 },
         '縣案首': { hearts: 4, secPerQ: 12, poolMinRating: 6, poolMaxRating: 7, optionCount: 3, formats: ['A'], minMaskCount: 0, maxMaskCount: 0 },
         '府案首': { hearts: 4, secPerQ: 11, poolMinRating: 6, poolMaxRating: 7, optionCount: 3, formats: ['A'], minMaskCount: 0, maxMaskCount: 1 },
         '文童': { hearts: 4, secPerQ: 10, poolMinRating: 5, poolMaxRating: 7, optionCount: 4, formats: ['A', 'B'], minMaskCount: 0, maxMaskCount: 1 },
@@ -617,7 +625,7 @@
                 }
             }
 
-            // ── 發放文位晉升獎勵（note/文位晉升與獎勵規劃_青雲梯新版.md §4.2）──
+            // ── 發放文位晉升獎勵（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）──
             // 需應試的文位在「抵達青雲梯站點」時不發獎，通過考試才發，
             // 這裡就是那個發放時機。走 LearningPath 的統一收口以確保：
             //   ① 冪等（同一文位只發一次）

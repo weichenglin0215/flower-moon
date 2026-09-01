@@ -99,11 +99,26 @@
         '進士': 14400, '探花': 28800, '榜眼': 57600,
         '狀元': 115200, '大儒': 230400
     };
-    // ⚠️ 必須包含「大儒」：舊版此陣列少了大儒，導致 nextExamRank() 在
-    //    玩家考過狀元後直接回傳 null，大儒這個文位永遠考不到。
-    // ⚠️ 這份清單與 examConfig.js 的 EXAM_RANK_ORDER、scoreManager.js 的
-    //    EXAM_RANK_NAMES 必須一致，三處任一漏改都會產生難以察覺的錯位。
-    const EXAM_RANKS_ORDER = ['塾生', '童生', '縣案首', '府案首', '文童', '秀才', '舉人', '貢士', '進士', '探花', '榜眼', '狀元', '大儒'];
+    /**
+     * 需應試文位的順序（由低到高）。
+     *
+     * ⚠️ 這裡原本是一份手抄的字串陣列，註解還特別警告「三處任一漏改都會
+     *    產生難以察覺的錯位」—— 那個錯位後來真的發生了（企畫書附錄 F 問題④）。
+     *    現已改為向 PathStations 取唯一真本，手抄副本全部刪除。
+     *    「必須包含大儒」這類過去要靠人記住的注意事項也隨之自動成立，
+     *    因為名單直接由 RANK_TABLE 推導，不可能漏掉任何一個文位。
+     */
+    function examRanksOrder() {
+        const PS = window.PathStations;
+        if (PS && typeof PS.getExamRankNames === 'function') {
+            const list = PS.getExamRankNames();
+            if (list && list.length) return list;
+        }
+        const C = window.FMExamConfig;
+        if (C && C.EXAM_RANK_ORDER && C.EXAM_RANK_ORDER.length) return C.EXAM_RANK_ORDER;
+        console.warn('[江南小院] 取不到文位名單，考棚功能可能不正常');
+        return [];
+    }
 
     const PLOT_PRICES = {
         '茶寮': { rank: '童生', price: 500 },
@@ -1888,8 +1903,8 @@
          *
          * ⚠️ 舊版是走訪 ScoreManager.ranks（積分門檻序列）來取得文位順序，
          *    等於把考試資格綁在積分上。新規則下積分完全不參與文位判定
-         *    （note/文位晉升與獎勵規劃_青雲梯新版.md §2、§6），
-         *    因此改為直接依 EXAM_RANKS_ORDER 這份「考試文位順序」找。
+         *    （note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md），
+         *    因此改為直接依「考試文位順序」找（來源見 examRanksOrder()）。
          *    是否**有資格**應試另由 LearningPath.getRankExamProgress()
          *    以青雲梯的必通關卡進度判定（見 openExam）。
          *
@@ -1897,7 +1912,7 @@
          */
         nextExamRank: function () {
             const passed = this.data.ranks.passed || [];
-            for (const name of EXAM_RANKS_ORDER) {
+            for (const name of examRanksOrder()) {
                 if (passed.indexOf(name) < 0) return { name: name };
             }
             return null;
@@ -1907,17 +1922,10 @@
             const fee = EXAM_FEES[rank.name];
             if (this.data.silver < fee) { this.showToast('盤纏不足'); return; }
 
-            // ⚠️ 正式考一天只有一次機會（作者定案）。這道檢查一定要在扣費**之前**，
-            //    否則玩家當天第二次點下去會先被扣錢才被擋下來。
-            const C = window.FMExamConfig;
-            if (C && !C.canAttemptToday(this.data, 'real', rank.name)) {
-                this.showToast('今日已應試過，明日請早。');
-                return;
-            }
+            // ⚠️ 正式考沒有每日次數限制（作者定案），只要付得起報名費就能再考。
 
             // 扣入場費並存檔
             window.FMCollectionSave.addSilver(this.data, -fee, 'exam_fee', rank.name);
-            if (C) C.markAttemptToday(this.data, 'real', rank.name);
             window.FMCollectionSave.save(this.data);
             this.refreshHUD();
 
@@ -1945,20 +1953,20 @@
                     onFail: reopenSelf
                 });
             } else {
-                // 降級：Exam 未載入時，維持舊機率機制以免無反應
-                console.warn('[Collection] Exam module not loaded; falling back to probability');
-                const score = this.getCurrentScore();
-                const ratio = score / rank.minScore;
-                const passProb = Math.min(0.95, Math.max(0.4, 0.4 + (ratio - 1) * 0.5));
-                const pass = (Math.random() < passProb);
-                this.data.examLog.push({ rank: rank.name, ts: Date.now(), pass });
-                if (pass) this.data.ranks.passed.push(rank.name);
-                if (!this.data.examStats) this.data.examStats = window.FMCollectionSave.emptyExamStats();
-                if (!this.data.examStats[rank.name]) this.data.examStats[rank.name] = { passCount: 0, failCount: 0, lastAttemptTs: 0 };
-                this.data.examStats[rank.name][pass ? 'passCount' : 'failCount']++;
-                this.data.examStats[rank.name].lastAttemptTs = Date.now();
+                // ⚠️⚠️ 這裡原本是「Exam 模組沒載入就改用機率決定有沒有考上」的
+                //    降級機制，公式是 `score / rank.minScore` —— 也就是
+                //    **用積分擲骰子直接發文位**，與新規則（文位只能靠通過考試
+                //    取得、積分完全不參與）正面衝突。
+                //    而且它其實早就壞了：nextExamRank() 現在只回 { name }，
+                //    沒有 minScore，算出來是 NaN，`Math.random() < NaN` 恆為
+                //    false，等於玩家付了報名費、必定落榜還被記一次失敗紀錄。
+                //    考試模組沒載入是安裝或載入順序出錯，屬於程式問題，
+                //    正確處理是退費並如實告知，絕不能靠運氣發放功名。
+                console.error('[江南小院] 考試模組未載入，無法應試；已退還報名費。');
+                window.FMCollectionSave.addSilver(this.data, fee, 'exam_refund', rank.name);
                 window.FMCollectionSave.save(this.data);
-                this.showToast(pass ? '金榜題名！' : '名落孫山，可再試。');
+                this.refreshHUD();
+                this.showToast('考場尚未開放，報名費已退還。');
                 reopenSelf();
             }
         },

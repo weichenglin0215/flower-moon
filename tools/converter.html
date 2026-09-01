@@ -114,14 +114,15 @@
                 <li>按下「轉換」按鈕。</li>
                 <li>複製下方的結果，貼到 <code>data/poems.js</code> 中。</li>
                 <li><strong>複製「關卡表」，貼到 <code>data/level_table.js</code> 中。</strong></li>
-                <li><strong>下載最下方的「青雲梯站點清單」，覆蓋 <code>note/青雲梯站點清單.md</code>。</strong></li>
+                <li><strong>下載最下方的「青雲梯站點清單」，覆蓋 <code>note/青雲梯與獎勵企畫書/青雲梯站點清單.md</code>。</strong></li>
             </ol>
             <p><strong>✨ 新功能：</strong>注音欄位現在會自動添加大陸拼音和同音常用字！</p>
             <p><strong>⚠️ 重要：</strong>只要詩詞的<strong>評價 (rating)</strong> 有變動，就必須一併更新
                 <code>data/level_table.js</code>。關卡表決定「哪一首詩屬於哪一個難度層」，
                 不更新的話「青雲梯」仍會依照舊表出題
-                （例如把已降為評價 6 的詩留在小學層）。本工具最下方會一併產生。</p>
-            <p><strong>⚠️ 同樣重要：</strong><code>note/青雲梯站點清單.md</code> 也必須一起更新。
+                （例如把已降為評價 6 的詩留在小學層）。本工具最下方會一併產生。
+            </p>
+            <p><strong>⚠️ 同樣重要：</strong><code>note/青雲梯與獎勵企畫書/青雲梯站點清單.md</code> 也必須一起更新。
                 它是<strong>人工核對「青雲梯每一站該出哪些詩」的唯一依據</strong>——
                 詩詞資料一改，站點分配就跟著變，清單沒同步就會拿舊表去驗新資料，
                 比對結論全部作廢。本工具產生關卡表時會自動一併產生，請記得下載覆蓋。</p>
@@ -190,7 +191,7 @@
         <pre id="levelTableArea">// 請先點擊《EXCEL資料轉換成程式碼格式》按鈕...</pre>
 
         <div class="header-container">
-            <h3>青雲梯站點清單：(請下載或複製，覆蓋 note/青雲梯站點清單.md)</h3>
+            <h3>青雲梯站點清單：(請下載或複製，覆蓋 note/青雲梯與獎勵企畫書/青雲梯站點清單.md)</h3>
             <button class="copy-btn" onclick="downloadPathMd()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
@@ -1044,7 +1045,7 @@
         let pathMdText = '';
 
         /**
-         * 依詩詞與剛產生的關卡表，產出 note/青雲梯站點清單.md 的內容。
+         * 依詩詞與剛產生的關卡表，產出 note/青雲梯與獎勵企畫書/青雲梯站點清單.md 的內容。
          * 實作在 build_path_md.js，與 `node tools/dump_path.js md` 完全共用。
          */
         function buildPathMdFrom(poems, levelTable, sourceNote) {
@@ -1078,7 +1079,7 @@
             }
         }
 
-        /** 把站點清單存成 note/青雲梯站點清單.md（瀏覽器只能下載，請自行覆蓋） */
+        /** 把站點清單存成 note/青雲梯與獎勵企畫書/青雲梯站點清單.md（瀏覽器只能下載，請自行覆蓋） */
         function downloadPathMd() {
             if (!pathMdText) {
                 alert('尚未產生站點清單，請先執行轉換。');

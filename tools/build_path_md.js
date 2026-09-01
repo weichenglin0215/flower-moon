@@ -1,10 +1,11 @@
 /* ==========================================================================
    花月 · 青雲梯站點清單產生器 (build_path_md.js)
    --------------------------------------------------------------------------
-   對應企畫書：note/學習道路_重新規劃企劃書.md 第五、八章
+   對應企畫書：note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md 第二、三章
 
    ── 這支檔案存在的理由 ──────────────────────────────────────────────
-   note/青雲梯站點清單.md 是**人類唯一能用來核對「每一站該出哪些詩」的依據**。
+   note/青雲梯與獎勵企畫書/青雲梯站點清單.md
+   是**人類唯一能用來核對「每一站該出哪些詩」的依據**。
    一旦詩詞資料（data/poems.js）或關卡表（data/level_table.js）更新，
    這份清單就必須跟著重產，否則人工比對會拿舊表去驗新資料，
    結論全部作廢 —— 實務上已經發生過。
@@ -19,7 +20,7 @@
    Node：
        const { generate } = require('./build_path_md.js');
        const r = generate(POEMS, LEVEL_TABLE);
-       fs.writeFileSync('note/青雲梯站點清單.md', r.markdown, 'utf8');
+       fs.writeFileSync('note/青雲梯與獎勵企畫書/青雲梯站點清單.md', r.markdown, 'utf8');
 
    瀏覽器：
        <script src="../levelTable.js"></script>
@@ -156,7 +157,7 @@
         out.push('> 本檔為自動產生，請勿手動編輯。');
         out.push('> 產生方式擇一：`node tools/dump_path.js md`，或用 `tools/converter.html`');
         out.push('> 轉換詩詞資料時一併下載（詩詞資料一改就必須重產，否則人工核對會拿舊表驗新資料）。');
-        out.push('> 對應企畫書：`note/學習道路_重新規劃企劃書.md`');
+        out.push('> 對應企畫書：`note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md`');
         out.push('');
         out.push('## 一、總覽');
         out.push('');

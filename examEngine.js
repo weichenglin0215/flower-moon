@@ -1,7 +1,7 @@
 /* ============================================================================
  * examEngine.js —《花月》遊戲化考試引擎
  * ----------------------------------------------------------------------------
- * 對應規劃：note/文位晉升與獎勵規劃_青雲梯新版.md §10、§11
+ * 對應規劃：note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md
  * 規則層在 examConfig.js（純資料），本檔只負責「把考試跑起來」。
  *
  * ⭐ 一場考試長什麼樣
@@ -525,8 +525,15 @@
             };
 
             // 正式考／越級考才寫紀錄；模擬考完全不留痕跡
+            //
+            // ⚠️ _writeResult 的回傳值（實際發放的文錢）一定要接住並放進
+            //    result.silverGained —— 慶祝動畫要靠它顯示「得文錢 N 枚」。
+            //    舊版沒接，result.silverGained 永遠是 undefined，_celebrate
+            //    的 `result.silverGained || 0` 就永遠傳 0 給動畫，於是
+            //    **考試通過的表演一律顯示不出獎勵**（存檔其實有加錢，
+            //    只有畫面沒顯示，所以完全不會有錯誤訊息，極難察覺）。
             if (!this._aborted && this._mode !== 'mock') {
-                this._writeResult(passed);
+                result.silverGained = this._writeResult(passed) || 0;
             }
 
             const self = this;
@@ -580,11 +587,13 @@
          * 寫入考試結果。
          *   · 正式考通過 → 冊封該文位、發文位獎勵
          *   · 越級考通過 → 額外補發沿途所有被跳過的文位與小站獎勵
+         *
+         * @returns {number} 這一場考試實際發出去的文錢總額（供慶祝動畫顯示）
          */
         _writeResult: function (passed) {
             const S = window.FMCollectionSave;
             const C = window.FMExamConfig;
-            if (!S) return;
+            if (!S) return 0;
             const coll = S.load();
             const rank = this._plan.rankName;
 
@@ -623,16 +632,19 @@
             }
             S.save(coll);
 
+            let gained = 0;
             if (passed) {
                 // 越級：補標記沿途站點為「視同完成」並補發站點獎勵
-                if (this._mode === 'skip') this._grantSkipStations(rank);
+                if (this._mode === 'skip') gained += this._grantSkipStations(rank);
 
                 // 文位獎勵走 LearningPath 的統一收口（冪等，不會重複發）
+                // ⚠️ 越級時這一筆通常已經由 _grantSkipStations 發過了，
+                //    此處會因冪等而回傳 0，不會重複計算。
                 if (window.LearningPath
                     && typeof window.LearningPath.grantPromotionSilver === 'function') {
                     const total = (window.PathStations && window.PathStations.getRankSilver)
                         ? window.PathStations.getRankSilver(rank) : 0;
-                    window.LearningPath.grantPromotionSilver('rank', rank, total);
+                    gained += window.LearningPath.grantPromotionSilver('rank', rank, total) || 0;
                 }
             }
 
@@ -643,6 +655,7 @@
                     isWin: passed, durationS: 0
                 });
             }
+            return gained;
         },
 
         /**
@@ -667,15 +680,16 @@
         _grantSkipStations: function (targetRank) {
             const PS = window.PathStations;
             const SM = window.ScoreManager;
-            if (!PS) return;
+            if (!PS) return 0;
 
             const stations = PS.build();
             let at = -1;
             for (let i = 0; i < stations.length; i++) {
                 if (stations[i].type === 'rank' && stations[i].name === targetRank) { at = i; break; }
             }
-            if (at < 0) return;
+            if (at < 0) return 0;
 
+            let gained = 0;
             for (let i = 0; i <= at; i++) {
                 const st = stations[i];
                 (st.units || []).forEach(function (u) {
@@ -683,11 +697,21 @@
                         SM.markLevelDonated(u.tier, u.level);
                     }
                 });
-                // 站點獎勵同樣走統一收口，冪等；已經發過的站不會重複發
+                // 站點獎勵同樣走統一收口，冪等；已經發過的站不會重複發。
+                //
+                // ⚠️ 第二個參數 true ＝「連需應試的文位站也要發」。
+                //    grantStationReward 預設會跳過 isExam 的文位站，因為
+                //    平常「抵達那一站」只代表取得應試資格、還沒考過，本來
+                //    就不該發獎。但越級考試在上一步已經把沿途這些文位
+                //    **全部寫進 ranks.passed**（視同考過了），這時再跳過就變成
+                //    「文位給了、獎勵卻沒發，成就也沒標記」——玩家的
+                //    「領取獎狀」CTA 會一直掛在成就頁上，而且那筆文錢
+                //    再也沒有任何機會補發。
                 if (window.LearningPath && typeof window.LearningPath.grantStationReward === 'function') {
-                    window.LearningPath.grantStationReward(st);
+                    gained += window.LearningPath.grantStationReward(st, true) || 0;
                 }
             }
+            return gained;
         }
     };
 

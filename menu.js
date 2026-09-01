@@ -477,7 +477,16 @@
 
     // ----------------------------------------
     // 更新「成就紀錄」圖示右上角提示
-    //  - 有未領取的獎狀 或 有資格參加考試 → 顯示黃底紅色驚嘆號
+    //  - 目前唯一的觸發條件：有資格參加考試但還沒去考 → 顯示黃底紅色驚嘆號
+    //
+    // ⚠️⚠️ 這裡原本還有另外兩個條件，都是舊「積分升等 + 手動領獎狀」制度的
+    //    殘留，已於 2026-08-31 移除（企畫書附錄 F 問題②）：
+    //      (a) 「通過考試但未領獎狀」——新制的晉升獎勵在達成當下就自動入帳，
+    //          根本沒有「領獎狀」這個動作。留著它會讓紅點永遠消不掉，
+    //          因為玩家再怎麼點也不可能把 rank_X 標記成已領。
+    //      (c) 「積分達標但未領階級獎狀」（`totalScore >= r.minScore`）——
+    //          純積分判定，與文位完全無關，正是那個讓「童生」冒出
+    //          假『領取獎狀』按鈕的同一條舊規則。
     // ----------------------------------------
     function updateAchievementBadge() {
         const cell = document.querySelector('.menu-item[data-page="achievements"]');
@@ -490,32 +499,15 @@
             const data = (window.ScoreManager && window.ScoreManager.loadPlayerData()) || null;
             const coll = (window.FMCollectionSave && window.FMCollectionSave.load()) || null;
             if (data && coll) {
-                const claimed = (data.achievements && data.achievements.claimed) || [];
                 const passed = (coll.ranks && coll.ranks.passed) || [];
-                const totalScore = Math.floor(data.totalScore || 0);
                 const examNames = (window.ScoreManager && window.ScoreManager.EXAM_RANK_NAMES) || [];
 
-                // (a) 有通過考試但未領獎狀
+                // 有資格應試且尚未通過 → 提醒玩家可以去考棚
+                // （資格看必通關卡，不看積分；企畫書 §6）
                 for (const name of examNames) {
-                    if (passed.indexOf(name) >= 0 && claimed.indexOf('rank_' + name) < 0) { hasAlert = true; break; }
-                }
-                // (b) 有資格參加考試（積分達標且尚未通過）
-                if (!hasAlert && window.ScoreManager) {
-                    // 應試資格改看必通關卡（企畫書 9.4），不再看積分
-                    for (const name of examNames) {
-                        const p = (window.LearningPath && window.LearningPath.getRankExamProgress)
-                            ? window.LearningPath.getRankExamProgress(name) : { ok: false };
-                        if (p.ok && passed.indexOf(name) < 0) { hasAlert = true; break; }
-                    }
-                }
-                // (c) 其他一般成就（次數、階級）尚未領取
-                if (!hasAlert && window.ScoreManager) {
-                    const ranks = window.ScoreManager.ranks;
-                    for (const r of ranks) {
-                        if (examNames.indexOf(r.name) >= 0) continue;
-                        if (r.name === '書僮') continue;
-                        if (totalScore >= r.minScore && !claimed.includes('rank_' + r.name)) { hasAlert = true; break; }
-                    }
+                    const p = (window.LearningPath && window.LearningPath.getRankExamProgress)
+                        ? window.LearningPath.getRankExamProgress(name) : { ok: false };
+                    if (p.ok && passed.indexOf(name) < 0) { hasAlert = true; break; }
                 }
             }
         } catch (e) { /* ignore */ }

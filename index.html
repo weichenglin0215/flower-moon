@@ -179,6 +179,51 @@
          這支只在新引擎未載入時作為降級退路，勿逕行刪除。 -->
     <script src="exam.js"></script>
     <script src="examEngine.js"></script>
+    <!-- 開發用：Alt+T 考試「全流程」熱鍵測試工具（真實入口、真實寫入）。
+         與 exam.js 的 Alt+E（沙箱、只測考題本身）用途不同，兩者並存。
+
+         ⚠️ 這支工具會**真的扣文錢、真的寫存檔**，而且能無視每日考試次數限制，
+            因此只在本機開發環境載入；正式站（GitHub Pages）完全不會請求這個檔案。
+            用動態注入而不是靜態 <script>，是為了讓正式站連一次網路請求都不發出。
+
+         若需要在手機上實測（透過區網 IP 連本機開發伺服器），
+         在網址後面加 ?devtools=1 即可載入；該旗標會記在 sessionStorage，
+         同一分頁後續換頁仍有效，關掉分頁就失效。
+
+         ⚠️ ?devtools=1 **只在私有網段（loopback／10.x／172.16-31.x／192.168.x）有效**。
+            這道限制不能拿掉：這支工具能無視考試每日限制、直接判定題目對錯並寫入存檔，
+            若在正式站也能用網址參數打開，等於公開一個作弊入口（還會污染排行榜）。 -->
+    <script>
+        (function () {
+            var h = location.hostname;
+            // 本機：一律載入
+            var isLoopback = (h === 'localhost' || h === '127.0.0.1' || h === '::1'
+                || /\.localhost$/.test(h) || location.protocol === 'file:');
+            // 私有網段：預設不載入，但允許用 ?devtools=1 手動開啟（手機實測用）
+            var isPrivateLan = /^10\./.test(h)
+                || /^192\.168\./.test(h)
+                || /^172\.(1[6-9]|2\d|3[01])\./.test(h)
+                || /^127\./.test(h);
+
+            var load = isLoopback;
+            if (!load && isPrivateLan) {
+                try {
+                    if (/[?&]devtools=1\b/.test(location.search)) {
+                        sessionStorage.setItem('fm_devtools', '1');
+                    }
+                    if (sessionStorage.getItem('fm_devtools') === '1') load = true;
+                } catch (e) { /* 私密瀏覽模式讀不到 sessionStorage，忽略 */ }
+            }
+
+            if (!load) return;
+            // 非同步插入即可：examFlowTest.js 在載入當下只註冊熱鍵監聽，
+            // 要用到 PathStations／LearningPath 等模組時都是在按鍵之後才取用，
+            // 因此不需要保證它與其他 <script> 的先後順序。
+            var s = document.createElement('script');
+            s.src = 'examFlowTest.js';
+            document.head.appendChild(s);
+        })();
+    </script>
     <script src="poem_dialog.js"></script>
 
     <!-- 主要功能模組 -->

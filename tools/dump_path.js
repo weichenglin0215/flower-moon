@@ -1,12 +1,12 @@
 /* ==========================================================================
    花月 · 青雲梯站點清單輸出 (dump_path.js)
    --------------------------------------------------------------------------
-   對應企畫書：note/學習道路_重新規劃企劃書.md 第五、八章
+   對應企畫書：note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md 第二、三章
 
    執行方式：
       node tools/dump_path.js            → 摘要 + 前 20 站明細
       node tools/dump_path.js all        → 全部站點明細
-      node tools/dump_path.js md         → 產生 note/青雲梯站點清單.md
+      node tools/dump_path.js md         → 產生 note/青雲梯與獎勵企畫書/青雲梯站點清單.md
 
    ⚠️ 實際的產生邏輯已抽到 tools/build_path_md.js，與 tools/converter.html
       共用同一份實作。本檔只負責「讀檔 → 呼叫 → 寫檔／印出」。
@@ -30,14 +30,14 @@ const mode = (process.argv[2] || '').toLowerCase();
 const r = generate(POEMS, LEVEL_TABLE);
 
 if (mode === 'md') {
-    const target = path.join(rootDir, 'note', '青雲梯站點清單.md');
-    fs.writeFileSync(target, r.markdown, 'utf8');
-    console.log('已輸出：' + path.relative(rootDir, target));
-    console.log('');
-    console.log(r.summary);
-    console.log(r.loadReport);
+   const target = path.join(rootDir, 'note/青雲梯與獎勵企畫書', '青雲梯站點清單.md');
+   fs.writeFileSync(target, r.markdown, 'utf8');
+   console.log('已輸出：' + path.relative(rootDir, target));
+   console.log('');
+   console.log(r.summary);
+   console.log(r.loadReport);
 } else {
-    console.log(r.summary);
-    console.log(r.detail(mode === 'all' ? r.stations.length : 20));
-    console.log(r.loadReport);
+   console.log(r.summary);
+   console.log(r.detail(mode === 'all' ? r.stations.length : 20));
+   console.log(r.loadReport);
 }

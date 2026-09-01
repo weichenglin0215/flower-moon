@@ -3,8 +3,7 @@
    --------------------------------------------------------------------------
    「腳著謝公屐，身登青雲梯」——李白《夢遊天姥吟留別》
 
-   對應企畫書：note/學習道路_重新規劃企劃書.md
-     第一章 命名
+   對應企畫書：note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md
      第三章 遊戲分類：依提取方式，不依難度
      第四章 學習單位與「學會」的定義
      第五章 文位節奏與四階小稱號
@@ -281,7 +280,7 @@
             if (!PS) return empty;
 
             const stations = PS.build();
-            const idx = PS.getCurrentIndex(this.getLearnedPoemCount());
+            const idx = this.getCurrentStationIndex();
             const cur = stations[idx];
             const next = stations[idx + 1];
             if (!cur || !next) return empty;   // 已經是最後一站（大儒）
@@ -325,9 +324,12 @@
         },
 
         /**
-         * 玩家已學會（⭑⭑ 熟練）幾首詩。
+         * 玩家已學會（⭑⭑ 熟練）幾首詩 —— **全部**，不論在哪裡學的。
          * 判定：該詩的所有必通關卡皆已用三種提取方式通過。
-         * 這個數字就是青雲梯上的位置，也是文位晉升的依據。
+         *
+         * ⚠️ 這個數字**不可以**拿去定位青雲梯站點，請改用 getPathPoemCount()。
+         *    理由見該函式的說明。這裡只適合用來顯示「已學詩詞 N / 總數」，
+         *    因為玩家在漢堡選單自由練習裡學會的詩，確實也是學會了。
          */
         getLearnedPoemCount: function () {
             if (!window.PathStations) return 0;
@@ -343,6 +345,63 @@
                 if (all) n++;
             }
             return n;
+        },
+
+        /**
+         * 青雲梯的「課程進度」：依學習順序**從第一首起連續**學會了幾首。
+         *
+         * ⚠️⚠️ 這支函式存在的理由，是修正一個會讓玩家整站被跳過的嚴重錯誤。
+         *
+         *    站點定位靠的是 PathStations.getCurrentIndex(n)，而它的判斷是
+         *    「n >= 該站的 poemFrom 就算已抵達」——這句話只有在
+         *    **「這 n 首正好就是學習順序的前 n 首」** 時才成立。
+         *
+         *    但 getLearnedPoemCount() 數的是「總共學會幾首」，不管在哪學的：
+         *    漢堡選單的自由練習、溫習模式，用的是同一套 levelCleared 紀錄
+         *    （只認「難度層＋關卡編號」，完全不記錄屬於青雲梯哪一站）。
+         *    於是玩家只要在自由練習裡打到後段的詩，總數就會灌水，
+         *    站點跟著往前跳，中間那幾站明明一關都沒打過卻顯示「已完成」。
+         *
+         *    實測重現：只完成學習順序第 1~16 首與第 30~33 首（中間跳號），
+         *    getLearnedPoemCount() 得到 20，站點就跳到「塾生三階」，
+         *    而「塾生」與「塾生二階」兩站合計 12 個必通關卡一個都沒做。
+         *    這正是玩家回報的「考完塾生，塾生二階卻自己變成已完成」。
+         *
+         *    改用「依序連續」計數後，沒學完的站絕對不會被跳過；
+         *    亂序學到的詩仍然照樣計入 getLearnedPoemCount() 的顯示數字，
+         *    只是不會再推動課程進度——課程本來就該一站一站走。
+         *
+         * @returns {number} 依學習順序連續完成的首數
+         */
+        getPathPoemCount: function () {
+            if (!window.PathStations) return 0;
+            const list = window.PathStations.getPoemUnits();
+            let n = 0;
+            for (let i = 0; i < list.length; i++) {
+                const units = list[i].units;
+                // 沒有必通關卡的詩不擋路（也不計分），直接跳過繼續往下數
+                if (!units.length) continue;
+                let all = true;
+                for (let k = 0; k < units.length; k++) {
+                    if (!this.isUnitDone(units[k])) { all = false; break; }
+                }
+                if (!all) break;      // ← 與 getLearnedPoemCount 唯一的差別
+                n++;
+            }
+            return n;
+        },
+
+        /**
+         * 目前所在的站點索引 —— 全站定位的唯一收口。
+         *
+         * ⚠️ 請一律呼叫這一支，不要自己寫
+         *    `PathStations.getCurrentIndex(getLearnedPoemCount())`。
+         *    那個寫法正是上面 getPathPoemCount() 說明中的那個錯誤，
+         *    本檔曾在六處各寫一遍，只要漏改一處就會再度出現跳站。
+         */
+        getCurrentStationIndex: function () {
+            if (!window.PathStations) return 0;
+            return window.PathStations.getCurrentIndex(this.getPathPoemCount());
         },
 
         /**
@@ -668,8 +727,10 @@
             this.invalidateProgress();
 
             this.stations = window.PathStations.build();
+            // ⚠️ learned（總學會首數）只拿來顯示，站點定位一律走
+            //    getCurrentStationIndex()——兩者的差別見 getPathPoemCount()。
             const learned = this.getLearnedPoemCount();
-            const currentIdx = window.PathStations.getCurrentIndex(learned);
+            const currentIdx = this.getCurrentStationIndex();
 
             // ── 頂部資訊列：文位（含小階）／已學首數／已過關卡數／文錢 ──
             const curStation = this.stations[currentIdx];
@@ -1026,7 +1087,7 @@
         onStationClick: function (idx) {
             const st = this.stations[idx];
             if (!st) return;
-            const currentIdx = window.PathStations.getCurrentIndex(this.getLearnedPoemCount());
+            const currentIdx = this.getCurrentStationIndex();
 
             // ── 尚未解鎖的站 → 詢問是否要越級考試 ────────────────────────
             // ⚠️ 舊版這裡只丟一句「先把前面的詩學會吧」就打發玩家，
@@ -1059,7 +1120,7 @@
             if (window.ScoreManager && window.ScoreManager.setReviewMode) {
                 window.ScoreManager.setReviewMode(this._reviewMode);
             }
-            this._stationIdxAtLaunch = window.PathStations.getCurrentIndex(this.getLearnedPoemCount());
+            this._stationIdxAtLaunch = this.getCurrentStationIndex();
             this._currentStation = st;
             const unit = this.pickUnit(st);
             if (!unit) {
@@ -1239,7 +1300,7 @@
             // ── 這一局是否讓玩家晉升到下一站？────────────────────────────
             // 站點索引往前跳 = 這一站的必通關卡剛剛全部完成。
             // 立刻彈窗給予成就感，避免玩家傻傻一直玩卻不知道自己已經升階。
-            const nowIdx = window.PathStations.getCurrentIndex(this.getLearnedPoemCount());
+            const nowIdx = this.getCurrentStationIndex();
             if (!this._reviewMode && nowIdx > this._stationIdxAtLaunch && this._stationIdxAtLaunch >= 0) {
                 this._stationIdxAtLaunch = nowIdx;
                 const reached = this.stations[nowIdx];
@@ -1311,7 +1372,7 @@
         },
 
         // ══════════════════════════════════════════════════════════════
-        //  晉升獎勵發放（note/文位晉升與獎勵規劃_青雲梯新版.md §4、§5）
+        //  晉升獎勵發放（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）
         // ══════════════════════════════════════════════════════════════
 
         /**
@@ -1374,16 +1435,21 @@
          *   · 需應試的文位    → **這裡不發**，等考試通過才由 exam.js 發放。
          *                       抵達這一站的定位是「取得應試資格」而非「晉升」。
          *
+         * @param {object} station 站點
+         * @param {boolean} [includeExamRanks] true = 連「需應試的文位站」也發。
+         *        只有越級考試通過後的補發（examEngine._grantSkipStations）該傳 true——
+         *        那時沿途文位已經被寫進 ranks.passed、視同考過，不發就等於
+         *        「文位給了、獎勵卻永遠拿不到」。平常的「抵達站點」一律不要傳。
          * @returns {number} 實際發放的文錢（0 = 不發或已發過）
          */
-        grantStationReward: function (station) {
+        grantStationReward: function (station, includeExamRanks) {
             if (!station || !window.PathStations) return 0;
             const PS = window.PathStations;
 
             if (station.type === 'grade') {
                 return this.grantPromotionSilver('grade', station.name, PS.getGradeStationSilver(station));
             }
-            if (station.type === 'rank' && !station.isExam) {
+            if (station.type === 'rank' && (!station.isExam || includeExamRanks)) {
                 return this.grantPromotionSilver('rank', station.name, PS.getRankSilver(station.name));
             }
             return 0;   // 需應試的文位：資格達成不發獎，通過考試才發
@@ -1455,8 +1521,8 @@
          *
          * 三種型態（企劃書 §5）：
          *   · 小階（例如「書僮二階」）→ 簡易全畫面動畫（無獎狀圖）
-         *   · 免考文位（蒙童／塾生／童生）→ 華麗全畫面動畫（獎狀圖＋特效）
-         *   · 需應試的文位（縣案首以後）→ 引導彈窗，導向江南小院考棚
+         *   · 免考文位（書僮／蒙童）→ 華麗全畫面動畫（獎狀圖＋特效）
+         *   · 需應試的文位（塾生起）→ 引導彈窗，導向江南小院考棚
          *
          * ⚠️ 獎勵在彈窗出現「之前」就已經發放（見 grantStationReward），
          *    按鈕只負責關閉彈窗與播放慶祝動畫，不再是領取動作。
@@ -1566,10 +1632,9 @@
         /**
          * 從青雲梯站點直接開考（模擬考／正式考）。
          *
-         * ⚠️ 模擬考與正式考各自「一天一次」，而且是**分開計算**的：
-         *    模擬考考過了不影響當天還能不能考正式的，反之亦然。
-         *    這樣玩家可以「今天先模擬一次、覺得有把握就馬上正式考」，
-         *    正是模擬考存在的意義；若共用同一個額度就完全失效了。
+         * ⚠️ 模擬考「一天一次」；正式考**沒有次數限制**，只要付得起報名費
+         *    就能一直應試——作者定案：正式考的節流機制只有「文錢」，
+         *    不設每日次數上限。
          *
          * @param {string} rankName 應試文位
          * @param {string} mode     'mock' | 'real'
@@ -1583,8 +1648,8 @@
             }
             const coll = S.load();
 
-            if (!C.canAttemptToday(coll, mode, rankName)) {
-                this.toast(mode === 'mock' ? '今日模擬考已用過，明日請早。' : '今日已應試過，明日請早。');
+            if (mode === 'mock' && !C.canAttemptToday(coll, mode, rankName)) {
+                this.toast('今日模擬考已用過，明日請早。');
                 return;
             }
 
@@ -1596,8 +1661,9 @@
                     return;
                 }
                 S.addSilver(coll, -fee, 'exam_fee', rankName);
+            } else {
+                C.markAttemptToday(coll, mode, rankName);
             }
-            C.markAttemptToday(coll, mode, rankName);
             S.save(coll);
             if (window.CollectionDialog && typeof window.CollectionDialog.refreshHud === 'function') {
                 window.CollectionDialog.refreshHud();
@@ -1941,7 +2007,7 @@
         scrollToCurrent: function (smooth) {
             const scroll = this.overlay && this.overlay.querySelector('#lpScroll');
             if (!scroll || !window.PathStations) return;
-            const idx = window.PathStations.getCurrentIndex(this.getLearnedPoemCount());
+            const idx = this.getCurrentStationIndex();
             const y = this.trackHeight - BOT_PAD - idx * SPACING;
             // 讓目前站落在可視區偏下方，上方預留即將前往的關卡
             const target = Math.max(0, y - scroll.clientHeight * 0.68);
