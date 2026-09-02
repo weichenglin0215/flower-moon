@@ -73,28 +73,32 @@ function requirementsOf(no, s) {
                 };
             });
         }
-        case 22: {
-            const lens = (s.poemType === '五言') ? [5] : [5, 7];
-            return lens.map(c => ({
+        case 22:  // 2026-09 移除 poemType：不再限制每句字數，缺格由 UI 的 null 補格處理
+            return [{
                 minLines: s.gridLines, maxLines: s.gridLines,
-                minChars: s.gridLines * c, maxChars: s.gridLines * c
-            }));
-        }
+                minChars: s.gridLines * 2, maxChars: s.gridLines * 9
+            }];
         case 31:
             return [{
                 minLines: s.lineCount, maxLines: s.maxLines,
                 minChars: s.minChars, maxChars: s.maxChars
             }];
-        case 40:
-            return [{
+        case 40: {  // 2026-09 移除 charsPerLine：五言／七言都嘗試，任一成功即可（OR，非平均機率），
+            // 且要複驗兩句是否真的等長（見 game40.js 的事後檢查）
+            const arr = [5, 7].map(c => ({
                 minLines: s.minLines, maxLines: s.maxLines,
-                minChars: s.charsPerLine * 2, maxChars: s.charsPerLine * 2
-            }];
-        case 12:
+                minChars: c * 2, maxChars: c * 2, _c: c
+            }));
+            arr.orMode = true;
+            arr.verify = (r, req) => r.lines.length === 2 &&
+                r.lines[0].length === req._c && r.lines[1].length === req._c;
+            return arr;
+        }
+        case 12:  // 公式需與 game12.js 的 requiredChars 一致：minShowCount 用 ?? 而非 ||（0 是合法值）
             return [{
                 minLines: s.minLines, maxLines: s.maxLines,
                 minChars: Math.max(s.minChars,
-                    (s.minTotalHideCount || 2) + (s.minShowCount || 1) * 2),
+                    (s.minTotalHideCount || 2) + (s.minShowCount ?? 1) * 2),
                 maxChars: s.maxChars
             }];
         default:
@@ -132,9 +136,28 @@ stations.forEach((st, idx) => {
             const tier = u.tier; // 該單元自己的難度層（一站可能跨層）
             const reqs = requirementsOf(g, s && s[tier]);
             if (!reqs.length) return;
+            if (!badGames[g]) badGames[g] = { tries: 0, solved: 0 };
+
+            // orMode（如 G40）：這幾種需求都試，任一成功就用，以「每個關卡單元」為
+            // 一次嘗試，不能像其餘遊戲那樣把每個 req 當成獨立的機率分開計次。
+            if (reqs.orMode) {
+                tries++;
+                badGames[g].tries++;
+                let hit = null;
+                for (const req of reqs) {
+                    const r = LevelTable.resolve(tier, u.level, req);
+                    if (r && (!reqs.verify || reqs.verify(r, req))) { hit = r; break; }
+                }
+                if (hit) {
+                    solved++;
+                    badGames[g].solved++;
+                    if (hit.fallback !== 'same-cluster') onTarget++;
+                }
+                return;
+            }
+
             reqs.forEach(req => {
                 tries++;
-                if (!badGames[g]) badGames[g] = { tries: 0, solved: 0 };
                 badGames[g].tries++;
                 const r = LevelTable.resolve(tier, u.level, req);
                 if (r) {

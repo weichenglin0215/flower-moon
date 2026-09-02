@@ -42,8 +42,8 @@
         difficultySettings: {
             '小學': { timeLimitRate: 3, poemMinRating: 6, maxMistakeCount: 4, minShowCount: 1, maxShowCount: 4, minTotalHideCount: 4, memorySeconds: 5, isSequentialOpen: true, isSequentialHide: true, hasDistractors: false, showDelay: 0, hideMode: 'line2', total: 6, cols: 3, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
             '中學': { timeLimitRate: 2, poemMinRating: 5, maxMistakeCount: 6, minShowCount: 1, maxShowCount: 3, minTotalHideCount: 6, memorySeconds: 7, isSequentialOpen: true, isSequentialHide: false, hasDistractors: false, showDelay: 8, hideMode: 'random1or2', total: 8, cols: 4, minLines: 2, maxLines: 2, minChars: 8, maxChars: 30 },
-            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 8, minShowCount: 2, maxShowCount: 3, minTotalHideCount: 8, memorySeconds: 10, isSequentialOpen: true, isSequentialHide: false, hasDistractors: true, showDelay: 16, hideMode: 'line1or12', total: 10, cols: 5, minLines: 2, maxLines: 2, minChars: 12, maxChars: 30 },
-            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 10, memorySeconds: 12, isSequentialOpen: false, isSequentialHide: false, hasDistractors: true, showDelay: 24, hideMode: 'both', total: 12, cols: 4, minLines: 2, maxLines: 2, minChars: 12, maxChars: 30 },
+            '高中': { timeLimitRate: 1, poemMinRating: 4, maxMistakeCount: 8, minShowCount: 1, maxShowCount: 3, minTotalHideCount: 6, memorySeconds: 10, isSequentialOpen: true, isSequentialHide: false, hasDistractors: true, showDelay: 16, hideMode: 'line1or12', total: 10, cols: 5, minLines: 2, maxLines: 2, minChars: 10, maxChars: 30 },
+            '大學': { timeLimitRate: 2, poemMinRating: 3, maxMistakeCount: 12, minShowCount: 1, maxShowCount: 2, minTotalHideCount: 6, memorySeconds: 12, isSequentialOpen: false, isSequentialHide: false, hasDistractors: true, showDelay: 24, hideMode: 'both', total: 12, cols: 4, minLines: 2, maxLines: 2, minChars: 10, maxChars: 30 },
             '研究所': { timeLimitRate: 3, poemMinRating: 2, maxMistakeCount: 14, minShowCount: 0, maxShowCount: 0, minTotalHideCount: 10, memorySeconds: 15, isSequentialOpen: false, isSequentialHide: false, hasDistractors: true, showDelay: 32, hideMode: 'both', total: 16, cols: 4, minLines: 2, maxLines: 2, minChars: 10, maxChars: 30 }
         },
         showTimeout: null,
@@ -323,8 +323,11 @@
                 attempts++;
                 // 傳入種子
                 // 題目至少要有足夠的字可以遮：以設定值為準，但不得低於「遮字數 + 露字數」的需求
+                // ⚠️ minShowCount 合法值可以是 0（研究所層「全隱藏、不露提示字」的設計），
+                //    用 || 會把合法的 0 誤判成「沒設定」而退回 1，導致研究所的有效門檻
+                //    被意外墊高（10 字→12 字），連帶讓「拿到指定詩」比例大跌。改用 ?? 讓 0 不被吃掉。
                 const requiredChars = Math.max(settings.minChars,
-                    (settings.minTotalHideCount || 2) + (settings.minShowCount || 1) * 2);
+                    (settings.minTotalHideCount || 2) + (settings.minShowCount ?? 1) * 2);
                 const result = getSharedRandomPoem(
                     settings.poemMinRating || 4,
                     settings.minLines,

@@ -67,33 +67,33 @@
         // -------------------------------------------------------------------
         difficultySettings: {
             '小學': {
-                cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 2500, minDecoys: 1, maxDecoys: 2,
-                maxMissPerTarget: 0, maxHearts: 7, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
+                cols: 3, rows: 3, minStayDuration: 2000, maxStayDuration: 2500, minDecoys: 0, maxDecoys: 1,
+                maxMissPerTarget: 0, maxHearts: 8, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 6, minLines: 4, maxLines: 4, minChars: 8, maxChars: 28, maxTargetCount: 1,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '中學': {
-                cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
-                poemMinRating: 5, minLines: 4, maxLines: 6, minChars: 8, maxChars: 42, maxTargetCount: 2,
+                cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2200, minDecoys: 1, maxDecoys: 2,
+                maxMissPerTarget: 0, maxHearts: 7, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
+                poemMinRating: 5, minLines: 4, maxLines: 6, minChars: 8, maxChars: 42, maxTargetCount: 1,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '高中': {
-                cols: 4, rows: 4, minStayDuration: 1500, maxStayDuration: 2500, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 5, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
-                poemMinRating: 4, minLines: 4, maxLines: 8, minChars: 8, maxChars: 56, maxTargetCount: 3,
+                cols: 4, rows: 4, minStayDuration: 1500, maxStayDuration: 2000, minDecoys: 2, maxDecoys: 3,
+                maxMissPerTarget: 0, maxHearts: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
+                poemMinRating: 4, minLines: 4, maxLines: 8, minChars: 8, maxChars: 56, maxTargetCount: 2,
                 targetCharPreview: true  // 正確字一律金色，玩家須自行判斷順序
             },
             '大學': {
-                cols: 5, rows: 4, minStayDuration: 2500, maxStayDuration: 3500, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 4, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
-                poemMinRating: 3, minLines: 8, maxLines: 12, minChars: 8, maxChars: 56, maxTargetCount: 3,
+                cols: 5, rows: 4, minStayDuration: 2500, maxStayDuration: 2000, minDecoys: 2, maxDecoys: 4,
+                maxMissPerTarget: 0, maxHearts: 5, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
+                poemMinRating: 3, minLines: 4, maxLines: 10, minChars: 8, maxChars: 70, maxTargetCount: 1,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             },
             '研究所': {
-                cols: 5, rows: 5, minStayDuration: 3000, maxStayDuration: 5000, minDecoys: 2, maxDecoys: 4,
-                maxMissPerTarget: 0, maxHearts: 3, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 1,
-                poemMinRating: 3, minLines: 8, maxLines: 20, minChars: 8, maxChars: 80, maxTargetCount: 4,
+                cols: 5, rows: 5, minStayDuration: 3000, maxStayDuration: 3000, minDecoys: 3, maxDecoys: 5,
+                maxMissPerTarget: 0, maxHearts: 4, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 1,
+                poemMinRating: 3, minLines: 4, maxLines: 12, minChars: 8, maxChars: 84, maxTargetCount: 2,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             }
         },

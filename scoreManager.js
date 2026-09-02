@@ -67,8 +67,8 @@ const ScoreManager = {
         'game31': { base: 100, heart: 10, time: 3, getPointA: 15 }, //詩眼覓蹤（字詞替換）
         'game32': { base: 100, heart: 10, time: 0, getPointA: 1 }, //尋詩地圖（地圖故事）
         'game33': {
-            base: 50, heart: 30, time: 1, getPointA: 25,
-            getPointAMul: { '小學': 0.66, '中學': 1.0, '高中': 1.25, '大學': 2.0, '研究所': 3.0 } //作者是誰（每張未翻開的線索卡 × getPointA，越早猜中分數越高）
+            base: 50, heart: 50, time: 1, getPointA: 25,
+            getPointAMul: { '小學': 0.66, '中學': 1.0, '高中': 1.25, '大學': 2.0, '研究所': 2.5 } //作者是誰（每張未翻開的線索卡 × getPointA，越早猜中分數越高）
         },
         'game34': { base: 100, heart: 10, time: 0, getPointA: 1 }, //猜猜詩題（標題配對）
         'game35': { base: 100, heart: 10, time: 0, getPointA: 1 }, //詩人心情（情境推理）
@@ -718,8 +718,8 @@ const ScoreManager = {
     resetAll: async function (opts) {
         const o = opts || {};
         const doCloud = o.cloud !== false;
-        const keepId  = o.keepId !== false;
-        const result  = { local: false, collection: false, cloud: null, id: null };
+        const keepId = o.keepId !== false;
+        const result = { local: false, collection: false, cloud: null, id: null };
 
         const id = (window.SupabaseClient && window.SupabaseClient.getCurrentId)
             ? window.SupabaseClient.getCurrentId() : '';

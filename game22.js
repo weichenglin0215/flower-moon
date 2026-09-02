@@ -87,7 +87,9 @@
         _pieceIdSeq: 1,
 
         // ---- 難度設定 ----
-        // poemType       : '五言' 固定五言；'七言' 隨機五言或七言（同 game21）
+        // （不再有 poemType：不限制每句字數，直接用抽到的詩詞實際字數排版；
+        //  拼圖本來就靠 expected 矩陣的 null 補格支援長短句的詞，見 showEmptyDelay 說明。
+        //  舊版鎖死五言/七言，青雲梯站點若剛好沒有那種字數的詩就整站出不了題，2026-09 移除）
         // hintLineDelay  : 提示行延遲秒數（s）
         // hintCharCount  : 提示字數，999 = 全顯
         // showHintInGrid : 主句格子是否以黃色底色標示
@@ -98,11 +100,11 @@
         //                  與 GAME23 同一套做法：不禁止把碎片拖進該區域，
         //                  只用顏色提示「這裡不是答案區」，避免玩家以為是 BUG。
         difficultySettings: {
-            '小學': { showEmptyDelay: 10, timeLimit: 60, poemMinRating: 6, poemType: '五言', hintLineDelay: 10, hintCharCount: 999, showHintInGrid: true, minPieceArea: 3, gridLines: 4 },
-            '中學': { showEmptyDelay: 20, timeLimit: 90, poemMinRating: 5, poemType: '七言', hintLineDelay: 20, hintCharCount: 7, showHintInGrid: true, minPieceArea: 2, gridLines: 4 },
-            '高中': { showEmptyDelay: 30, timeLimit: 130, poemMinRating: 4, poemType: '七言', hintLineDelay: 30, hintCharCount: 5, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
-            '大學': { showEmptyDelay: 60, timeLimit: 160, poemMinRating: 3, poemType: '七言', hintLineDelay: 40, hintCharCount: 3, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
-            '研究所': { showEmptyDelay: 90, timeLimit: 200, poemMinRating: 3, poemType: '七言', hintLineDelay: 999, hintCharCount: 0, showHintInGrid: false, minPieceArea: 2, gridLines: 4 }
+            '小學': { showEmptyDelay: 10, timeLimit: 60, poemMinRating: 6, hintLineDelay: 10, hintCharCount: 999, showHintInGrid: true, minPieceArea: 3, gridLines: 4 },
+            '中學': { showEmptyDelay: 20, timeLimit: 90, poemMinRating: 5, hintLineDelay: 20, hintCharCount: 7, showHintInGrid: true, minPieceArea: 2, gridLines: 4 },
+            '高中': { showEmptyDelay: 30, timeLimit: 130, poemMinRating: 4, hintLineDelay: 30, hintCharCount: 5, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
+            '大學': { showEmptyDelay: 60, timeLimit: 160, poemMinRating: 3, hintLineDelay: 40, hintCharCount: 3, showHintInGrid: false, minPieceArea: 2, gridLines: 4 },
+            '研究所': { showEmptyDelay: 90, timeLimit: 200, poemMinRating: 3, hintLineDelay: 999, hintCharCount: 0, showHintInGrid: false, minPieceArea: 2, gridLines: 4 }
         },
 
         // ------------------------------------------------------------
@@ -382,20 +384,17 @@
         prepareChallenge: function () {
             const s = this.difficultySettings[this.difficulty];
             const lines = s.gridLines;
-            // poemType：'五言' 固定 5 字；'七言' 從 [5,7] 隨機抽（同 game21 邏輯）
-            const possibleLens = (s.poemType === '五言') ? [5] : [5, 7];
-            const wantCharsPerLine = possibleLens[Math.floor(Math.random() * possibleLens.length)];
 
-            const minChars = lines * wantCharsPerLine;
-            const maxChars = lines * wantCharsPerLine;
+            // 不再要求每句字數剛好等於 5 或 7：直接用抽到的詩詞實際字數排版，
+            // 缺格由 expected 矩陣的 null 補（見 showEmptyDelay，本來就是為長短句的詞設計的）。
             const seed = this.isLevelMode ? this.currentLevelIndex : null;
             let pick = null;
-            // 三段式退讓
+            // 三段式退讓（僅放寬評分門檻，行數固定要求 gridLines 句）
             for (const minR of [s.poemMinRating, Math.max(1, s.poemMinRating - 1), 1]) {
-                pick = window.getSharedRandomPoem(minR, lines, lines, minChars, maxChars, '', seed, 'game22');
+                pick = window.getSharedRandomPoem(minR, lines, lines, lines * 2, lines * 9, '', seed, 'game22');
                 if (pick) break;
             }
-            // 終極退讓：放寬行數
+            // 終極退讓：連句數也放寬
             if (!pick) {
                 pick = window.getSharedRandomPoem(1, Math.max(2, lines - 2), lines + 2, 0, 9999, '', seed, 'game22');
             }
@@ -405,10 +404,7 @@
             }
             this.currentPoem = pick.poem;
             // 取得 lines 行乾淨字串；若實際行數不同，截取或補
-            const cleanLines = pick.lines.slice(0, lines);
-            // 對齊每行字數為 wantCharsPerLine（截短／不足則丟棄該行）
-            const validLines = cleanLines.filter(ln => ln.length === wantCharsPerLine);
-            const actualLines = validLines.length >= 2 ? validLines : cleanLines;
+            const actualLines = pick.lines.slice(0, lines);
             this.gridRows = actualLines.length;
             this.gridCols = Math.max(...actualLines.map(ln => ln.length));
 

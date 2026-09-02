@@ -28,9 +28,9 @@
         difficultySettings: {
             '小學': { timeMutiply: 1.4, poemMinRating: 6, maxMistakeCount: 6, minChars: 10, maxChars: 14, minLines: 2, maxLines: 8 },
             '中學': { timeMutiply: 1.2, poemMinRating: 5, maxMistakeCount: 5, minChars: 20, maxChars: 28, minLines: 4, maxLines: 8 },
-            '高中': { timeMutiply: 1.0, poemMinRating: 4, maxMistakeCount: 4, minChars: 28, maxChars: 40, minLines: 4, maxLines: 8 },
-            '大學': { timeMutiply: 0.85, poemMinRating: 3, maxMistakeCount: 3, minChars: 28, maxChars: 56, minLines: 4, maxLines: 8 },
-            '研究所': { timeMutiply: 0.7, poemMinRating: 3, maxMistakeCount: 2, minChars: 28, maxChars: 120, minLines: 4, maxLines: 8 }
+            '高中': { timeMutiply: 1.0, poemMinRating: 4, maxMistakeCount: 4, minChars: 20, maxChars: 40, minLines: 4, maxLines: 8 },
+            '大學': { timeMutiply: 0.85, poemMinRating: 3, maxMistakeCount: 3, minChars: 20, maxChars: 56, minLines: 4, maxLines: 8 },
+            '研究所': { timeMutiply: 0.7, poemMinRating: 3, maxMistakeCount: 2, minChars: 20, maxChars: 120, minLines: 4, maxLines: 8 }
         },
         gameStartTime: null, // 本局實際開始遊玩的時間戳記，用於統計遊玩時長並寫入紀錄
 

@@ -89,7 +89,9 @@
          *   timeLimitRate  ：每字（＝每個字塊）時間倍率（秒）。
          *                    實際時限 = 實際字塊總數 × timeLimitRate，必須在取詩後計算。
          *   poemMinRating  ：詩評下限
-         *   charsPerLine   ：每句字數，5＝五言（5×6 盤）、7＝七言（7×8 盤）
+         *   （不再有 charsPerLine：五言／七言兩種都嘗試，選到哪種就用哪種，
+         *    見 selectRandomPoem() —— 原本每個難度層固定只認一種字數，
+         *    青雲梯站點若剛好沒有那種字數的詩就整站出不了題，2026-09 移除）
          *   useColor       ：字塊是否依「字」分七彩（false → 單一白底黑字）
          *   useShape       ：字塊是否依「字」分七形（false → 全部圓角方形）
          *   invertMix      ：true＝研究所專用，同一個字的字塊刻意一半白底黑字、
@@ -98,11 +100,11 @@
          *   maxMistakeCount：可點錯幾次（紅心數）
          */
         difficultySettings: {
-            '小學': { timeLimitRate: 3.0, poemMinRating: 6, charsPerLine: 5, useColor: true, useShape: true, invertMix: false, showQuestion: 5, maxMistakeCount: 6, minLines: 2, maxLines: 2 },
-            '中學': { timeLimitRate: 2.6, poemMinRating: 5, charsPerLine: 5, useColor: true, useShape: true, invertMix: false, showQuestion: 4, maxMistakeCount: 5, minLines: 2, maxLines: 2 },
-            '高中': { timeLimitRate: 2.2, poemMinRating: 4, charsPerLine: 5, useColor: true, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 4, minLines: 2, maxLines: 2 },
-            '大學': { timeLimitRate: 2.0, poemMinRating: 3, charsPerLine: 7, useColor: false, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 3, minLines: 2, maxLines: 2 },
-            '研究所': { timeLimitRate: 1.8, poemMinRating: 3, charsPerLine: 7, useColor: false, useShape: false, invertMix: true, showQuestion: 2, maxMistakeCount: 2, minLines: 2, maxLines: 2 }
+            '小學': { timeLimitRate: 3.0, poemMinRating: 6, useColor: true, useShape: true, invertMix: false, showQuestion: 5, maxMistakeCount: 6, minLines: 2, maxLines: 2 },
+            '中學': { timeLimitRate: 2.6, poemMinRating: 5, useColor: true, useShape: true, invertMix: false, showQuestion: 4, maxMistakeCount: 5, minLines: 2, maxLines: 2 },
+            '高中': { timeLimitRate: 2.2, poemMinRating: 4, useColor: true, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 4, minLines: 2, maxLines: 2 },
+            '大學': { timeLimitRate: 2.0, poemMinRating: 3, useColor: false, useShape: false, invertMix: false, showQuestion: 3, maxMistakeCount: 3, minLines: 2, maxLines: 2 },
+            '研究所': { timeLimitRate: 1.8, poemMinRating: 3, useColor: false, useShape: false, invertMix: true, showQuestion: 2, maxMistakeCount: 2, minLines: 2, maxLines: 2 }
         },
 
         // ====================================================================
@@ -366,31 +368,48 @@
                 return false;
             }
             const settings = this.difficultySettings[this.difficulty];
-            const n = settings.charsPerLine;
-            const totalChars = n * 2;
 
-            let result = null;
-            for (let attempt = 0; attempt < 40; attempt++) {
-                const seed = this.isLevelMode ? (this.currentLevelIndex + attempt * 1000) : null;
-                const r = getSharedRandomPoem(
-                    // 字數必須恰為 charsPerLine × 2（兩句等長），故由設定推算而非另設鍵值
-                    settings.poemMinRating, settings.minLines, settings.maxLines,
-                    totalChars, totalChars, '', seed, 'game40'
-                );
-                if (r && r.lines && r.lines.length === 2 &&
-                    r.lines[0].length === n && r.lines[1].length === n) {
-                    result = r;
-                    break;
+            // 不再由難度層固定五言或七言：兩種字數都試，選到哪種就用哪種。
+            // ⚠️ 關卡模式下（isLevelMode）情境已鎖定唯一一首詩／一個關卡編號，
+            //    只有這一個 seed 是有效查詢，兩種字數都在這個 seed 上各試一次即可；
+            //    舊版用 currentLevelIndex + attempt×1000 製造「不同種子」重試，
+            //    但關卡表最長也才 795 關，一旦 attempt≥1 該序號必定超出範圍、
+            //    查表直接落空——等於關卡模式下其實只真正試過一次（attempt=0），
+            //    後面 39 次都是無效重試。改成同一個 seed 內把兩種字數都試過，
+            //    才是真的多一次機會。
+            const tryLens = (seed) => {
+                const lens = Math.random() < 0.5 ? [5, 7] : [7, 5]; // 隨機順序，避免永遠偏好五言
+                for (const c of lens) {
+                    const totalChars = c * 2;
+                    const r = getSharedRandomPoem(
+                        settings.poemMinRating, settings.minLines, settings.maxLines,
+                        totalChars, totalChars, '', seed, 'game40'
+                    );
+                    if (r && r.lines && r.lines.length === 2 &&
+                        r.lines[0].length === c && r.lines[1].length === c) {
+                        return { r, c };
+                    }
+                }
+                return null;
+            };
+
+            let hit = null;
+            if (this.isLevelMode) {
+                hit = tryLens(this.currentLevelIndex);
+            } else {
+                for (let attempt = 0; attempt < 40 && !hit; attempt++) {
+                    hit = tryLens(null);
                 }
             }
-            if (!result) {
-                console.warn('[game40] 找不到兩句皆為 ' + n + ' 字的詩，改用寬鬆條件');
+            if (!hit) {
+                console.warn('[game40] 找不到兩句等長（五言或七言皆可）的詩');
                 return false;
             }
 
-            this.currentPoem = result.poem;
-            this.poemLines = result.lines;
-            this.charsPerLine = n;
+            this.currentPoem = hit.r.poem;
+            this.poemLines = hit.r.lines;
+            this.charsPerLine = hit.c;
+            const n = hit.c;
 
             // 詩名（依規範最多顯示 12 字）
             let title = this.currentPoem.title;

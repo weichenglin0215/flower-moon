@@ -78,6 +78,11 @@
     border-left-color: var(--fm-celadon, hsl(150, 37%, 40%));
 }
 
+/* 'line' 玩法新增：作者資訊條（金橙色，與朝代/詩名/詩句三色區隔） */
+.game33-clue-card[data-type="作者"] {
+    border-left-color: var(--fm-gold, hsl(38, 80%, 45%));
+}
+
 /* 尚未翻開的線索卡：保留版面高度但不顯示內容，避免翻牌時整列跳動 */
 .game33-clue-card.game33-clue-hidden {
     visibility: hidden;
@@ -224,6 +229,77 @@
 }
 
 .game33-ans-col.wrong {
+    background: var(--fm-wrong-bg, #f9e3df);
+    border-color: var(--fm-wrong-border, #dd8a80);
+    color: var(--fm-wrong-text, #8a2b20);
+    animation: shake 0.5s;
+}
+
+/* ---------- 'line' 玩法答案區：4 條橫條（樣式抄 game1 .game1-option-btn） ---------- */
+/* 由左右直條的 flex-row 改成上下橫條的 flex-column，取代 .game33-answer-grid 的排列方向 */
+.game33-answer-grid.game33-line-list {
+    flex-direction: column;
+    height: auto;
+    gap: 12px;
+    width: 100%;
+}
+
+.game33-line-btn {
+    width: 100%;
+    margin: 0;
+    padding: 3px 10px;
+    background: var(--fm-paper-card, #fbf5e6);
+    color: var(--fm-ink, #2e241b);
+    border: 4px solid var(--fm-border, #d8c193);
+    border-radius: 12px;
+    letter-spacing: 6px;
+    line-height: 1.3;
+    min-height: 54px;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    box-shadow: var(--fm-shadow-btn, 0 4px 5px rgba(120, 90, 40, 0.22));
+    white-space: normal;
+    word-break: break-all;
+}
+
+.game33-line-btn:hover:not(:disabled) {
+    border-color: var(--fm-border-strong, #b98e50);
+    background: #fffdf3;
+}
+
+.game33-line-btn:disabled {
+    cursor: default;
+    opacity: 0.75;
+}
+
+/* 出場動畫：以自身中心點 scaleY 0→1，比照 game1 答案卡；延遲由 JS 壓進 0~0.5 秒之間 */
+.game33-line-btn.game33-line-appear {
+    transform-origin: center center;
+    animation: game33-line-grow 0.5s ease-out both;
+}
+
+@keyframes game33-line-grow {
+    from {
+        filter: brightness(0.66);
+        transform: scaleY(0.0);
+    }
+
+    to {
+        filter: brightness(1);
+        transform: scaleY(1);
+    }
+}
+
+.game33-line-btn.correct {
+    background: var(--fm-correct-bg, #e4f0e2);
+    border-color: var(--fm-correct-border, #7cbf93);
+    color: var(--fm-correct-text, #245c3c);
+}
+
+.game33-line-btn.wrong {
     background: var(--fm-wrong-bg, #f9e3df);
     border-color: var(--fm-wrong-border, #dd8a80);
     color: var(--fm-wrong-text, #8a2b20);

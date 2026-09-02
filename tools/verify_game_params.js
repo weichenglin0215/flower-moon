@@ -40,7 +40,7 @@ const TIERS = ['小學', '中學', '高中', '大學', '研究所'];
 const GAMES = {
     1: '慢思快選', 3: '字爬梯', 4: '眾裡尋他', 8: '一筆裁詩', 9: '詩韻鎖扣',
     11: '翻墨識蹤', 12: '疏影橫斜', 13: '人事時地', 14: '步步驚心', 20: '丟三落一',
-    22: '詩詞拼圖', 31: '詩眼覓蹤', 37: '步步為陣', 40: '點兵成詩'
+    22: '詩詞拼圖', 31: '詩眼覓蹤', 33: '作者是誰', 37: '步步為陣', 40: '點兵成詩'
 };
 
 /** 從 gameXX.js 原始碼裡取出 difficultySettings 物件 */
@@ -78,23 +78,30 @@ function requirementsOf(no, s) {
                          minChars: s.minChars, maxChars: s.maxChars, note: '題型' + f };
             });
         }
-        case 22: {  // 行數 = gridLines；每句字數五言固定 5，七言則每局在 5/7 之間隨機
-            const lens = (s.poemType === '五言') ? [5] : [5, 7];
-            return lens.map(c => ({
-                minLines: s.gridLines, maxLines: s.gridLines,
-                minChars: s.gridLines * c, maxChars: s.gridLines * c, note: c + '字'
-            }));
-        }
+        case 22:  // 2026-09 移除 poemType：不再限制每句字數，只要求 gridLines 句連續存在，
+                  // 缺格由 UI 的 null 補格處理（見 game22.js prepareChallenge 註解）
+            return [{ minLines: s.gridLines, maxLines: s.gridLines,
+                      minChars: s.gridLines * 2, maxChars: s.gridLines * 9 }];
         case 31:
             return [{ minLines: s.lineCount, maxLines: s.maxLines,
                       minChars: s.minChars, maxChars: s.maxChars }];
-        case 40:  // 兩句必須等長，總字數恰為 charsPerLine × 2
-            return [{ minLines: s.minLines, maxLines: s.maxLines,
-                      minChars: s.charsPerLine * 2, maxChars: s.charsPerLine * 2 }];
-        case 12:  // 題目要留得下要遮的字
+        case 40: {  // 2026-09 移除 charsPerLine：五言／七言都嘗試，任一成功即可（OR，非平均機率）。
+            // 且 game40.js 事後還會再驗證「兩句都恰好等於同一字數」，光靠總字數落在
+            // 區間內不夠，必須用 verify 複驗每一句的實際長度，否則會高估解出率。
+            const arr = [5, 7].map(c => ({
+                minLines: s.minLines, maxLines: s.maxLines,
+                minChars: c * 2, maxChars: c * 2, note: c + '言', _c: c
+            }));
+            arr.orMode = true;
+            arr.verify = (r, req) => r.lines.length === 2 &&
+                r.lines[0].length === req._c && r.lines[1].length === req._c;
+            return arr;
+        }
+        case 12:  // 題目要留得下要遮的字（公式需與 game12.js 的 requiredChars 完全一致，
+                  // 含 minShowCount 用 ?? 而非 || —— 0 是合法值，研究所層即用 0）
             return [{ minLines: s.minLines, maxLines: s.maxLines,
                       minChars: Math.max(s.minChars,
-                          (s.minTotalHideCount || 2) + (s.minShowCount || 1) * 2),
+                          (s.minTotalHideCount || 2) + (s.minShowCount ?? 1) * 2),
                       maxChars: s.maxChars }];
         default:
             return [{ minLines: s.minLines, maxLines: s.maxLines,
@@ -128,18 +135,35 @@ Object.keys(GAMES).map(Number).sort((a, b) => a - b).forEach(no => {
 
         // 每一種可能的需求都要驗，最後取平均 —— 遊戲每局是隨機挑其中一種，
         // 只看最寬鬆的那一種會嚴重高估。
+        // ⚠️ orMode（如 G40）例外：遊戲是「這幾種都試，任一成功就用」，不是隨機挑一種，
+        //    所以要以「每關」為單位判斷是否有任一 req 解得出來，不能對每個 req 分開計次。
         let solved = 0, onTarget = 0, tries = 0;
         const poems = {};
-        reqs.forEach(req => {
+        if (reqs.orMode) {
+            tries = levels.length;
             levels.forEach(lv => {
-                tries++;
-                const r = LevelTable.resolve(tier, lv, req);
-                if (!r) return;
+                let hit = null;
+                for (const req of reqs) {
+                    const r = LevelTable.resolve(tier, lv, req);
+                    if (r && (!reqs.verify || reqs.verify(r, req))) { hit = r; break; }
+                }
+                if (!hit) return;
                 solved++;
-                poems[r.poem.id] = true;
-                if (r.fallback !== 'same-cluster') onTarget++;
+                poems[hit.poem.id] = true;
+                if (hit.fallback !== 'same-cluster') onTarget++;
             });
-        });
+        } else {
+            reqs.forEach(req => {
+                levels.forEach(lv => {
+                    tries++;
+                    const r = LevelTable.resolve(tier, lv, req);
+                    if (!r) return;
+                    solved++;
+                    poems[r.poem.id] = true;
+                    if (r.fallback !== 'same-cluster') onTarget++;
+                });
+            });
+        }
         const sPct = tries ? Math.round(solved / tries * 100) : 100;
         const tPct = tries ? Math.round(onTarget / tries * 100) : 100;
 

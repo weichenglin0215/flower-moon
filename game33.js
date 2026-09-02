@@ -1,12 +1,23 @@
 /* =========================================
    遊戲33：作者是誰 (Who Wrote These?)
    ----------------------------------------
-   玩法：題目區依倒數時間逐一「上下翻出」最多 8 張線索卡
-        （朝代 / 詩名 / 詩句，詩名與詩句取自同一位作者的「多首」不同詩詞，
-          彼此之間沒有連貫性），評價越高（越有名）的線索越晚出現，
-        讓玩家在越早的階段猜中作者可獲得越高分數。
-   答案區：以「由左至右的直條方格」呈現候選詩人姓名（最多 7 條），
-        開局即依序左右翻開；外框為 SVG 倒數計時框。
+   每局用 getSharedRandomPoem 鎖定一首詩（青雲梯／考試情境下即站點白名單／
+   單詩鎖定的那首），再隨機混合兩種玩法（各半機率）：
+
+   mode==='author'（猜作者，原玩法）：
+     題目區依倒數時間逐一「上下翻出」最多 8 張線索卡
+     （朝代 / 詩名 / 詩句，詩名與詩句取自同一位作者的「多首」不同詩詞，
+       彼此之間沒有連貫性），評價越高（越有名）的線索越晚出現，
+     讓玩家在越早的階段猜中作者可獲得越高分數。
+     答案區：以「由左至右的直條方格」呈現候選詩人姓名（最多 7 條），
+     開局即依序左右翻開；外框為 SVG 倒數計時框。
+
+   mode==='line'（猜詩句，新玩法）：
+     題目區同時顯示「作者／朝代／詩名」三張資訊條（不做漸進揭露）。
+     答案區：4 條橫條詩句（樣式抄 game1 答案卡），只有一句真的是該作者
+     寫的（且來自題目指定的那首詩），其餘 3 句是其他作者的干擾句；
+     依剩餘時間比例計分。
+
    介面風格：比照 game20「丟三落一」（宣紙淺色 fm-* 共用主題）。
    ⚠️ 本遊戲不顯示 fm-poem-info（線索可能來自多首詩，顯示單一出處會造成誤解）。
    ========================================= */
@@ -28,12 +39,16 @@
         maxMistakeCount: 3,
 
         // ---- 題目資料 ----
+        currentPoem: null,      // 本局鎖定的詩（由 getSharedRandomPoem 取得；examEngine 靠此欄位驗證鎖題）
+        mode: 'author',         // 'author'＝猜作者（原玩法）｜'line'＝猜詩句（新玩法），每局隨機決定
         correctAuthor: '',      // 本局正解詩人
-        clues: [],              // 線索卡陣列 {type:'朝代'|'詩名'|'詩句', text, rating}
+        clues: [],              // 線索卡陣列 {type:'朝代'|'詩名'|'詩句', text, rating}（mode==='author' 用）
         revealedCount: 0,       // 已翻開的線索卡數量
         revealTimeouts: [],     // 線索卡逐一翻開的計時器控制代碼
         revealInterval: 2,      // 每張線索卡的間隔秒數（= 總時間 / 10）
-        candidates: [],         // 候選詩人姓名陣列
+        candidates: [],         // 候選詩人姓名陣列（mode==='author' 用）
+        correctLine: '',        // 正解詩句（mode==='line' 用）
+        lineOptions: [],        // 4 個詩句選項（含正解，已洗牌，mode==='line' 用）
 
         // ---- DOM 參考 ----
         container: null,
@@ -43,17 +58,21 @@
         // ---- 難度設定 ----
         // timeLimit:       時間限制（秒），線索卡間隔 = timeLimit / 10
         //                  （例：20 秒 → 開局翻第一張，之後每 2 秒翻一張）
-        // poemMinRating:   線索的最低評價門檻；線索由此評價開始，逐步往高評價揭露
+        // poemMinRating:   線索／干擾句的最低評價門檻；線索由此評價開始，逐步往高評價揭露
         //                  （例：高中為 4 → 先出現評價 4 的詩句，再 5，再 6/7）
         // maxMistakeCount: 最大錯誤次數
-        // answerCount:     答案直條數量（小學 2／中學 3／高中 5／大學 6／研究所 7）
-        // clueCount:       題目線索卡上限（最多 8 張；作者詩詞不足時允許少於此數）
+        // answerCount:     猜作者模式的答案直條數量（小學 2／中學 3／高中 5／大學 6／研究所 7）
+        // clueCount:       猜作者模式的題目線索卡上限（最多 8 張；作者詩詞不足時允許少於此數）
+        // minLines/maxLines/minChars/maxChars：
+        //   鎖定本局考哪首詩用的 getSharedRandomPoem 參數，只需要抓到「一句代表句」，
+        //   ⚠️ 刻意用寬鬆區間、不鎖死五言／七言（見遊戲類型介面設計與程式碼規範.md §6.1），
+        //   避免青雲梯站點剛好都是另一種詩體時整站出不了題。
         difficultySettings: {
-            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 1, answerCount: 3, clueCount: 8 },
-            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 2, answerCount: 4, clueCount: 8 },
-            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerCount: 5, clueCount: 8 },
-            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerCount: 6, clueCount: 8 },
-            '研究所': { timeLimit: 10, poemMinRating: 3, maxMistakeCount: 1, answerCount: 7, clueCount: 8 }
+            '小學': { timeLimit: 30, poemMinRating: 6, maxMistakeCount: 2, answerCount: 4, clueCount: 8, minLines: 2, maxLines: 2, minChars: 4, maxChars: 40 },
+            '中學': { timeLimit: 25, poemMinRating: 5, maxMistakeCount: 2, answerCount: 4, clueCount: 8, minLines: 2, maxLines: 2, minChars: 4, maxChars: 40 },
+            '高中': { timeLimit: 20, poemMinRating: 4, maxMistakeCount: 2, answerCount: 5, clueCount: 8, minLines: 2, maxLines: 2, minChars: 4, maxChars: 40 },
+            '大學': { timeLimit: 15, poemMinRating: 3, maxMistakeCount: 2, answerCount: 5, clueCount: 8, minLines: 2, maxLines: 2, minChars: 4, maxChars: 40 },
+            '研究所': { timeLimit: 10, poemMinRating: 3, maxMistakeCount: 1, answerCount: 5, clueCount: 8, minLines: 2, maxLines: 2, minChars: 4, maxChars: 40 }
         },
 
         // ------------------------------------------------------------
@@ -317,15 +336,50 @@
         },
 
         // ------------------------------------------------------------
-        // 題目準備：挑一位作者 → 從他的「多首」詩詞蒐集線索 → 生成候選姓名
+        // 題目準備：先用 getSharedRandomPoem 鎖定本局要考的詩（青雲梯／考試
+        // 情境下由 LevelTable 的站點白名單／單詩鎖定決定；自由練習下全庫隨機），
+        // 再依這首詩的作者，隨機選一種玩法：
+        //   'author' — 從該作者「多首」詩詞蒐集線索，猜出作者是誰（原玩法）
+        //   'line'   — 給定作者／朝代／詩名，從 4 句詩中選出真正是他寫的那句（新玩法）
         // ------------------------------------------------------------
         prepareChallenge: function () {
             if (typeof POEMS === 'undefined' || POEMS.length === 0) return false;
             const settings = this.difficultySettings[this.difficulty];
+            const seed = this.isLevelMode ? this.currentLevelIndex : null;
             const rng = this.makeRng(this.isLevelMode ? (this.currentLevelIndex * 7919 + 33) : null);
 
+            const result = getSharedRandomPoem(settings.poemMinRating, settings.minLines, settings.maxLines,
+                settings.minChars, settings.maxChars, "", seed, 'game33');
+            if (!result) return false;
+            // ⚠️ examEngine._tryCombo() 靠這個欄位比對是否真的鎖到指定詩，考試模式下必須設定
+            this.currentPoem = result.poem;
+
+            const correctAuthor = (result.poem.author || '').trim();
+            // ⚠️ 排除「佚名」、「西鄙人」、「無名氏」：代表作者不詳，不能拿來當正解
+            if (!correctAuthor || correctAuthor === '佚名' || correctAuthor === '西鄙人' || correctAuthor === '無名氏') {
+                return false;
+            }
+            const dynasty = result.poem.dynasty || '';
+            this.correctAuthor = correctAuthor;
+
+            this.mode = rng() < 0.5 ? 'author' : 'line';
+
+            // ⚠️ 'author' 玩法需要這位作者在全庫至少有 2 首詩才湊得出跨詩線索，
+            //    但這首詩已經是被鎖定的（青雲梯／考試情境下不能換），失敗時不能直接
+            //    判定整局出不了題——退而求其次改用 'line' 玩法（只需要這一首詩，
+            //    干擾句取自全庫、有 200 次重試備援，幾乎不會失敗）。
+            if (this.mode === 'author') {
+                if (this.prepareAuthorChallenge(correctAuthor, dynasty, settings, rng)) return true;
+                this.mode = 'line';
+            }
+            return this.prepareLineChallenge(result, correctAuthor, dynasty, settings, rng);
+        },
+
+        // ------------------------------------------------------------
+        // 'author' 玩法：從鎖定作者的「多首」詩詞蒐集線索 → 生成候選姓名
+        // ------------------------------------------------------------
+        prepareAuthorChallenge: function (correctAuthor, dynasty, settings, rng) {
             // 依作者彙整詩詞（排除無作者、或作者僅一首詩者，確保線索能跨多首詩）
-            // ⚠️ 排除「佚名」、「西鄙人」、「無名氏」：代表作者不詳，不能拿來當正解或干擾項
             const byAuthor = {};
             POEMS.forEach(p => {
                 const a = (p.author || '').trim();
@@ -334,21 +388,9 @@
                 byAuthor[a].push(p);
             });
 
-            // 候選作者：至少 2 首詩，且至少有一首達到本難度的評價門檻
-            let authors = Object.keys(byAuthor).filter(a =>
-                byAuthor[a].length >= 2 &&
-                byAuthor[a].some(p => (p.rating || 0) >= settings.poemMinRating)
-            );
-            // 降級保護：門檻過嚴時放寬為「至少 2 首詩」
-            if (authors.length === 0) {
-                authors = Object.keys(byAuthor).filter(a => byAuthor[a].length >= 2);
-            }
-            if (authors.length === 0) return false;
-
-            const author = authors[Math.floor(rng() * authors.length)];
-            this.correctAuthor = author;
-            const authorPoems = byAuthor[author];
-            const dynasty = authorPoems[0].dynasty || '';
+            const authorPoems = byAuthor[correctAuthor] || [];
+            // 鎖定的這首詩，作者在全庫裡不到 2 首詩 → 湊不出跨詩線索，判定這局出不了題
+            if (authorPoems.length < 2) return false;
 
             // ---- 蒐集線索（評價越高＝越有名，之後會排在越後面） ----
             const clues = this.collectClues(authorPoems, dynasty, settings, rng);
@@ -356,12 +398,26 @@
             this.clues = clues;
 
             // ---- 生成候選詩人（正解 + 干擾項；優先同朝代，避免用朝代直接排除） ----
-            this.candidates = this.generateCandidates(author, dynasty, byAuthor, settings.answerCount, rng);
+            this.candidates = this.generateCandidates(correctAuthor, dynasty, byAuthor, settings.answerCount, rng);
 
             this.revealedCount = 0;
             // 線索間隔：總時間 / 10（例：20 秒 → 2 秒一張）
             this.revealInterval = this.maxTimer / 10;
             return true;
+        },
+
+        // ------------------------------------------------------------
+        // 'line' 玩法：從鎖定的詩裡挑一句當正解，另外從全庫找 3 句非本作者的
+        // 干擾句（演算法比照 game1.js 的 generateOptionsData：同長度優先、
+        // 不足則全庫隨機補滿，確保這一步幾乎不會失敗）
+        // ------------------------------------------------------------
+        prepareLineChallenge: function (result, correctAuthor, dynasty, settings, rng) {
+            const lines = result.lines || [];
+            if (lines.length === 0) return false;
+            const correctLine = lines[Math.floor(rng() * lines.length)];
+            this.correctLine = correctLine;
+            this.lineOptions = this.generateLineDecoys(correctLine, correctAuthor, settings.poemMinRating, rng);
+            return this.lineOptions.length >= 2;   // 至少要有正解 + 1 個干擾句才成局
         },
 
         // ------------------------------------------------------------
@@ -457,6 +513,54 @@
             return result;
         },
 
+        // ------------------------------------------------------------
+        // 'line' 玩法的干擾句：抄 game1.js 的 generateOptionsData 演算法——
+        //   ① 優先找「非本作者、達評價門檻、字數與正解相同」的句子（迷惑性最高）
+        //   ② 不足 4 個則全庫隨機抽句補滿（僅排除本作者），最多嘗試 200 次
+        // 兩層備援疊加，這一步幾乎不會失敗，不會成為「出不了題」的原因。
+        // ------------------------------------------------------------
+        generateLineDecoys: function (correctLine, correctAuthor, minRating, rng) {
+            const PUNCT = /[，。？！、：；「」『』\s]/g;
+            const lineLen = correctLine.length;
+            const used = new Set([correctLine]);
+            const candidates = [];
+
+            POEMS.forEach(p => {
+                const author = (p.author || '').trim();
+                if (author === correctAuthor) return;
+                if ((p.rating || 0) < minRating) return;
+                (p.content || []).forEach(raw => {
+                    const clean = raw.replace(PUNCT, '');
+                    if (clean.length !== lineLen || used.has(clean)) return;
+                    candidates.push(clean);
+                });
+            });
+            this.shuffleInPlace(candidates, rng);
+
+            const result = [correctLine];
+            for (let i = 0; i < candidates.length && result.length < 4; i++) {
+                if (used.has(candidates[i])) continue;
+                result.push(candidates[i]);
+                used.add(candidates[i]);
+            }
+
+            // 備援：全庫隨機抽句補足（不限字數／評價，只排除本作者與已用過的句子）
+            let attempts = 0;
+            while (result.length < 4 && attempts < 200) {
+                attempts++;
+                const p = POEMS[Math.floor(rng() * POEMS.length)];
+                if (!p || !p.content || !p.content.length) continue;
+                if ((p.author || '').trim() === correctAuthor) continue;
+                const clean = p.content[Math.floor(rng() * p.content.length)].replace(PUNCT, '');
+                if (!clean || used.has(clean)) continue;
+                result.push(clean);
+                used.add(clean);
+            }
+
+            this.shuffleInPlace(result, rng);
+            return result;
+        },
+
         shuffleInPlace: function (arr, rng) {
             const rand = rng || Math.random;
             for (let i = arr.length - 1; i > 0; i--) {
@@ -466,12 +570,35 @@
         },
 
         // ------------------------------------------------------------
-        // 題目區渲染：先建立所有線索卡（皆為未翻開狀態）
+        // 題目區渲染：
+        //   mode==='author' → 建立所有線索卡（皆為未翻開狀態，逐張翻開見 scheduleClueReveals）
+        //   mode==='line'   → 直接同時顯示「作者／朝代／詩名」三張資訊條，不做漸進揭露
         // ------------------------------------------------------------
         renderClues: function () {
             const list = document.getElementById('game33-clue-list');
             list.innerHTML = '';
             this.revealedCount = 0;
+
+            if (this.mode === 'line') {
+                const poem = this.currentPoem || {};
+                const items = [
+                    { type: '作者', text: this.correctAuthor },
+                    { type: '朝代', text: poem.dynasty || '' },
+                    { type: '詩名', text: poem.title || '' }
+                ];
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'game33-clue-card game33-clue-flip';
+                    card.dataset.type = item.type;
+                    const size = this.clueFontSize(item.text.length);
+                    card.innerHTML = `
+                        <span class="game33-clue-label">${item.type}</span>
+                        <span class="game33-clue-text" style="font-size:${size}px;">${item.text}</span>
+                    `;
+                    list.appendChild(card);
+                });
+                return;
+            }
 
             this.clues.forEach((clue, i) => {
                 const card = document.createElement('div');
@@ -505,6 +632,7 @@
         scheduleClueReveals: function () {
             this.revealTimeouts.forEach(t => clearTimeout(t));
             this.revealTimeouts = [];
+            if (this.mode === 'line') return;   // 'line' 玩法的三張資訊條已在 renderClues 同時顯示
             this.clues.forEach((clue, i) => {
                 const delayMs = i * this.revealInterval * 1000;
                 const t = setTimeout(() => this.revealClue(i), delayMs);
@@ -524,13 +652,33 @@
         },
 
         // ------------------------------------------------------------
-        // 答案區渲染：由左至右的直條方格（文字直書），開局依序左右翻開
+        // 答案區渲染：
+        //   mode==='author' → 由左至右的直條方格（文字直書），開局依序左右翻開
+        //   mode==='line'   → 由上至下的 4 條橫條（樣式抄 game1 答案卡），依序出場
         // ------------------------------------------------------------
         renderAnswers: function () {
             const grid = document.getElementById('game33-answer-grid');
             grid.innerHTML = '';
             // 重置 SVG 計時邊框大小
             setTimeout(() => this.updateTimerRing(1), 0);
+
+            if (this.mode === 'line') {
+                grid.classList.add('game33-line-list');
+                const N = this.lineOptions.length;
+                this.lineOptions.forEach((line, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'game33-line-btn game33-line-appear';
+                    btn.style.fontSize = this.lineFontSize(line.length) + 'px';
+                    btn.textContent = line;
+                    // ⚠️ 出場動畫：所有橫條的啟動時機一律壓進 0~0.5 秒之間（比照 game1）
+                    const delay = (N > 1) ? (i / (N - 1)) * 0.5 : 0;
+                    btn.style.animationDelay = delay.toFixed(3) + 's';
+                    btn.addEventListener('click', () => this.handleLineChoice(line, btn));
+                    grid.appendChild(btn);
+                });
+                return;
+            }
+            grid.classList.remove('game33-line-list');
 
             const N = this.candidates.length;
             this.candidates.forEach((name, i) => {
@@ -557,6 +705,14 @@
                             : 34;
             if (nameLen >= 4) size = Math.floor(size * 0.8);
             return size;
+        },
+
+        // 橫條字級：固定 4 條，字級只依句長縮放（詩句可能是 4~9 字以上）
+        lineFontSize: function (len) {
+            if (len <= 5) return 48;
+            if (len <= 7) return 42;
+            if (len <= 9) return 36;
+            return 22;
         },
 
         // ------------------------------------------------------------
@@ -612,9 +768,62 @@
             }
         },
 
-        // 失敗時：⚠️ 不劇透正解，僅停用所有直條
+        // ------------------------------------------------------------
+        // 'line' 玩法判定：答對進入勝利動畫（依剩餘時間比例加分，取代
+        // 'author' 玩法用的「剩餘未翻線索數」算法）；答錯扣紅心並停用該橫條
+        // ------------------------------------------------------------
+        handleLineChoice: function (line, btn) {
+            if (!this.isActive) return;
+            if (btn.disabled || btn.classList.contains('wrong')) return;
+
+            if (line === this.correctLine) {
+                if (window.SoundManager) window.SoundManager.playSuccess();
+                btn.classList.add('correct');
+                this.clearAllTimers();
+
+                // 越早（剩餘時間比例越高）分數越高，邏輯比照 mode==='author' 的
+                // 「剩餘未翻線索數 + 1」倍率，只是換算基準從線索數改成剩餘時間比例
+                const basePts = (window.ScoreManager && window.ScoreManager.getPointA)
+                    ? window.ScoreManager.getPointA('game33', this.difficulty) : 50;
+                const remainRatio = this.maxTimer > 0 ? Math.max(0, this.timer / this.maxTimer) : 0;
+                this.score += basePts * (1 + remainRatio);
+                document.getElementById('game33-score').textContent = Math.floor(this.score);
+
+                // 通關前先禁用按鈕，防止連點刷分
+                document.getElementById('game33-retryGame-btn').disabled = true;
+                document.getElementById('game33-newGame-btn').disabled = true;
+                document.querySelectorAll('#game33-answer-grid .game33-line-btn').forEach(b => b.disabled = true);
+
+                ScoreManager.playWinAnimation({
+                    game: this,
+                    difficulty: this.difficulty,
+                    gameKey: 'game33',
+                    timerContainerId: 'game33-answer-grid-container',
+                    scoreElementId: 'game33-score',
+                    heartsSelector: '#game33-hearts .fm-heart:not(.empty)',
+                    onComplete: (finalScore) => {
+                        this.score = finalScore;
+                        this.gameOver(true, '');
+                    }
+                });
+            } else {
+                if (window.SoundManager) window.SoundManager.playFailure();
+                btn.classList.add('wrong');
+                btn.disabled = true;
+                this.mistakeCount++;
+                this.updateHearts();
+                if (this.mistakeCount >= this.maxMistakeCount) {
+                    this.clearAllTimers();
+                    this.disableAllAnswers();
+                    setTimeout(() => this.gameOver(false, "失誤過多！"), 1500);
+                }
+            }
+        },
+
+        // 失敗時：⚠️ 不劇透正解，僅停用所有答案（依 mode 停用直條或橫條）
         disableAllAnswers: function () {
             document.querySelectorAll('#game33-answer-grid .game33-ans-col').forEach(b => b.disabled = true);
+            document.querySelectorAll('#game33-answer-grid .game33-line-btn').forEach(b => b.disabled = true);
         },
 
         // ------------------------------------------------------------
