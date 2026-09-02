@@ -5,7 +5,7 @@
  * 規則層在 examConfig.js（純資料），本檔只負責「把考試跑起來」。
  *
  * ⭐ 一場考試長什麼樣
- *     一題 ＝ 用六款遊戲之一，玩一局指定的詩。
+ *     一題 ＝ 用八款遊戲之一，玩一局指定的詩。
  *     贏了那一局＝答對，輸了（紅心用完／時間到）＝答錯。
  *     全部題目跑完後統計答對數，達到及格線就通過。
  *
@@ -272,8 +272,8 @@
                 + '<div class="exg-row"><span>及格</span><span>答對 ' + p.passCount
                 + ' 題（' + p.passRateText + '）</span></div>'
                 + strictNote + mockNote
-                + '<div class="exg-note">每題以「人事時地／丟三落一／字爬梯／步步驚心／步步為陣／作者是誰」'
-                + '六款之一出題，過關即為答對。</div>'
+                + '<div class="exg-note">每題以「人事時地／丟三落一／字爬梯／步步驚心／步步為陣／作者是誰／'
+                + '眾裡尋他／打地詩」八款之一出題，過關即為答對。</div>'
                 + '<div class="exg-footer">'
                 + '<button class="exg-btn exg-btn-sub" id="exgQuit">先回家苦讀</button>'
                 + '<button class="exg-btn" id="exgGo">入場應試</button>'

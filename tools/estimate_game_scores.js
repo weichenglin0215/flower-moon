@@ -179,7 +179,7 @@ const MODELS = {
         inGame: SM.getPointA('game15', d) * q.chars,
         confidence: '中', note: '每字一次' }),
 
-    16: (s, q, d) => ({ hearts: s.maxHearts,
+    16: (s, q, d) => ({ hearts: s.maxMistakeCount,
         maxTimer: 0,   // 無時限
         inGame: SM.getPointA('game16', d) * q.chars,
         confidence: '中', note: '無時限（time:0）；combo>5 會加倍，此處未計入' }),
