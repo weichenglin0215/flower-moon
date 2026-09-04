@@ -1,8 +1,8 @@
 -- =============================================================================
--- 《花月》排行榜／統計 彙總表重構 — SQL 草案
+-- 《花月》群英榜／統計 彙總表重構 — SQL 草案
 --
 -- 目的：讓 game_logs 降級為「可拋棄的原始流水帳」，
---       排行榜與 db_viewer 統計改吃預先累加好的彙總表，
+--       群英榜與 db_viewer 統計改吃預先累加好的彙總表，
 --       從此刪除舊 LOG 不會影響任何數字。
 --
 -- 執行順序：第 1 節 → 第 2 節 → 第 3 節 → 第 4 節（一次性 backfill）
@@ -466,7 +466,7 @@ commit;
 
 
 -- =============================================================================
--- 5. RPC：排行榜與統計一律在資料庫端排序、限筆後才回傳
+-- 5. RPC：群英榜與統計一律在資料庫端排序、限筆後才回傳
 --
 --    這一節同時解決舊架構的隱性 bug：
 --    PostgREST 預設一次最多回 1000 列，舊的 fetchTimeBoard / fetchShortBoard
@@ -809,7 +809,7 @@ create index if not exists idx_game_logs_played_at on game_logs (played_at);
 --
 -- 7.1 刪除玩家：supabaseClient.js 的 deletePlayerFromCloud 目前只刪
 --     game_logs 與 player_saves，重構後必須連同 player_game_stats、
---     player_daily_stats 一起刪，否則被重置的玩家仍會留在排行榜上。
+--     player_daily_stats 一起刪，否則被重置的玩家仍會留在群英榜上。
 --     （daily_game_stats 不含 player_id，不需處理，也不該處理。）
 --     可用下列函式，前端改呼叫一次 rpc 即可：
 --
@@ -845,7 +845,7 @@ create index if not exists idx_game_logs_played_at on game_logs (played_at);
 --     ⚠️ source='rank'（晉升文位本身的文錢獎勵）是確認中的既定設計，
 --        但目前完全沒有實作（learningPath.js 的 showPromotionPopup 只給稱號、
 --        不給文錢）。後續實作時務必同步呼叫 addSilver(amount, 'rank', station.name)，
---        否則這筆錢不會進入日曆與排行榜的彙總。詳見
+--        否則這筆錢不會進入日曆與群英榜的彙總。詳見
 --        note/玩家遊戲日曆_企劃書.md 第 5.2、5.4、9 節。
 --
 -- 7.5 分日時區：本次改以 Asia/Taipei 分日，與舊前端（UTC 分日）不同，

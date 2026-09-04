@@ -240,9 +240,9 @@
 
 .pc-cell {
     position: relative;
-    height: 56px;
+    height: 64px;
     border-radius: 9px;
-    border: 1px solid hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.16);
+    border: 2px solid hsl(from var(--lp-bg-gold-deep, hsl(35, 48%, 24%)) h s l / 0.16);
     /* 無紀錄／預設底色：米白淺 */
     background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
     display: flex;
@@ -250,7 +250,7 @@
     align-items: center;
     justify-content: center;
     line-height: 1.1;
-    /* ⚠️ 手機上單格僅 56px，接近觸控下限。
+    /* ⚠️ 手機上單格僅 64px，接近觸控下限。
        格子本身即為觸控區，靠 gap 保留視覺留白，
        不再向內縮小可點範圍（企劃書 §2.B）。 */
     -webkit-tap-highlight-color: transparent;
@@ -438,7 +438,7 @@
     padding: 7px 0;
     border: 1px solid var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
     border-radius: 9px;
-    background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
+    background: var(--lp-bg-cream-deep, hsl(42, 48%, 76%));
     color: var(--lp-text-ink, hsl(29, 23%, 20%));
     font-family: inherit;
     font-size: var(--lp-fs-xs, 18px);
@@ -458,6 +458,8 @@
     height: 30px;
     flex: 0 0 auto;
     border: 1px solid var(--lp-bg-gold-light, hsl(40, 66%, 40%));
+    border-bottom: 3px solid var(--lp-bg-gold-light);
+    box-shadow: 0 4px 6px hsl(from var(--lp-bg-gold-deep) h s l / 0.5);
     border-radius: 10px;
     background: var(--lp-bg-cream-light, hsl(43, 72%, 94%));
     color: var(--lp-text-cinnabar, hsl(6, 63%, 46%));

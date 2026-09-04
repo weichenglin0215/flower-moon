@@ -240,7 +240,7 @@
     /* 卡片邊框：想讓文位框更醒目/更厚重，加粗這個數字（目前 3px），
        或改 --lp-bg-gold-light 換整體邊框色調 */
     border: 3px solid var(--lp-bg-gold-light);
-    box-shadow: 0 4px 10px hsl(from var(--lp-bg-gold-deep) h s l / 0.22);
+    box-shadow: 0 4px 8px hsl(from var(--lp-bg-gold-deep) h s l / 0.32);
 }
 
 /* 文位框內部的「上排」：左邊文位名稱、右邊三欄數值 */
@@ -389,10 +389,28 @@
 
 /* 單一站點的最外層容器：定位＋內部圖示與文字水平排列 */
 .lp-station {
-    /* JS 會設定 left/top 決定這個站點在道路上的座標，
-       translate(-50%, -50%) 讓座標點對齊圖示的正中心，而不是左上角 */
+    /* JS 會設定 left/top 決定這個站點在道路上的座標。 */
     position: absolute;
-    transform: translate(-50%, -50%);
+
+    /* ⚠️ width:max-content 是必要的，不是美化：
+       絕對定位元素若不指定寬度，瀏覽器會用 shrink-to-fit，可用寬度是
+       「道路寬度 − left」，右側的站點會因此只剩一百多 px，詩名按鈕那排
+       被迫換行，文字高度超過站距而與相鄰站疊在一起。 */
+    width: max-content;
+
+    /* ⚠️⚠️ 水平方向**不可以**用 translate(-50%)。
+       那會把「圖示＋文字」整個方塊置中在座標點上，但方塊是不對稱的
+       （一邊是圖示、一邊是一長條文字），置中的結果是圖示被文字推開 ——
+       實測偏移達 ±151px，x=345 的站點圖示畫在 469，道路的正弦曲線
+       整個被文字寬度扭曲，而且方塊被擠到單邊，另一邊留下一大片空白。
+
+       正確的錨點是**圖示的中心**：水平位移只推「半個圖示」的距離，
+       文字自然往外側展開。這樣圖示一定落在 JS 算出的曲線座標上，
+       文字也用得到那一側全部的剩餘空間。
+       位移量用 --lp-icon-half（＝圖示寬度的一半，含邊框）。 */
+    --lp-icon-half: 22px;
+    /* 文字在右：圖示是第一個子元素，貼在方塊左緣 → 往左推半個圖示 */
+    transform: translate(calc(-1 * var(--lp-icon-half)), -50%);
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -654,7 +672,7 @@
     white-space: nowrap;
 }
 
-/* 站點在道路左右交錯排列時，文字要跟著站在「外側」，
+/* 站點在道路左右交錯排列時，文字要跟著站在「空間比較多」的那一側，
    避免文字被畫面邊緣裁切。JS 會依站點在畫面左/右決定加上哪個 class。 */
 .lp-label-right .lp-station-text {
     align-items: flex-start;
@@ -662,6 +680,17 @@
 
 .lp-label-left .lp-station-text {
     align-items: flex-end;
+}
+
+/* 文字在左：圖示是最後一個子元素，貼在方塊右緣。
+   要讓圖示中心對準座標點，就得把整個方塊往左拉一整個寬度、再推回半個圖示。 */
+.lp-label-left {
+    transform: translate(calc(-100% + var(--lp-icon-half)), -50%);
+}
+
+/* 文位站的圖示比小站大一號（64 vs 44，皆已含邊框），錨點要跟著改 */
+.lp-rank-station {
+    --lp-icon-half: 32px;
 }
 
 /* 站名文字本體（小站顯示遊戲名稱，文位站顯示文位稱號） */
@@ -682,6 +711,71 @@
     margin-top: 2px;
     font-size: var(--lp-fs-xs);
     color: var(--lp-text-faint);
+}
+
+/* ── 副標下方的「詩名小按鈕」：這一站要學的每首詩各一顆 ──────────────
+   詩名截幾個字由 JS 依這一站的詩數決定（見 buildPoemChips），
+   這裡不用 CSS 截字：那會出現「…」而失去可辨識性。
+
+   ⚠️⚠️ 這裡**刻意不寫 max-width 與 font-size**，兩者都由 JS 逐站算出來
+   寫成 inline style。因為可用寬度每一站都不同：圖示錨在道路曲線的座標點
+   上，文字往空間較多的那一側展開，能用的就是那一側的剩餘空間 ——
+   擺幅兩端最寬（約 300px），曲線正中央（x≈250）最窄（約 206px）。
+
+   這一段前後錯過兩次，都是「用一個固定值套所有站點」造成的：
+     · 第一版寫死 max-width: 236px（拿擺幅兩端的最壞情況套全部），
+       站在正中央、左右還很空的站點被逼著換行；
+     · 第二版改成 2 × min(x, 500 − x)，那是「整個方塊置中在 x」的公式，
+       但置中本身就是錯的（見 .lp-station 的說明）。
+
+   若要調整外觀，字級上下限與內距請改 learningPath.js 頂端的
+   CHIP_FS_MIN / CHIP_FS_MAX / CHIP_STYLE_BY_COUNT —— 那幾個常數
+   同時是字級回推公式的輸入，只改 CSS 會讓公式與實際排版對不上。 */
+.lp-poem-chips {
+    display: flex;
+    flex-wrap: wrap;   /* 只是保險：真的排不下時換行，不要頂出畫面 */
+    margin-top: 4px;
+    /* gap 與 --lp-chip-pad-x 由 JS 依按鈕數量寫成 inline style；
+       這裡的值只是 JS 尚未套用時的保底 */
+    gap: 4px;
+    --lp-chip-pad-x: 5px;
+}
+
+/* 站點在道路左右交錯時，按鈕也要跟著靠外側對齊，與上方文字同一邊 */
+.lp-label-left .lp-poem-chips {
+    justify-content: flex-end;
+}
+
+/* 按鈕本體。font-size 由父層 .lp-poem-chips 的 inline style 繼承（JS 算），
+   左右內距讀 --lp-chip-pad-x（同樣由 JS 寫入）——
+   兩者都是字級回推公式的輸入，不要在這裡改成固定值。 */
+.lp-poem-chip {
+    display: inline-block;
+    padding: 1px var(--lp-chip-pad-x);
+    line-height: 1.5;
+    color: var(--lp-text-ink);
+    background: var(--lp-bg-cream-light);
+    border: 1px solid hsl(from var(--lp-bg-gold-deep) h s l / 0.55);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.15s, background 0.15s;
+}
+
+.lp-poem-chip:hover {
+    background: var(--lp-bg-cream-deep);
+    border-color: var(--lp-bg-gold-light);
+    transform: translateY(-1px);
+}
+
+.lp-poem-chip:active {
+    transform: translateY(1px);
+}
+
+/* 未解鎖的站：詩名按鈕一樣要看得見、也一樣可以點開查詩
+   （企劃要求文位與關卡編號在未解鎖時也要顯示），只是淡一點 */
+.lp-locked .lp-poem-chip {
+    opacity: 0.65;
 }
 
 /* ── 三種站點狀態：已完成／目前所在／尚未解鎖 ──────────────────────
@@ -746,18 +840,18 @@
     right: 18px;
     bottom: 18px;
     /* 按鈕整體大小，想要更大更好按（尤其手機）可以加大這兩個數字 */
-    width: 54px;
-    height: 54px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     color: var(--lp-text-cinnabar);
     background: var(--lp-bg-cream-light);
-    border: 3px solid var(--lp-bg-gold-light);
+    border: 1px solid var(--lp-bg-gold-light);
     border-radius: 12px;
     cursor: pointer;
-    box-shadow: 0 4px 10px hsl(from var(--lp-bg-gold-deep) h s l / 0.35);
+    box-shadow: 0 4px 8px hsl(from var(--lp-bg-gold-deep) h s l / 0.35);
     transition: transform 0.15s ease-out;
     /* z-index: 5 只需要比 .lp-track 裡的站點高即可，不需要對到全站的
        1000/2100/4200 那套約定 —— 這顆按鈕跟站點都在同一個 .lp-overlay

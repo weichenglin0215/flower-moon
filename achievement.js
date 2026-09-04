@@ -217,16 +217,22 @@
                                         <div class="ach-stat-lbl">登入天數</div>
                                     </div>
                                 </div>
-                                <!-- 進階橫欄：積分階級的推進比例。
-                                     ⚠️ 這條橫欄與「文位」無關 —— 新規則下積分只作排行榜與
-                                     玩家表現統計（企劃書 §2、§8），文位一律由青雲梯站點
-                                     進度與考試通過紀錄決定。兩者名稱剛好同名，因此這裡
-                                     必須明寫標題，否則玩家會誤以為刷分就能升文位。 -->
+                                <!-- 文位進度橫欄：距離「下一個文位」還差多少課程進度。
+                                     ⚠️⚠️ 這條橫欄過去畫的是**積分階級**的推進比例
+                                     （totalScore 與 ScoreManager.ranks[].minScore 的比值），
+                                     那是舊制「積分升等」的最後遺留。即使當時已在標題註明
+                                     「與文位無關」，玩家看到的仍然是一條寫著「書僮 → 蒙童」
+                                     的進度條隨著刷分前進 —— 與新規則（企劃書 §2：積分完全
+                                     不參與文位判定）給出的訊息完全相反。
+                                     現在一律改看青雲梯：目前文位取 getEffectiveRank
+                                     （站點進度＋考試通過紀錄），分母取下一個文位里程碑的
+                                     應學詩詞數，分子取其中已學會（必通關卡全通）的首數。
+                                     積分仍保留在上方「累積總分」數字方塊裡，純作統計。 -->
                                 <div class="ach-rank-progress-row" id="achRankProgressRow">
-                                    <div style="font-size:13px;opacity:.7;text-align:center;margin-bottom:2px;">積分階級（排行榜統計用，與文位無關）</div>
+                                    <div style="font-size:13px;opacity:.7;text-align:center;margin-bottom:2px;" id="achRankProgCaption">文位進度（青雲梯課程，與積分無關）</div>
                                     <div class="ach-rank-progress-labels">
                                         <span id="achRankProgFrom">書僮</span>
-                                        <span id="achRankProgScore">0 / 10,000</span>
+                                        <span id="achRankProgScore">0 / 0 首</span>
                                         <span id="achRankProgTo">蒙童</span>
                                     </div>
                                     <div class="ach-rank-progress-track">
@@ -259,6 +265,19 @@
                         </div>
                         <!-- 成就殿堂徽章面板 -->
                         <div class="ach-panel" id="ach-panel-badges">
+                            <!-- 一鍵領取：獎狀會隨著遊玩次數無限延伸（100 次之後每滿 100 次
+                                 就多一張），累積到數十張時逐張點擊要按上百下，每按一下還會
+                                 播一次三秒的獎狀動畫，實測是玩家最常抱怨的操作。
+                                 沒有待領項目時整列隱藏，避免變成一顆按了沒反應的死按鈕。
+
+                                 ⚠️ 這一列必須 position:sticky 常駐在頂端（樣式見 CSS）：
+                                    點擊「成就殿堂」頁籤時 scrollToFirstPending 會自動把清單
+                                    捲到第一張待領獎狀的位置，若這顆按鈕跟著清單捲動，
+                                    玩家一進來就已經捲過頭，根本看不到它。 -->
+                            <div class="ach-claim-all-row" id="achClaimAllRow" style="display:none;">
+                                <button class="ach-btn-claim claim-pending" id="achBtnClaimAll">領取所有獎狀</button>
+                                <div class="ach-claim-all-hint" id="achClaimAllHint"></div>
+                            </div>
                             <div class="ach-badges" id="achBadgesContainer">
                                 <!-- 動態生成 -->
                             </div>
@@ -334,6 +353,14 @@
                 });
 
             });
+
+
+
+            // 一鍵領取所有獎狀
+            const btnClaimAll = this.overlay.querySelector('#achBtnClaimAll');
+            if (btnClaimAll) {
+                btnClaimAll.addEventListener('click', () => this.claimAllAchievementRewards());
+            }
 
 
 
@@ -804,8 +831,8 @@
             // ── 渲染「考試」相關 CTA（縣案首以上依規則顯示）── 移到文位下方
             this.renderExamCTAs(data, totalScore, nextRank);
 
-            // ── 渲染文位進度橫欄（僅依積分推算，不考慮考試通過） ──
-            this.renderRankProgressBar(totalScore);
+            // ── 渲染文位進度橫欄（青雲梯課程進度＋考試，完全不看積分） ──
+            this.renderRankProgressBar(data);
 
 
 
@@ -1155,11 +1182,36 @@
 
             this.renderPoemsPanel(data);
 
-            // 更新「成就殿堂」頁籤右上角未領獎狀提示
+            // 更新「成就殿堂」頁籤右上角未領獎狀提示，並同步「領取所有獎狀」那一列
+            // ⚠️ 待領數量一律以剛剛重繪出來的 DOM 為準，不另外再算一次。
+            //    若這裡自己重算一遍門檻，就等於把上面那段判定邏輯抄成第二份，
+            //    日後任一邊改了規則就會出現「按鈕說有 3 張、清單只有 2 張」。
+            const pendingBtns = badgesContainer.querySelectorAll('.ach-btn-claim.claim-pending');
+            const pendingCount = pendingBtns.length;
+
             const badgeTab = this.overlay.querySelector('.ach-tab[data-target="ach-panel-badges"]');
             if (badgeTab) {
-                const pendingCount = badgesContainer.querySelectorAll('.ach-btn-claim.claim-pending').length;
                 badgeTab.classList.toggle('has-unclaimed', pendingCount > 0);
+            }
+
+            const claimAllRow = this.overlay.querySelector('#achClaimAllRow');
+            if (claimAllRow) {
+                claimAllRow.style.display = pendingCount > 0 ? '' : 'none';
+                if (pendingCount > 0) {
+                    // 順便把「一次能拿到多少」先算給玩家看，省得逐張點開才知道
+                    let sumScore = 0, sumSilver = 0;
+                    pendingBtns.forEach(b => {
+                        const rw = this.getRewardForAchId(b.dataset.achId || '');
+                        sumScore += rw.score || 0;
+                        sumSilver += rw.silver || 0;
+                    });
+                    const btnAll = this.overlay.querySelector('#achBtnClaimAll');
+                    if (btnAll) btnAll.textContent = `領取所有獎狀（${pendingCount} 張）`;
+                    const hint = this.overlay.querySelector('#achClaimAllHint');
+                    if (hint) {
+                        hint.textContent = `可獲 ${sumScore.toLocaleString()} 積分 ／ ${sumSilver.toLocaleString()} 文錢`;
+                    }
+                }
             }
             // 更新「總覽」頁籤右上角提示：有考試 CTA 或領獎狀 CTA 就亮紅點
             const overviewTab = this.overlay.querySelector('.ach-tab[data-target="ach-panel-overview"]');
@@ -1245,7 +1297,7 @@
                 'left:50%',
                 'top:50%',
                 'transform:translate(-50%,-50%)',
-                'width:66%',
+                'width:80%',
                 'max-height:92%',
                 'background:linear-gradient(135deg, hsl(30,35%,16%), hsl(28,40%,2%))',
                 'border:2px solid hsl(45,70%,55%)',
@@ -1352,35 +1404,85 @@
             host.appendChild(wrap);
         },
 
-        // 依「積分」推算目前與下一階級，繪製進度橫欄
-        renderRankProgressBar: function (totalScore) {
-            const ranks = window.ScoreManager ? window.ScoreManager.ranks : null;
-            if (!ranks) return;
+        /**
+         * 繪製「文位進度」橫欄 —— 依青雲梯課程進度，不看積分。
+         *
+         * ⚠️⚠️ 這支函式的舊版簽章是 renderRankProgressBar(totalScore)，
+         *    畫的是 totalScore 在 ScoreManager.ranks[].minScore 之間的比例。
+         *    那是舊制「積分升等」的最後一處殘留：畫面上是一條寫著
+         *    「書僮 → 蒙童」的進度條，玩家刷分它就前進，但實際上刷再多分
+         *    也一格都不會晉升（企劃書 §2）。加註「與文位無關」的小字沒有用 ——
+         *    進度條本身講的話比小字大聲。因此整支改寫為真正的判準：
+         *
+         *      目前文位 = ScoreManager.getEffectiveRank()（站點進度＋考試通過）
+         *      下一文位 = PathStations.getNextRankNameAfter(目前文位)
+         *      進度     = LearningPath.getRankExamProgress(下一文位)
+         *                 的 poemsDone / poemsNeed（該里程碑之前，
+         *                 必通關卡全數完成的詩詞首數）
+         *
+         *    分母採「應學詩詞首數」而非「必通關卡數」，是為了與點擊文位
+         *    彈出的「文位一覽」表格欄位一致（那張表列的就是應學詩詞 N 首），
+         *    兩處對不上會讓玩家以為其中一邊算錯。
+         *
+         * @param {object} data ScoreManager.loadPlayerData() 的結果
+         */
+        renderRankProgressBar: function (data) {
             const row = document.getElementById('achRankProgressRow');
             const fromEl = document.getElementById('achRankProgFrom');
             const toEl = document.getElementById('achRankProgTo');
             const scoreEl = document.getElementById('achRankProgScore');
             const fillEl = document.getElementById('achRankProgFill');
+            const capEl = document.getElementById('achRankProgCaption');
             if (!row || !fromEl || !toEl || !scoreEl || !fillEl) return;
 
-            let currRank = ranks[0], nextRank = null;
-            for (let i = 0; i < ranks.length; i++) {
-                if (totalScore >= ranks[i].minScore) currRank = ranks[i];
-                else { nextRank = ranks[i]; break; }
+            const SM = window.ScoreManager;
+            const PS = window.PathStations;
+            const LP = window.LearningPath;
+
+            // 三個模組任一未載入就整條隱藏 —— 寧可不顯示，也不要退回積分那條路，
+            // 否則又會在某些載入時序下悄悄畫出一條「刷分就會動」的假進度。
+            if (!SM || !PS || !LP || typeof SM.getEffectiveRank !== 'function') {
+                row.style.display = 'none';
+                return;
+            }
+            row.style.display = '';
+
+            const currName = SM.getEffectiveRank(data);
+            const nextName = (typeof PS.getNextRankNameAfter === 'function')
+                ? PS.getNextRankNameAfter(currName) : '';
+
+            fromEl.textContent = currName;
+
+            // 已是最後一個文位（大儒）
+            if (!nextName) {
+                toEl.textContent = '極位';
+                scoreEl.textContent = '已臻極位';
+                fillEl.style.width = '100%';
+                if (capEl) capEl.textContent = '文位進度（青雲梯課程，與積分無關）';
+                return;
             }
 
-            fromEl.textContent = currRank.name;
-            if (nextRank) {
-                toEl.textContent = nextRank.name;
-                const span = Math.max(1, nextRank.minScore - currRank.minScore);
-                const gained = Math.max(0, totalScore - currRank.minScore);
-                const pct = Math.min(100, Math.max(0, (gained / span) * 100));
-                scoreEl.textContent = `${totalScore.toLocaleString()} / ${nextRank.minScore.toLocaleString()}`;
-                fillEl.style.width = pct.toFixed(1) + '%';
-            } else {
-                toEl.textContent = '極位';
-                scoreEl.textContent = `${totalScore.toLocaleString()}`;
-                fillEl.style.width = '100%';
+            toEl.textContent = nextName;
+
+            const prog = (typeof LP.getRankExamProgress === 'function')
+                ? LP.getRankExamProgress(nextName)
+                : { ok: false, poemsDone: 0, poemsNeed: 0 };
+
+            const need = prog.poemsNeed || 0;
+            const done = Math.min(prog.poemsDone || 0, need);
+            const pct = need > 0 ? Math.min(100, (done / need) * 100) : 0;
+
+            scoreEl.textContent = `${done} / ${need} 首`;
+            fillEl.style.width = pct.toFixed(1) + '%';
+
+            // 課程已修畢但下一個文位要考試 → 進度條滿格，但文位還沒到手，
+            // 必須明講，否則玩家會看著滿格的條子疑惑為何文位沒變。
+            // （「參加考試」按鈕由 renderExamCTAs 畫在文位下方。）
+            if (capEl) {
+                const needExam = (typeof PS.isExamRank === 'function') && PS.isExamRank(nextName);
+                capEl.textContent = (prog.ok && needExam)
+                    ? `課程已修畢，通過「${nextName}」考試即可晉升`
+                    : '文位進度（青雲梯課程，與積分無關）';
             }
         },
 
@@ -1395,7 +1497,11 @@
 
             if (!body) return;
 
-            const btn = this.overlay.querySelector('#ach-panel-badges .ach-btn-claim.claim-pending');
+            // ⚠️ 一定要限縮在 #achBadgesContainer 之內。「領取所有獎狀」按鈕
+            //    也帶著 .ach-btn-claim.claim-pending（為了共用金色樣式與紅點），
+            //    若用 #ach-panel-badges 當範圍，它會變成第一個命中的元素，
+            //    自動捲動就會停在那顆常駐按鈕上，而不是第一張待領獎狀。
+            const btn = this.overlay.querySelector('#achBadgesContainer .ach-btn-claim.claim-pending');
 
             if (!btn) {
                 // 沒有待領項目 → 捲回頂端
@@ -2080,6 +2186,109 @@
             setTimeout(() => this.scrollToFirstPending(), 120);
 
             this.showCert(imgUrl, text, true, scoreReward, silverReward);
+
+        },
+
+
+
+        /**
+         * 一鍵領取所有待領獎狀。
+         *
+         * 與 claimAchievementReward 的差別只在「批次」二字，規則完全相同：
+         * 同一組 getRewardForAchId 查表、同一個 achievements.claimed 冪等旗標、
+         * 同樣的 100 積分 = 1 文錢比例。刻意**不**呼叫 claimAchievementReward
+         * N 次，理由有三：
+         *   ① 那會寫 N 次 localStorage、排 N 次雲端同步、跑 N 次 renderData，
+         *      獎狀累積到數十張時整個面板會卡住數秒。
+         *   ② 那會連續彈出 N 次獎狀動畫（每次三秒），玩家得一直點關閉。
+         *   ③ silver_events 會多出 N 筆流水帳；批次領取在帳上本來就該是一筆。
+         * 因此這裡改成「先全部算完，再一次寫檔、一次動畫」。
+         *
+         * ⚠️ 待領清單一律取自剛剛 renderData 產生的 DOM（.claim-pending 的
+         *    dataset.achId），不自行重算門檻 —— 重算就是把判定規則抄成第二份。
+         * ⚠️ 文位獎狀（rank_*）永遠不會出現在這個清單裡（成就殿堂的文位區塊
+         *    只給「查看獎狀」），但這裡仍照 claimAchievementReward 的做法擋一次：
+         *    誤寫 rank_* 會讓 grantPromotionSilver 的冪等旗標提前成立，
+         *    玩家真正晉升時那筆文錢就永遠領不到，且沒有任何錯誤訊息。
+         */
+        claimAllAchievementRewards: function () {
+
+            if (!this.overlay || !window.ScoreManager) return;
+
+            const btns = this.overlay.querySelectorAll(
+                '#achBadgesContainer .ach-btn-claim.claim-pending');
+
+            const ids = [];
+            btns.forEach(b => {
+                const id = b.dataset.achId;
+                if (!id) return;
+                if (id.indexOf('rank_') === 0) {
+                    console.warn('[成就] 文位獎狀不經手動領取，批次領取已略過：', id);
+                    return;
+                }
+                ids.push(id);
+            });
+
+            if (ids.length === 0) return;
+
+            if (window.SoundManager) window.SoundManager.playJoyfulTriple();
+
+            const data = window.ScoreManager.loadPlayerData();
+            if (!data.achievements.claimed) data.achievements.claimed = [];
+
+            let totalScore = 0, totalSilver = 0, claimedCount = 0;
+
+            ids.forEach(achId => {
+                if (data.achievements.claimed.includes(achId)) return;   // 冪等：已領過就跳過
+                data.achievements.claimed.push(achId);
+                const reward = this.getRewardForAchId(achId);
+                totalScore += reward.score || 0;
+                totalSilver += reward.silver || 0;
+                claimedCount++;
+            });
+
+            if (claimedCount === 0) return;
+
+            data.totalScore += totalScore;
+
+            // 積分階級（僅排行榜統計用，與文位無關）同步刷新
+            if (window.ScoreManager) {
+                data.globalRank = window.ScoreManager.getCurrentRank(data.totalScore);
+            }
+
+            localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+
+            if (window.SupabaseClient) {
+                window.SupabaseClient.saveGameToCloud(data);
+            }
+
+            // ── 給予文錢：整批只寫一筆流水帳（note 記下實際張數以利對帳）──
+            if (window.FMCollectionSave && totalSilver > 0) {
+                try {
+                    const collData = window.FMCollectionSave.load();
+                    window.FMCollectionSave.addSilver(
+                        collData, totalSilver, 'cert', 'claim_all x' + claimedCount);
+                    window.FMCollectionSave.save(collData);
+                    if (window.Collection && typeof window.Collection.refreshHud === 'function') {
+                        window.Collection.refreshHud();
+                    }
+                } catch (e) {
+                    console.warn('[Achievement] 批次發放文錢失敗:', e);
+                }
+            }
+
+            this.renderData();
+
+            // 全數領完後 scrollToFirstPending 會找不到待領項目，自動捲回頂端
+            setTimeout(() => this.scrollToFirstPending(), 120);
+
+            // 表演：沿用原有的獎狀動畫（星星 + 數字跑動），只換成一併領取的說明文字。
+            // 底圖固定用最高階的「聖旨獎狀」，與逐張領取時依序輪替的九品～一品區隔開來。
+            const certImg = this.certImages[this.certImages.length - 1];
+            const text = `恭賀\n一併領受獎狀 ${claimedCount} 張。\n` +
+                `積學儲寶，酌理富才。歷年功課，今日並敘於此。\n願君再接再厲，長保筆耕不輟。`;
+
+            this.showCert(certImg, text, true, totalScore, totalSilver);
 
         },
 

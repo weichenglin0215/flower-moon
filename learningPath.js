@@ -110,8 +110,35 @@
     };
 
     // 版面常數
-    const SPACING = 92;   // 每一站的垂直間距
-    const AMP = 96;       // 蜿蜒路徑的左右擺幅
+    // ⚠️ 站距從 92 加大到 120：站點文字多了一行「詩名小按鈕」（見
+    //    buildPoemChips），整塊文字高度約 97px，用舊的 92 會讓相鄰兩站
+    //    的文字直接疊在一起。道路因此變長約兩成，但那只是多捲一點。
+    const SPACING = 120;  // 每一站的垂直間距
+
+    // 詩名小按鈕的版面常數（buildPoemChips 用來回推字級，必須與
+    // learningPath.css 的 .lp-poem-chip / .lp-poem-chips 規則一致）
+    const TRACK_W = 500;        // 道路寬度，與 .lp-track 的 width 相同
+    const STATION_GAP = 10;     // .lp-station 的 gap（圖示與文字之間）
+    const ICON_HALF_RANK = 32;  // 文位站圖示寬度的一半（64px，已含邊框）
+    const ICON_HALF_MINOR = 22; // 小站圖示寬度的一半（44px，已含邊框）
+    const CHIP_SAFE_PAD = 2;    // 貼邊安全距離，避免剛好卡在道路邊緣
+    const CHIP_FS_MAX = 18;     // 字級上限（與副標 --lp-fs-xs 同級）
+    // ⚠️ 下限是「排不下時才會用到的緊急值」，不是常態。
+    //    圖示錨在道路曲線上之後，文字只能往單邊展開，落在曲線正中央
+    //    （x≈250）的站點兩側各只剩約 206px；那幾站若硬守 16px 就會換行，
+    //    而換行會讓文字高度超過站距、直接撞上相鄰的站 —— 字小一點
+    //    遠比兩站文字疊在一起好。絕大多數站點仍會拿到滿的 18px。
+    const CHIP_FS_MIN = 12;
+    // ⚠️ 內距與間距要隨按鈕數量縮小，否則「殼」會把「內容」擠掉：
+    //    七顆按鈕在寬鬆規格下，光是內距與 gap 就吃掉 108px，佔最窄站點
+    //    可用寬度的一半，字級被迫壓到下限仍排不進一行。
+    //    收緊到 2px 內距、2px gap 之後同樣七顆只剩 54px。
+    const CHIP_STYLE_BY_COUNT = [
+        { max: 4, padX: 5, gap: 4 },        // 1~4 顆：寬鬆
+        { max: 6, padX: 3, gap: 2 },        // 5~6 顆：收緊
+        { max: Infinity, padX: 2, gap: 2 }  // 7 顆以上：最緊
+    ];
+    const AMP = 196;       // 蜿蜒路徑的左右擺幅
     const TOP_PAD = 70;   // 道路頂端留白
     const BOT_PAD = 90;   // 道路底端留白
 
@@ -160,39 +187,57 @@
          *    若每一個都呼叫 loadPlayerData（會 JSON.parse 整份存檔），
          *    光是開啟青雲梯就要解析近千次存檔。這裡改成整份只讀一次。
          *
-         * ⚠️ 只採計列入必通關卡的 14 款遊戲；被移出的四款（21/23/33/36）
+         * ⚠️ 只採計列入必通關卡的遊戲；REVIEW_ONLY_GAMES 名單上的那幾款
          *    無法保證「同一關 = 同一首詩」，因此它們的通關紀錄不計入進度。
+         *    （名單本身以 REVIEW_ONLY_GAMES 為準，此處刻意不再抄一份編號，
+         *      以免像 2026-09 那次把 33 移出名單後註解卻沒跟著改。）
          */
         buildProgressCache: function () {
             if (this._progressCache) return this._progressCache;
+            const data = (window.ScoreManager && window.ScoreManager.loadPlayerData()) || {};
+            this._progressCache = this.buildProgressMapsFrom(data.levelCleared, data.levelDonated);
+            return this._progressCache;
+        },
+
+        /**
+         * 由「原始的通關／捐納紀錄」建出進度對照表。
+         *
+         * ⚠️ 這一段本來寫死在 buildProgressCache 裡直接讀本機存檔。抽出來的
+         *    理由是群英榜的「文位榜」要替**別人**算文位：那些玩家的紀錄來自
+         *    雲端 player_saves（achievements._levelCleared / _levelDonated），
+         *    不在 localStorage 裡。若讓群英榜自己抄一份判定邏輯，
+         *    「幾款遊戲算學會一關」「哪幾款不列入進度」就會出現第二份定義，
+         *    兩邊一旦飄移，玩家看到的自己的文位與榜上的文位就會不一樣。
+         *
+         * @param {object} levelCleared  {gameKey: {難度層: [關卡編號…]}}
+         * @param {object} levelDonated  {難度層: [關卡編號…]}
+         * @returns {{games:Object, donated:Object}}
+         */
+        buildProgressMapsFrom: function (levelCleared, levelDonated) {
             const map = {};
             const donated = {};
-            if (window.ScoreManager) {
-                const data = window.ScoreManager.loadPlayerData() || {};
-                const lc = data.levelCleared || {};
-                for (const gameKey in lc) {
-                    const no = parseInt(String(gameKey).replace('game', ''), 10);
-                    if (!GAME_CHANNELS[no] || REVIEW_ONLY_GAMES[no]) continue;
-                    const byTier = lc[gameKey] || {};
-                    for (const tier in byTier) {
-                        const arr = byTier[tier];
-                        if (!Array.isArray(arr)) continue;
-                        for (let i = 0; i < arr.length; i++) {
-                            const k = tier + '|' + arr[i];
-                            if (!map[k]) map[k] = {};
-                            map[k][no] = true;
-                        }
+            const lc = levelCleared || {};
+            for (const gameKey in lc) {
+                const no = parseInt(String(gameKey).replace('game', ''), 10);
+                if (!GAME_CHANNELS[no] || REVIEW_ONLY_GAMES[no]) continue;
+                const byTier = lc[gameKey] || {};
+                for (const tier in byTier) {
+                    const arr = byTier[tier];
+                    if (!Array.isArray(arr)) continue;
+                    for (let i = 0; i < arr.length; i++) {
+                        const k = tier + '|' + arr[i];
+                        if (!map[k]) map[k] = {};
+                        map[k][no] = true;
                     }
                 }
-                const ld = data.levelDonated || {};
-                for (const tier in ld) {
-                    const arr = ld[tier];
-                    if (!Array.isArray(arr)) continue;
-                    for (let i = 0; i < arr.length; i++) donated[tier + '|' + arr[i]] = true;
-                }
             }
-            this._progressCache = { games: map, donated: donated };
-            return this._progressCache;
+            const ld = levelDonated || {};
+            for (const tier in ld) {
+                const arr = ld[tier];
+                if (!Array.isArray(arr)) continue;
+                for (let i = 0; i < arr.length; i++) donated[tier + '|' + arr[i]] = true;
+            }
+            return { games: map, donated: donated };
         },
 
         /** 存檔可能已變動（通關、捐納）時呼叫，下次讀取會重建 */
@@ -216,11 +261,17 @@
 
         /** 這個題目單元是否已完成（已用三款不同遊戲通過，或已捐納跳過） */
         isUnitDone: function (unit) {
-            const c = this.buildProgressCache();
-            if (c.donated[unit.tier + '|' + unit.level]) return true;
+            return this.isUnitDoneIn(this.buildProgressCache(), unit);
+        },
+
+        /** isUnitDone 的「指定進度表」版本，供替別人（雲端存檔）計算時使用 */
+        isUnitDoneIn: function (maps, unit) {
+            if (!maps || !unit) return false;
+            const k = unit.tier + '|' + unit.level;
+            if (maps.donated[k]) return true;
             const need = window.PathStations
                 ? window.PathStations.getPlaysPerUnit() : 3;
-            return this.getUnitPlays(unit.tier, unit.level) >= need;
+            return Object.keys(maps.games[k] || {}).length >= need;
         },
 
         /**
@@ -376,6 +427,11 @@
          * @returns {number} 依學習順序連續完成的首數
          */
         getPathPoemCount: function () {
+            return this.pathPoemCountFrom(this.buildProgressCache());
+        },
+
+        /** getPathPoemCount 的「指定進度表」版本，供替別人（雲端存檔）計算時使用 */
+        pathPoemCountFrom: function (maps) {
             if (!window.PathStations) return 0;
             const list = window.PathStations.getPoemUnits();
             let n = 0;
@@ -385,12 +441,63 @@
                 if (!units.length) continue;
                 let all = true;
                 for (let k = 0; k < units.length; k++) {
-                    if (!this.isUnitDone(units[k])) { all = false; break; }
+                    if (!this.isUnitDoneIn(maps, units[k])) { all = false; break; }
                 }
                 if (!all) break;      // ← 與 getLearnedPoemCount 唯一的差別
                 n++;
             }
             return n;
+        },
+
+        /**
+         * 由一份「雲端存檔列」推算該玩家的文位。
+         *
+         * 這是 ScoreManager.getEffectiveRank 的「別人版」：判定規則一模一樣
+         * （考試通過紀錄優先，沒考過就看青雲梯站點進度並封頂在最後一個免考
+         * 文位），差別只在資料來源 —— getEffectiveRank 讀本機 localStorage
+         * 與 FMCollectionSave，這一支讀傳進來的 player_saves 欄位。
+         *
+         * ⚠️ 群英榜的「文位榜」一定要走這裡，**不可以**改用 row.global_rank。
+         *    global_rank 存的是**積分階級**（getCurrentRank(totalScore)），
+         *    名稱與文位完全同名（書僮…大儒）卻是另一套判準，直接拿來當文位
+         *    顯示，等於在排行榜上公告「刷分就能升文位」——與企劃書 §2 相反。
+         *
+         * @param {object} row player_saves 的一列，需含 collection 與
+         *                     achievements（內含 _levelCleared / _levelDonated）
+         * @returns {string} 文位名稱；資料不足時回傳第一個文位
+         */
+        getRankFromSave: function (row) {
+            const PS = window.PathStations;
+            const first = (PS && PS.getAllRankNames && PS.getAllRankNames()[0]) || '書僮';
+            if (!row || !PS) return first;
+
+            // 1. 已通過的考試文位優先，由高到低取第一個命中的
+            try {
+                const coll = row.collection || {};
+                const passed = (coll.ranks && coll.ranks.passed) || [];
+                const examNames = PS.getExamRankNames();
+                for (let i = examNames.length - 1; i >= 0; i--) {
+                    if (passed.indexOf(examNames[i]) >= 0) return examNames[i];
+                }
+            } catch (e) { /* 欄位缺漏視為沒考過，往下走站點推算 */ }
+
+            // 2. 沒考過任何文位 → 看青雲梯站點進度，封頂在最後一個免考文位
+            try {
+                const ach = row.achievements || {};
+                const maps = this.buildProgressMapsFrom(ach._levelCleared, ach._levelDonated);
+                const stations = PS.build();
+                const idx = PS.getCurrentIndex(this.pathPoemCountFrom(maps));
+                const st = stations[Math.max(0, Math.min(idx, stations.length - 1))];
+                if (st && st.rankName) {
+                    const freeNames = PS.getFreeRankNames();
+                    if (freeNames.indexOf(st.rankName) >= 0) return st.rankName;
+                    // 站點已走到需應試的文位但還沒考 → 顯示最後一個免考文位
+                    return freeNames[freeNames.length - 1] || first;
+                }
+            } catch (e) {
+                console.warn('[LearningPath] 由雲端存檔推算文位失敗:', e);
+            }
+            return first;
         },
 
         /**
@@ -817,6 +924,7 @@
                     `<div class="lp-station-text">` +
                     `<div class="lp-station-label">${st.name}</div>` +
                     `<div class="lp-station-game">${sub}</div>` +
+                    this.buildPoemChips(st, x) +
                     `</div>`;
 
                 const iconHTML =
@@ -854,6 +962,21 @@
                 });
             });
 
+            // 詩名小按鈕：開啟該首詩的詩詞資料。
+            // ⚠️ 必須 stopPropagation，否則會連帶觸發外層站點的 click，
+            //    變成「想查詩卻直接開了一局遊戲」（與考試標記同一個坑）。
+            track.querySelectorAll('.lp-poem-chip').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.hasDragged && this.hasDragged()) return;
+                    if (window.SoundManager) window.SoundManager.playOpenItem();
+                    const pid = parseInt(el.getAttribute('data-poem-id'), 10);
+                    if (window.PoemDialog && typeof window.PoemDialog.openById === 'function') {
+                        window.PoemDialog.openById(pid);
+                    }
+                });
+            });
+
             // 「模擬考／正式考」標記本身就是按鈕。
             // ⚠️ 必須 stopPropagation：否則會連帶觸發外層站點的 click，
             //    變成「開了考試又同時開一局遊戲」。
@@ -871,6 +994,120 @@
                     this.startExam(st.name, el.getAttribute('data-exam') === 'mock' ? 'mock' : 'real');
                 });
             });
+        },
+
+        /**
+         * 站點副標下方的「詩名小按鈕」：這一站要學的每首詩各一顆，
+         * 點下去開啟該首詩的詩詞資料（PoemDialog）。
+         *
+         * ⚠️ 為什麼要截字：站點文字掛在蜿蜒道路的左右兩側，寬度沒有容器可擋，
+         *    一站最多有八首詩，完整詩名（〈黃鶴樓送孟浩然之廣陵〉）並排會
+         *    直接衝出畫面。因此按鈕文字長度隨這一站的詩數遞減，讓整排字數
+         *    大致維持在畫面容得下的 12~15 字：
+         *      1~2 首 → 詩名前六個字   （2×6 ＝ 12 字）
+         *      3   首 → 前四個字       （3×4 ＝ 12 字）
+         *      4   首 → 前三個字       （4×3 ＝ 12 字）
+         *      5~7 首 → 前兩個字       （最多 7×2 ＝ 14 字）
+         *      8 首以上 → 只留第一個字 （8×1 ＝ 8 字）
+         *    完整詩名放在 title 屬性，桌機滑鼠停留仍看得到。
+         *
+         * ⚠️⚠️ 可用寬度是**每一站各自不同**的，不可以用固定的 CSS
+         *    max-width 打死。這個算法前後錯過兩次，兩次的教訓都留在這裡：
+         *
+         *    第一版：CSS 寫死 max-width: 236px。那是拿「擺幅兩端」的最壞
+         *      情況去套所有站點，結果站在道路正中央、左右明明還很空的
+         *      站點也被那個上限逼著換行。
+         *
+         *    第二版：改成 2 × min(x, 500 − x)。公式本身對「整個方塊以 x
+         *      為中心」這個前提是對的，但那個前提本身就是錯的設計 ——
+         *      方塊是不對稱的（一邊圖示、一邊一長條文字），置中的結果是
+         *      圖示被文字推開（實測 ±151px），道路的正弦曲線被文字寬度
+         *      扭曲，而且方塊整個擠到單邊、另一邊留下一大片空白。
+         *
+         *    現在：圖示錨在座標點上（CSS 的 --lp-icon-half，見 .lp-station），
+         *    文字往「空間比較多」的那一側展開，可用寬度就是那一側的剩餘空間：
+         *      · 文字在右（x ≤ 250）→ 500 − x − 半個圖示 − gap
+         *      · 文字在左（x > 250）→ x − 半個圖示 − gap
+         *    最寬出現在擺幅兩端（約 300px），最窄出現在曲線正中央
+         *    （x≈250，約 206px）—— 與第二版的直覺正好相反。
+         *
+         * ⚠️ 字級因此是「依這一站的實際可用寬度回推」，不是查表：
+         *    先照上面的規則決定字數，再算出「要排成一行，字級最多能多大」，
+         *    夾在 CHIP_FS_MIN~CHIP_FS_MAX 之間。
+         *
+         * ⚠️ 這些按鈕必須自行 stopPropagation（在 renderTrack 綁事件時處理），
+         *    否則點詩名會連帶觸發外層站點的 click 而直接開一局遊戲。
+         *
+         * @param {object} st build() 產出的站點物件
+         * @param {number} x  這一站在道路上的水平座標（renderTrack 算好的）
+         * @returns {string} HTML 字串；查不到詩就回空字串（不佔版面）
+         */
+        buildPoemChips: function (st, x) {
+            const ids = (st && st.poemIds) || [];
+            if (!ids.length) return '';
+            if (typeof POEMS === 'undefined' || !POEMS.length) return '';
+
+            // 依這一站的詩數決定每顆按鈕顯示幾個字（規則見上方說明）
+            const n = ids.length;
+            const keep = (n <= 2) ? 6
+                : (n === 3) ? 4
+                    : (n === 4) ? 3
+                        : (n <= 7) ? 2
+                            : 1;
+
+            const chips = [];
+            const shorts = [];
+            for (let i = 0; i < ids.length; i++) {
+                const pid = ids[i];
+                let poem = null;
+                for (let k = 0; k < POEMS.length; k++) {
+                    if (POEMS[k].id === pid) { poem = POEMS[k]; break; }
+                }
+                if (!poem) continue;
+                const full = poem.title || '無題';
+                const short = full.slice(0, keep);
+                shorts.push(short);
+                chips.push(
+                    `<span class="lp-poem-chip" data-poem-id="${pid}" title="${this.escAttr(full)}">` +
+                    `${this.escAttr(short)}</span>`
+                );
+            }
+            if (!chips.length) return '';
+
+            // ── 這一站文字欄的可用寬度 ────────────────────────────────
+            // 圖示錨在 x 上，文字往空間較多的那一側展開；
+            // 側邊的判定必須與 renderTrack 的 labelRight 完全一致。
+            const iconHalf = (st.type === 'rank') ? ICON_HALF_RANK : ICON_HALF_MINOR;
+            const labelRight = x <= TRACK_W / 2;
+            const side = labelRight ? (TRACK_W - x) : x;
+            const room = Math.max(90, side - iconHalf - STATION_GAP - CHIP_SAFE_PAD);
+
+            // ── 回推「排成一行時字級最多能多大」────────────────────────
+            // 每顆按鈕的寬度 ＝ 字數×字級 ＋ 左右內距 ＋ 邊框，
+            // 再加上按鈕之間的 gap。中日韓字元寬度正好等於字級，
+            // 因此這個估算對詩名而言是精準的（遇到「-」等半形字元會高估，
+            // 高估只會讓字縮小一點點，不會排不下）。
+            const count = chips.length;
+            const style = CHIP_STYLE_BY_COUNT.find(s => count <= s.max);
+            const padX = style.padX, gap = style.gap;
+            const totalChars = shorts.reduce((s, t) => s + t.length, 0);
+            const overhead = count * (padX * 2 + 2) + gap * (count - 1);
+            let fs = Math.floor((room - overhead) / Math.max(1, totalChars));
+            fs = Math.max(CHIP_FS_MIN, Math.min(CHIP_FS_MAX, fs));
+
+            // 字級、內距、間距、寬度上限全部照這一站的實際可用寬度給，
+            // 不再是全域固定值。CSS 端只負責讀這幾個變數（見 .lp-poem-chip）。
+            return `<div class="lp-poem-chips" style="` +
+                `font-size:${fs}px;max-width:${room}px;` +
+                `--lp-chip-pad-x:${padX}px;gap:${gap}px">` +
+                chips.join('') + `</div>`;
+        },
+
+        /** 供 innerHTML 組字串用的最小逸出（詩名可能含引號或角括號） */
+        escAttr: function (s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
         },
 
         /**

@@ -395,6 +395,44 @@
     line-height: 1.5;
 }
 
+/* 成就殿堂：一鍵領取所有獎狀。
+   ⚠️ position:sticky 是這一列的重點，不是裝飾：
+      捲動容器是 .ach-body，而點擊「成就殿堂」頁籤時 scrollToFirstPending
+      會立刻把 .ach-body 捲到第一張待領獎狀的位置。若這一列只是普通的
+      靜態區塊，玩家一進頁面就已經被捲過去了，永遠看不到這顆按鈕。
+      背景必須不透明，否則下方的徽章列會從它底下透出來。 */
+.ach-claim-all-row {
+    position: sticky;
+    /* ⚠️ top 是負的 20px（＝.ach-body 的 padding），不是 0：
+       黏住時若對齊內容框頂端，上方那條 20px 的內距會露出來，
+       捲過去的徽章列會從那道縫隙裡跑出來。往上黏 20px 正好蓋住它，
+       再用 padding-top 把被蓋掉的 20px 補回去，按鈕才不會被切到。 */
+    top: -20px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 30px 0 12px;
+    margin-bottom: 6px;
+    background: hsl(0, 60%, 24%);   /* 與 .ach-container 底色相同，才蓋得住捲過去的列 */
+    border-bottom: 1px solid hsla(48, 100%, 65%, 0.35);
+    box-shadow: 0 6px 10px -6px rgba(0, 0, 0, 0.7);
+}
+
+/* 按鈕本體沿用 .ach-btn-claim 的金色底、白字與陰影（與各列的「領取獎狀」
+   完全同一組樣式），這裡只把它放大成整列的主按鈕 */
+#achBtnClaimAll {
+    padding: 12px 28px;
+    font-size: 22px;
+    border-radius: 8px;
+}
+
+.ach-claim-all-hint {
+    font-size: 16px;
+    color: hsl(45, 60%, 78%);
+}
+
 /* 徽章 (成就殿堂列表) */
 .ach-badges {
     display: flex;

@@ -250,6 +250,29 @@
                 console.warn('[雲端] 讀取收集系統存檔失敗，本次不上傳該欄位:', e);
             }
 
+            // ── 文位（青雲梯課程進度＋考試通過紀錄）──────────────────────
+            // ⚠️ 為什麼要把算好的文位一起上雲，而不是讓群英榜自己算：
+            //    群英榜的「文位榜」原本是撈 200 列玩家存檔（含 collection 與
+            //    achievements._levelCleared 兩個大欄位）回前端逐一重算再排序。
+            //    ① 資料庫端只能依 total_score 排序，一旦玩家數超過 200，
+            //       「積分低但文位高」的人會在資料庫端就被截掉；
+            //    ② 每次刷新都要傳回近千個關卡編號，量隨玩家數線性成長。
+            //    把 rank_index（0 起算的文位序號）存成欄位之後，排序與限筆
+            //    都能交回資料庫，前端只需要 50 列輕量資料。
+            //    rank_name 另外存一份純粹是為了「不必在前端反查名單」，
+            //    兩者永遠由同一次計算產生，不會有對不上的可能。
+            let rankName = '', rankIndex = -1;
+            try {
+                if (window.ScoreManager && window.ScoreManager.getEffectiveRank) {
+                    rankName = window.ScoreManager.getEffectiveRank(localData) || '';
+                    if (window.PathStations && window.PathStations.getAllRankNames) {
+                        rankIndex = window.PathStations.getAllRankNames().indexOf(rankName);
+                    }
+                }
+            } catch (e) {
+                console.warn('[雲端] 計算文位失敗，本次不上傳文位欄位:', e);
+            }
+
             // 準備上傳的結構
             const payload = {
                 id: currentId,
@@ -257,6 +280,9 @@
                 nickname: nickname,
                 total_score: localData.totalScore || 0,
                 global_rank: localData.globalRank || '書僮',
+                rank_name: rankName,
+                rank_index: rankIndex,
+                streak_days: localData.streakDays || 1,
                 play_days: localData.playDays || 1,
                 last_played_date: localData.lastPlayedDate || new Date().toISOString().split('T')[0],
                 games: localData.games || {},
@@ -269,33 +295,62 @@
                 updated_at: new Date().toISOString()
             };
 
-            try {
-                const { error } = await supabase
-                    .from('player_saves')
-                    .upsert(payload, { onConflict: 'id' });
+            // ── 選配欄位：資料庫還沒 alter 出來時，剝掉該欄位重存一次 ──────
+            // ⚠️ 這個機制原本只服務 collection 一個欄位，現在有四個，因此改成
+            //    「看錯誤訊息點名了哪一欄就剝哪一欄，再重試」的迴圈。
+            //    絕對不可以一次把四欄全剝掉：那會讓「只缺 rank_index」的資料庫
+            //    連 collection（考試通過紀錄、文錢）都停止上雲，而且完全沒有
+            //    症狀 —— 玩家要到換裝置還原存檔時才會發現東西不見了。
+            const OPTIONAL_COLUMN_DDL = {
+                collection:  'alter table player_saves add column if not exists collection jsonb;',
+                rank_name:   'alter table player_saves add column if not exists rank_name text;',
+                rank_index:  'alter table player_saves add column if not exists rank_index int default -1;',
+                streak_days: 'alter table player_saves add column if not exists streak_days int default 1;'
+            };
+            const optionalCols = Object.keys(OPTIONAL_COLUMN_DDL);
 
-                if (error) {
-                    // 資料庫尚未新增 collection 欄位時（PostgREST 42703 / PGRST204），
-                    // 退回舊格式再存一次，確保核心進度不會因此完全存不進去。
+            try {
+                for (let attempt = 0; attempt <= optionalCols.length; attempt++) {
+                    const { error } = await supabase
+                        .from('player_saves')
+                        .upsert(payload, { onConflict: 'id' });
+
+                    if (!error) return true;
+
                     const code = String(error.code || '');
                     const msg = String(error.message || '');
-                    if (code === '42703' || code === 'PGRST204' || msg.indexOf('collection') >= 0) {
-                        console.warn('[雲端] player_saves 尚無 collection 欄位，本次改存舊格式。'
-                            + '請執行：alter table player_saves add column if not exists collection jsonb;');
-                        delete payload.collection;
-                        const retry = await supabase
-                            .from('player_saves')
-                            .upsert(payload, { onConflict: 'id' });
-                        if (retry.error) {
-                            console.error('備份存檔至雲端失敗:', retry.error);
+                    const missingCol = (code === '42703' || code === 'PGRST204');
+                    if (!missingCol) {
+                        console.error('備份存檔至雲端失敗:', error);
+                        return false;
+                    }
+
+                    // 錯誤訊息通常會點名欄位；點得出來就只剝那一欄
+                    let offending = optionalCols.find(
+                        c => Object.prototype.hasOwnProperty.call(payload, c) && msg.indexOf(c) >= 0);
+
+                    // 點不出來（少數 PostgREST 版本只回泛用訊息）→ 剝掉剩下的選配欄位，
+                    // 至少保住核心進度；下一次存檔會再從頭試一遍。
+                    if (!offending) {
+                        const remaining = optionalCols.filter(
+                            c => Object.prototype.hasOwnProperty.call(payload, c));
+                        if (!remaining.length) {
+                            console.error('備份存檔至雲端失敗:', error);
                             return false;
                         }
-                        return true;
+                        console.warn('[雲端] player_saves 缺少選配欄位（訊息未指名），'
+                            + '本次改存舊格式。請執行：\n'
+                            + remaining.map(c => OPTIONAL_COLUMN_DDL[c]).join('\n'));
+                        remaining.forEach(c => { delete payload[c]; });
+                        continue;
                     }
-                    console.error('備份存檔至雲端失敗:', error);
-                    return false;
+
+                    console.warn(`[雲端] player_saves 尚無 ${offending} 欄位，本次改存舊格式。`
+                        + '請執行：' + OPTIONAL_COLUMN_DDL[offending]);
+                    delete payload[offending];
                 }
-                return true;
+                console.error('備份存檔至雲端失敗：剝除所有選配欄位後仍無法寫入');
+                return false;
             } catch (e) {
                 console.error('備份儲存異常:', e);
                 return false;
@@ -315,12 +370,48 @@
             if (!this.init()) return { ok: false, saves: null, logs: null, error: 'SDK 未就緒' };
             if (!id) return { ok: false, saves: null, logs: null, error: '未提供 id' };
             try {
-                const logsRes = await supabase
-                    .from('game_logs')
-                    .delete()
-                    .eq('player_id', id)
-                    .select('player_id');
-                if (logsRes.error) throw logsRes.error;
+                // ⚠️⚠️ 這裡原本只刪 game_logs 與 player_saves 兩張表，
+                //    造成「重置過的玩家永遠留在群英榜上」：
+                //    單遊戲榜、時長榜、積分的日／週／月榜讀的都不是明細，
+                //    而是 player_game_stats / player_daily_stats 兩張彙總表
+                //    （見 note/群英榜彙總表_SQL草案.sql）。彙總表是獨立資料、
+                //    不跟著明細走，明細刪光了它們照樣留著，玩家的名字與分數
+                //    就會一直掛在榜上，而且完全沒有錯誤訊息。
+                //
+                // ⚠️ 刪除順序刻意由「衍生資料」往「主檔」走：
+                //    player_saves 最後刪。若先刪主檔而中途失敗，剩下的彙總列
+                //    會變成查不到暱稱的孤兒資料，比全部沒刪還難處理。
+                //
+                // ⚠️ daily_game_stats（全站營運統計）不刪，也不該刪 ——
+                //    它不含玩家身分，是整站的每日彙總。
+                const targets = [
+                    { table: 'game_logs',          col: 'player_id' },
+                    { table: 'player_game_stats',  col: 'player_id' },
+                    { table: 'player_daily_stats', col: 'player_id' },
+                    { table: 'silver_events',      col: 'player_id' }
+                ];
+
+                const counts = {};
+                for (const t of targets) {
+                    const res = await supabase
+                        .from(t.table)
+                        .delete()
+                        .eq(t.col, id)
+                        .select(t.col);
+                    if (res.error) {
+                        // 表還沒建立（SQL 草案尚未執行）時不該讓整個重置失敗：
+                        // 那張表本來就沒有這位玩家的資料，跳過即為正確結果。
+                        const code = String(res.error.code || '');
+                        const msg = String(res.error.message || '');
+                        if (code === '42P01' || code === 'PGRST205' || msg.indexOf('does not exist') >= 0) {
+                            console.warn(`[雲端] 資料表 ${t.table} 不存在，重置時略過。`);
+                            counts[t.table] = 0;
+                            continue;
+                        }
+                        throw res.error;
+                    }
+                    counts[t.table] = (res.data || []).length;
+                }
 
                 const savesRes = await supabase
                     .from('player_saves')
@@ -328,11 +419,15 @@
                     .eq('id', id)
                     .select('id');
                 if (savesRes.error) throw savesRes.error;
+                counts.player_saves = (savesRes.data || []).length;
 
                 return {
                     ok: true,
-                    saves: (savesRes.data || []).length,
-                    logs: (logsRes.data || []).length,
+                    // saves / logs 兩個欄位維持原名與原意，呼叫端（成就頁的
+                    // 測試用重置按鈕）的訊息文字不必跟著改
+                    saves: counts.player_saves,
+                    logs: counts.game_logs,
+                    counts: counts,
                     error: null
                 };
             } catch (e) {

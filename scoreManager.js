@@ -377,6 +377,10 @@ const ScoreManager = {
             totalScore: 0,
             globalRank: '書僮',
             playDays: 1,
+            // 連續登入天數（群英榜「日日臨池」榜的資料來源）；
+            // 斷一天就歸 1，maxStreakDays 保留歷史最佳紀錄
+            streakDays: 1,
+            maxStreakDays: 1,
             lastPlayedDate: new Date().toISOString().split('T')[0],
             games: {},
             levelProgress: {}, // 格式: { gameKey: { '小學': 0, '中學': 0, ... } } — 各難度最高通關關卡（供鎖定判斷）
@@ -495,12 +499,32 @@ const ScoreManager = {
         if (!data.levelCleared) data.levelCleared = {};
         if (!data.poemRecords) data.poemRecords = {};
 
-        // 更新累計登入天數
+        // 更新累計登入天數與「連續登入天數」
+        //
+        // ⚠️ playDays 與 streakDays 是兩個不同的東西，過去只有前者：
+        //    playDays   = 一共來過幾天（只增不減）
+        //    streakDays = 目前連續來了幾天（斷一天就歸 1）
+        //    群英榜的「日日臨池」榜要的是後者，而它一直沒有資料來源，
+        //    因此那張榜從上線起就只顯示玩家自己一個人。
+        //
+        // ⚠️ 分日基準沿用既有的 toISOString()（UTC）以與 lastPlayedDate 一致。
+        //    這與雲端彙總表的 Asia/Taipei 基準有時差，但兩者互不相干 ——
+        //    這裡算的是本機的登入日，混用同一個欄位兩種基準才會出錯。
         const today = new Date().toISOString().split('T')[0];
         if (data.lastPlayedDate !== today) {
+            // 昨天的日期字串：用時間戳往前推一天再轉，避免自己處理月底與閏年
+            const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            data.streakDays = (data.lastPlayedDate === yesterday)
+                ? (data.streakDays || 0) + 1   // 接上昨天 → 連續天數 +1
+                : 1;                            // 中斷過（或初次登入）→ 從 1 重新起算
+            data.maxStreakDays = Math.max(data.maxStreakDays || 0, data.streakDays);
             data.playDays = (data.playDays || 0) + 1;
             data.lastPlayedDate = today;
             localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+        } else if (!data.streakDays) {
+            // 舊存檔沒有這個欄位：今天已經來過，至少算 1 天
+            data.streakDays = 1;
+            data.maxStreakDays = Math.max(data.maxStreakDays || 0, 1);
         }
 
         // 再次確保返回的內容沒有小數點
