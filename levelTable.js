@@ -155,6 +155,98 @@
             return table.tiers[tier].levels[levelIndex - 1] || null;
         },
 
+        // ══════════════════════════════════════════════════════════════
+        //  穩定關卡識別碼（levelKey）
+        // ══════════════════════════════════════════════════════════════
+        //
+        // ⚠️⚠️ 為什麼需要它 —— 這是「題庫一擴充，全服玩家進度全錯」的解藥。
+        //
+        //    關卡編號（levelIndex）就是 `tiers[tier].levels[]` 的**陣列位置**，
+        //    而那個陣列是由 tools/build_level_table.js 依
+        //    「評價由低到高 → 詩句總評價由高到低 → id 遞增」重新排出來的。
+        //    因此**只要新增詩詞，編號就會整批位移**。
+        //
+        //    實測（新增評價7×5、評價6×8、評價5×10、評價4×18 共 41 首）：
+        //      小學   0% 位移
+        //      中學  27% 位移（自第 252 關起）
+        //      高中  98% 位移（自第   5 關起）   ← 幾乎全毀
+        //      大學  87% 位移（自第  40 關起）
+        //      研究所 12% 位移（自第 696 關起）
+        //
+        //    玩家存檔的 levelCleared 是 { 遊戲: { 難度層: [關卡編號…] } }，
+        //    編號一位移，那些數字**還在、但指向完全不同的詩** ——
+        //    進度不會報錯，只會靜靜地全錯（成就統計、已學詩詞數、
+        //    青雲梯站點一起歪掉）。
+        //
+        // ── 解法 ────────────────────────────────────────────────────────
+        //    改用「內容本身」當識別碼：`"<錨定詩 id>:<起始句索引>"`，例如 "69:4"。
+        //    它描述的是「〈將進酒〉第 5 句起的那一聯」，
+        //    無論關卡表怎麼重排都指向同一組詩句，永遠不會位移。
+        //
+        // ⚠️ 難度層仍然分開存（levelCleared[遊戲][難度層]），因為同一首詩
+        //    可能同時屬於兩個難度層（例如評價 7 的詩在小學與中學都有），
+        //    而「在小學打通」與「在中學打通」是兩件不同的事。
+
+        /** 穩定識別碼的分隔符號；出現它就代表這個值是識別碼而非關卡編號 */
+        LEVEL_KEY_SEP: ':',
+
+        /**
+         * 關卡編號 → 穩定識別碼。
+         * @returns {string|null} 例如 "69:4"；關卡不存在時回 null
+         */
+        getLevelKey: function (tier, levelIndex) {
+            const e = this.getLevelEntry(tier, Number(levelIndex));
+            if (!e) return null;
+            return e.p + this.LEVEL_KEY_SEP + e.s;
+        },
+
+        /**
+         * 穩定識別碼 → 目前的關卡編號（自 1 起算）。
+         * ⚠️ 這個方向**會**隨題庫變動，只該用在「畫面要顯示第幾關」這類場合，
+         *    絕不可以拿去存檔。
+         * @returns {number} 找不到時回 -1
+         */
+        getLevelIndexByKey: function (tier, key) {
+            const table = this.getTable();
+            if (!table || !table.tiers[tier] || !key) return -1;
+            if (!this._keyIndex) this._keyIndex = {};
+            if (!this._keyIndex[tier]) {
+                const m = {};
+                const levels = table.tiers[tier].levels;
+                for (let i = 0; i < levels.length; i++) {
+                    const k = levels[i].p + this.LEVEL_KEY_SEP + levels[i].s;
+                    if (m[k] === undefined) m[k] = i + 1;   // 同一組詩句重複出現時取最前面那一關
+                }
+                this._keyIndex[tier] = m;
+            }
+            const idx = this._keyIndex[tier][key];
+            return (idx === undefined) ? -1 : idx;
+        },
+
+        /**
+         * 把「關卡參照」正規化成穩定識別碼。
+         *
+         * 存檔裡可能是兩種形式：
+         *   · 數字（舊格式，＝陣列位置）→ 依**目前**的關卡表換算成識別碼
+         *   · 字串 "p:s"（新格式）      → 原樣回傳
+         *
+         * ⚠️ 舊格式的換算只有在「關卡表還沒被新詩打亂」時才正確，
+         *    所以遷移必須在下一次擴充題庫**之前**跑完
+         *    （ScoreManager.loadPlayerData 會在每次載入時自動處理）。
+         *
+         * @returns {string|null} 無法換算（關卡編號超出目前表範圍）時回 null
+         */
+        toLevelKey: function (tier, ref) {
+            if (ref === null || ref === undefined) return null;
+            if (typeof ref === 'string' && ref.indexOf(this.LEVEL_KEY_SEP) > 0) return ref;
+            return this.getLevelKey(tier, ref);
+        },
+
+        /** 這個值是不是穩定識別碼（而不是舊的關卡編號） */
+        isLevelKey: function (ref) {
+            return typeof ref === 'string' && ref.indexOf(this.LEVEL_KEY_SEP) > 0;
+        },
+
         /**
          * 取得某難度層「依關卡順序排列的不重複詩詞 id」。
          * 學習道路用它把詩詞分配給各個文位站（每站 2~3 首）。

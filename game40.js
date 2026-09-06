@@ -378,7 +378,17 @@
             //    後面 39 次都是無效重試。改成同一個 seed 內把兩種字數都試過，
             //    才是真的多一次機會。
             const tryLens = (seed) => {
-                const lens = Math.random() < 0.5 ? [5, 7] : [7, 5]; // 隨機順序，避免永遠偏好五言
+                // 嘗試順序（先試五言還是先試七言）。
+                // ⚠️ 關卡模式下**不可以隨機**：兩種字數是兩個不同的查表條件
+                //    （minChars=maxChars=10 或 14），先試哪一個就先命中哪一首，
+                //    隨機順序等於同一關每次都可能拿到不同的詩
+                //    —— 實測「準童生」站的中學第 128 關，兩次分別拿到 poem 12 與 333
+                //    （tools/verify_learning_path.js 第 2 節會抓，實測 49% 的關卡受影響）。
+                //    改以關卡編號決定順序：同一關永遠同一個順序，
+                //    不同關仍然五言七言交替，不會偏食。
+                const lens = this.isLevelMode
+                    ? (this.currentLevelIndex % 2 === 0 ? [5, 7] : [7, 5])
+                    : (Math.random() < 0.5 ? [5, 7] : [7, 5]);
                 for (const c of lens) {
                     const totalChars = c * 2;
                     const r = getSharedRandomPoem(

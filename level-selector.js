@@ -235,8 +235,16 @@
             const relIdx = i;
             const colorClass = this.tierColorClass[diff] || 'green-bg';
 
+            // ⚠️ 通關紀錄存的是**穩定關卡識別碼**（"錨定詩id:起始句"），
+            //    不是關卡編號 —— 編號會隨題庫擴充整批位移，
+            //    詳見 levelTable.js 的「穩定關卡識別碼」段落。
+            //    這裡要顯示的是「第 relIdx 格要不要亮星」，因此先把格子編號
+            //    換算成識別碼再比對；舊格式（純數字）也一併相容。
             const clearedArr = Array.isArray(clearedData[diff]) ? clearedData[diff] : [];
-            const isCleared = clearedArr.indexOf(relIdx) !== -1;
+            const myKey = (window.LevelTable && typeof window.LevelTable.toLevelKey === 'function')
+                ? window.LevelTable.toLevelKey(diff, relIdx) : null;
+            const isCleared = (myKey !== null && clearedArr.indexOf(myKey) !== -1)
+                || clearedArr.indexOf(relIdx) !== -1;
 
             const currentProg = progressData[diff] || 0;
             const isLocked = relIdx > (currentProg + 1);

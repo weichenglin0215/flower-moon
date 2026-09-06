@@ -58,22 +58,57 @@
     //    即使題庫還沒補到目標量，大儒也照樣涵蓋到題庫實際上限
     //    （見 _buildMilestones）。
     const RANK_TABLE = [
-        { name: '書僮', stationCount: 0, perStation: 0 },   // 起點站，前面無跨距
-        { name: '蒙童', stationCount: 3, perStation: 2 },
-        { name: '塾生', stationCount: 3, perStation: 2 },
-        { name: '童生', stationCount: 3, perStation: 2 },
-        { name: '縣案首', stationCount: 3, perStation: 2 },
-        { name: '府案首', stationCount: 3, perStation: 3 },
-        { name: '文童', stationCount: 3, perStation: 3 },
-        { name: '秀才', stationCount: 4, perStation: 3 },
-        { name: '舉人', stationCount: 4, perStation: 4 },
-        { name: '貢士', stationCount: 4, perStation: 4 },
-        { name: '進士', stationCount: 5, perStation: 4 },
-        { name: '探花', stationCount: 5, perStation: 5 },
-        { name: '榜眼', stationCount: 6, perStation: 6 },
-        { name: '狀元', stationCount: 7, perStation: 7 },
-        { name: '大儒', stationCount: 10, perStation: 8 }
+        { name: '書僮', span: 0 },     // 起點站，前面無跨距
+        { name: '蒙童', span: 8 },
+        { name: '塾生', span: 8 },
+        { name: '童生', span: 8 },
+        { name: '縣案首', span: 8 },
+        { name: '府案首', span: 12 },
+        { name: '文童', span: 12 },
+        { name: '秀才', span: 15 },
+        { name: '舉人', span: 20 },
+        { name: '貢士', span: 20 },
+        { name: '進士', span: 24 },
+        { name: '探花', span: 30 },
+        { name: '榜眼', span: 42 },
+        { name: '狀元', span: 56 },
+        { name: '大儒', span: 83 }
     ];
+
+    // ── 課程凍結線（作者 2026-09-06 定案）────────────────────────────────
+    // 青雲梯的課程只收 id ≤ 466 的詩，**之後新增的詩一律不進課程**。
+    //
+    // ⚠️⚠️ 為什麼要凍結：新詩會依評價插進學習序列的**中間**
+    //    （評價 7 進小學、6 進中學、5 進高中、4 進大學），
+    //    而 getPathPoemCount() 是「從第一首起**連續**學會幾首」，
+    //    因此會在第一首沒學過的新詩處中斷 —— 實測只要新增 5 首小學詩，
+    //    一位已經走到「進士」（135 首）的玩家，站點就會掉回
+    //    第 5 站「蒙童二階」，而且全服玩家一起掉。
+    //
+    //    凍結之後，新增的詩只會出現在漢堡選單的自由練習（那裡不看課程序列），
+    //    青雲梯的站點組成永遠不動，既有玩家的進度完全不受影響。
+    //
+    // ⚠️ 這條線只擋「課程」。關卡表（data/level_table.js）仍會收錄新詩，
+    //    因為自由練習與關卡挑戰要用得到；青雲梯則靠
+    //    LevelTable.setAllowedPoemIds() 把候選詩鎖在本站的詩單內。
+    const MAX_COURSE_POEM_ID = 466;
+
+    // ── 一站放幾首詩（作者 2026-09-06 定案）──────────────────────────────
+    // 實測 3 首是學習效果最好的量，4 首是極限，5 首以上會互相干擾。
+    // ⚠️ 首數只是**軟性**指標：真正的負荷是「這一站要打幾局」，
+    //    同樣 3 首可以是 12 局也可以是 30 局（取決於每首詩的必通關卡數）。
+    //    若日後要再收緊，該加的是「每站局數上限」而不是把首數降到 2。
+    const POEMS_PER_STATION = 3;
+
+    // ── 考試節奏（作者 2026-09-06 定案）──────────────────────────────────
+    // 每累積這麼多首詩就考一次；文位站則不論累積多少都一定要考。
+    //
+    // ⚠️ 改版前只有 13 個文位站要考，考卷隨文位指數成長：
+    //    狀元 114 題（連續作答約 3.8 小時）、大儒 150 題（約 5 小時），
+    //    而且考試中途不能存檔續考 —— 那兩場實質上不可能完成。
+    //    改成每 12 首一考之後，單場上限 24 題（約 48 分鐘），
+    //    而**全程總題數幾乎不變**（原 672 題 → 約 692 題），只是攤平。
+    const EXAM_EVERY_POEMS = 12;
 
     // ── 必通關卡的單元挑選（作者定案）────────────────────────────────
     // 一首詩不是每一聯都值得列入必修 ——〈長恨歌〉有 120 句，
@@ -91,8 +126,22 @@
     const MAX_UNITS_PER_POEM = 6;
 
     // 中文數字（階序顯示用）
-    const CN_NUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十',
-        '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十'];
+    // ⚠️ 2026-09-06 起每站只放 3 首，狀元區段一口氣有二十幾階，
+    //    舊的查表只到二十，超出就會退回阿拉伯數字（「狀元21階」）。
+    //    改成即時組字，支援到九十九。
+    const CN_DIGIT = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+    function cnNum(n) {
+        n = Math.floor(n);
+        if (n <= 0) return '';
+        if (n < 10) return CN_DIGIT[n];
+        if (n === 10) return '十';
+        if (n < 20) return '十' + CN_DIGIT[n - 10];
+        if (n < 100) {
+            const t = Math.floor(n / 10), o = n % 10;
+            return CN_DIGIT[t] + '十' + (o ? CN_DIGIT[o] : '');
+        }
+        return String(n);
+    }
 
     // 難度層的學習順序。青雲梯依此把整個題庫串成一條「學習序列」。
     const TIER_SEQ = ['小學', '中學', '高中', '大學', '研究所'];
@@ -213,6 +262,8 @@
                 const fresh = [];
                 LT.getTierPoemOrder(tier).forEach((pid, idx) => {
                     if (seen[pid]) return;
+                    // 課程凍結線：id 超過的詩不進課程（見 MAX_COURSE_POEM_ID）
+                    if (pid > MAX_COURSE_POEM_ID) return;
                     seen[pid] = true;
                     fresh.push({
                         id: pid, tier: tier, ord: idx,
@@ -326,7 +377,9 @@
          *   tier          主要難度層（跨層時取第一首詩所屬的層）
          *   units         必通關卡清單 [{ tier, level }]
          *   requiredClears 必通關卡總數 = units.length × 3（三種提取方式）
-         *   isExam        是否需要通過考試（縣案首以後的文位站）
+         *   isExam        這一站是不是「需應試的文位站」
+         *   examKind      'rank'（文位考）／'minor'（小考）／null（不用考）
+         *   examFrom      這場考試的範圍從第幾站開始（含）；沒有考試時無意義
          *
          * @returns {Array}
          */
@@ -359,12 +412,17 @@
             let cum = 0;
             const out = [];
             RANK_TABLE.forEach((r, i) => {
-                // +1：stationCount 只算「小站」，不含抵達這個文位本身那一份。
-                const span = (r.stationCount + 1) * r.perStation;
-                cum += span;
+                // ⚠️ 2026-09-06 改版：跨距（span）改為**直接指定**，
+                //    不再由 (stationCount + 1) × perStation 推算。
+                //    理由是每站詩數已經被釘死在 POEMS_PER_STATION（3 首），
+                //    小站數量變成「跨距 ÷ 每站首數」的結果，
+                //    不再是可以自由設定的欄位；若還讓它推算跨距，
+                //    改每站首數就會連帶把文位的詩詞跨距一起改掉。
+                //    這張表現在唯一要手動維護的就是 span。
+                cum += (r.span || 0);
                 const isLast = i === RANK_TABLE.length - 1;
                 const target = isLast ? Math.max(cum, total) : cum;
-                out.push({ name: r.name, poems: Math.min(target, total), perStation: r.perStation });
+                out.push({ name: r.name, poems: Math.min(target, total) });
             });
             return out;
         },
@@ -395,31 +453,127 @@
                 if (!next) break;
 
                 // ── 文位內的各階（二階／三階／…／準下一個文位）──────────
-                // 階數與每階詩數直接查 RANK_TABLE（next.perStation），
-                // 不再由公式反推。
+                //
+                // ⚠️ 2026-09-06 改版：每一站固定放 POEMS_PER_STATION 首詩，
+                //    站數由「跨距 ÷ 每站首數」決定，不再由 RANK_TABLE 指定。
+                //    餘數往**前面**的站分配（每站最多多放一首），
+                //    好讓排在區段最前面的**文位站自己**拿到滿額的一站 ——
+                //    文位站是這一段的重頭戲，若讓餘數落在它身上，
+                //    會出現「進士站只有 2 首詩」這種頭重腳輕的排法。
                 const span = next.poems - cur.poems;
                 if (span <= 0) continue;
 
-                const perStation = next.perStation;
-                const gradeCount = Math.max(1, Math.ceil(span / perStation));
+                const count = Math.max(1, Math.ceil(span / POEMS_PER_STATION));
+                const base = Math.floor(span / count);
+                const extra = span % count;          // 前 extra 站各多放一首
+                const sizeAt = k => base + (k < extra ? 1 : 0);
 
-                for (let k = 1; k < gradeCount; k++) {
-                    const at = cur.poems + Math.round(span * k / gradeCount);
-                    if (at <= cur.poems || at >= next.poems) continue;
+                let at = cur.poems + sizeAt(0);      // 第 0 塊是文位站自己
+                for (let k = 1; k < count; k++) {
                     stations.push({
                         type: 'grade',
                         // 最後一階一律叫「準X」，讓玩家知道下一站就是新文位
-                        name: (k === gradeCount - 1)
+                        name: (k === count - 1)
                             ? '準' + next.name
-                            : cur.name + (CN_NUM[k + 1] || String(k + 1)) + '階',
+                            : cur.name + cnNum(k + 1) + '階',
                         rankName: cur.name,
                         gradeIndex: k,
                         poemFrom: at,
                         isExam: false
                     });
+                    at += sizeAt(k);
                 }
             }
+            this._markExams(stations);
             return stations;
+        },
+
+        /**
+         * 標上考試：每累積 EXAM_EVERY_POEMS 首考一次；文位站一定要考。
+         *
+         * ── 兩種考試（作者 2026-09-06 定案）──────────────────────────────
+         *   文位考（examKind = 'rank'）
+         *     只掛在「需應試的文位站」上。通過 → 獎狀 ＋ 文位 ＋ 文位獎勵 ＋ 解鎖。
+         *   小考（examKind = 'minor'）
+         *     掛在小站上，是章節小測驗。通過 → 文錢 ＋ 解鎖，**不給文位、不給獎狀**。
+         *
+         * 兩者都是**硬性關卡**：沒通過就停在那一站，詩學再多也不會前進
+         * （見 LearningPath.getExamGateIndex）。
+         *
+         * ── 為什麼要有小考 ──────────────────────────────────────────────
+         * 改版前只有文位站要考，考卷隨文位指數成長（大儒 150 題、約 5 小時，
+         * 中途還不能存檔）。把考試切碎成「每 12 首一次」之後，
+         * 單場上限降到 24 題，而全程總題數幾乎不變 —— 只是攤平，不是加量。
+         *
+         * 每一站會被加上：
+         *   examKind   'rank' | 'minor' | null
+         *   examFrom   這場考試的範圍從第幾站開始（含），供 examConfig 取詩單
+         */
+        _markExams: function (stations) {
+            stations.forEach(function (st) { st.examKind = null; st.examFrom = 0; });
+
+            // 每一站的詩數（最後一站沒有下一站，用 poemTo 之後由
+            // _finalizeStations 補；這裡先以 poemFrom 差值估算）
+            const sizeOf = i => {
+                const next = stations[i + 1];
+                return next ? (next.poemFrom - stations[i].poemFrom) : 0;
+            };
+
+            // ── 錨點：需應試的文位站一定要考 ────────────────────────────
+            const anchors = [];
+            for (let i = 0; i < stations.length; i++) {
+                if (stations[i].type === 'rank' && stations[i].isExam) anchors.push(i);
+            }
+            // 最後一站若不是錨點（理論上大儒一定是），補上去免得尾巴沒考試
+            if (anchors.length && anchors[anchors.length - 1] !== stations.length - 1) {
+                anchors.push(stations.length - 1);
+            }
+
+            // ── 逐段平均切 ──────────────────────────────────────────────
+            // ⚠️ 為什麼不是「累積滿 12 首就考」：那種貪心作法會讓小考緊貼在
+            //    文位考前面，把文位考壓成 3 首 6 題（實測「秀才」就是這樣）。
+            //    改成「先算這一段總共幾首，需要幾場考試，再平均切」，
+            //    每一場的份量才會接近，而且文位考不會變成陪襯。
+            let from = 0;
+            anchors.forEach(function (anchor, anchorIdx) {
+                let total = 0;
+                for (let i = from; i <= anchor; i++) total += sizeOf(i);
+                // ⚠️ 第一段（書僮→第一個應試文位「塾生」，也就是整個「蒙童」
+                //    區間）作者定案是**完全免考**（見檔案最上方 EXAM_FROM_RANK
+                //    的說明：「只有蒙童維持免考」）。小考是後來才加的「每
+                //    ~12 首一次」機制，如果比照其他段落照樣切，這一段有 16
+                //    首（蒙童 8 ＋ 塾生 8）會被切出一場小考，塞進「準蒙童」
+                //    ——等於變相讓蒙童也要考試，直接牴觸原本的設計
+                //    （回報過：蒙童刻意設計成不用考試，準蒙童不該冒出考試）。
+                //    因此這一段強制 need=1：完全不插小考，只有錨點本身
+                //    （塾生）那一場文位考。
+                const need = (anchorIdx === 0)
+                    ? 1
+                    : Math.max(1, Math.ceil(total / EXAM_EVERY_POEMS));
+
+                // 前 need-1 場是小考，切在「累積量最接近目標」的站界上
+                let placed = 0, acc = 0;
+                for (let i = from; i < anchor && placed < need - 1; i++) {
+                    acc += sizeOf(i);
+                    const target = total * (placed + 1) / need;
+                    const accNext = acc + sizeOf(i + 1);
+                    // 這一站切下去比下一站更接近目標，就切在這裡
+                    if (Math.abs(acc - target) <= Math.abs(accNext - target)) {
+                        stations[i].examKind = 'minor';
+                        placed++;
+                    }
+                }
+                stations[anchor].examKind =
+                    (stations[anchor].type === 'rank' && stations[anchor].isExam) ? 'rank' : 'minor';
+                from = anchor + 1;
+            });
+
+            // ── 回填每一場考試的範圍起點 ────────────────────────────────
+            let scopeFrom = 0;
+            for (let i = 0; i < stations.length; i++) {
+                stations[i].examFrom = scopeFrom;
+                if (stations[i].examKind) scopeFrom = i + 1;
+            }
         },
 
         /** 後處理：算出每一站涵蓋的詩、必通關卡與難度層 */
@@ -526,6 +680,40 @@
             return idx;
         },
 
+        /**
+         * 這一場考試涵蓋哪些站（從上一場考試之後算起，到這一站為止）。
+         *
+         * ⚠️ 改版前的定義是「從上一個**文位站**的下一站到這一站」。
+         *    加入小考之後那個定義不成立了：小考也會把範圍切斷，
+         *    否則同一批詩會在小考與後面的文位考裡各考一次。
+         *    現在一律以「上一場考試之後」為起點（站點的 examFrom 欄位）。
+         *
+         * @param {object|number} station 站點物件或站點索引
+         * @returns {Array} 站點物件陣列；這一站沒有考試時回空陣列
+         */
+        getExamScopeStations: function (station) {
+            const stations = this.build();
+            const at = (typeof station === 'number')
+                ? station : stations.indexOf(station);
+            if (at < 0 || !stations[at] || !stations[at].examKind) return [];
+            const from = stations[at].examFrom || 0;
+            return stations.slice(from, at + 1);
+        },
+
+        /** 全部有考試的站（依序） */
+        getExamStations: function () {
+            return this.build().filter(function (st) { return !!st.examKind; });
+        },
+
+        /** 以站名找出站點（考試紀錄以站名為鍵） */
+        getStationByName: function (name) {
+            const stations = this.build();
+            for (let i = 0; i < stations.length; i++) {
+                if (stations[i].name === name) return stations[i];
+            }
+            return null;
+        },
+
         /** 取得某個文位的所有站點（文位站 + 其下三階） */
         getStationsOfRank: function (rankName) {
             return this.build().filter(st => st.rankName === rankName);
@@ -548,10 +736,16 @@
         /**
          * 取得「從遊戲開局到某文位里程碑」累積的必通關卡總數（靜態值，不看玩家進度）。
          *
-         * 這才是「能不能參加考試」的真正判準所依據的關卡總量 ——
-         * `LearningPath.getRankExamProgress()` 用的就是同一段學習序列切片，
-         * 只是那邊還要交叉比對玩家目前的通關紀錄。這裡只回傳「總共需要幾關」，
-         * 不含玩家進度，可在沒有 window/localStorage 的 Node 環境下使用。
+         * ⚠️⚠️ 這**不是**應試資格的判準。2026-09-05 定案的規則是
+         *    「修完該文位站**自己的**課程才取得應試資格」，
+         *    因此 `LearningPath.getRankExamProgress()` 用的是該文位站的
+         *    **poemTo**；而本函式用的是里程碑首數（＝該站的 poemFrom），
+         *    兩者剛好差一整站。這個註解以前寫著「兩者是同一段切片」，
+         *    那句話在改版後已經不成立，照著它推論會得到錯的資格門檻。
+         *
+         *    本函式現在只剩「站點清單要顯示這個文位累積幾關」這個展示用途
+         *    （tools/build_path_md.js），不含玩家進度，
+         *    可在沒有 window/localStorage 的 Node 環境下使用。
          *
          * @returns {number} 必通關卡總次數（= 關卡數 × getPlaysPerUnit()）
          */

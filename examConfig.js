@@ -153,6 +153,19 @@
     //    規則已經在這裡、不必臨時補。
     const SKIP_TIME_RATIO = 0.7;
 
+    // ── 小考（小站考試）的規則（作者 2026-09-06 定案）────────────────────
+    //   通過 → 文錢 ＋ 解鎖下一站；**不給文位、不給獎狀**。
+    //   及格線刻意比文位考寬鬆：它是章節檢核，不是功名考試。
+    //   高階文位考是 85%（17/20），小考一律 2/3。
+    const MINOR_PASS = [2, 3];
+    const MINOR_PER_POEM = 2;
+    //   免報名費：小考是課程的一部分，不該再收一次錢；
+    //   而且改版後考試場次由 13 場增為 33 場，若每場都收費，
+    //   後段文位的盤纏缺口會再擴大一倍以上（見第 8 節收支分析）。
+    const MINOR_FEE = 0;
+    //   通過獎勵：該文位獎勵的 1/4（無條件捨去，最低 1）。
+    const MINOR_REWARD_DIVISOR = 4;
+
     // 越級考試可以考哪些文位（塾生以上）
     const SKIP_MIN_RANK = '塾生';
     // 「文童以下可任選」的分界；到達這個文位之後只能依序考
@@ -248,26 +261,77 @@
         getPlan: function (rankName, isSkip) {
             // 需不需要考試以 PathStations 為準；難度參數查不到就用預設值。
             if (!this.isExamRank(rankName)) return null;
-            const cfg = this.getExamRule(rankName);
+            const PS = window.PathStations;
+            if (!PS || typeof PS.getStationByName !== 'function') return null;
+            // ⚠️ 2026-09-06 起考卷一律由「站點」算出來（範圍＝上一場考試之後
+            //    到這一站），文位名只是拿來找到那個文位站。舊的
+            //    getScopeStations(文位名) 定義是「上一個文位站之後」，
+            //    加入小考之後不再成立 —— 同一批詩會被小考與文位考各考一次。
+            const st = PS.getStationByName(rankName);
+            if (!st || st.type !== 'rank') return null;
+            return this.getPlanForStation(st, isSkip);
+        },
 
-            const poemIds = this.getScopePoemIds(rankName);
-            const perPoem = cfg.perPoem;
+        MINOR_PASS: MINOR_PASS,
+        MINOR_FEE: MINOR_FEE,
+        MINOR_REWARD_DIVISOR: MINOR_REWARD_DIVISOR,
+
+        /**
+         * 算出「某一站的考試」的完整規格。
+         *
+         * 這是 2026-09-06 改版後的主要入口：考試不再只掛在文位站上，
+         * 每累積約 12 首詩就有一場（見 PathStations._markExams）。
+         *
+         *   文位考（examKind='rank'） 通過 → 獎狀 ＋ 文位 ＋ 文位獎勵 ＋ 解鎖
+         *   小考  （examKind='minor'）通過 → 文錢 ＋ 解鎖（不給文位、不給獎狀）
+         *
+         * @param {object} station PathStations.build() 裡的站點物件
+         * @param {boolean} [isSkip] 越級考（只有文位考會用到）
+         * @returns {object|null} 這一站沒有考試時回 null
+         */
+        getPlanForStation: function (station, isSkip) {
+            const PS = window.PathStations;
+            if (!PS || !station || !station.examKind) return null;
+
+            const scope = PS.getExamScopeStations(station);
+            const poemIds = [];
+            scope.forEach(function (st) {
+                (st.poemIds || []).forEach(function (id) {
+                    if (poemIds.indexOf(id) < 0) poemIds.push(id);
+                });
+            });
+
+            const isRank = (station.examKind === 'rank');
+            const cfg = isRank ? this.getExamRule(station.name) : null;
+            const perPoem = isRank ? cfg.perPoem : MINOR_PER_POEM;
             const total = poemIds.length * perPoem;
-            const pass = isSkip ? SKIP_PASS : cfg.pass;
-
-            // 無條件進位：寧可嚴一點，也不要出現「答對比例低於公告值仍算及格」
+            const pass = isSkip ? SKIP_PASS : (isRank ? cfg.pass : MINOR_PASS);
             const passCount = Math.ceil(total * pass[0] / pass[1]);
 
             return {
-                rankName: rankName,
+                // 考試的識別碼一律用**站名**：文位考的站名剛好就是文位名，
+                // 小考則沒有文位可用。通過紀錄也以它為鍵。
+                examId: station.name,
+                kind: station.examKind,
+                rankName: isRank ? station.name : null,
+                stationName: station.name,
                 isSkip: !!isSkip,
                 poemIds: poemIds,
                 perPoem: perPoem,
                 totalQuestions: total,
                 passCount: passCount,
                 passRateText: Math.round(pass[0] / pass[1] * 100) + '%',
-                stationNames: this.getScopeStations(rankName).map(function (s) { return s.name; })
+                stationNames: scope.map(function (s) { return s.name; })
             };
+        },
+
+        /** 這一站的考試是否已經通過（文位考看 ranks.passed，小考看 exams.minorPassed） */
+        isExamPassed: function (coll, station) {
+            if (!coll || !station || !station.examKind) return true;
+            if (station.examKind === 'rank') {
+                return ((coll.ranks && coll.ranks.passed) || []).indexOf(station.name) >= 0;
+            }
+            return ((coll.exams && coll.exams.minorPassed) || []).indexOf(station.name) >= 0;
         },
 
         /**
@@ -346,50 +410,42 @@
          * @param {string} currentRank 玩家目前的有效文位
          * @returns {Array<{name:string, enabled:boolean, reason:string}>}
          */
-        getSkipMenu: function (currentRank) {
-            const order = getExamRankOrder();
-            const curIdx = order.indexOf(currentRank);
-            const minIdx = order.indexOf(SKIP_MIN_RANK);
-            const freeUntilIdx = order.indexOf(SKIP_FREE_CHOICE_UNTIL);
+        getSkipMenu: function () {
+            const PS = window.PathStations;
+            const S = window.FMCollectionSave;
+            if (!PS || !S) return [];
+            let coll = null;
+            try { coll = S.load(); } catch (e) { return []; }
 
-            // 選單固定列出 塾生 … 進士（含），與 SKIP_SEQUENTIAL_RANKS 的尾端對齊
-            const lastIdx = order.indexOf(SKIP_SEQUENTIAL_RANKS[SKIP_SEQUENTIAL_RANKS.length - 1]);
+            const stations = PS.build();
             const menu = [];
+            let nextFound = false;
 
-            // 玩家已達文童（含）之後：只能依序考，「下一個沒考過的」才可點
-            const isSequentialPhase = (curIdx >= freeUntilIdx);
-            let nextSequential = '';
-            if (isSequentialPhase) {
-                for (let i = 0; i < SKIP_SEQUENTIAL_RANKS.length; i++) {
-                    const nm = SKIP_SEQUENTIAL_RANKS[i];
-                    if (order.indexOf(nm) > curIdx) { nextSequential = nm; break; }
-                }
-            }
+            for (let i = 0; i < stations.length; i++) {
+                const st = stations[i];
+                if (!st.examKind) continue;
+                const passed = this.isExamPassed(coll, st);
 
-            for (let i = minIdx; i <= lastIdx; i++) {
-                const name = order[i];
-                let enabled = false;
-                let reason = '';
-
-                if (i <= curIdx) {
-                    reason = '已達此文位';
-                } else if (isSequentialPhase) {
-                    if (SKIP_SEQUENTIAL_RANKS.indexOf(name) < 0) {
-                        reason = '已越過此文位';
-                    } else if (name === nextSequential) {
-                        enabled = true;
-                    } else {
-                        reason = '須依序應考';
-                    }
+                let enabled = false, reason = '';
+                if (passed) {
+                    reason = '已通過';
+                } else if (!nextFound) {
+                    // ⚠️ 只有「下一個還沒通過的考試站」可以越級。
+                    //    作者 2026-09-06 定案：越級考試必須**依序**通過每一場考試，
+                    //    不能直接跳到某個文位考 —— 越級省的是「修課」，不是「考試」。
+                    //    舊版可以從書僮直接報考進士，等於用錢買掉中間十幾場驗收。
+                    enabled = true;
+                    nextFound = true;
                 } else {
-                    // 自由選擇階段：塾生～文童之間、且高於目前文位者皆可
-                    if (i <= freeUntilIdx) {
-                        enabled = true;
-                    } else {
-                        reason = '須先達「' + SKIP_FREE_CHOICE_UNTIL + '」';
-                    }
+                    reason = '須依序應考';
                 }
-                menu.push({ name: name, enabled: enabled, reason: reason });
+
+                menu.push({
+                    name: st.name,
+                    kind: st.examKind,          // 'rank'（文位考）／'minor'（小考）
+                    enabled: enabled,
+                    reason: reason
+                });
             }
             return menu;
         },

@@ -67,13 +67,18 @@
     // 長題目遊戲（整首詩）：認知負荷重，不連續出現兩次（企畫書 10.2）
     const LONG_GAMES = { 3: true, 9: true, 14: true, 22: true, 37: true, 21: true, 23: true };
 
-    // 18 款遊戲的顯示名稱
+    // 青雲梯會碰到的 19 款遊戲的顯示名稱
+    // ⚠️ 這張表不只用來顯示：launchGame 靠 Object.keys(GAME_NAMES) 逐一
+    //    關掉「還開著的其他青雲梯遊戲」。少列一款，那一款的 overlay 就
+    //    永遠不會被關掉，玩家會同時看到兩層遊戲畫面
+    //    （2026-09 實測：game16 因漏列而發生）。
+    //    只要是青雲梯可能派出或列在 GAME_CHANNELS 裡的遊戲，都必須在這裡有名字。
     const GAME_NAMES = {
         1: '慢思快選', 3: '字爬梯', 4: '眾裡尋他', 8: '一筆裁詩',
         9: '詩韻鎖扣', 11: '翻墨識蹤', 12: '疏影橫斜', 13: '人事時地',
-        14: '步步驚心', 20: '丟三落一', 21: '橫批成詩', 22: '詩詞拼圖',
-        23: '縱橫集句', 31: '詩眼覓蹤', 33: '作者是誰', 36: '轉輪覓詩',
-        37: '步步為陣', 40: '點兵成詩'
+        14: '步步驚心', 16: '打地詩', 20: '丟三落一', 21: '橫批成詩',
+        22: '詩詞拼圖', 23: '縱橫集句', 31: '詩眼覓蹤', 33: '作者是誰',
+        36: '轉輪覓詩', 37: '步步為陣', 40: '點兵成詩'
     };
 
     // ── 通道出現權重（作者定案）─────────────────────────────────────────
@@ -156,6 +161,7 @@
         _currentStation: null,// 玩家目前正在闖的那一站
         _patched: null,       // { no, original } —— 被覆寫 startNextLevel 的遊戲
         _reviewMode: false,   // 目前是否在溫習舊文位（不累計局數）
+        _examPrompted: null,  // 已經跳過「可赴科場」提示的文位（僅本工作階段）
         _stationIdxAtLaunch: -1, // 開局當下的站點索引，用來偵測「這一局讓玩家晉升了」
 
         /** 建立「文位 → 可玩遊戲清單」的累加對照表 */
@@ -209,13 +215,31 @@
          *    「幾款遊戲算學會一關」「哪幾款不列入進度」就會出現第二份定義，
          *    兩邊一旦飄移，玩家看到的自己的文位與榜上的文位就會不一樣。
          *
-         * @param {object} levelCleared  {gameKey: {難度層: [關卡編號…]}}
-         * @param {object} levelDonated  {難度層: [關卡編號…]}
+         * ⚠️ 兩份輸入都可能是**新舊混雜**的：
+         *    · 新格式＝穩定識別碼字串 "錨定詩id:起始句"（例如 "69:4"）
+         *    · 舊格式＝關卡編號數字（＝關卡表的陣列位置）
+         *    本機存檔會在 ScoreManager.loadPlayerData 就地遷移，但群英榜讀到的
+         *    是**別人**的雲端存檔，那些人可能還沒開過新版。因此這裡一律先正規化
+         *    成穩定識別碼再建表，兩種格式都吃得下。
+         *    （舊格式的換算只有在關卡表還沒被新詩打亂之前才正確 ——
+         *      這正是遷移必須趕在下次擴充題庫之前上線的原因，
+         *      詳見 levelTable.js 的「穩定關卡識別碼」段落。）
+         *
+         * @param {object} levelCleared  {gameKey: {難度層: [關卡參照…]}}
+         * @param {object} levelDonated  {難度層: [關卡參照…]}
          * @returns {{games:Object, donated:Object}}
          */
         buildProgressMapsFrom: function (levelCleared, levelDonated) {
             const map = {};
             const donated = {};
+            const LT = window.LevelTable;
+            const norm = (tier, ref) => {
+                if (LT && typeof LT.toLevelKey === 'function') {
+                    const k = LT.toLevelKey(tier, ref);
+                    if (k !== null) return k;
+                }
+                return String(ref);
+            };
             const lc = levelCleared || {};
             for (const gameKey in lc) {
                 const no = parseInt(String(gameKey).replace('game', ''), 10);
@@ -225,7 +249,7 @@
                     const arr = byTier[tier];
                     if (!Array.isArray(arr)) continue;
                     for (let i = 0; i < arr.length; i++) {
-                        const k = tier + '|' + arr[i];
+                        const k = tier + '|' + norm(tier, arr[i]);
                         if (!map[k]) map[k] = {};
                         map[k][no] = true;
                     }
@@ -235,9 +259,23 @@
             for (const tier in ld) {
                 const arr = ld[tier];
                 if (!Array.isArray(arr)) continue;
-                for (let i = 0; i < arr.length; i++) donated[tier + '|' + arr[i]] = true;
+                for (let i = 0; i < arr.length; i++) donated[tier + '|' + norm(tier, arr[i])] = true;
             }
             return { games: map, donated: donated };
+        },
+
+        /**
+         * 站點的必通關卡（{tier, level}）→ 進度表的鍵值。
+         * 站點是由關卡表即時算出來的，所以這裡拿到的一定是「目前的」關卡編號；
+         * 進度表則一律以穩定識別碼為鍵，因此必須換算後才能比對。
+         */
+        _unitKey: function (tier, level) {
+            const LT = window.LevelTable;
+            if (LT && typeof LT.toLevelKey === 'function') {
+                const k = LT.toLevelKey(tier, level);
+                if (k !== null) return tier + '|' + k;
+            }
+            return tier + '|' + level;
         },
 
         /** 存檔可能已變動（通關、捐納）時呼叫，下次讀取會重建 */
@@ -251,7 +289,7 @@
          */
         getLevelGames: function (tier, level) {
             const c = this.buildProgressCache();
-            return c.games[tier + '|' + level] || {};
+            return c.games[this._unitKey(tier, level)] || {};
         },
 
         /** 這個題目單元已完成的局數（已用幾款不同遊戲通過） */
@@ -267,7 +305,7 @@
         /** isUnitDone 的「指定進度表」版本，供替別人（雲端存檔）計算時使用 */
         isUnitDoneIn: function (maps, unit) {
             if (!maps || !unit) return false;
-            const k = unit.tier + '|' + unit.level;
+            const k = this._unitKey(unit.tier, unit.level);
             if (maps.donated[k]) return true;
             const need = window.PathStations
                 ? window.PathStations.getPlaysPerUnit() : 3;
@@ -292,10 +330,18 @@
             const channels = {};
             units.forEach(u => {
                 // 捐納跳關的單元沒有實際遊玩，但要算進「這一站已推進多少」
-                if (cache.donated[u.tier + '|' + u.level]) { done += per; return; }
+                if (cache.donated[this._unitKey(u.tier, u.level)]) { done += per; return; }
                 const games = this.getLevelGames(u.tier, u.level);
-                Object.keys(games).forEach(no => {
-                    done++;
+                const keys = Object.keys(games);
+                // ⚠️ 同一單元的「已完成局數」必須夾在 per（3 局）以內。
+                //    玩家在整站通關後仍可繼續複習（pickUnit 會改從全部單元
+                //    隨機挑），一個單元因此可能累積到四、五款遊戲的紀錄；
+                //    若照實累加，done 會超過 total，下面的 left（= total − done）
+                //    變成負數，於是 pickGame 的「站尾補缺」條件 left <= 3
+                //    會永遠成立 —— 整站從此不再依 12:3:3:1:1 權重挑通道，
+                //    而是一直在補那些權重最低的通道。
+                done += Math.min(per, keys.length);
+                keys.forEach(no => {
                     const ch = GAME_CHANNELS[no];
                     if (ch) channels[ch] = true;
                 });
@@ -510,14 +556,89 @@
          */
         getCurrentStationIndex: function () {
             if (!window.PathStations) return 0;
-            return window.PathStations.getCurrentIndex(this.getPathPoemCount());
+            const byPoems = window.PathStations.getCurrentIndex(this.getPathPoemCount());
+            return Math.min(byPoems, this.getExamGateIndex());
+        },
+
+        /**
+         * 考試關卡：站點推進的上限索引。
+         *
+         * ── 規則（作者 2026-09-05 定案）────────────────────────────────
+         *   抵達文位站  ＝ 入學，開始修這個文位自己的課程（**還沒有應試資格**）
+         *   修完文位站的課程 ＝ 取得應試資格
+         *   通過考試    ＝ 冊封（獎狀＋文位獎勵），並得以進入下一階課程
+         *
+         * 因此「第一個尚未通過考試的應試文位站」就是玩家能走到的最遠處：
+         * 詩學得再多也不會越過它，必須先把那一場考試考過。
+         *
+         * ⚠️ 為什麼一定要有這道關卡：少了它，玩家可以一路走完全部 77 站
+         *    抵達大儒，**文位卻始終停在「蒙童」**（實測如此）——
+         *    文位就不再代表進度，「越級考試」這條路也失去存在的理由。
+         *
+         * ⚠️ 這不會造成死鎖：正式考沒有次數限制（只收文錢），文錢可以靠
+         *    漢堡選單的自由練習賺；卡在關卡站時該站的必通關卡也還能反覆重打
+         *    （pickUnit 在整站通關後會改為隨機重抽），模擬考則每日免費一次。
+         *
+         * @returns {number} 上限索引；全部考過（或考試模組未載入）時回無限大
+         */
+        getExamGateIndex: function () {
+            const PS = window.PathStations;
+            const EC = window.FMExamConfig;
+            if (!PS || !EC) return Infinity;
+            let coll = null;
+            try { coll = window.FMCollectionSave && window.FMCollectionSave.load(); }
+            catch (e) { coll = null; }
+            if (!coll) return Infinity;
+
+            const stations = PS.build();
+            for (let i = 0; i < stations.length; i++) {
+                const st = stations[i];
+                // ⚠️ 2026-09-06 起「有考試的站」不只文位站：每累積約 12 首詩
+                //    就有一場小考，兩種考試都是硬性關卡。
+                if (st.examKind && !EC.isExamPassed(coll, st)) return i;
+            }
+            return Infinity;
+        },
+
+        /**
+         * 玩家目前是不是「卡在考試關卡」——課程修完了、考試還沒過。
+         * @returns {{blocked:boolean, station:object|null, qualified:boolean}}
+         */
+        getExamGateState: function () {
+            const PS = window.PathStations;
+            const empty = { blocked: false, station: null, qualified: false, kind: null };
+            if (!PS) return empty;
+            const gate = this.getExamGateIndex();
+            if (!isFinite(gate)) return empty;
+            const stations = PS.build();
+            const st = stations[gate];
+            if (!st) return empty;
+            // 站點索引已經被壓在關卡上，代表詩已經學到（或超過）這一站
+            const atGate = this.getCurrentStationIndex() === gate;
+            const qualified = atGate && this.getStationExamProgress(st).ok;
+            return { blocked: atGate, station: st, qualified: qualified, kind: st.examKind };
         },
 
         /**
          * 某文位的「考試資格」進度（企畫書 9.4 第一步）。
          *
-         * 資格 = 學習序列中該文位里程碑之前的所有詩，其必通關卡全數完成。
-         *   例：秀才里程碑 64 首 → 必須先把前 64 首的必通關卡全部做完。
+         * 資格 = 學習序列中「**修完該文位站自己的課程**」之前的所有詩，
+         *        其必通關卡全數完成 —— 也就是該文位站的 poemTo。
+         *
+         * ⚠️⚠️ 這裡的分母**不是**該文位的里程碑首數（＝該站的 poemFrom）。
+         *    兩者差了整整一站：里程碑首數代表「剛踏進這個文位站、課程一關
+         *    都還沒打」的那一刻。作者 2026-09-05 定案的規則是：
+         *
+         *        抵達文位站      ＝ 入學（開始修這個文位的課程）
+         *        修完文位站課程  ＝ 取得應試資格      ← 就是這裡
+         *        通過考試        ＝ 冊封
+         *
+         *    用里程碑首數會讓玩家在「一關都還沒修」時就被通知可以應試。
+         *    更嚴重的是考試範圍（FMExamConfig.getScopeStations）**本來就包含
+         *    文位站自己的詩**，於是考卷上會有一大部分是還沒學過的內容 ——
+         *    實測 13 個文位中有 9 個「就算學過的每一題全對也到不了及格線」
+         *    （縣案首：及格 15/18，學過的最多只能對 12 題）。
+         *    改用 poemTo 之後，13 個文位的考試範圍全部落在已學範圍內。
          *
          * ⚠️ 這取代了舊制的「積分達標」。積分可以靠反覆刷低難度遊戲累積，
          *    完全不代表學會了詩詞，正是當初加考試制度要防的事。
@@ -526,13 +647,28 @@
          *            unitsDone:number, unitsTotal:number}}
          */
         getRankExamProgress: function (rankName) {
+            const PS = window.PathStations;
+            if (!PS) return { ok: false, poemsDone: 0, poemsNeed: 0, unitsDone: 0, unitsTotal: 0 };
+            return this.getStationExamProgress(PS.getStationByName(rankName));
+        },
+
+        /**
+         * 某一站的「考試資格」進度。
+         *
+         * 資格 ＝ 修完**這一站自己的**課程（該站的 poemTo 之前全部學會）。
+         * 文位考與小考共用同一條規則。
+         *
+         * @param {object} station 站點物件
+         * @returns {{ok:boolean, poemsDone:number, poemsNeed:number,
+         *            unitsDone:number, unitsTotal:number}}
+         */
+        getStationExamProgress: function (station) {
             const empty = { ok: false, poemsDone: 0, poemsNeed: 0, unitsDone: 0, unitsTotal: 0 };
             const PS = window.PathStations;
-            if (!PS) return empty;
-            const ms = PS.getMilestones();
-            let m = null;
-            for (let i = 0; i < ms.length; i++) { if (ms[i].name === rankName) { m = ms[i]; break; } }
-            if (!m) return empty;
+            if (!PS || !station) return empty;
+            const need = station.poemTo;
+            if (typeof need !== 'number' || need < 0) return empty;
+            const m = { poems: need };
 
             const list = PS.getPoemUnits().slice(0, m.poems);
             let unitsTotal = 0, unitsDone = 0, poemsDone = 0;
@@ -750,7 +886,33 @@
             this.overlay.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             document.body.classList.add('overlay-active');
-            setTimeout(() => this.scrollToCurrent(false), 50);
+            // ⚠️ 開機時 menu.js 會在 DOMContentLoaded 當下就呼叫這裡
+            // （見「花月開發常見錯誤與解法」§showHomeOnBoot），這是版面最
+            //    不穩定的時間點：learningPath.css 是這裡（init()）才動態插入
+            //    的，插入當下瀏覽器連抓都還沒抓，往後究竟哪一輪才套用完成
+            //    無法預測——實測發現只靠「立刻捲一次＋rAF 補一次」仍然會
+            //    賭輸：兩次都讀到還沒套用 CSS 的 #lpScroll（此時它連
+            //    overflow-y:auto 都還沒生效，等於不能捲，scrollTop 設了也
+            //    會被夾回 0），新玩家因此停在最上方的「大儒」而不是自己該
+            //    在的「書僮」。且套用完成後**沒有任何東西會再補捲一次**，
+            //    於是就這樣定住了。
+            //    改成連續補捲好幾輪（立刻＋三次 rAF 疊加，涵蓋「版面要兩三
+            //    輪 reflow 才穩定」的情形）＋ 一個 300ms 的保底 setTimeout
+            //    （涵蓋 CSS 檔案真的要走一趟網路請求才回來的極端情形）。
+            //    不能只用 setTimeout 取代 rAF：分頁在背景時 rAF 會暫停，
+            //    但 setTimeout 不會，兩者搭配才兼顧「開面板當下多半在前景
+            //    要盡快捲到位」與「萬一真的卡很久也要有保底」。
+            const self = this;
+            const refix = function () { self.scrollToCurrent(false); };
+            refix();
+            requestAnimationFrame(function () {
+                refix();
+                requestAnimationFrame(function () {
+                    refix();
+                    requestAnimationFrame(refix);
+                });
+            });
+            setTimeout(refix, 300);
         },
 
         hide: function () {
@@ -836,6 +998,8 @@
             this.invalidateProgress();
 
             this.stations = window.PathStations.build();
+            // 補發「已抵達但沒經過晉升彈窗」的站點文錢（冪等，見該函式說明）
+            this.settleArrivedRewards();
             // ⚠️ learned（總學會首數）只拿來顯示，站點定位一律走
             //    getCurrentStationIndex()——兩者的差別見 getPathPoemCount()。
             const learned = this.getLearnedPoemCount();
@@ -853,10 +1017,18 @@
 
             // 進度 = 目前文位還要打幾局才能晉級（改用玩家看得懂的「局數」）
             const prom = this.getPromotionProgress();
+            const gateNow = this.getExamGateState();
+            const gateBlockedQualified = gateNow.blocked && gateNow.qualified;
+            const gateStationName = gateNow.station ? gateNow.station.name : '';
             const pct = prom.total ? Math.min(100, prom.done / prom.total * 100) : 100;
             const progText = this.overlay.querySelector('#lpProgText');
             const progFill = this.overlay.querySelector('#lpProgFill');
-            if (prom.nextName && prom.total) {
+            if (gateBlockedQualified) {
+                // 課程修完、卡在考試 —— 進度條滿格但站點不會動，必須明講，
+                // 否則玩家會盯著滿格的條子疑惑為什麼沒有前進。
+                progText.textContent = `「${gateStationName}」課程已修畢 —— `
+                    + (gateNow.kind === 'minor' ? '通過小考方可續進' : '中式方可續進');
+            } else if (prom.nextName && prom.total) {
                 // 顯示的是「下一站」的名字（可能是小階，也可能剛好是下一個大文位）
                 progText.textContent =
                     `「${prom.nextName}」晉升局數 ${prom.done} / ${prom.total}`;
@@ -882,6 +1054,17 @@
                 } catch (e) { return []; }
             })();
 
+            // ── 唯一一個「可應試」的站（規則第二步）──────────────────────
+            // ⚠️ 以前是 `st.isExam && i <= currentIdx && 尚未通過`，也就是
+            //    「抵達即可應試」。新規則下抵達只是入學，必須修完這一站自己的
+            //    課程才有資格，因此改以 getRankExamProgress() 為準。
+            // ⚠️ 考試會擋路（getExamGateIndex），所以站點索引之前的應試文位
+            //    必定都已通過，可應試的站最多只有一個 —— 在迴圈外算一次就好，
+            //    避免對近百個站點各跑一次 getRankExamProgress（那要走訪整份題庫）。
+            const gateState = this.getExamGateState();
+            const examReadyIdx = (gateState.blocked && gateState.qualified)
+                ? this.getExamGateIndex() : -1;
+
             this.stations.forEach((st, i) => {
                 const x = 250 + Math.sin(i * 0.62) * AMP;
                 // ⚠️ 由下往上：索引越大越靠近頂端
@@ -897,12 +1080,12 @@
                 //    站點推進只看已學詩詞數，考試並不擋路，所以玩家很可能
                 //    已經走過頭好幾站、卻還沒回頭去考那個文位。這種情況下
                 //    那一站仍然必須標示成「可應試」，否則玩家會找不到入口。
-                const isExamReady = !!st.isExam && i <= currentIdx
-                    && passedRanks.indexOf(st.name) < 0;
+                const isExamReady = (i === examReadyIdx);
 
                 const cls = ['lp-station'];
                 cls.push(st.type === 'rank' ? 'lp-rank-station' : 'lp-minor-station');
                 if (st.isExam) cls.push('lp-exam-station');
+                if (st.examKind === 'minor') cls.push('lp-minor-exam-station');
                 if (isDone) cls.push('lp-done');
                 if (isCurrent) cls.push('lp-current');
                 if (isLocked) cls.push('lp-locked');
@@ -913,6 +1096,7 @@
                 // 站點圖示：文位站用印章、考棚站用門樓、階站用圓點
                 let icon;
                 if (st.type === 'rank') icon = st.isExam ? '⛩' : '❖';
+                else if (st.examKind === 'minor') icon = isDone ? '✓' : '◈';   // 有小考的小站
                 else icon = isDone ? '✓' : '●';
 
                 // 副標顯示「難度層 + 這一站要學第幾首到第幾首詩」。
@@ -935,11 +1119,26 @@
                     // ⚠️ 分成兩顆而不是一顆再跳選單：新玩家沒看過考試會慌，
                     //    模擬考必須一眼就看得到、而且看得出它是安全的，
                     //    藏在第二層選單裡等於沒有。
+                    // ⚠️ 小考只有一顆鈕：它免報名費，本身就是「安全的練習」，
+                    //    再給一顆模擬考只是多一層選擇障礙。
                     (isExamReady
-                        ? `<div class="lp-exam-badges">` +
-                        `<div class="lp-exam-badge lp-exam-mock" data-exam="mock">模擬考</div>` +
-                        `<div class="lp-exam-badge lp-exam-real" data-exam="real">正式考</div>` +
-                        `</div>`
+                        ? (st.examKind === 'minor'
+                            ? `<div class="lp-exam-badges">` +
+                            `<div class="lp-exam-badge lp-exam-real" data-exam="real">小考</div>` +
+                            `</div>`
+                            : `<div class="lp-exam-badges">` +
+                            `<div class="lp-exam-badge lp-exam-mock" data-exam="mock">模擬考</div>` +
+                            `<div class="lp-exam-badge lp-exam-real" data-exam="real">正式考</div>` +
+                            `</div>`)
+                        : '') +
+                    // ── 手指提示：長期存在的引導動畫 ─────────────────────
+                    // ⚠️ 每次開啟青雲梯都會重繪，這顆手指就會跟著「目前所在站」
+                    //    一起出現，不分新舊玩家——這正是企劃要的「長期存在」
+                    //    而非只給新手看一次的簡介動畫。
+                    // ⚠️ isExamReady 時不疊加：可應試的站已經有 .lp-exam-real
+                    //    自己的脈動徽章，兩個一起跳只會互相搶焦點。
+                    (isCurrent && !isExamReady
+                        ? `<div class="lp-finger-hint">👆</div>`
                         : '') +
                     `</div>`;
 
@@ -1117,6 +1316,27 @@
         renderNotice: function (station) {
             const box = this.overlay.querySelector('#lpNotice');
             if (!box) return;
+
+            // ── 卡在考試關卡：課程修完了、考試還沒過 ────────────────────
+            //    這是常駐入口；一次性的彈窗（showExamQualifiedPopup）只在
+            //    剛取得資格那一刻出現，之後玩家就得靠這一列與站點標記。
+            const gate = this.getExamGateState();
+            if (gate.blocked && gate.qualified) {
+                const minor = (gate.kind === 'minor');
+                box.classList.remove('hidden');
+                box.innerHTML =
+                    `<span class="lp-notice-text">「${gate.station.name}」課程已修畢，`
+                    + (minor ? '通過小考方可續進' : '中式方可續進') + `</span>` +
+                    `<button class="lp-notice-btn" id="lpBtnGoExam">`
+                    + (minor ? '應小考' : '前往應試') + `</button>`;
+                const b = box.querySelector('#lpBtnGoExam');
+                if (b) b.addEventListener('click', () => {
+                    if (minor) this.startExam(gate.station.name, 'real');
+                    else this.goToExam();
+                });
+                return;
+            }
+
             const stuck = this.findStuckUnit(station);
             if (!stuck) { box.classList.add('hidden'); box.innerHTML = ''; return; }
 
@@ -1363,7 +1583,10 @@
             this._currentStation = st;
             const unit = this.pickUnit(st);
             if (!unit) {
+                // 最後一站「大儒」沒有再往後的詩（poemFrom === poemTo），
+                // 過去這裡靜靜地什麼都不做，玩家只會覺得點了沒反應。
                 if (window.SoundManager) window.SoundManager.playFailure();
+                this.toast('這一站沒有安排課程，青雲梯已至頂端。');
                 return;
             }
             if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -1539,15 +1762,45 @@
             // ── 這一局是否讓玩家晉升到下一站？────────────────────────────
             // 站點索引往前跳 = 這一站的必通關卡剛剛全部完成。
             // 立刻彈窗給予成就感，避免玩家傻傻一直玩卻不知道自己已經升階。
+            //
+            // ⚠️⚠️ 一局有可能一次跨過**好幾站**，必須逐站結算，不可以只處理
+            //    最後那一站。站點定位靠的是「依學習順序連續學會幾首詩」
+            //    （getPathPoemCount），只要中間某幾首詩早就在自由練習、溫習、
+            //    或別站派題時被順手學完，補上缺口的那一局就會讓索引一次前進
+            //    兩站以上。
+            //    舊版只彈 stations[nowIdx] 一個窗，造成兩個實際災情：
+            //      ① 中間若夾著「需應試的文位站」（塾生／童生／縣案首…），
+            //         那個「可赴科場」的引導彈窗會被整個吃掉 —— 玩家回報的
+            //         「完成童生課程卻沒叫我去考試，反而直接跳獎狀動畫」
+            //         就是這一條：跳過的是童生站，演出的是童生二階的小站晉升。
+            //      ② 中間被跳過的小站／免考文位站，其晉升文錢是在
+            //         showPromotionPopup 裡發的，沒彈窗就等於**永遠拿不到**。
             const nowIdx = this.getCurrentStationIndex();
             if (!this._reviewMode && nowIdx > this._stationIdxAtLaunch && this._stationIdxAtLaunch >= 0) {
+                const fromIdx = this._stationIdxAtLaunch;
                 this._stationIdxAtLaunch = nowIdx;
-                const reached = this.stations[nowIdx];
                 this.restorePatchedGame();
                 const cur1 = window['Game' + gameNo];
                 if (cur1 && typeof cur1.stopGame === 'function') cur1.stopGame();
-                this.showPromotionPopup(reached);
+                this.showPromotionQueue(fromIdx + 1, nowIdx);
                 return;
+            }
+
+            // ── 這一局是否讓玩家「修完了應試文位站的課程」？────────────
+            //    站點索引不會前進（考試擋路，見 getExamGateIndex），
+            //    因此上面那一段抓不到，必須在這裡單獨判斷。
+            //    這是升等規則第二步：修完課程 ＝ 取得應試資格。
+            if (!this._reviewMode) {
+                const gate = this.getExamGateState();
+                if (gate.blocked && gate.qualified
+                    && this._examPrompted !== gate.station.name) {
+                    this._examPrompted = gate.station.name;
+                    this.restorePatchedGame();
+                    const cur2 = window['Game' + gameNo];
+                    if (cur2 && typeof cur2.stopGame === 'function') cur2.stopGame();
+                    this.showExamQualifiedPopup(gate.station);
+                    return;
+                }
             }
 
             const st = this._currentStation;
@@ -1641,7 +1894,16 @@
             if (!amount || !name) return 0;
             if (!window.ScoreManager || !window.FMCollectionSave) return 0;
 
-            const achId = (kind === 'rank') ? ('rank_' + name) : ('lpgrade_' + name);
+            // ⚠️ 三種前綴必須各自獨立，絕不可共用：
+            //      rank_<文位名>   文位獎勵（與成就頁的「領取獎狀」CTA 共用，刻意的）
+            //      lpgrade_<站名>  小站「抵達」時的晉升文錢
+            //      lpexam_<站名>   小考「通過」時的文錢
+            //    小考掛在小站上，若沿用 lpgrade_ 前綴就會與該站的抵達獎勵
+            //    共用同一個冪等旗標 —— 先發的那一筆會把後發的那一筆擋掉，
+            //    玩家永遠只拿得到其中一筆，而且不會有任何錯誤訊息。
+            const achId = (kind === 'rank') ? ('rank_' + name)
+                : (kind === 'minor') ? ('lpexam_' + name)
+                    : ('lpgrade_' + name);
 
             const data = window.ScoreManager.loadPlayerData();
             if (!data.achievements) data.achievements = { unlocked: [], progress: {}, claimed: [] };
@@ -1756,6 +2018,95 @@
         },
 
         /**
+         * 依序演出「這一局跨過的每一站」的晉升彈窗。
+         *
+         * ⚠️ 為什麼一定要排隊而不是只演最後一站：見 advanceAfterWin 內的說明。
+         *    重點是**每一站都要各自跑一次 showPromotionPopup**，因為晉升文錢
+         *    是在那支函式裡發的（grantStationReward），而「需應試的文位站」
+         *    的考試引導彈窗也只在那裡出現。少演一站，玩家就少拿一筆文錢、
+         *    或整個錯過一次「該去考試了」的提示。
+         *
+         * ⚠️ 中途若玩家在「應試資格」彈窗按下「即赴科場」，佇列會就此中止
+         *    （goToExam 會把畫面帶去江南小院考棚）。這是可接受的：獎勵在
+         *    彈窗出現之前就已經入帳，後面沒演到的只是慶祝動畫；而且玩家
+         *    回到青雲梯時，render() 的 settleArrivedRewards() 還會再補一次刀。
+         *
+         * @param {number} fromIdx 第一個要演出的站點索引（含）
+         * @param {number} toIdx   最後一個要演出的站點索引（含）
+         */
+        showPromotionQueue: function (fromIdx, toIdx) {
+            const stations = (this.stations && this.stations.length)
+                ? this.stations
+                : (window.PathStations ? window.PathStations.build() : []);
+            const list = [];
+            for (let i = fromIdx; i <= toIdx; i++) {
+                if (stations[i]) list.push(stations[i]);
+            }
+            const self = this;
+            let k = 0;
+            const next = function () {
+                if (k >= list.length) {
+                    self.show();
+                    setTimeout(function () { self.scrollToCurrent(true); }, 120);
+                    return;
+                }
+                self.showPromotionPopup(list[k++], next);
+            };
+            next();
+        },
+
+        /**
+         * 補發「已經抵達、卻從來沒發過獎勵」的站點文錢。
+         *
+         * ⚠️ 為什麼需要這一支：晉升文錢原本只在 showPromotionPopup 裡發，
+         *    而那個彈窗只有「在青雲梯裡打完一局、而且按下『下一關』回到
+         *    青雲梯」這一條路徑會觸發。實際上還有好幾條路會讓站點前進卻
+         *    完全不經過那個彈窗：
+         *      · 玩家過關後直接關掉遊戲、從漢堡選單走人
+         *      · 捐納跳關（donateSkip）剛好補完這一站的最後一個單元
+         *      · 在漢堡選單自由練習裡把某一站的關卡打完
+         *      · 一局跨過好幾站、而玩家在中途的彈窗按了「即赴科場」
+         *    這些情況下那筆文錢過去是**永遠拿不到**的。
+         *
+         * ⚠️ 冪等：grantStationReward 內部以 achievements.claimed 判斷是否
+         *    已發過，重複呼叫不會重複發放，因此可以放心在每次 render() 都跑。
+         *    需應試的文位站一律跳過（第二個參數不傳），維持「考過才發」。
+         *
+         * @returns {number} 這一次實際補發出去的文錢總額
+         */
+        settleArrivedRewards: function () {
+            if (!window.PathStations || !window.ScoreManager) return 0;
+            const stations = (this.stations && this.stations.length)
+                ? this.stations : window.PathStations.build();
+            const idx = this.getCurrentStationIndex();
+
+            // ⚠️ 效能：grantStationReward 內部每呼叫一次就 loadPlayerData() 一次
+            //    （＝JSON.parse 整份存檔）。這裡會走訪近百個站，若無條件全部呼叫，
+            //    光是重繪一次青雲梯就要解析近百次存檔——與 buildProgressCache
+            //    當初被加上快取的是同一個坑。因此先讀一次 claimed 名單，
+            //    只對「真的還沒發過」的站點才進去發（正常情況下是 0~2 站）。
+            let claimed = [];
+            try {
+                const data = window.ScoreManager.loadPlayerData();
+                claimed = (data && data.achievements && data.achievements.claimed) || [];
+            } catch (e) { return 0; }
+
+            let gained = 0;
+            for (let i = 0; i <= idx && i < stations.length; i++) {
+                const st = stations[i];
+                if (st.type === 'grade') {
+                    if (claimed.indexOf('lpgrade_' + st.name) >= 0) continue;
+                } else if (st.type === 'rank' && !st.isExam) {
+                    if (claimed.indexOf('rank_' + st.name) >= 0) continue;
+                } else {
+                    continue;   // 需應試的文位站：考過才發，這裡一律不碰
+                }
+                gained += this.grantStationReward(st) || 0;
+            }
+            return gained;
+        },
+
+        /**
          * 晉升彈窗：這一局讓玩家走到新的站點時，於結算後立刻出現。
          *
          * 三種型態（企劃書 §5）：
@@ -1766,8 +2117,14 @@
          * ⚠️ 獎勵在彈窗出現「之前」就已經發放（見 grantStationReward），
          *    按鈕只負責關閉彈窗與播放慶祝動畫，不再是領取動作。
          */
-        showPromotionPopup: function (station) {
-            if (!station) { this.show(); return; }
+        showPromotionPopup: function (station, onNext) {
+            const proceed = () => {
+                if (typeof onNext === 'function') { onNext(); return; }
+                // 回到青雲梯主介面，讓玩家親眼看到自己已經站上新的一階
+                this.show();
+                setTimeout(() => this.scrollToCurrent(true), 120);
+            };
+            if (!station) { proceed(); return; }
             const isRank = station.type === 'rank';
             const isExamRank = isRank && station.isExam;
 
@@ -1784,10 +2141,14 @@
                 : '';
 
             let html;
-            if (isExamRank) {
-                // 取得應試資格：不發獎勵，導向考棚。
-                // ⚠️ 這裡也先恭賀「剛學完的舊站」，理由與其他分支一致——
-                //    玩家能站到這裡，正是因為剛把 prevName 的全部課程學完。
+            // ⚠️ 邊界：抵達的當下課程就已經修畢的應試文位站。
+            //    兩種情況會發生：
+            //      · 最後一站「大儒」自己沒有課程（poemFrom === poemTo）
+            //      · 玩家先在漢堡選單的自由練習裡把這一站的關卡打完了
+            //    這時「修畢本階課程方具應試學力」是廢話，應該直接給應試引導。
+            const alreadyQualified = isExamRank && this.getRankExamProgress(station.name).ok;
+
+            if (isExamRank && alreadyQualified) {
                 html = '<h2>學問已成，可赴科場</h2>'
                     + '<p>積跬步以至千里。<br>閣下已通過「<b>' + prevName + '</b>」全部課程，<br>'
                     + '已具應試「<b>' + station.name + '</b>」之學力。<br>'
@@ -1796,6 +2157,30 @@
                     + '<div class="lp-pop-footer">'
                     + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">容後再議</button>'
                     + '<button class="lp-pop-btn" id="lpPopExam">即赴科場</button>'
+                    + '</div>';
+            } else if (isExamRank) {
+                // ── 抵達需應試的文位站 ＝ **入學**，不是取得應試資格 ──────────
+                // ⚠️⚠️ 這裡以前寫的是「學問已成，可赴科場／已具應試之學力」，
+                //    那是錯的：作者 2026-09-05 定案的規則是
+                //        抵達文位站     ＝ 入學（開始修這個文位自己的課程）
+                //        修完文位站課程 ＝ 取得應試資格   ← 才是「可赴科場」
+                //        通過考試       ＝ 冊封
+                //    舊文案等於在玩家「一關都還沒修」時就催他去考試，而考卷
+                //    範圍又包含這一站的詩，形同叫他去考沒學過的東西。
+                //    「可赴科場」那一段已移到 showExamQualifiedPopup()。
+                //
+                // 應試文位站抵達時不發獎勵（企畫書 §4.2），故不顯示文錢行。
+                html = '<h2>入室升堂</h2>'
+                    + '<p>積跬步以至千里。<br>閣下已通過「<b>' + prevName + '</b>」全部課程，<br>'
+                    + '得入「<b>' + station.name + '</b>」之門，修習本階課程。<br>'
+                    + '<br>修畢本階全部課程，<br>方具應試「<b>' + station.name + '</b>」之學力；<br>'
+                    + '中式之後始得冊封，並續修下一階。</p>'
+                    // ⚠️ 這裡刻意用 lpPopLater 而不是 lpPopClaim。
+                    //    lpPopClaim 的處理常式會播放晉升慶祝動畫（獎狀），
+                    //    而「入學」還沒有任何功名可頒 —— 用錯 id 就會變成
+                    //    「考試都還沒考就先發獎狀」。lpPopLater 只是關閉回到青雲梯。
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn" id="lpPopLater">開卷有益</button>'
                     + '</div>';
             } else if (isRank) {
                 // ⚠️ 標題刻意不用「金榜題名」——那是科舉及第的專稱，
@@ -1825,9 +2210,7 @@
 
             const backToPath = () => {
                 overlay.remove();
-                // 回到青雲梯主介面，讓玩家親眼看到自己已經站上新的一階
-                this.show();
-                setTimeout(() => this.scrollToCurrent(true), 120);
+                proceed();   // 佇列還有下一站就接著演，沒有才回到青雲梯主介面
             };
 
             const btnClaim = overlay.querySelector('#lpPopClaim');
@@ -1848,6 +2231,67 @@
                 overlay.remove();
                 // 沿用江南小院既有的考棚流程（資格達標→付文錢→應試）
                 this.goToExam();
+            };
+        },
+
+        /**
+         * 「取得應試資格」彈窗：修完某個應試文位站的全部課程時跳出。
+         *
+         * ⚠️ 這是規則第二步的提示，時機**不是**抵達文位站（那是入學，
+         *    見 showPromotionPopup 的 isExamRank 分支），而是把那一站
+         *    自己的必通關卡全部做完的那一刻。
+         *
+         * ⚠️ 同一個文位一個工作階段只提示一次（_examPrompted），
+         *    否則玩家在關卡站反覆練習時每過一局就被彈一次。
+         *    真正持久的入口是站點上的「模擬考／正式考」標記與提示列，
+         *    這個彈窗只是第一次的臨門一腳。
+         */
+        showExamQualifiedPopup: function (station) {
+            if (!station) { this.show(); return; }
+            const isMinor = (station.examKind === 'minor');
+            const html = isMinor
+                // 小考：章節檢核，通過只給文錢與續行，沒有功名可言
+                ? ('<h2>溫故驗業</h2>'
+                    + '<p>積跬步以至千里。<br>閣下已通過「<b>' + station.name + '</b>」全部課程。<br>'
+                    + '此處設有一場小考，<br>驗一驗這一段書讀得如何 ——<br>'
+                    + '中式即可續行，並得文錢若干。<br>'
+                    + '小考不收報名費，考壞了再來便是。</p>'
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">容後再議</button>'
+                    + '<button class="lp-pop-btn" id="lpPopExam">即刻應試</button>'
+                    + '</div>')
+                : ('<h2>學問已成，可赴科場</h2>'
+                    + '<p>積跬步以至千里。<br>閣下已通過「<b>' + station.name + '</b>」全部課程，<br>'
+                    + '已具應試「<b>' + station.name + '</b>」之學力。<br>'
+                    + '惟功名須經場屋一試方得冊封 ——<br>可即刻前往江南小院考棚報名，<br>'
+                    + '亦可再溫書數日，待胸有成竹再去。</p>'
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">容後再議</button>'
+                    + '<button class="lp-pop-btn" id="lpPopExam">即赴科場</button>'
+                    + '</div>');
+
+            const overlay = this._makePopup(html);
+            if (window.SoundManager && window.SoundManager.playJoyfulTriple) {
+                window.SoundManager.playJoyfulTriple();
+            }
+            const backToPath = () => {
+                overlay.remove();
+                this.show();
+                setTimeout(() => this.scrollToCurrent(true), 120);
+            };
+            const btnLater = overlay.querySelector('#lpPopLater');
+            if (btnLater) btnLater.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                backToPath();
+            };
+            const btnExam = overlay.querySelector('#lpPopExam');
+            if (btnExam) btnExam.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                overlay.remove();
+                // ⚠️ 小考不經江南小院考棚：那裡的入口是「下一個沒考過的**文位**」，
+                //    找不到小站；而且小考免報名費，走那條路只會讓玩家困惑。
+                if (isMinor) this.startExam(station.name, 'real');
+                else this.goToExam();
             };
         },
 
@@ -1878,13 +2322,33 @@
          * @param {string} rankName 應試文位
          * @param {string} mode     'mock' | 'real'
          */
-        startExam: function (rankName, mode) {
+        startExam: function (target, mode) {
             const C = window.FMExamConfig;
             const S = window.FMCollectionSave;
-            if (!C || !window.ExamEngine || !S) {
+            const PS = window.PathStations;
+            if (!C || !window.ExamEngine || !S || !PS) {
                 this.toast('考試模組尚未載入。');
                 return;
             }
+            // ⚠️ 2026-09-06 起 target 是**站名**：文位考的站名剛好等於文位名，
+            //    小考則只有站名。兩者共用這一支。
+            const station = PS.getStationByName(target);
+            if (!station || !station.examKind) {
+                this.toast('「' + target + '」沒有安排考試。');
+                return;
+            }
+            const rankName = target;
+
+            // ⚠️ 資格必須在這裡再擋一次，不能只靠站點標記有沒有畫出來。
+            //    畫面是「顯示與否」，這裡是「能不能真的開考」——
+            //    任何新的入口（測試熱鍵、外部呼叫）都會經過這一支。
+            const prog = this.getStationExamProgress(station);
+            if (!prog.ok) {
+                this.toast('「' + rankName + '」課程尚未修畢（'
+                    + prog.unitsDone + ' / ' + prog.unitsTotal + ' 關），未具應試學力。');
+                return;
+            }
+
             const coll = S.load();
 
             if (mode === 'mock' && !C.canAttemptToday(coll, mode, rankName)) {
@@ -1910,22 +2374,65 @@
 
             this.hide();
             const self = this;
+            // ⚠️ 考試通過會解除關卡、讓站點往前跳。跳過去的那幾站也是「抵達」，
+            //    必須補演晉升彈窗 —— 否則免考文位的獎狀會整個不見：
+            //    小考站後面若緊接著「蒙童」，通過小考時站點直接從小考站跳到蒙童，
+            //    advanceAfterWin 完全沒有參與，蒙童的獎狀動畫就被吃掉了（實測）。
+            const idxBefore = this.getCurrentStationIndex();
             window.ExamEngine.start({
                 rankName: rankName,
                 mode: mode,
                 onDone: function () {
+                    self.invalidateProgress();
+                    const idxAfter = self.getCurrentStationIndex();
+                    if (idxAfter > idxBefore) {
+                        self._stationIdxAtLaunch = idxAfter;
+                        self.showPromotionQueue(idxBefore + 1, idxAfter);
+                        return;
+                    }
                     self.show();
                     setTimeout(function () { self.scrollToCurrent(true); }, 120);
                 }
             });
         },
 
-        /** 報名費：交給 collection.js 那份唯一的費用表，這裡不另外複製一份 */
-        getExamFee: function (rankName) {
+        /**
+         * 報名費：交給 collection.js 那份唯一的費用表，這裡不另外複製一份。
+         *
+         * ⚠️ 小考（小站考試）一律免費 —— 它是課程的一部分，不該再收一次錢；
+         *    而且改版後考試從 13 場變成 33 場，若每場都收費，後段文位的
+         *    盤纏缺口會再擴大一倍以上（見驗證程式第 8 節的收支分析）。
+         *
+         * @param {string} target 文位名或站名
+         */
+        getExamFee: function (target) {
+            const PS = window.PathStations;
+            if (PS && typeof PS.getStationByName === 'function') {
+                const st = PS.getStationByName(target);
+                if (st && st.examKind === 'minor') {
+                    return (window.FMExamConfig && window.FMExamConfig.MINOR_FEE) || 0;
+                }
+            }
             if (window.CollectionDialog && typeof window.CollectionDialog.getExamFee === 'function') {
-                return window.CollectionDialog.getExamFee(rankName);
+                return window.CollectionDialog.getExamFee(target);
             }
             return 0;
+        },
+
+        /**
+         * 小考通過的文錢：該文位獎勵 ÷ MINOR_REWARD_DIVISOR（最低 1）。
+         * ⚠️ 用「這一站所屬文位的下一個文位」的獎勵當基數，與小站晉升文錢
+         *    的算法（getGradeStationSilver）同一套邏輯，避免兩份數字打架。
+         */
+        getMinorExamSilver: function (station) {
+            const PS = window.PathStations;
+            const EC = window.FMExamConfig;
+            if (!PS || !station) return 0;
+            const target = (station.type === 'rank')
+                ? station.name : PS.getNextRankNameAfter(station.rankName);
+            const total = target ? PS.getRankSilver(target) : 0;
+            const div = (EC && EC.MINOR_REWARD_DIVISOR) || 4;
+            return Math.max(1, Math.floor(total / div));
         },
 
         /**
@@ -1938,12 +2445,10 @@
          */
         showSkipExamMenu: function () {
             const C = window.FMExamConfig;
+            const self = this;
             if (!C || !window.ExamEngine) { this.toast('先把前面的詩學會吧。'); return; }
 
-            const cur = (window.ScoreManager && window.ScoreManager.getEffectiveRank)
-                ? window.ScoreManager.getEffectiveRank(window.ScoreManager.loadPlayerData())
-                : '書僮';
-            const menu = C.getSkipMenu(cur);
+            const menu = C.getSkipMenu();
             const silver = (window.FMCollectionSave ? (window.FMCollectionSave.load().silver || 0) : 0);
 
             // ⚠️ 清單刻意「文位低的排在下面」，與青雲梯主介面的方向一致
@@ -1951,8 +2456,10 @@
             //    所以這裡整個反過來輸出。
             let rows = '';
             menu.slice().reverse().forEach(function (m) {
-                const fee = (window.CollectionDialog && window.CollectionDialog.getExamFee)
-                    ? window.CollectionDialog.getExamFee(m.name) * C.SKIP_FEE_MULTIPLIER : 0;
+                // ⚠️ 走 LearningPath.getExamFee：它認得小考（免報名費），
+                //    直接查 CollectionDialog 的文位費用表會對小站查不到而回 0，
+                //    看起來一樣但那是「查無資料」而不是「本來就免費」。
+                const fee = self.getExamFee(m.name) * C.SKIP_FEE_MULTIPLIER;
 
                 // ⚠️ 文錢不足要「當場」就顯示不足並鎖住，不能等點下去才說「盤纏不足」。
                 //    玩家看到金額卻點不動、還要被彈一次錯誤訊息，是很差的體驗。
@@ -1971,17 +2478,21 @@
                 rows += '<button type="button" class="lp-skip-item'
                     + (usable ? '' : ' lp-skip-off') + '"'
                     + (usable ? ' data-rank="' + m.name + '"' : ' aria-disabled="true"')
-                    + '><span class="lp-skip-name">' + m.name + '</span>'
+                    + '><span class="lp-skip-name">' + m.name
+                    + (m.kind === 'minor' ? '　<small>小考</small>' : '　<small>文位考</small>')
+                    + '</span>'
                     + '<span class="lp-skip-sub">' + sub + '</span></button>';
             });
 
             const html = '<h2>越級應試</h2>'
                 + '<p>閣下尚未循序抵達此處。<br>'
-                + '若自認學養已足，<br>可直接應試「越級考試」——<br>'
-                + '中式，沿途文位與獎勵一併補發。</p>'
+                + '若自認學養已足，可直接應試 ——<br>'
+                + '中式則該場之前的課程視同修畢，<br>獎勵一併補發。<br>'
+                + '<b>惟考試須逐場依序通過</b>，<br>小考亦不可略過。</p>'
                 + '<div class="lp-skip-list" id="lpSkipList">' + rows + '</div>'
                 + '<p class="lp-skip-note">越級考試題目較嚴（紅心減半、及格九成），'
                 + '無模擬考，報名費不予退還，每日限考一次。</p>'
+                //+ '省下的是修課，不是考試 —— 每一場都要親自考過。</p>'
                 + '<div class="lp-pop-footer">'
                 + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpSkipCancel">再苦讀些時日</button>'
                 + '<button class="lp-pop-btn" id="lpSkipGo" disabled>越級應試</button>'
@@ -1990,7 +2501,6 @@
             const overlay = this._makePopup(html);
             overlay.querySelector('.lp-pop').classList.add('lp-pop-skip');
 
-            const self = this;
             const goBtn = overlay.querySelector('#lpSkipGo');
             let picked = '';
 
@@ -2121,7 +2631,22 @@
         startSkipExam: function (rankName) {
             const C = window.FMExamConfig;
             const S = window.FMCollectionSave;
-            if (!C || !S || !window.ExamEngine) return;
+            const PS = window.PathStations;
+            if (!C || !S || !PS || !window.ExamEngine) return;
+
+            // ⚠️ 2026-09-06 起 rankName 是**站名**（可能是小考站）。
+            //    而且越級必須依序：只有「下一個還沒通過的考試站」可以考。
+            const station = PS.getStationByName(rankName);
+            if (!station || !station.examKind) {
+                this.toast('「' + rankName + '」沒有安排考試。');
+                return;
+            }
+            const menu = C.getSkipMenu();
+            const row = menu.filter(function (m) { return m.name === rankName; })[0];
+            if (!row || !row.enabled) {
+                this.toast('越級考試須逐場依序通過，尚輪不到「' + rankName + '」。');
+                return;
+            }
 
             const coll = S.load();
             if (!C.canAttemptToday(coll, 'skip', rankName)) {
@@ -2257,7 +2782,21 @@
         // 供其他模組（考試資格判定等）查詢用
         GAME_CHANNELS: GAME_CHANNELS,
         GAME_NAMES: GAME_NAMES,
-        REVIEW_ONLY_GAMES: REVIEW_ONLY_GAMES
+        REVIEW_ONLY_GAMES: REVIEW_ONLY_GAMES,
+
+        // ── 以下純供 tools/verify_learning_path.js 對照用 ──────────────
+        // ⚠️ 驗證程式若改用正規表示式從原始碼刮這些常數，只要換行或
+        //    加註解就會刮錯，等於驗了個假的。這裡直接把「唯一那一份」
+        //    公開出去，驗證程式與遊戲讀到的必定是同一組數字。
+        //    這些是唯讀對照表，任何模組都不應該去改它們的內容。
+        GAME_UNLOCK: GAME_UNLOCK,
+        LONG_GAMES: LONG_GAMES,
+        CHANNEL_WEIGHTS: CHANNEL_WEIGHTS,
+        MIN_CHANNELS_PER_STATION: MIN_CHANNELS_PER_STATION,
+        MAX_SAME_GAME_STREAK: MAX_SAME_GAME_STREAK,
+        RECENT_WINDOW: RECENT_WINDOW,
+        SKIP_FAIL_THRESHOLD: SKIP_FAIL_THRESHOLD,
+        SKIP_FEE_BY_TIER: SKIP_FEE_BY_TIER
     };
 
     window.LearningPath = LearningPath;

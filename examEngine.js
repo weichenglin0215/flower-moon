@@ -78,7 +78,14 @@
             const C = window.FMExamConfig;
             if (!C) { console.warn('[考試] examConfig.js 未載入'); return; }
 
-            const plan = C.getPlan(o.rankName, o.mode === 'skip');
+            // ⚠️ 2026-09-06 起考卷一律由「站點」算出來：文位考的站名剛好等於
+            //    文位名，小考則只有站名。opts.rankName 傳的就是站名。
+            const PS = window.PathStations;
+            const station = (PS && typeof PS.getStationByName === 'function')
+                ? PS.getStationByName(o.rankName) : null;
+            const plan = (station && typeof C.getPlanForStation === 'function')
+                ? C.getPlanForStation(station, o.mode === 'skip')
+                : C.getPlan(o.rankName, o.mode === 'skip');
             if (!plan || !plan.poemIds.length) {
                 console.warn('[考試] 取不到考試範圍：', o.rankName);
                 if (typeof o.onDone === 'function') o.onDone({ passed: false, error: 'no-scope' });
@@ -549,9 +556,11 @@
             }
 
             const self = this;
+            const isMinor = (this._plan && this._plan.kind === 'minor');
             const title = this._aborted ? '棄考'
-                : passed ? (this._mode === 'mock' ? '模擬考通過' : '金榜題名')
-                    : '名落孫山';
+                : passed ? (this._mode === 'mock' ? '模擬考通過'
+                    : (isMinor ? '小試身手' : '金榜題名'))
+                    : (isMinor ? '尚需溫書' : '名落孫山');
             const body = this._aborted
                 ? '<div class="exg-note">本次未完成，未列入紀錄。</div>'
                 : '<div class="exg-row"><span>答對</span><span>' + this._correct
@@ -567,7 +576,7 @@
 
             this._card('<h2>' + title + '</h2>' + body
                 + '<div class="exg-footer"><button class="exg-btn" id="exgClose">' +
-                (passed && this._mode !== 'mock' ? '敬受榮銜' : '離場') + '</button></div>');
+                (passed && this._mode !== 'mock' ? (isMinor ? '繼續前行' : '敬受榮銜') : '離場') + '</button></div>');
 
             this._overlay.querySelector('#exgClose').onclick = function () {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
@@ -586,6 +595,9 @@
         _celebrate: function (result) {
             const self = this;
             const back = function () { if (self._onDone) self._onDone(result); };
+            // ⚠️ 小考通過**不播獎狀動畫**：獎狀是功名的象徵，小考沒有功名。
+            //    玩家看到的是結算卡片上的「通過」與文錢，然後直接回青雲梯。
+            if (this._plan && this._plan.kind === 'minor') { back(); return; }
             if (window.LearningPath && typeof window.LearningPath.playPromotionCelebration === 'function') {
                 window.LearningPath.playPromotionCelebration(
                     { type: 'rank', name: result.rankName, isExam: true },
@@ -607,7 +619,10 @@
             const C = window.FMExamConfig;
             if (!S) return 0;
             const coll = S.load();
-            const rank = this._plan.rankName;
+            // ⚠️ 小考走另一條路：只記通過、只給文錢，不碰 ranks.passed。
+            //    混進 ranks.passed 會讓 getEffectiveRank 誤判成升等。
+            if (this._plan.kind === 'minor') return this._writeMinorResult(passed, coll);
+            const rank = this._plan.rankName || this._plan.examId;
 
             if (!coll.ranks) coll.ranks = { passed: [] };
             if (!Array.isArray(coll.ranks.passed)) coll.ranks.passed = [];
@@ -632,12 +647,13 @@
             //    （越級補發 34 首詩的沿途獎勵，結果文錢一毛都沒增加）。
             if (passed) {
                 if (this._mode === 'skip') {
-                    // 沿途所有應試文位一併記為通過（只動 coll，不發獎）
-                    const order = C.EXAM_RANK_ORDER;
-                    const upto = order.indexOf(rank);
-                    for (let i = 0; i <= upto; i++) {
-                        if (coll.ranks.passed.indexOf(order[i]) < 0) coll.ranks.passed.push(order[i]);
-                    }
+                    // ⚠️ 2026-09-06 改版：越級考試改成**嚴格依序**（見
+                    //    FMExamConfig.getSkipMenu），一次只能考「下一場」，
+                    //    因此這裡不再一口氣補冊封沿途所有文位 ——
+                    //    越級省掉的是「修課」，不是「考試」。
+                    //    紀錄方式與正式考完全相同，差別只在及格線更嚴、費用更高，
+                    //    以及通過後會把沿途課程標記為視同修畢（_grantSkipStations）。
+                    if (coll.ranks.passed.indexOf(rank) < 0) coll.ranks.passed.push(rank);
                 } else if (coll.ranks.passed.indexOf(rank) < 0) {
                     coll.ranks.passed.push(rank);
                 }
@@ -646,7 +662,7 @@
 
             let gained = 0;
             if (passed) {
-                // 越級：補標記沿途站點為「視同完成」並補發站點獎勵
+                // 越級：把「這一站（含）之前」的課程標記為視同修畢並補發站點獎勵
                 if (this._mode === 'skip') gained += this._grantSkipStations(rank);
 
                 // 文位獎勵走 LearningPath 的統一收口（冪等，不會重複發）
@@ -664,6 +680,65 @@
             if (window.SupabaseClient && typeof window.SupabaseClient.logGame === 'function') {
                 window.SupabaseClient.logGame({
                     gameNo: 99, difficulty: rank, score: this._correct,
+                    isWin: passed, durationS: 0
+                });
+            }
+            return gained;
+        },
+
+        /**
+         * 小考（小站考試）的結果寫入。
+         *
+         * 通過 → 記進 `collection.exams.minorPassed`（以**站名**為鍵）＋ 發文錢。
+         * **不寫 ranks.passed、不發獎狀** —— 小考只是章節檢核，不是功名。
+         *
+         * ⚠️ 存檔順序與文位考同一個坑：必須**先 save(coll)，之後才發文錢**。
+         *    發文錢的 grantPromotionSilver 內部會自己 load/save 一份存檔，
+         *    順序寫反等於拿舊資料把剛發的錢蓋掉（見 _writeResult 的說明）。
+         *
+         * @returns {number} 實際發出去的文錢
+         */
+        _writeMinorResult: function (passed, coll) {
+            // ⚠️ 越級考的小考走的也是這裡：紀錄方式相同，
+            //    差別在通過後 _writeResult 不會被呼叫，因此沿途課程的
+            //    「視同修畢」要在這一支自己補（見下方 _grantSkipStations）。
+            const S = window.FMCollectionSave;
+            const name = this._plan.examId;
+            if (!coll.exams || typeof coll.exams !== 'object') coll.exams = { minorPassed: [] };
+            if (!Array.isArray(coll.exams.minorPassed)) coll.exams.minorPassed = [];
+            if (!coll.examStats) coll.examStats = S.emptyExamStats();
+            if (!coll.examStats[name]) coll.examStats[name] = { passCount: 0, failCount: 0, lastAttemptTs: 0 };
+            if (!Array.isArray(coll.examLog)) coll.examLog = [];
+
+            coll.examStats[name][passed ? 'passCount' : 'failCount']++;
+            coll.examStats[name].lastAttemptTs = Date.now();
+            coll.examLog.push({
+                rank: name, ts: Date.now(), pass: passed, kind: 'minor',
+                mode: this._mode, correct: this._correct, total: this._plan.totalQuestions
+            });
+            if (passed && coll.exams.minorPassed.indexOf(name) < 0) {
+                coll.exams.minorPassed.push(name);
+            }
+            S.save(coll);          // ⚠️ 一定要先存，再發錢
+
+            let gained = 0;
+            if (passed && window.LearningPath) {
+                const LP = window.LearningPath;
+                const PS = window.PathStations;
+                const st = (PS && typeof PS.getStationByName === 'function')
+                    ? PS.getStationByName(name) : null;
+                const amount = (st && typeof LP.getMinorExamSilver === 'function')
+                    ? LP.getMinorExamSilver(st) : 0;
+                if (typeof LP.grantPromotionSilver === 'function') {
+                    gained = LP.grantPromotionSilver('minor', name, amount) || 0;
+                }
+                // 越級的小考：把這一站（含）之前的課程標記為視同修畢
+                if (this._mode === 'skip') gained += this._grantSkipStations(name);
+            }
+
+            if (window.SupabaseClient && typeof window.SupabaseClient.logGame === 'function') {
+                window.SupabaseClient.logGame({
+                    gameNo: 99, difficulty: name, score: this._correct,
                     isWin: passed, durationS: 0
                 });
             }
@@ -689,15 +764,17 @@
          *    這與「玩家自己一路打上來但中途沒練到的詩」待遇完全一致，
          *    所以不需要為越級玩家另外維護任何特例分支。
          */
-        _grantSkipStations: function (targetRank) {
+        _grantSkipStations: function (targetName) {
             const PS = window.PathStations;
             const SM = window.ScoreManager;
             if (!PS) return 0;
 
             const stations = PS.build();
+            // ⚠️ 目標可能是文位站，也可能是小考站（2026-09-06 起小考也能越級），
+            //    因此以**站名**比對，不再限定 type === 'rank'。
             let at = -1;
             for (let i = 0; i < stations.length; i++) {
-                if (stations[i].type === 'rank' && stations[i].name === targetRank) { at = i; break; }
+                if (stations[i].name === targetName) { at = i; break; }
             }
             if (at < 0) return 0;
 

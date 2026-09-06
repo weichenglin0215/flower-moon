@@ -384,7 +384,14 @@ const ScoreManager = {
             lastPlayedDate: new Date().toISOString().split('T')[0],
             games: {},
             levelProgress: {}, // 格式: { gameKey: { '小學': 0, '中學': 0, ... } } — 各難度最高通關關卡（供鎖定判斷）
-            levelCleared: {},  // 格式: { gameKey: { '小學': [1,3,5,...], ... } } — 個別通關關卡紀錄（供星星顯示）
+            // 格式: { gameKey: { '小學': ['257:0', '263:2', …], ... } }
+            // ⚠️ 陣列裡是**穩定關卡識別碼**（"錨定詩id:起始句"），不是關卡編號。
+            //    關卡編號是關卡表的陣列位置，新增詩詞就會整批位移；
+            //    詳見 levelTable.js 的「穩定關卡識別碼」段落。
+            levelCleared: {},
+            // 關卡紀錄的格式版本（見 LEVEL_KEY_VERSION）。新玩家直接是最新版，
+            // 不需要跑 _migrateLevelKeys。
+            levelKeyVersion: 2,
             // 青雲梯累計局數：玩家每贏一局就 +1，只增不減、絕不跳號。
             // ⚠️ 這是「給人看」的數字，與 levelCleared 的關卡編號完全不同：
             //    關卡編號（tier + levelIndex）是**題庫位址**（哪首詩的哪一聯），
@@ -499,6 +506,9 @@ const ScoreManager = {
         if (!data.levelCleared) data.levelCleared = {};
         if (!data.poemRecords) data.poemRecords = {};
 
+        // 關卡編號 → 穩定識別碼（只會真的跑一次）
+        this._migrateLevelKeys(data);
+
         // 更新累計登入天數與「連續登入天數」
         //
         // ⚠️ playDays 與 streakDays 是兩個不同的東西，過去只有前者：
@@ -586,16 +596,31 @@ const ScoreManager = {
         }
         needsSave = true;
 
-        // 個別通關紀錄（選關介面的星星顯示用）
+        // 個別通關紀錄
+        //
+        // ⚠️⚠️ 存的是**穩定關卡識別碼**（"錨定詩id:起始句"，例如 "69:4"），
+        //    不是關卡編號。關卡編號是關卡表的陣列位置，一旦新增詩詞就會整批
+        //    位移，存進去的數字會指向完全不同的詩（實測高中層 98% 會位移）。
+        //    詳見 levelTable.js 的「穩定關卡識別碼」段落。
+        const levelKey = (window.LevelTable && typeof window.LevelTable.toLevelKey === 'function')
+            ? window.LevelTable.toLevelKey(finalDifficulty, finalRelIdx)
+            : null;
+        // 查不到就退回舊的數字形式（關卡表未載入時），下次載入的遷移會補救
+        const clearedRef = (levelKey !== null) ? levelKey : finalRelIdx;
+
         if (!data.levelCleared[gameKey][finalDifficulty]) {
             data.levelCleared[gameKey][finalDifficulty] = [];
         }
-        if (!data.levelCleared[gameKey][finalDifficulty].includes(finalRelIdx)) {
-            data.levelCleared[gameKey][finalDifficulty].push(finalRelIdx);
+        if (!data.levelCleared[gameKey][finalDifficulty].includes(clearedRef)) {
+            data.levelCleared[gameKey][finalDifficulty].push(clearedRef);
             needsSave = true;
         }
 
         // 該難度層的最高通關關卡（下一關的解鎖判斷用）
+        // ⚠️ 這一欄**刻意**維持關卡編號：它的語意就是「排到第幾個」，
+        //    只供選關畫面的解鎖判斷與顯示，不參與任何進度計算。
+        //    題庫擴充後它會失準，但那只是選關畫面多開／少開幾格，
+        //    不會像 levelCleared 那樣讓進度指向錯的詩。
         const currentMax = data.levelProgress[gameKey][finalDifficulty] || 0;
         if (finalRelIdx > currentMax) {
             data.levelProgress[gameKey][finalDifficulty] = finalRelIdx;
@@ -649,6 +674,99 @@ const ScoreManager = {
         return !!this._reviewMode;
     },
 
+    // ══════════════════════════════════════════════════════════════════
+    //  關卡紀錄的格式版本
+    // ══════════════════════════════════════════════════════════════════
+    //  1（或不存在）＝ 關卡編號（陣列位置）——會隨題庫擴充整批位移
+    //  2            ＝ 穩定識別碼 "錨定詩id:起始句"——永遠不位移
+    LEVEL_KEY_VERSION: 2,
+
+    /**
+     * 把舊存檔的關卡編號一次性換成穩定識別碼。
+     *
+     * ⚠️⚠️ **時機至關重要**：換算是拿「目前的關卡表」把編號翻回詩句，
+     *    只有在關卡表**還沒被新增的詩打亂之前**才是對的。
+     *    因此這支遷移必須跟著「下一次擴充題庫之前」的版本一起上線；
+     *    等題庫改了才遷移，翻出來的會是錯的詩。
+     *
+     * ⚠️ 關卡表尚未載入時直接跳過（不寫版本旗標），下次載入會再試一次。
+     *    絕不能在查不到表的情況下把資料標成「已遷移」。
+     *
+     * ⚠️ 換不出識別碼的紀錄（關卡編號超出目前表範圍）一律丟棄：
+     *    它本來就對不到任何一首詩，留著只會讓進度統計虛胖。
+     *    這種紀錄的來源是歷史上的 game16 脫韁 bug
+     *    （見「青雲梯遊戲接入規範與已知錯誤」№1）。
+     *
+     * @param {object} data 玩家存檔（就地修改）
+     * @returns {boolean} 是否真的做了轉換
+     */
+    _migrateLevelKeys: function (data) {
+        if (!data || data.levelKeyVersion >= this.LEVEL_KEY_VERSION) return false;
+        const LT = window.LevelTable;
+        if (!LT || typeof LT.toLevelKey !== 'function' || !LT.getTable || !LT.getTable()) {
+            return false;   // 關卡表還沒好，下次再說
+        }
+
+        let converted = 0, dropped = 0;
+
+        const convList = (tier, arr) => {
+            if (!Array.isArray(arr)) return arr;
+            const out = [];
+            arr.forEach(ref => {
+                if (LT.isLevelKey(ref)) { out.push(ref); return; }
+                const k = LT.toLevelKey(tier, ref);
+                if (k === null) { dropped++; return; }
+                if (out.indexOf(k) < 0) out.push(k);
+                converted++;
+            });
+            return out;
+        };
+
+        // levelCleared: { 遊戲: { 難度層: [關卡…] } }
+        const lc = data.levelCleared || {};
+        Object.keys(lc).forEach(gameKey => {
+            const byTier = lc[gameKey] || {};
+            Object.keys(byTier).forEach(tier => {
+                byTier[tier] = convList(tier, byTier[tier]);
+            });
+        });
+
+        // levelDonated: { 難度層: [關卡…] }
+        const ld = data.levelDonated || {};
+        Object.keys(ld).forEach(tier => { ld[tier] = convList(tier, ld[tier]); });
+
+        // levelFails: { "難度層|關卡": 次數 }
+        const lf = data.levelFails || {};
+        const newFails = {};
+        Object.keys(lf).forEach(k => {
+            const at = k.indexOf('|');
+            if (at < 0) { newFails[k] = lf[k]; return; }
+            const tier = k.slice(0, at);
+            const ref = k.slice(at + 1);
+            if (LT.isLevelKey(ref)) { newFails[k] = lf[k]; return; }
+            const nk = LT.toLevelKey(tier, ref);
+            if (nk === null) { dropped++; return; }
+            newFails[tier + '|' + nk] = (newFails[tier + '|' + nk] || 0) + lf[k];
+            converted++;
+        });
+        data.levelFails = newFails;
+
+        data.levelKeyVersion = this.LEVEL_KEY_VERSION;
+
+        // ⚠️ 直接寫 localStorage，不走 _persist：
+        //    _persist 會順帶推雲端，而這裡是在 loadPlayerData 內部，
+        //    推雲端會再觸發一次讀存檔，形成不必要的往返。
+        //    遷移結果會在玩家下一次正常存檔時自然同步上去。
+        try {
+            localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
+        } catch (e) {
+            console.warn('[ScoreManager] 關卡識別碼遷移寫入失敗:', e);
+        }
+        console.log('[ScoreManager] 關卡紀錄已改用穩定識別碼：轉換 ' + converted
+            + ' 筆' + (dropped ? ('，丟棄 ' + dropped + ' 筆對不到詩句的舊紀錄') : ''));
+        return true;
+    },
+
     /** 內部共用：寫回玩家存檔並同步雲端（模組外不得直接碰 localStorage） */
     _persist: function (data) {
         localStorage.setItem('flowerMoon_playerData', JSON.stringify(data));
@@ -657,11 +775,23 @@ const ScoreManager = {
         }
     },
 
+    /**
+     * 關卡的存檔用鍵值：一律走穩定識別碼（見 levelTable.js）。
+     * 關卡表未載入時退回關卡編號，由下次載入的遷移補救。
+     */
+    _levelRef: function (tier, level) {
+        if (window.LevelTable && typeof window.LevelTable.toLevelKey === 'function') {
+            const k = window.LevelTable.toLevelKey(tier, level);
+            if (k !== null) return k;
+        }
+        return level;
+    },
+
     /** 累計某一關的失敗次數（由 learningPath.js 在返回時推定） */
     recordLevelFail: function (tier, level) {
         const data = this.loadPlayerData();
         if (!data.levelFails) data.levelFails = {};
-        const key = tier + '|' + level;
+        const key = tier + '|' + this._levelRef(tier, level);
         data.levelFails[key] = (data.levelFails[key] || 0) + 1;
         this._persist(data);
         return data.levelFails[key];
@@ -671,7 +801,7 @@ const ScoreManager = {
     getLevelFails: function (tier, level) {
         const data = this.loadPlayerData();
         const fails = (data && data.levelFails) || {};
-        return fails[tier + '|' + level] || 0;
+        return fails[tier + '|' + this._levelRef(tier, level)] || 0;
     },
 
     /**
@@ -683,8 +813,9 @@ const ScoreManager = {
         const data = this.loadPlayerData();
         if (!data.levelDonated) data.levelDonated = {};
         if (!data.levelDonated[tier]) data.levelDonated[tier] = [];
-        if (data.levelDonated[tier].indexOf(level) === -1) {
-            data.levelDonated[tier].push(level);
+        const ref = this._levelRef(tier, level);
+        if (data.levelDonated[tier].indexOf(ref) === -1) {
+            data.levelDonated[tier].push(ref);
             this._persist(data);
         }
     },
@@ -791,7 +922,7 @@ const ScoreManager = {
     isLevelDonated: function (tier, level) {
         const data = this.loadPlayerData();
         const d = (data && data.levelDonated) || {};
-        return Array.isArray(d[tier]) && d[tier].indexOf(level) !== -1;
+        return Array.isArray(d[tier]) && d[tier].indexOf(this._levelRef(tier, level)) !== -1;
     },
 
     /**

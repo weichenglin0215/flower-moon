@@ -301,9 +301,19 @@
 
             const settings = this.difficultySettings[this.difficulty];
 
-            // 隨機選擇本局的出題格式（從難度允許的格式中抽一個）
+            // 選擇本局的出題格式（從難度允許的格式中抽一個）
+            //
+            // ⚠️ 關卡模式（青雲梯／關卡挑戰）下**不可以隨機挑**：格式決定了下面的
+            //    needLines（A=2、B=3、C=4 句），而 needLines 是查跨遊戲共用關卡表的
+            //    條件之一。隨機挑等於同一關每次都在問關卡表不同的問題，
+            //    「同一關＝同一首詩（的同一段）」的保證會失效
+            //    —— 實測「塾生」站的中學第 24 關，兩次分別拿到 poem 304 的第 0 句
+            //    與第 2 句起（tools/verify_learning_path.js 第 2 節會抓）。
+            //    改以關卡編號決定格式：同一關永遠同一種格式，不同關仍然輪替到所有格式。
             const formats = settings.formats;
-            this.currentFormat = formats[Math.floor(Math.random() * formats.length)];
+            this.currentFormat = this.isLevelMode
+                ? formats[this.currentLevelIndex % formats.length]
+                : formats[Math.floor(Math.random() * formats.length)];
 
             // 不同格式所需的最少行數
             // A: 2 句即可（顯示第 1 句、隱藏 1 句）

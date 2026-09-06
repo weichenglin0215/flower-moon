@@ -14,3 +14,5 @@ publish/
 # Microsoft Office 開啟檔案時產生的暫存鎖定檔（開著檔案時存在、關掉就消失）
 # 曾經卡住 git add -A：Windows 鎖住這個檔案獨占給 Office 使用，Git 讀不到會報錯。
 ~$*
+# 驗證程式產生的報表（tools/verify_learning_path.js report）
+tools/out/

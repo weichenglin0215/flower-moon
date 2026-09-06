@@ -733,7 +733,8 @@
    同時是字級回推公式的輸入，只改 CSS 會讓公式與實際排版對不上。 */
 .lp-poem-chips {
     display: flex;
-    flex-wrap: wrap;   /* 只是保險：真的排不下時換行，不要頂出畫面 */
+    flex-wrap: wrap;
+    /* 只是保險：真的排不下時換行，不要頂出畫面 */
     margin-top: 4px;
     /* gap 與 --lp-chip-pad-x 由 JS 依按鈕數量寫成 inline style；
        這裡的值只是 JS 尚未套用時的保底 */
@@ -798,6 +799,41 @@
 .lp-current .lp-station-label {
     text-decoration: underline;
     text-underline-offset: 4px;
+}
+
+/* ── 手指提示：長期存在的引導動畫（企劃需求 2026-09-06）───────────────
+   每次開啟青雲梯（不論新舊玩家），都在「目前所在站」的圖示正下方
+   擺一個持續縮放的手指圖示，提醒玩家「該點這裡了」。
+   ⚠️ 只有 isCurrent 且**不是**可應試站才會畫（見 JS render()）：
+      可應試的站已經有 .lp-exam-real 自己的脈動徽章在催促玩家去考試，
+      兩個一起跳反而分散注意力，也會互相擋住。
+   ⚠️ pointer-events:none 是必要的：手指疊在圖示正下方一小段距離，
+      理論上碰不到圖示本體，但保險起見還是讓點擊完全穿透，
+      不然萬一站距太密會誤擋到下一站的按鈕。 */
+.lp-finger-hint {
+    position: absolute;
+    left: 50%;
+    bottom: -32px;
+    transform: translateX(-50%);
+    font-size: 60px;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 3;
+    filter: drop-shadow(0 3px 4px hsl(from var(--lp-bg-gold-deep) h s l / 0.66));
+    animation: lp-finger-pulse 1.15s ease-in-out infinite;
+}
+
+/* 縮放＋輕微上移，模擬手指一下一下點按的節奏 */
+@keyframes lp-finger-pulse {
+
+    0%,
+    100% {
+        transform: translateX(-50%) scale(1) translateY(0);
+    }
+
+    50% {
+        transform: translateX(-50%) scale(1.22) translateY(-6px);
+    }
 }
 
 /* 尚未解鎖的站：整體淡化為米白深色，但文字仍要可辨識
@@ -886,6 +922,11 @@
 
     /* 「應試」標記的脈動同樣關閉，改以靜態外觀呈現 */
     .lp-exam-badge {
+        animation: none;
+    }
+
+    /* 手指提示同樣關閉縮放動畫，只留靜態圖示指示位置 */
+    .lp-finger-hint {
         animation: none;
     }
 }
@@ -1033,4 +1074,12 @@
     border: 2px solid var(--lp-bg-cream-deep);
     box-shadow: none;
     font-weight: normal;
+}
+
+/* ── 有小考的小站（2026-09-06）───────────────────────────────
+   小考站用菱形圖示區隔，邊框比照文位考站但色調較淡，
+   讓玩家一眼看出「這裡要考一下，但不是功名考試」。 */
+.lp-minor-exam-station .lp-station-icon {
+    border-color: hsl(35, 55%, 58%);
+    box-shadow: 0 0 8px hsla(35, 60%, 55%, 0.45);
 }

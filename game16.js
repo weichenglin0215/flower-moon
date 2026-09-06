@@ -228,6 +228,21 @@
             }
         },
 
+        // ── 關卡模式過關後，關卡編號 +1 並開始下一關 ────────────
+        // ⚠️ 這段邏輯**必須**獨立成一支具名函式，不可以直接寫在 gameOver 的
+        //    onConfirm 裡。青雲梯（learningPath.js 的 launchGame）會在派局前
+        //    暫時覆寫該遊戲的 startNextLevel，好在每一關結束後把控制權收回去
+        //    重新挑題、重新挑遊戲。先前 game16 是 16 款課程遊戲中唯一沒有
+        //    startNextLevel 的一款，青雲梯攔不到，於是 game16 一被派出就自己
+        //    一路打下去：同一款遊戲連玩四、五局不換，而且關卡編號一旦超出
+        //    本站安排的範圍，LevelTable.resolve 的候選順序是決定性的，
+        //    每一關都會解析到**同一首詩的同一段**（實測連續八局都是〈山行〉）。
+        startNextLevel: function () {
+            this.currentLevelIndex++;
+            this.updateUIForMode();
+            this.startNewGame();
+        },
+
         // ── 停止遊戲（menu.js 全域清理用）──────────────────────
         stopGame: function () {
             this.isActive = false;
@@ -1031,9 +1046,7 @@
 
             const onConfirm = () => {
                 if (win && this.isLevelMode) {
-                    this.currentLevelIndex++;
-                    this.updateUIForMode();
-                    this.startNewGame();
+                    this.startNextLevel();
                 } else if (win) {
                     this.startNewGame();
                 } else {

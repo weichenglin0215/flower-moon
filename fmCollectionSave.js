@@ -43,6 +43,10 @@
                 //    它只在 silver 不是數字時才套預設值）。
                 silver: 888,
                 ranks: { passed: [] },
+                // 小考（小站考試）通過紀錄，以**站名**為鍵。
+                // ⚠️ 刻意與 ranks.passed 分開：小考不給文位，
+                //    混在一起會讓 getEffectiveRank 誤判成升等。
+                exams: { minorPassed: [] },
                 plots:  [ this.emptyPlot(), this.emptyPlot(), this.emptyPlot(), this.emptyPlot() ],
                 teas:   [ this.emptyTea(), this.emptyTea() ],
                 teaHouses: [ this.emptyTeaHouse(), this.emptyTeaHouse() ],
@@ -211,6 +215,10 @@
             data.silver = (typeof data.silver === 'number') ? data.silver : def.silver;
             data.ranks = data.ranks || def.ranks;
             if (!Array.isArray(data.ranks.passed)) data.ranks.passed = [];
+            // 小考通過紀錄（2026-09-06 新增；舊存檔補成空陣列即可，
+            // 沒考過小考的玩家會在下次進站時被要求補考，這是預期行為）
+            if (!data.exams || typeof data.exams !== 'object') data.exams = { minorPassed: [] };
+            if (!Array.isArray(data.exams.minorPassed)) data.exams.minorPassed = [];
             ['plots','teas','wines','teaHouses'].forEach(k => { if (!Array.isArray(data[k])) data[k] = def[k]; });
             while (data.plots.length < 4) data.plots.push(this.emptyPlot());
             while (data.teas.length  < 2) data.teas.push(this.emptyTea());
