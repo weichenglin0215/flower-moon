@@ -49,6 +49,15 @@
         _patchedGame: null,
         _overlay: null,
         _aborted: false,
+        _navLockedGameNo: null, // 目前被鎖住「難度標籤／開新局」鈕的遊戲編號
+
+        // 這一場考試是否已經結算過。_finish() 靠它做冪等。
+        // ⚠️ 破壞性測試找到的問題：_finish() 被重複觸發（例如結算後又被
+        //    abort()、或任何路徑二次呼叫）時，會把 examStats 的 passCount／
+        //    failCount 與 examLog 各再寫一次，玩家的考試次數統計會憑空變多。
+        _finished: false,
+        // 非正常入場時要顯示的原因（例如入場當下盤纏已不足）
+        _abortReason: '',
 
         // 這場考試「正在進行」的旗標：true 的區間＝ start() 到 _finish()。
         // ⚠️ 存在的理由：考試期間逐題實際玩的那五款遊戲，右上角原本會顯示
@@ -70,13 +79,33 @@
          * @param {object} opts
          *   rankName {string}   應試文位
          *   mode     {string}   'mock' | 'real' | 'skip'
+         *   onEnter  {Function} 玩家在簡介畫面按下「入場應試」時呼叫一次，
+         *                       負責真正扣報名費／記今日已應試。
+         *                       ⚠️ 呼叫端（learningPath.js）不可以在呼叫
+         *                       start() 之前就先扣——簡介畫面按「先回家
+         *                       苦讀」取消是**還沒入場**，不該收費或算掉
+         *                       今日名額（2026-09 實測回報：模擬考按取消
+         *                       仍損失當日名額）。
          *   onDone   {Function} (result) => void
          *                       result = { passed, correct, total, aborted, mode, rankName }
          */
         start: function (opts) {
             const o = opts || {};
             const C = window.FMExamConfig;
-            if (!C) { console.warn('[考試] examConfig.js 未載入'); return; }
+            if (!C) { console.warn('[考試] examConfig.js 未載入'); return false; }
+
+            // ⚠️⚠️ 重入防護（2026-09 破壞性測試找到）：一場考試還在進行時
+            //    再呼叫 start()，舊版會直接把 _plan／_questions／_onDone 全部
+            //    覆蓋掉——前一場考試等於被無聲吃掉：已經扣掉的報名費拿不回來、
+            //    前一場的 onDone（負責演出晉升與回到青雲梯）永遠不會被呼叫，
+            //    而沙箱因為 `if (this._sandbox) return` 只會安裝一次，
+            //    拆除時序也跟著錯亂。實際觸發路徑：連點兩下考試標記、
+            //    或考試中從別的入口（江南小院／越級選單）再開一場。
+            //    正確作法是拒絕，讓呼叫端自己提示玩家。
+            if (this._active) {
+                console.warn('[考試] 已有考試進行中，拒絕重複開考：', o.rankName);
+                return false;
+            }
 
             // ⚠️ 2026-09-06 起考卷一律由「站點」算出來：文位考的站名剛好等於
             //    文位名，小考則只有站名。opts.rankName 傳的就是站名。
@@ -89,27 +118,68 @@
             if (!plan || !plan.poemIds.length) {
                 console.warn('[考試] 取不到考試範圍：', o.rankName);
                 if (typeof o.onDone === 'function') o.onDone({ passed: false, error: 'no-scope' });
-                return;
+                return false;
             }
 
             this._plan = plan;
             this._mode = o.mode || 'real';
             this._onDone = (typeof o.onDone === 'function') ? o.onDone : null;
+            this._onEnter = (typeof o.onEnter === 'function') ? o.onEnter : null;
             this._questions = C.buildQuestions(plan);
             this._qi = 0;
             this._correct = 0;
             this._aborted = false;
+            this._finished = false;
+            this._abortReason = '';
             this._active = true;
 
             this._installSandbox();
             this._buildOverlay();
             this._showIntro();
+            return true;
         },
 
-        /** 中止考試（玩家按「棄考」或外部強制結束） */
+        /**
+         * 現在是不是有考試正在進行（含還停在簡介畫面的狀態）。
+         * 呼叫端（learningPath／collection）在開考前應先問一次，
+         * 才能用自己的提示列告訴玩家「考試進行中」，而不是靜靜地失敗。
+         */
+        isBusy: function () {
+            return !!this._active;
+        },
+
+        /** 中止考試（玩家按「棄考」，會顯示結算卡並照常呼叫 onDone） */
         abort: function () {
             this._aborted = true;
             this._finish();
+        },
+
+        /**
+         * 供全域清理呼叫（menu.js 的 closeAllActiveOverlays）的靜默中止。
+         *
+         * ⚠️⚠️ 為什麼不能直接呼叫 abort()：玩家這時已經在離開這個畫面
+         *    （例如從漢堡選單切到別的頁面），abort() 會顯示「棄考」結算卡、
+         *    考完再呼叫 onDone（通常是 LearningPath.show()）——那會在玩家
+         *    要去的新頁面上疊出一層不該出現的舊畫面。
+         *    這裡只做「別讓沙箱繼續污染其餘功能」這件事：拆沙箱（還原
+         *    ScoreManager.completeLevel／saveScore、SupabaseClient.logGame、
+         *    window.alert、LevelTable 情境）、還原被考試劫持的遊戲
+         *    gameOver／startNextLevel、收掉考試自己的 overlay。
+         *
+         * ⚠️ 這是 2026-09 實測回報的根因修復：玩家在考試中途從漢堡選單
+         *    離開後，ScoreManager.completeLevel 會永久停在考試沙箱的空函式，
+         *    導致回到青雲梯後打贏任何一局都不會真的記進度——站點卡住原地
+         *    不動、同一課程反覆重派，玩家會誤以為「資料亂了」。
+         */
+        forceStop: function () {
+            if (!this._active && !this._sandbox && !this._overlay) return;
+            this._active = false;
+            this._aborted = true;
+            this._onDone = null;
+            this._onEnter = null;
+            this._unpatchGame();
+            this._removeSandbox();
+            this._teardown();
         },
 
         // ══════════════════════════════════════════════════════════
@@ -146,9 +216,13 @@
             //    改成「整場考試從頭攔到尾」，呼叫幾次都不會漏。
             const DS = window.DifficultySelector;
             if (DS && typeof DS.show === 'function') {
-                box.dsShow = DS.show;
+                // ⚠️ 回推到真正的原版：青雲梯的 launchGame 也會暫時覆寫
+                //    DS.show（注入難度與關卡）。若把它的替身當成原版存起來，
+                //    考完拆沙箱時就會把那個替身永久裝回去，玩家從漢堡選單
+                //    進自由練習會選不了難度。作法與遊戲方法的覆寫相同。
+                box.dsShow = DS.show.__fmOriginal || DS.show;
                 const self = this;
-                DS.show = function (name, cb) {
+                const patchedDsShow = function (name, cb) {
                     const p = self._pending;
                     if (!p) { return box.dsShow.apply(DS, arguments); }
 
@@ -170,6 +244,8 @@
                     self._lockPoem(p);
                     if (typeof cb === 'function') cb(p.tier, p.level);
                 };
+                patchedDsShow.__fmOriginal = box.dsShow;
+                DS.show = patchedDsShow;
             }
 
             // ── alert：整場考試都攔住 ──
@@ -290,6 +366,21 @@
             const self = this;
             this._overlay.querySelector('#exgGo').onclick = function () {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
+                // 真正「入場」的這一刻才扣報名費／記今日名額，見 start() 的
+                // onEnter 說明。只能觸發一次，避免玩家萬一重複點擊時被扣兩次。
+                //
+                // ⚠️ onEnter 回傳 false ＝「現在不能入場」（例如玩家在簡介
+                //    畫面停留期間把文錢花掉了，餘額已經不夠）。這時絕不能
+                //    硬扣下去讓文錢變負數，改成當作沒有入場、直接離場。
+                if (self._onEnter) {
+                    const fn = self._onEnter;
+                    self._onEnter = null;
+                    if (fn() === false) {
+                        self._aborted = true;
+                        self._finish();
+                        return;
+                    }
+                }
                 self._nextQuestion();
             };
             this._overlay.querySelector('#exgQuit').onclick = function () {
@@ -406,6 +497,16 @@
                 return false;
             }
             q.gameNo = combo.gameNo;
+
+            // 禁止點擊這款遊戲自己的「難度標籤」與「開新局」鈕，避免玩家
+            // 考試中途岔去跳出真正的難度選單。只擋點擊、照常顯示——
+            // 難度標籤這時顯示的是「考試／越級考試／模擬考」，玩家要靠它
+            // 知道自己正在考試（見 LearningPath.setGameNavLocked 的說明，
+            // 考試沿用同一套鎖）。
+            if (window.LearningPath && typeof window.LearningPath.setGameNavLocked === 'function') {
+                this._navLockedGameNo = combo.gameNo;
+                window.LearningPath.setGameNavLocked(combo.gameNo, true);
+            }
             return true;
         },
 
@@ -439,23 +540,40 @@
         _patchGame: function (GameObj, q) {
             this._unpatchGame();
             const self = this;
+            // ⚠️ 一律回推到「真正的原版」再存（2026-09 亂序模擬抓到）：
+            //    青雲梯的 launchGame 也會覆寫同一支 startNextLevel。
+            //    若兩邊都把「我覆寫前看到的那一個」當成原版，交錯還原時
+            //    會互相把對方的替身當成原版裝回去，那款遊戲就永久停在
+            //    別人的閉包上。替身身上掛 __fmOriginal 指向真正的原版，
+            //    不論誰先誰後都拿得回同一個原版（learningPath.js 同一套作法）。
+            const trueOrig = (fn) => (fn && fn.__fmOriginal) ? fn.__fmOriginal : fn;
             const saved = {
                 obj: GameObj,
-                gameOver: GameObj.gameOver,
-                startNextLevel: GameObj.startNextLevel
+                gameOver: trueOrig(GameObj.gameOver),
+                startNextLevel: trueOrig(GameObj.startNextLevel)
             };
-            GameObj.gameOver = function (win) {
+            const patchedOver = function (win) {
                 self._unpatchGame();
                 if (typeof GameObj.stopGame === 'function') GameObj.stopGame();
                 self._record(!!win);
             };
-            GameObj.startNextLevel = function () { /* 考試中不自動進下一關 */ };
+            const patchedNext = function () { /* 考試中不自動進下一關 */ };
+            patchedOver.__fmOriginal = saved.gameOver;
+            patchedNext.__fmOriginal = saved.startNextLevel;
+            GameObj.gameOver = patchedOver;
+            GameObj.startNextLevel = patchedNext;
             this._patchedGame = saved;
         },
 
         _unpatchGame: function () {
             const s = this._patchedGame;
             this._patchedGame = null;
+            if (this._navLockedGameNo !== null) {
+                if (window.LearningPath && typeof window.LearningPath.setGameNavLocked === 'function') {
+                    window.LearningPath.setGameNavLocked(this._navLockedGameNo, false);
+                }
+                this._navLockedGameNo = null;
+            }
             if (!s || !s.obj) return;
             s.obj.gameOver = s.gameOver;
             s.obj.startNextLevel = s.startNextLevel;
@@ -528,6 +646,11 @@
         // ══════════════════════════════════════════════════════════
 
         _finish: function () {
+            // ⚠️ 冪等：重複結算會把 examStats 的 passCount／failCount 與
+            //    examLog 各再寫一次（破壞性測試 F1 實測到 1→2）。
+            //    只有第一次呼叫算數，之後一律忽略。
+            if (this._finished) return;
+            this._finished = true;
             this._active = false;
             this._unpatchGame();
             this._removeSandbox();
@@ -562,7 +685,9 @@
                     : (isMinor ? '小試身手' : '金榜題名'))
                     : (isMinor ? '尚需溫書' : '名落孫山');
             const body = this._aborted
-                ? '<div class="exg-note">本次未完成，未列入紀錄。</div>'
+                ? '<div class="exg-note">'
+                + (this._abortReason ? this._abortReason + '<br>' : '')
+                + '本次未完成，未列入紀錄。</div>'
                 : '<div class="exg-row"><span>答對</span><span>' + this._correct
                 + ' / ' + p.totalQuestions + ' 題</span></div>'
                 + '<div class="exg-row"><span>及格線</span><span>' + p.passCount + ' 題</span></div>'

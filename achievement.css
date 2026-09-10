@@ -415,7 +415,8 @@
     gap: 4px;
     padding: 30px 0 12px;
     margin-bottom: 6px;
-    background: hsl(0, 60%, 24%);   /* 與 .ach-container 底色相同，才蓋得住捲過去的列 */
+    background: hsl(0, 60%, 24%);
+    /* 與 .ach-container 底色相同，才蓋得住捲過去的列 */
     border-bottom: 1px solid hsla(48, 100%, 65%, 0.35);
     box-shadow: 0 6px 10px -6px rgba(0, 0, 0, 0.7);
 }
@@ -549,7 +550,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 24px;
+    padding: 20px;
     /* 24px → 24px */
     box-sizing: border-box;
     text-align: center;
@@ -576,13 +577,13 @@
 /*獎狀文字框*/
 .cert-content {
     background: hsla(36, 75%, 85%, 0.75);
-    padding: 10px;
+    padding: 10px 5px;
     /* 10px → 10px */
-    margin: 20px;
+    margin: 10px;
     /* 20px → 20px */
-    border-radius: 6px;
+    border-radius: 22px;
     /* 6px → 6px */
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid hsla(0, 0%, 100%, 0.2);
     /* 1.25px → 1px */
     opacity: 0;
 }
@@ -606,8 +607,8 @@
     font-size: 26px;
     /* 26px → 26px */
     font-weight: bold;
-    line-height: 1.6;
-    margin: 20px;
+    line-height: 1.8;
+    margin: 5px;
     /* 20px → 20px */
     text-align: center;
     white-space: pre-wrap;
@@ -616,10 +617,10 @@
 /*獎狀關閉提示*/
 .cert-close-hint {
     position: absolute;
-    bottom: -24px;
+    bottom: 0px;
     /* -24px → -24px */
     color: #fff;
-    font-size: 18px;
+    font-size: 20px;
     /* 18px → 18px */
     width: 100%;
     text-align: center;
@@ -1029,6 +1030,7 @@
     font-family: 'Noto Serif TC', serif;
     text-align: center;
 }
+
 /* ── ⚠️ 測試期專用：完整重置鈕（正式上線前整段移除）──────────────────
    作法比照 difficulty-selector 的「📅 日曆」測試勾選框：
    幾乎透明，知道位置的人才點得到，不干擾一般玩家。 */
@@ -1056,4 +1058,121 @@
 .ach-devtool-btn:disabled {
     opacity: 0.5;
     cursor: default;
+}
+
+/* ── ⚠️ 測試期專用：設站選單（正式上線前整段移除）───────────────────── */
+.ach-devtool-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 4600;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ach-devtool-modal-overlay.hidden {
+    display: none;
+}
+
+.ach-devtool-modal {
+    background: hsl(40, 30%, 16%);
+    color: hsl(40, 60%, 92%);
+    width: 92%;
+    max-width: 480px;
+    max-height: 90vh;
+    border-radius: 14px;
+    border: 1px solid hsla(40, 60%, 80%, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ach-devtool-modal-title {
+    font-size: 28px;
+    font-weight: bold;
+    padding: 14px 16px 4px;
+}
+
+.ach-devtool-modal-hint {
+    font-size: 18px;
+    opacity: 0.65;
+    padding: 0 16px 10px;
+    line-height: 1.5;
+}
+
+.ach-devtool-modal-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ach-devtool-station-item {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    background: hsla(40, 60%, 90%, 0.06);
+    border: 1px solid hsla(40, 60%, 80%, 0.15);
+    border-radius: 8px;
+    color: inherit;
+    font-family: inherit;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.ach-devtool-station-toprow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ach-devtool-station-meta {
+    font-size: 22px;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
+.ach-devtool-station-item:hover {
+    background: hsla(40, 60%, 90%, 0.16);
+}
+
+.ach-devtool-station-item.ach-devtool-station-reset {
+    background: hsla(0, 60%, 50%, 0.12);
+    border-color: hsla(0, 60%, 70%, 0.35);
+}
+
+.ach-devtool-station-name {
+    flex: 1;
+    font-size: 28px;
+}
+
+.ach-devtool-station-tag {
+    font-size: 24px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.ach-devtool-station-tag.tag-rank {
+    background: hsla(45, 90%, 55%, 0.25);
+    color: hsl(45, 90%, 80%);
+}
+
+.ach-devtool-station-tag.tag-minor {
+    background: hsla(200, 60%, 55%, 0.25);
+    color: hsl(200, 70%, 82%);
+}
+
+.ach-devtool-modal-actions {
+    padding: 10px 16px 14px;
+    text-align: right;
 }

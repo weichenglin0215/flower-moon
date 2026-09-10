@@ -31,6 +31,8 @@
       node tools/verify_learning_path.js path       # 只驗設定表與站點結構
       node tools/verify_learning_path.js flow       # 只驗升等流程（含完整生涯劇本）
       node tools/verify_learning_path.js exam       # 只驗考試與越級考試
+      node tools/verify_learning_path.js abuse      # 只驗破壞性測試（玩家不照規則操作考試）
+      node tools/verify_learning_path.js chaos      # 只驗亂序操作模擬（fuzz；FM_CHAOS_SEEDS／FM_CHAOS_STEPS 可調）
       node tools/verify_learning_path.js hygiene    # 只驗狀態潔淨度
       node tools/verify_learning_path.js money      # 只驗文錢收支（應試負擔）
       node tools/verify_learning_path.js keys       # 只驗關卡編號穩定性（題庫擴充不會毀進度）
@@ -58,6 +60,8 @@ const runPoems = (only === 'all' || only === 'poems');
 const runPath = (only === 'all' || only === 'path');
 const runFlow = (only === 'all' || only === 'flow');
 const runExam = (only === 'all' || only === 'exam');
+const runAbuse = (only === 'all' || only === 'abuse');
+const runChaos = (only === 'all' || only === 'chaos');
 const runHygiene = (only === 'all' || only === 'hygiene');
 const runMoney = (only === 'all' || only === 'money');
 const runReport = (only === 'report');
@@ -900,6 +904,12 @@ function sitExam(rankName, mode, wantPass, log) {
         this._onDone = opts.onDone || null;
         this._questions = EC.buildQuestions(plan);
         this._qi = 0; this._correct = 0; this._aborted = false; this._active = true;
+
+        // ⚠️ 2026-09 起報名費／今日名額改成「玩家按下入場應試」才扣
+        // （見 examEngine.js／learningPath.js 的 onEnter 說明），不再在
+        // start() 一開始就扣。這裡的模擬完全跳過畫面互動，等同玩家一定
+        // 會按下入場應試，因此直接呼叫一次，行為與真正入場一致。
+        if (typeof opts.onEnter === 'function') opts.onEnter();
 
         if (log && log.events) {
             log.events.push({
@@ -2289,6 +2299,897 @@ function verifyExam() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
+//  第 10 節　破壞性測試：玩家不照企劃規則操作考試
+//
+//  ── 為什麼要有這一節 ────────────────────────────────────────────────
+//  前面幾節驗的是「照著流程走會不會對」。但玩家不會照著走：他會連點兩下
+//  考試鈕、會在簡介畫面反悔、會在答題到一半從漢堡選單跑掉、會在別的頁面
+//  把文錢花光再回來入場、會對已經考過的文位再點一次。
+//  這一節專門驗這些「亂來」的路徑，每一條都對應一個實際找到過的漏洞：
+//    · 重入      → 進行中的考試被無聲取代，已付的報名費消失
+//    · 重複結算  → examStats／examLog 被寫兩次，考試次數憑空變多
+//    · 延後扣款  → 入場當下沒重驗餘額，文錢被扣成負數
+//    · 中途離開  → 考試沙箱沒拆，completeLevel 永久停在空函式
+//  這些全都不會拋錯、畫面上也看不出來，只能靠機器每次都掃一遍。
+// ══════════════════════════════════════════════════════════════════════
+function verifyExamAbuse() {
+    section('第 10 節　破壞性測試（玩家不照規則操作考試／越級考試）');
+
+    const EE = global.ExamEngine;
+    if (!EE || !EC || !CS) {
+        warn('破壞性', '考試模組未載入，略過本節');
+        return;
+    }
+
+    // ── 替身：把需要真畫面的東西換掉，本節結束一律還原 ────────────────
+    const saved = {
+        launch: EE._launch,
+        celeb: LP.playPromotionCelebration,
+        scroll: LP.scrollToCurrent,
+        show: LP.show,
+        queue: LP.showPromotionQueue,
+        popup: LP.showPromotionPopup,
+        qualified: LP.showExamQualifiedPopup,
+        toast: LP.toast
+    };
+    const toasts = [];
+    LP.playPromotionCelebration = (s, v, d) => { if (d) d(); };
+    LP.scrollToCurrent = () => { };
+    LP.show = () => { };
+    LP.showPromotionQueue = () => { };
+    LP.showPromotionPopup = (s, n) => { if (n) n(); };
+    LP.showExamQualifiedPopup = () => { };
+    LP.toast = (m) => { toasts.push(String(m)); };
+
+    /** 把考試引擎徹底歸零（含測試自己塞的殘留欄位） */
+    const clearEngine = () => {
+        EE.forceStop();
+        EE._plan = null; EE._questions = []; EE._qi = 0; EE._correct = 0;
+        EE._aborted = false; EE._active = false; EE._finished = false;
+        EE._abortReason = '';
+    };
+
+    /** 同步把玩家放到第 idx 站，且該站課程已修畢（具應試資格） */
+    const seedAt = (idx) => {
+        clearEngine();
+        env.resetSave();
+        const stations = PS.build();
+        for (let i = 0; i <= idx && i < stations.length; i++) {
+            (stations[i].units || []).forEach(u => SM.markLevelDonated(u.tier, u.level));
+        }
+        passExamsBefore(idx);
+        const c = CS.load(); c.silver = 9999999; CS.save(c);
+        LP.invalidateProgress();
+        return stations[idx];
+    };
+
+    /** 模擬玩家按下「入場應試」（與 examEngine 的 onclick 同一套流程） */
+    const enter = () => {
+        if (!EE._onEnter) return undefined;
+        const fn = EE._onEnter;
+        EE._onEnter = null;
+        return fn();
+    };
+
+    /** 走完整場考試（逐題判定 → 結算） */
+    const drive = (win) => {
+        EE._launch = function () { this._record(!!win); };
+        const total = EE._plan ? EE._plan.totalQuestions : 0;
+        let guard = 0;
+        while (EE._active && EE._qi < total && guard++ < 500) EE._record(!!win);
+        if (EE._active) EE._finish();
+    };
+
+    const EXAM_ST = 6;      // 塾生（第一個需應試的文位站）
+    let stName = '';
+
+    try {
+        {
+            const st = seedAt(EXAM_ST);
+            stName = st.name;
+        }
+
+        // ── 10.1 重入：考試進行中不得再開一場 ──────────────────────────
+        {
+            seedAt(EXAM_ST);
+            const fee = LP.getExamFee(stName);
+            const silver0 = CS.load().silver;
+            LP.startExam(stName, 'real');
+            enter();                                   // 第一場已入場、已扣費
+            const modeA = EE._mode, doneA = EE._onDone;
+
+            LP.startExam(stName, 'mock');              // 玩家又點了一次
+            check(EE._mode === modeA && EE._onDone === doneA, '破壞性',
+                '考試進行中再點考試鈕，進行中的那一場不受影響',
+                '正在進行的考試被無聲取代：已扣的報名費拿不回來，'
+                + '而且原本的 onDone（演出晉升、回到青雲梯）永遠不會被呼叫');
+
+            LP.startSkipExam(stName);                  // 換成越級再試一次
+            check(EE._mode === modeA, '破壞性',
+                '考試進行中開越級考試會被拒絕', '進行中的考試被越級考取代');
+
+            // ⚠️ 上面兩條驗的是 learningPath 那一層的擋門。考試引擎自己也必須
+            //    擋（防禦兩層）——否則任何繞過 learningPath 的入口（江南小院、
+            //    測試熱鍵、未來新增的捷徑）都會直接把進行中的考試吃掉。
+            //    這一條刻意**直接呼叫引擎**，不經過 learningPath。
+            const reentry = EE.start({ rankName: stName, mode: 'mock' });
+            check(reentry === false && EE._mode === modeA, '破壞性',
+                'ExamEngine.start() 自己也會拒絕重入',
+                '引擎層沒有擋，繞過 learningPath 的入口就能取代進行中的考試');
+
+            check((silver0 - CS.load().silver) === fee, '破壞性',
+                '重入被拒時不會重複扣報名費',
+                '共扣了 ' + (silver0 - CS.load().silver) + '，應為 ' + fee);
+            clearEngine();
+        }
+
+        // ── 10.2 已通過的考試不得再報名 ────────────────────────────────
+        {
+            seedAt(EXAM_ST);
+            const c = CS.load();
+            if (c.ranks.passed.indexOf(stName) < 0) c.ranks.passed.push(stName);
+            CS.save(c);
+            LP.invalidateProgress();
+            const silver0 = CS.load().silver;
+            LP.startExam(stName, 'real');
+            check(!EE.isBusy(), '破壞性', '已通過的文位不得再報名正式考',
+                '照收報名費卻毫無意義：通過紀錄已經在了，考過也不會再發文位或獎勵');
+            check(CS.load().silver === silver0, '破壞性',
+                '被拒絕時不得扣報名費', '扣了 ' + (silver0 - CS.load().silver));
+            clearEngine();
+        }
+
+        // ── 10.3 入場當下餘額不足：拒絕入場、不得扣成負數 ───────────────
+        {
+            seedAt(EXAM_ST);
+            const fee = LP.getExamFee(stName);
+            const c0 = CS.load(); c0.silver = fee; CS.save(c0);   // 剛好夠
+            LP.startExam(stName, 'real');                          // 通過資格檢查
+            const c1 = CS.load(); c1.silver = 0; CS.save(c1);      // 入場前錢被花光
+            const okEnter = enter();
+            check(okEnter === false, '破壞性', '入場當下餘額不足會被拒絕入場',
+                'onEnter 沒有重新驗餘額');
+            check((CS.load().silver || 0) >= 0, '破壞性', '文錢不會被扣成負數',
+                '餘額 = ' + CS.load().silver);
+            clearEngine();
+        }
+
+        // ── 10.4 結算冪等：_finish() 重複呼叫不得重複寫紀錄 ─────────────
+        {
+            seedAt(EXAM_ST);
+            LP.startExam(stName, 'real');
+            enter();
+            drive(true);
+            const c1 = CS.load();
+            const pass1 = (c1.examStats[stName] || {}).passCount;
+            const log1 = c1.examLog.length;
+            EE._finish();                                   // 二次結算
+            const c2 = CS.load();
+            check((c2.examStats[stName] || {}).passCount === pass1
+                && c2.examLog.length === log1, '破壞性',
+                '重複結算不會重複寫入考試紀錄',
+                'passCount ' + pass1 + '→' + (c2.examStats[stName] || {}).passCount
+                + '、examLog ' + log1 + '→' + c2.examLog.length);
+            check(c2.ranks.passed.filter(x => x === stName).length === 1, '破壞性',
+                'ranks.passed 不得出現重複項',
+                JSON.stringify(c2.ranks.passed));
+            clearEngine();
+        }
+
+        // ── 10.5 取消／被清理：不扣費、不耗名額 ────────────────────────
+        {
+            seedAt(EXAM_ST);
+            const s0 = CS.load().silver;
+            LP.startExam(stName, 'real');
+            EE._aborted = true; EE._finish();               // 「先回家苦讀」
+            check(CS.load().silver === s0, '破壞性',
+                '在簡介畫面按「先回家苦讀」不扣報名費',
+                '玩家還沒入場就被收錢');
+            clearEngine();
+
+            seedAt(EXAM_ST);
+            LP.startExam(stName, 'mock');
+            EE._aborted = true; EE._finish();
+            check(EC.canAttemptToday(CS.load(), 'mock', stName), '破壞性',
+                '模擬考在簡介畫面取消不耗掉今日名額',
+                '玩家按取消卻損失了當天唯一一次模擬考機會');
+            clearEngine();
+
+            seedAt(EXAM_ST);
+            const s1 = CS.load().silver;
+            LP.startExam(stName, 'real');
+            EE.forceStop();                                  // 從漢堡選單離開簡介
+            check(CS.load().silver === s1, '破壞性',
+                '簡介畫面被全域清理時不扣報名費', '');
+            clearEngine();
+        }
+
+        // ── 10.6 答題中途離開：不得留紀錄、沙箱要拆乾淨、之後一切正常 ──
+        {
+            seedAt(EXAM_ST);
+            LP.startExam(stName, 'real');
+            enter();
+            EE._launch = function () { this._record(true); };
+            EE._record(true); EE._record(true);              // 才答兩題就跑了
+            EE.forceStop();
+
+            const c = CS.load();
+            check(c.ranks.passed.indexOf(stName) < 0, '破壞性',
+                '中途離開不得留下通過紀錄', JSON.stringify(c.ranks.passed));
+            check(!EE._active && !EE._sandbox && !EE._patchedGame, '破壞性',
+                '中途離開後考試狀態與沙箱全部清乾淨',
+                'active=' + EE._active + ' sandbox=' + !!EE._sandbox);
+            check(SM.completeLevel === PRISTINE.completeLevel, '破壞性',
+                '中途離開後 ScoreManager.completeLevel 已還原',
+                '沒還原的話，玩家回到青雲梯打贏任何一局都不會記進度 ——'
+                + '站點卡住原地不動、同一課程反覆重派');
+
+            const rounds0 = SM.loadPlayerData().pathRounds || 0;
+            SM.completeLevel('game1', '中學', 40);
+            check((SM.loadPlayerData().pathRounds || 0) > rounds0, '破壞性',
+                '中途離開後課程進度能正常記錄',
+                'pathRounds 沒有增加，代表沙箱還卡著');
+
+            LP.startExam(stName, 'real');
+            check(EE.isBusy(), '破壞性', '中途離開後還能再開一場新考試',
+                '被誤判成「考試進行中」而永遠開不了：' + toasts[toasts.length - 1]);
+            clearEngine();
+        }
+
+        // ── 10.7 落榜／模擬考不得寫入正式文位 ──────────────────────────
+        {
+            seedAt(EXAM_ST);
+            LP.startExam(stName, 'real');
+            enter();
+            drive(false);
+            check(CS.load().ranks.passed.indexOf(stName) < 0, '破壞性',
+                '落榜不得取得文位', JSON.stringify(CS.load().ranks.passed));
+            clearEngine();
+
+            seedAt(EXAM_ST);
+            LP.startExam(stName, 'mock');
+            enter();
+            drive(true);
+            check(CS.load().ranks.passed.indexOf(stName) < 0, '破壞性',
+                '模擬考通過不得寫入正式文位', JSON.stringify(CS.load().ranks.passed));
+            clearEngine();
+        }
+
+        // ── 10.8 越級考試：跳序與重複應試都要被擋 ──────────────────────
+        {
+            seedAt(EXAM_ST);
+            const s0 = CS.load().silver;
+            const stations = PS.build();
+            // 找一個「還輪不到」的考試站
+            let farName = '';
+            for (let i = EXAM_ST + 1; i < stations.length; i++) {
+                if (stations[i].examKind) { farName = stations[i].name; break; }
+            }
+            if (farName) {
+                LP.startSkipExam(farName);
+                check(!EE.isBusy(), '破壞性',
+                    '越級考試不得跳過順序（' + farName + '）',
+                    '越級省的是修課，不是考試；跳序等於用錢買掉中間的驗收');
+                check(CS.load().silver === s0, '破壞性',
+                    '越級被拒時不得扣費', '');
+            }
+            clearEngine();
+
+            seedAt(EXAM_ST);
+            const c = CS.load();
+            if (c.ranks.passed.indexOf(stName) < 0) c.ranks.passed.push(stName);
+            CS.save(c);
+            LP.invalidateProgress();
+            LP.startSkipExam(stName);
+            check(!EE.isBusy(), '破壞性', '已通過的考試不得再越級應試', '');
+            clearEngine();
+        }
+
+        // ── 10.9 越級通過後，沿途站點獎勵必須冪等 ──────────────────────
+        {
+            clearEngine();
+            env.resetSave();
+            const c = CS.load(); c.silver = 9999999; CS.save(c);
+            LP.invalidateProgress();
+
+            const first = PS.getExamStations()[0];
+            LP.startSkipExam(first.name);
+            const opened = EE.isBusy();
+            enter();
+            if (opened) drive(true);
+            const silver1 = CS.load().silver;
+            const again = (typeof EE._grantSkipStations === 'function')
+                ? EE._grantSkipStations(first.name) : 0;
+            check(opened, '破壞性', '全新玩家可以越級應考第一場考試',
+                '越級入口整個不通');
+            check(again === 0 && CS.load().silver === silver1, '破壞性',
+                '越級沿途獎勵重複補發時不會重複給錢',
+                '重複補發拿到 ' + again + ' 文錢（應為 0）');
+            clearEngine();
+        }
+
+        // ── 10.11 課程修完、考試還沒過時再進站 → 必須當成溫習 ──────────
+        //
+        // 玩家回報的災情：修完「塾生」課程後在「可赴科場」彈窗按了
+        // 「容後再議」，回到青雲梯再點一次塾生站，會被當成正常課程開局，
+        // pathRounds 一路往上加（第 50 局、第 51 局…），但那些局數對應的
+        // 內容全是早就學完的舊課程 —— 局號與實際進度完全脫鉤。
+        {
+            const st = seedAt(EXAM_ST);          // 這一站的必通關卡已全數完成
+            // onStationClick 讀的是 render() 建好的 this.stations；
+            // Node 沒有畫面、不會跑 render()，這裡補上（內容與線上一致）。
+            LP.stations = PS.build();
+            const idx = LP.getCurrentStationIndex();
+            check(idx === EXAM_ST, '破壞性',
+                '課程修完但考試未過時，站點被考試關卡擋在原地',
+                '目前站點 ' + idx + '，預期 ' + EXAM_ST);
+
+            const p = LP.getStationProgress(st);
+            check(p.total > 0 && p.done >= p.total, '破壞性',
+                '前置條件：這一站的課程確實已修畢',
+                p.done + ' / ' + p.total);
+
+            // 攔下溫習確認彈窗，記下它有沒有被叫出來、用的是哪一種文案
+            const origConfirm = LP.showReviewConfirm;
+            let confirmArgs = null;
+            LP.showReviewConfirm = function (station, onAgree, reason) {
+                confirmArgs = { name: station && station.name, reason: reason };
+                if (typeof onAgree === 'function') onAgree();     // 玩家按「同意溫習」
+            };
+            const origLaunch2 = LP.launchGame;
+            LP.launchGame = function () { };                      // 不真的開遊戲
+            try {
+                LP.onStationClick(EXAM_ST);
+            } finally {
+                LP.showReviewConfirm = origConfirm;
+                LP.launchGame = origLaunch2;
+            }
+
+            check(!!confirmArgs, '破壞性',
+                '再次進入已修畢的站會先跳「溫故知新」確認',
+                '沒有跳確認，直接當成正常課程開局 —— 局數會憑空增加');
+            check(confirmArgs && confirmArgs.reason === 'done', '破壞性',
+                '「溫故知新」用的是「課程已修畢、只差考試」的文案',
+                '用到了「回頭點舊站」的文案，會叫玩家「點道路最上方的站」，'
+                + '但這裡的出路是去應試 —— 等於把玩家導到死路');
+            check(LP._reviewMode === true && SM.isReviewMode() === true, '破壞性',
+                '同意後以溫習模式進入（LearningPath 與 ScoreManager 同步）',
+                'LP._reviewMode=' + LP._reviewMode + '、SM=' + SM.isReviewMode());
+
+            // 核心不變式：溫習重玩不得增加晉升局數
+            const rounds0 = SM.loadPlayerData().pathRounds || 0;
+            const u = (st.units || [])[0];
+            if (u) SM.completeLevel('game1', u.tier, u.level);
+            const rounds1 = SM.loadPlayerData().pathRounds || 0;
+            check(rounds1 === rounds0, '破壞性',
+                '溫習已修畢的課程不會增加晉升局數',
+                'pathRounds ' + rounds0 + '→' + rounds1
+                + '　→ 玩家會看到局號一直跳、站點卻永遠不動');
+
+            SM.setReviewMode(false);
+            LP._reviewMode = false;
+            clearEngine();
+        }
+
+        // ── 10.12 兩個模組交錯覆寫同一款遊戲，還原後必須回到原版 ────────
+        //
+        // 青雲梯（launchGame）會覆寫遊戲的 startNextLevel 來接管關卡推進；
+        // 考試引擎（_patchGame）會覆寫 gameOver 與 startNextLevel 來接管答題。
+        // 兩邊若各自把「我覆寫前看到的那一個」當成原版存起來，交錯還原時
+        // 就會互相把對方的替身當成原版裝回去 —— 那款遊戲從此永久停在別人的
+        // 閉包上，玩家自由練習過關會被導回青雲梯的流程，而且毫無錯誤訊息。
+        //
+        // ⚠️ 這個交錯在正常操作下已經被 onStationClick 的「考試進行中不得
+        //    開課程局」擋住了，亂序模擬也因此打不出來。但擋門只擋得住
+        //    「目前已知的入口」，機制本身的正確性必須獨立驗 ——
+        //    否則日後任何新入口都可能重新打開這個洞。
+        {
+            const no = COURSE_GAMES[0];
+            const G = global['Game' + no];
+            if (G && typeof G.startNextLevel === 'function' && typeof G.gameOver === 'function') {
+                const pristine = { over: G.gameOver, next: G.startNextLevel };
+                const savedShow = G.show;
+                G.show = function () { };                 // 不要真的開畫面
+                try {
+                    // ① 青雲梯先派局（真正的 launchGame，會覆寫 startNextLevel）
+                    const u = (PS.build()[0].units || [])[0] || { tier: '小學', level: 1 };
+                    LP.launchGame(no, u.tier, u.level);
+                    // ② 考試接著接管同一款遊戲（真正的 _patchGame）
+                    EE._patchGame(G, { poemId: 1, gameNo: no });
+                    // ③ 用「錯的順序」還原：先青雲梯、後考試
+                    LP.restorePatchedGame();
+                    EE._unpatchGame();
+
+                    check(G.startNextLevel === pristine.next && G.gameOver === pristine.over,
+                        '破壞性', '交錯覆寫同一款遊戲後還原得回原版（青雲梯先、考試後）',
+                        'Game' + no + ' 的方法沒有回到原版 —— 之後玩家自由練習'
+                        + '過關時會被導進別的模組的流程，且不會有任何錯誤訊息');
+
+                    // ④ 反向順序再驗一次：考試先接管，青雲梯才派局。
+                    //    兩種順序都必須安全，只驗一種等於只保護了一半。
+                    G.gameOver = pristine.over;
+                    G.startNextLevel = pristine.next;
+                    LP._patched = null;
+                    EE._patchedGame = null;
+
+                    EE._patchGame(G, { poemId: 1, gameNo: no });
+                    LP.launchGame(no, u.tier, u.level);
+                    EE._unpatchGame();
+                    LP.restorePatchedGame();
+
+                    check(G.startNextLevel === pristine.next && G.gameOver === pristine.over,
+                        '破壞性', '交錯覆寫同一款遊戲後還原得回原版（考試先、青雲梯後）',
+                        'Game' + no + ' 的方法沒有回到原版');
+                } finally {
+                    G.show = savedShow;
+                    G.gameOver = pristine.over;
+                    G.startNextLevel = pristine.next;
+                    LP._patched = null;
+                    EE._patchedGame = null;
+                    LP.stopGame();
+                }
+            }
+        }
+
+        // ── 10.10 考試流水帳必須有上限 ────────────────────────────────
+        {
+            seedAt(EXAM_ST);
+            const cap = CS.EXAM_LOG_MAX || 0;
+            const c = CS.load();
+            c.examLog = [];
+            for (let i = 0; i < cap + 30; i++) {
+                c.examLog.push({ rank: stName, ts: Date.now(), pass: false });
+            }
+            CS.save(c);
+            check(cap > 0 && CS.load().examLog.length <= cap, '破壞性',
+                '考試流水帳 examLog 有筆數上限（' + (cap || '未設定') + '）',
+                '沒有上限的話，反覆落榜會讓整包存檔無止境變大，'
+                + '而且每次存檔都會把它整包同步上雲');
+            clearEngine();
+        }
+    } finally {
+        // 還原替身，避免污染後面的章節與第 7 節的潔淨度檢查
+        EE._launch = saved.launch;
+        LP.playPromotionCelebration = saved.celeb;
+        LP.scrollToCurrent = saved.scroll;
+        LP.show = saved.show;
+        LP.showPromotionQueue = saved.queue;
+        LP.showPromotionPopup = saved.popup;
+        LP.showExamQualifiedPopup = saved.qualified;
+        LP.toast = saved.toast;
+        clearEngine();
+        env.resetSave();
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  第 11 節　亂序操作模擬（fuzz）：玩家在任何介面亂點
+//
+//  ── 為什麼需要這一節（作者反覆遇到「無法預期的錯誤」的根本原因）──────
+//  第 1~10 節都是「我想得到的情境」。但實際踩到的每一個 bug 都不是
+//  規格算錯，而是**狀態機的轉移沒人列舉到**：
+//      · 考試中途從漢堡選單離開 → 沙箱沒拆（№17）
+//      · 報名費扣在「還沒入場」的時間點（№18）
+//      · 考試重入沒有防護（№19）
+//      · _finish() 不冪等（№20）
+//      · onStationClick 漏掉「課程已修完」這第三種狀態（№24）
+//  手寫情境永遠只能覆蓋「想得到的那幾條路」，補不完。
+//
+//  ── 作法 ────────────────────────────────────────────────────────────
+//  改成「不變式 ＋ 亂序模擬」：
+//    ① 定義一組**任何時刻都必須成立**的規則（checkInvariants）。
+//    ② 用固定亂數種子隨機挑動作亂點（開關青雲梯、點各種站、開考、
+//       入場、答對答錯、中途離開、模擬重新整理、越級…），
+//       **每動一步就把所有不變式全檢查一次**。
+//    ③ 一旦違反，印出種子與完整動作序列 —— 因為亂數是固定種子，
+//       同一個種子必定重現同一串操作，可以直接拿去除錯。
+//
+//  ⚠️ 這一節不是要取代前面幾節，而是補上「沒人想到的轉移」。
+//     它抓到的每一個違規，都應該回頭在第 10 節補一條具名的測試。
+//  ⚠️ 遊戲的 show() 用替身（Node 沒有畫面），但青雲梯與考試引擎
+//     本身的流程完全是線上那一份 —— 歷來的 bug 也都出在這兩支。
+// ══════════════════════════════════════════════════════════════════════
+function verifyChaos() {
+    section('第 11 節　亂序操作模擬（fuzz）：玩家在任何介面亂點');
+
+    const EE = global.ExamEngine;
+    if (!EE || !EC || !CS) { warn('亂序', '考試模組未載入，略過本節'); return; }
+
+    const SEEDS = (process.env.FM_CHAOS_SEEDS || '')
+        .split(',').map(s => parseInt(s, 10)).filter(n => !isNaN(n));
+    const seeds = SEEDS.length ? SEEDS : [1, 2, 3, 4, 5, 6, 7, 8];
+    const STEPS = Math.max(10, parseInt(process.env.FM_CHAOS_STEPS || '90', 10));
+
+    // ── 基準快照：用來判斷「有沒有人把全域函式劫持了沒還回來」──────────
+    //
+    // ⚠️ 先把「可能還掛著替身」的那幾支回推到真正的原版再取樣。
+    //    前面幾節（第 5、6 節）會替換遊戲的 show()，而 launchGame 覆寫
+    //    DifficultySelector.show 後，是靠「遊戲的 show() 會呼叫它」來還原的；
+    //    某些替身不會呼叫，於是替身留到本節開場。基準值若取到替身，
+    //    本節就會把「修好」誤判成「壞掉」。替身身上都有 __fmOriginal。
+    if (global.DifficultySelector && global.DifficultySelector.show
+        && global.DifficultySelector.show.__fmOriginal) {
+        global.DifficultySelector.show = global.DifficultySelector.show.__fmOriginal;
+    }
+    const BASE = {
+        completeLevel: SM.completeLevel,
+        saveScore: SM.saveScore,
+        alert: global.alert,
+        logGame: global.SupabaseClient && global.SupabaseClient.logGame,
+        dsShow: global.DifficultySelector && global.DifficultySelector.show,
+        gameOver: {},
+        startNextLevel: {}
+    };
+    COURSE_GAMES.forEach(n => {
+        const G = global['Game' + n];
+        if (!G) return;
+        BASE.gameOver[n] = G.gameOver;
+        BASE.startNextLevel[n] = G.startNextLevel;
+    });
+
+    // ── 替身：遊戲的 show()／stopGame() ────────────────────────────────
+    const savedGame = {};
+    COURSE_GAMES.forEach(n => {
+        const G = global['Game' + n];
+        if (!G) return;
+        savedGame[n] = { show: G.show, stopGame: G.stopGame };
+        G.show = function () {
+            // 真實遊戲就是在 show() 裡叫難度選擇器；青雲梯／考試靠暫時替換
+            // 它來注入難度與關卡，這裡照走一次，才驗得到那條注入路徑。
+            if (global.DifficultySelector && typeof global.DifficultySelector.show === 'function') {
+                global.DifficultySelector.show(NAMES[n] || ('game' + n), (tier, levelIndex) => {
+                    this.difficulty = tier;
+                    this.isLevelMode = (levelIndex !== undefined);
+                    this.currentLevelIndex = levelIndex || 1;
+                });
+            }
+            // 考試的 _tryCombo 會比對 currentPoem.id 是否等於指定的詩，
+            // 這裡照著白名單回報，讓真正的出題流程跑得下去。
+            const allow = LT._allowedPoemIds;
+            this.currentPoem = { id: (allow && allow.length) ? allow[0] : null };
+            this.__chaosOpen = true;
+        };
+        G.stopGame = function () { this.__chaosOpen = false; };
+    });
+
+    const savedLP = {
+        celeb: LP.playPromotionCelebration, scroll: LP.scrollToCurrent,
+        popup: LP.showPromotionPopup, queue: LP.showPromotionQueue,
+        qualified: LP.showExamQualifiedPopup, review: LP.showReviewConfirm,
+        skipMenu: LP.showSkipExamMenu, toast: LP.toast, makePopup: LP._makePopup,
+        render: LP.render
+    };
+    const savedEEcard = EE._card;
+
+    // 彈窗一律「立刻同意」或「立刻關閉」，由亂數決定（見動作表）
+    let autoAgree = true;
+    LP.playPromotionCelebration = (s, v, d) => { if (d) d(); };
+    LP.scrollToCurrent = () => { };
+    LP.showPromotionPopup = (s, n) => { if (n) n(); };
+    LP.showPromotionQueue = () => { };
+    LP.showExamQualifiedPopup = () => { };
+    LP.showReviewConfirm = (s, onAgree) => { if (autoAgree && onAgree) onAgree(); };
+    LP.showSkipExamMenu = () => { };
+    LP.toast = () => { };
+    LP._makePopup = () => ({ querySelector: () => env.makeEl(), remove() { } });
+    LP.render = function () { this.stations = PS.build(); };
+    EE._card = () => { };
+
+    // ── 不變式 ────────────────────────────────────────────────────────
+    let hi = { rounds: 0, station: 0, passed: 0 };
+    /**
+     * @param {boolean} leftEverything 上一個動作是不是「玩家已經完全離開」
+     *        （漢堡選單離開／重新整理）。只有這種時候才要求關卡情境清乾淨——
+     *        還停在青雲梯地圖上時，情境要留給結算動畫期間的 logGame 判斷
+     *        is_ranked（見 supabaseClient.js 的說明），提早清掉反而會把
+     *        真正的晉升局記成自由練習。
+     */
+    function checkInvariants(leftEverything) {
+        const bad = [];
+        const examOn = !!EE._active;
+        let coll = null;
+        try { coll = CS.load(); } catch (e) { bad.push('存檔讀不出來：' + e.message); return bad; }
+        const data = SM.loadPlayerData();
+
+        // ① 沙箱與考試狀態必須同進同出
+        if (!!EE._sandbox !== examOn) {
+            bad.push('沙箱與 _active 不一致（sandbox=' + !!EE._sandbox + ' active=' + examOn + '）');
+        }
+        // ② 沒在考試時，被沙箱換掉的全域函式必須是原版
+        if (!examOn) {
+            if (SM.completeLevel !== BASE.completeLevel) bad.push('ScoreManager.completeLevel 沒還原');
+            if (SM.saveScore !== BASE.saveScore) bad.push('ScoreManager.saveScore 沒還原');
+            if (global.alert !== BASE.alert) bad.push('window.alert 沒還原');
+            if (global.SupabaseClient && BASE.logGame
+                && global.SupabaseClient.logGame !== BASE.logGame) bad.push('SupabaseClient.logGame 沒還原');
+            // 難度選擇器同樣被兩個模組各自暫時覆寫（青雲梯注入難度／考試鎖題），
+            // 殘留的話玩家從漢堡選單進自由練習會選不了難度。
+            if (global.DifficultySelector && BASE.dsShow
+                && global.DifficultySelector.show !== BASE.dsShow) {
+                bad.push('DifficultySelector.show 沒還原');
+            }
+        }
+        // ③ 沒在考試、青雲梯也沒派局時，遊戲不得還被劫持
+        if (!examOn && !LP._patched) {
+            COURSE_GAMES.forEach(n => {
+                const G = global['Game' + n];
+                if (!G) return;
+                if (BASE.gameOver[n] && G.gameOver !== BASE.gameOver[n]) {
+                    bad.push('Game' + n + '.gameOver 沒還原');
+                }
+                if (BASE.startNextLevel[n] && G.startNextLevel !== BASE.startNextLevel[n]) {
+                    bad.push('Game' + n + '.startNextLevel 沒還原');
+                }
+            });
+        }
+        // ④ 局數只增不減
+        const rounds = data.pathRounds || 0;
+        if (rounds < hi.rounds) bad.push('局數倒退（' + hi.rounds + '→' + rounds + '）');
+        hi.rounds = Math.max(hi.rounds, rounds);
+
+        // ⑤ 站點索引不得超過考試關卡（考試必須擋得住）
+        const idx = LP.getCurrentStationIndex();
+        const gate = LP.getExamGateIndex();
+        if (idx > gate) bad.push('站點 ' + idx + ' 越過了考試關卡 ' + gate);
+        // ⑥ 站點只增不減
+        if (idx < hi.station) bad.push('站點倒退（' + hi.station + '→' + idx + '）');
+        hi.station = Math.max(hi.station, idx);
+
+        // ⑦ 文錢不得為負
+        if ((coll.silver || 0) < 0) bad.push('文錢變成負數（' + coll.silver + '）');
+
+        // ⑧ 通過紀錄：無重複、只增不減、必須是合法站名
+        const passed = (coll.ranks && coll.ranks.passed) || [];
+        const minor = (coll.exams && coll.exams.minorPassed) || [];
+        if (new Set(passed).size !== passed.length) bad.push('ranks.passed 有重複項：' + passed.join('、'));
+        if (new Set(minor).size !== minor.length) bad.push('minorPassed 有重複項：' + minor.join('、'));
+        const total = passed.length + minor.length;
+        if (total < hi.passed) bad.push('已通過的考試變少了（' + hi.passed + '→' + total + '）');
+        hi.passed = Math.max(hi.passed, total);
+        passed.concat(minor).forEach(nm => {
+            const st = PS.getStationByName(nm);
+            if (!st || !st.examKind) bad.push('通過紀錄裡有不存在或不需考試的站：' + nm);
+        });
+
+        // ⑨ 考試進行中，再開一場必須被拒絕
+        if (examOn) {
+            const mode0 = EE._mode;
+            if (EE.start({ rankName: EE._plan && EE._plan.examId, mode: 'mock' }) !== false
+                || EE._mode !== mode0) {
+                bad.push('考試進行中竟然可以再開一場');
+            }
+        }
+
+        // ⑩ 玩家離開之後，LevelTable 的情境與候選詩白名單必須清乾淨。
+        //    殘留的話：自由練習會被記成晉升局（logGame 的 is_ranked 讀的
+        //    就是「有沒有情境」）、難度標籤會冒出「第 X 局」、選詩範圍
+        //    也會被上一局的情境限縮。
+        if (leftEverything) {
+            if (LT.getContext()) {
+                bad.push('已經離開青雲梯，LevelTable 情境卻還鎖著 '
+                    + JSON.stringify(LT.getContext()));
+            }
+            if (LT._allowedPoemIds) {
+                bad.push('已經離開青雲梯，候選詩白名單卻還鎖著 '
+                    + JSON.stringify(LT._allowedPoemIds));
+            }
+        }
+        return bad;
+    }
+
+    // ── 動作表：玩家在各介面「可能做的事」，含不合規的操作 ──────────────
+    function buildActions(rnd) {
+        const stations = PS.build();
+        const idx = () => LP.getCurrentStationIndex();
+        const A = [];
+        const add = (name, fn) => A.push({ name, fn });
+
+        add('開啟青雲梯', () => { LP.stations = PS.build(); LP.checkPendingUnit(); LP.render(); });
+        add('關閉青雲梯', () => LP.hide());
+        add('漢堡選單離開', () => {
+            COURSE_GAMES.forEach(n => { const G = global['Game' + n]; if (G && G.stopGame) G.stopGame(); });
+            LP.stopGame();
+            EE.forceStop();
+        });
+        add('點目前站', () => { LP.stations = PS.build(); LP.onStationClick(idx()); });
+        add('點已走過的舊站', () => {
+            LP.stations = PS.build();
+            const i = idx(); if (i <= 0) return '（無舊站）';
+            LP.onStationClick(Math.floor(rnd() * i));
+        });
+        add('點未解鎖的站', () => {
+            LP.stations = PS.build();
+            const i = idx();
+            const j = Math.min(stations.length - 1, i + 1 + Math.floor(rnd() * 10));
+            if (j <= i) return '（無未解鎖站）';
+            LP.onStationClick(j);
+        });
+        add('打贏這一局', () => {
+            const u = LP._pendingUnit;
+            if (!u) return '（沒有進行中的局）';
+            SM.completeLevel('game' + (LP._lastGame || 1), u.tier, u.level);
+            LP.advanceAfterWin(LP._lastGame || 1);
+        });
+        add('這一局輸掉／直接關掉遊戲', () => {
+            if (!LP._pendingUnit) return '（沒有進行中的局）';
+            COURSE_GAMES.forEach(n => { const G = global['Game' + n]; if (G && G.stopGame) G.stopGame(); });
+            LP.stations = PS.build(); LP.checkPendingUnit(); LP.render();
+        });
+        add('開模擬考', () => { LP.stations = PS.build(); LP.startExam(stations[idx()].name, 'mock'); });
+        add('開正式考', () => { LP.stations = PS.build(); LP.startExam(stations[idx()].name, 'real'); });
+        add('開越級考', () => {
+            const menu = EC.getSkipMenu();
+            const row = menu.filter(m => m.enabled)[0];
+            if (!row) return '（沒有可越級的場次）';
+            LP.startSkipExam(row.name);
+        });
+        add('考試：入場應試', () => {
+            if (!EE._active || !EE._onEnter) return '（不在簡介畫面）';
+            const fn = EE._onEnter; EE._onEnter = null;
+            if (fn() === false) { EE._aborted = true; EE._finish(); return '（餘額不足，退場）'; }
+            EE._nextQuestion();
+        });
+        add('考試：先回家苦讀', () => {
+            if (!EE._active) return '（不在考試）';
+            EE._aborted = true; EE._finish();
+        });
+        add('考試：答對一題', () => {
+            if (!EE._active || EE._onEnter) return '（還沒入場）';
+            EE._record(true);
+            if (EE._qi >= (EE._plan ? EE._plan.totalQuestions : 0)) EE._finish();
+            else EE._nextQuestion();
+        });
+        add('考試：答錯一題', () => {
+            if (!EE._active || EE._onEnter) return '（還沒入場）';
+            EE._record(false);
+            if (EE._qi >= (EE._plan ? EE._plan.totalQuestions : 0)) EE._finish();
+            else EE._nextQuestion();
+        });
+        add('考試：考到一半跑掉', () => {
+            if (!EE._active) return '（不在考試）';
+            EE.forceStop();
+        });
+        add('捐納跳關', () => {
+            const st = stations[idx()];
+            const u = LP.findStuckUnit(st) || (st.units || []).filter(x => !LP.isUnitDone(x))[0];
+            if (!u) return '（沒有可捐納的關卡）';
+            LP.donateSkip(u, 1);
+        });
+        add('模擬重新整理頁面', () => {
+            // 重新整理只清掉記憶體狀態，存檔留著。
+            EE.forceStop();
+            LP.restorePatchedGame();
+            LP.stopGame();
+            EE._plan = null; EE._questions = []; EE._qi = 0; EE._correct = 0;
+            EE._aborted = false; EE._active = false; EE._finished = false;
+            LP._pendingUnit = null; LP._currentStation = null; LP._reviewMode = false;
+            LP._stationIdxAtLaunch = -1; LP._examPrompted = null;
+            SM.setReviewMode(false);
+            LP.invalidateProgress();
+        });
+        add('補足文錢', () => { const c = CS.load(); c.silver = 9999999; CS.save(c); });
+        add('把文錢花光', () => { const c = CS.load(); c.silver = 0; CS.save(c); });
+        return A;
+    }
+
+    // ── 執行一個種子的亂點劇本 ────────────────────────────────────────
+    function runOne(seed) {
+        // mulberry32：同一個種子必定產生同一串操作，違規才能重播
+        let s = seed >>> 0;
+        const rnd = () => {
+            s |= 0; s = (s + 0x6D2B79F5) | 0;
+            let t = Math.imul(s ^ (s >>> 15), 1 | s);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+
+        // ⚠️⚠️ 連 Math.random 一起接管：青雲梯自己的 pickUnit／pickGame、
+        //    考試的 buildQuestions 與組合洗牌全都吃 Math.random()。
+        //    不接管的話，同一個種子每次跑出來的內部選擇都不一樣 ——
+        //    亂序測試會變成「這次抓到、下次抓不到」，印出來的種子也重播不了。
+        //    實測就踩過：種子 36 在整批跑時違規，單獨重播卻通過。
+        //    可重播是 fuzz 能不能用來除錯的前提，這一行是本節的關鍵。
+        const realRandom = Math.random;
+        Math.random = rnd;
+        try {
+            return runSession(seed, rnd);
+        } finally {
+            Math.random = realRandom;
+        }
+    }
+
+    function runSession(seed, rnd) {
+        env.resetSave();
+        EE.forceStop();
+        EE._plan = null; EE._active = false; EE._finished = false; EE._aborted = false;
+        LP._pendingUnit = null; LP._currentStation = null; LP._reviewMode = false;
+        LP._stationIdxAtLaunch = -1; LP._examPrompted = null; LP._navLockedGameNo = null;
+        LP._recent = []; LP._lastGame = null; LP._sameGameStreak = 0;
+        SM.setReviewMode(false);
+        // 種子之間不得互相污染：上一個種子若停在「情境還鎖著」的狀態，
+        // 下一個種子一開場就會踩到別人留下的殘局（實測發生過）。
+        LT.clearContext();
+        if (typeof LT.clearAllowedPoemIds === 'function') LT.clearAllowedPoemIds();
+        LP.invalidateProgress();
+        hi = { rounds: 0, station: 0, passed: 0 };
+
+        // 起始給一點文錢，否則大部分考試動作都只會被「盤纏不足」擋掉
+        const c0 = CS.load(); c0.silver = 50000; CS.save(c0);
+
+        const actions = buildActions(rnd);
+        const trail = [];
+        for (let step = 0; step < STEPS; step++) {
+            autoAgree = rnd() < 0.7;
+            const act = actions[Math.floor(rnd() * actions.length)];
+            let note = '';
+            try {
+                note = act.fn() || '';
+            } catch (e) {
+                trail.push(act.name + ' ← 拋出例外');
+                return { seed, step, trail, bad: ['動作拋出未捕捉的例外：' + e.message] };
+            }
+            trail.push(act.name + note);
+            const left = (act.name === '漢堡選單離開' || act.name === '模擬重新整理頁面');
+            const bad = checkInvariants(left);
+            if (bad.length) return { seed, step, trail, bad };
+        }
+        return null;
+    }
+
+    try {
+        let firstFail = null;
+        let done = 0;
+        seeds.forEach(sd => {
+            if (firstFail) return;              // 先修好第一個再繼續，避免洗版
+            const r = runOne(sd);
+            done++;
+            if (r) firstFail = r;
+        });
+
+        if (firstFail) {
+            const tail = firstFail.trail.slice(-12)
+                .map((t, i) => '          ' + (firstFail.trail.length - 12 + i + 1) + '. ' + t)
+                .join('\n');
+            fail('亂序', '種子 ' + firstFail.seed + ' 第 ' + (firstFail.step + 1) + ' 步違反不變式',
+                firstFail.bad.join('\n       → ')
+                + '\n       → 重播：FM_CHAOS_SEEDS=' + firstFail.seed
+                + ' node tools/verify_learning_path.js chaos'
+                + '\n       → 最後幾步操作：\n' + tail);
+        } else {
+            ok('亂序', seeds.length + ' 個種子 × ' + STEPS + ' 步亂點，'
+                + (seeds.length * STEPS) + ' 次操作全程沒有違反任何不變式');
+            if (VERBOSE) {
+                console.log('        檢查的不變式：沙箱同進同出／全域函式還原／遊戲未被劫持／'
+                    + '局數只增不減／站點不越過考試關卡／站點只增不減／文錢非負／'
+                    + '通過紀錄無重複且只增不減／考試不得重入／情境不得殘留');
+            }
+        }
+    } finally {
+        COURSE_GAMES.forEach(n => {
+            const G = global['Game' + n];
+            if (!G || !savedGame[n]) return;
+            G.show = savedGame[n].show;
+            G.stopGame = savedGame[n].stopGame;
+        });
+        LP.playPromotionCelebration = savedLP.celeb;
+        LP.scrollToCurrent = savedLP.scroll;
+        LP.showPromotionPopup = savedLP.popup;
+        LP.showPromotionQueue = savedLP.queue;
+        LP.showExamQualifiedPopup = savedLP.qualified;
+        LP.showReviewConfirm = savedLP.review;
+        LP.showSkipExamMenu = savedLP.skipMenu;
+        LP.toast = savedLP.toast;
+        LP._makePopup = savedLP.makePopup;
+        LP.render = savedLP.render;
+        EE._card = savedEEcard;
+        EE.forceStop();
+        LP.stopGame();
+        SM.setReviewMode(false);
+        env.resetSave();
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
 //  第 7 節　狀態潔淨度
 //  —— 青雲梯與考試都會「暫時覆寫全域函式再還原」，漏還原是靜默災難
 // ══════════════════════════════════════════════════════════════════════
@@ -2910,6 +3811,10 @@ if (runPoems) verifyPoemDispatch();
 if (runPath) { verifyTables(); verifyStations(); }
 if (runFlow) verifyFlow();
 if (runExam) verifyExam();
+// ⚠️ 破壞性測試必須排在潔淨度（第 7 節）**之前**：它會反覆開關考試沙箱，
+//    正好讓第 7 節順便驗證這些亂來的路徑有沒有漏還原全域函式。
+if (runAbuse) verifyExamAbuse();
+if (runChaos) verifyChaos();
 if (runHygiene) verifyHygiene();
 if (runKeys) verifyLevelKeys();
 if (runMoney) verifyMoney();

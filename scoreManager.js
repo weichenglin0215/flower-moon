@@ -918,6 +918,124 @@ const ScoreManager = {
         return result;
     },
 
+    /**
+     * 【測試期用】把玩家直接設定到青雲梯的指定站點：
+     *   · 這一站之前的所有站，詩詞與必通關卡全數視為已學會（捐納跳關）。
+     *   · 這一站之前所有「需應試」的站（文位考／小考），一律視為已通過。
+     *   · 這一站自己的詩詞：除了最後一首之外全部學會，最後一首詩的最後
+     *     一個必通關卡刻意只完成兩款遊戲（差一局），方便測試者用真正的
+     *     遊戲打最後一局、走一次完整的「修完課程 → 應試」流程。
+     *   · 文錢補到用不完，避免報名費卡住測試。
+     *
+     * ⚠️ 效能考量：不透過 markLevelDonated／completeLevel 逐關寫檔
+     *    （那兩支各自都會存檔＋推雲端一次），越後面的站點單元數上千，
+     *    逐關呼叫會打出上千次雲端請求。這裡直接在記憶體中組出 data，
+     *    最後只寫檔＋推雲端一次。
+     *
+     * @param {number} stationIndex PathStations.build() 的站點索引
+     * @returns {Promise<object>} { station, index, rounds }
+     */
+    debugJumpToStation: async function (stationIndex) {
+        const PS = window.PathStations;
+        if (!PS) throw new Error('PathStations 尚未載入');
+        const stations = PS.build();
+        const target = stations[stationIndex];
+        if (!target) throw new Error('站點索引超出範圍: ' + stationIndex);
+
+        // 1. 沿用既有的完整重置，確保狀態乾淨（本機 + 雲端），保留引繼碼
+        await this.resetAll({ cloud: true, keepId: true });
+
+        // 2. 在記憶體中組出目標進度
+        let data = this.loadPlayerData();
+        data.levelDonated = data.levelDonated || {};
+        data.levelCleared = data.levelCleared || {};
+
+        const donate = (tier, level) => {
+            const ref = this._levelRef(tier, level);
+            if (!data.levelDonated[tier]) data.levelDonated[tier] = [];
+            if (data.levelDonated[tier].indexOf(ref) === -1) data.levelDonated[tier].push(ref);
+        };
+        const clearOnce = (gameKey, tier, level) => {
+            const ref = this._levelRef(tier, level);
+            if (!data.levelCleared[gameKey]) data.levelCleared[gameKey] = {};
+            if (!data.levelCleared[gameKey][tier]) data.levelCleared[gameKey][tier] = [];
+            if (data.levelCleared[gameKey][tier].indexOf(ref) === -1) data.levelCleared[gameKey][tier].push(ref);
+        };
+
+        const coll = window.FMCollectionSave ? window.FMCollectionSave.load() : null;
+        const markExamPassed = (st) => {
+            if (!coll || !st.examKind) return;
+            if (st.examKind === 'rank') {
+                coll.ranks = coll.ranks || { passed: [] };
+                if (coll.ranks.passed.indexOf(st.name) === -1) coll.ranks.passed.push(st.name);
+            } else {
+                coll.exams = coll.exams || { minorPassed: [] };
+                if (coll.exams.minorPassed.indexOf(st.name) === -1) coll.exams.minorPassed.push(st.name);
+            }
+        };
+
+        let rounds = 0;
+
+        // 2a. 之前所有站：全部必通關卡捐納跳關 + 應試站視為已通過
+        for (let i = 0; i < stationIndex; i++) {
+            const st = stations[i];
+            (st.units || []).forEach(u => { donate(u.tier, u.level); rounds++; });
+            markExamPassed(st);
+        }
+
+        // 2b. 這一站自己：除了最後一首詩，其餘全部學會；
+        //     最後一首詩的最後一個必通關卡只完成兩款遊戲（差一局）。
+        // 兩款皆屬「語感」通道（權重最高，最貼近玩家正常會派到的遊戲）。
+        //
+        // ⚠️ 每首詩的必通關卡務必用 PS.getPoemUnits()（各詩用自己的 tier
+        //    算出來的清單），不能用 target.tier 重算 —— 一站可能跨兩個
+        //    難度層（例如塾生橫跨小學／中學），拿站的 tier 套到不屬於它
+        //    的詩上，selectUnitsForPoem 會挑出錯誤的關卡，與
+        //    getStationExamProgress／getPoemUnits 真正採計的單元對不上。
+        // ⚠️ 2026-09 實測回報：一開始用的是 ['game1','game4']（都屬「語感」，
+        //    通道權重 12/20，五款遊戲裡最容易被抽到）。玩家真正打最後一局
+        //    差一點時，pickGame 有不小機率又抽到 game1 或 game4，此時
+        //    isUnitDone 仍然只有 2 款、單元繼續判定「未完成」，於是同一首
+        //    詩、同一關又被派出一次——玩家會覺得「打完一局卻沒有進展，
+        //    青雲梯卡住了」。改用「背景」（game13）＋「推理」（game40）
+        //    這兩個權重最低（各 1/20）的通道：這兩個通道在低文位甚至還沒
+        //    解鎖，pickGame 根本抽不到，真正剩下那一局幾乎篤定會抽中
+        //    一款全新的遊戲，一次就能學完。
+        const DONATE_GAMES = ['game13', 'game40'];
+        const poemList = PS.getPoemUnits().slice(target.poemFrom, target.poemTo);
+        poemList.forEach((poem, p) => {
+            const units = poem.units || [];
+            const isLastPoem = (p === poemList.length - 1);
+            units.forEach((u, ui) => {
+                const isLastUnit = isLastPoem && (ui === units.length - 1);
+                if (isLastUnit) {
+                    DONATE_GAMES.forEach(gk => { clearOnce(gk, u.tier, u.level); rounds++; });
+                } else {
+                    donate(u.tier, u.level);
+                    rounds++;
+                }
+            });
+        });
+
+        data.pathRounds = rounds;
+
+        // 3. 文錢補滿，測試應試報名費不卡關
+        if (coll) coll.silver = Math.max(coll.silver || 0, 999999);
+
+        // 4. 一次寫入本機 + 推雲端
+        this._persist(data);
+        if (coll && window.FMCollectionSave) window.FMCollectionSave.save(coll);
+        if (window.LearningPath && typeof window.LearningPath.invalidateProgress === 'function') {
+            window.LearningPath.invalidateProgress();
+        }
+        if (window.SupabaseClient && window.SupabaseClient.getCurrentId && window.SupabaseClient.getCurrentId()) {
+            await window.SupabaseClient.saveGameToCloud(this.loadPlayerData());
+        }
+
+        console.log('[ScoreManager] 已將玩家設定到站點「' + target.name + '」（索引 ' + stationIndex + '），累計局數 ' + rounds);
+        return { station: target.name, index: stationIndex, rounds: rounds };
+    },
+
     /** 某一關是否已捐納跳過 */
     isLevelDonated: function (tier, level) {
         const data = this.loadPlayerData();

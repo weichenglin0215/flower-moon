@@ -128,10 +128,21 @@
             return data.silver;
         },
 
+        // 考試流水帳最多保留幾筆。
+        // ⚠️ examLog 是「只寫不讀」的稽核紀錄（玩家看到的次數統計來自
+        //    examStats，那是計數器、不會成長）。舊版沒有上限，每考一次
+        //    正式考／越級考就 push 一筆，而且**整包存檔每次都會同步上雲**——
+        //    反覆落榜的玩家會讓這包資料無止境變大，拖慢存檔與雲端同步。
+        //    在存檔的唯一收口統一裁掉最舊的，四個寫入點都不必各自處理。
+        EXAM_LOG_MAX: 100,
+
         save: function (data) {
             if (!data) return false;
             data.timestamps = data.timestamps || {};
             data.timestamps.lastSaved = Date.now();
+            if (Array.isArray(data.examLog) && data.examLog.length > this.EXAM_LOG_MAX) {
+                data.examLog = data.examLog.slice(-this.EXAM_LOG_MAX);
+            }
             try {
                 localStorage.setItem(KEY, JSON.stringify(data));
                 this.scheduleCloudSync();

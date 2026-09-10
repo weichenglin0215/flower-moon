@@ -253,7 +253,7 @@
                                      ⛔ 正式上線前必須連同下方事件綁定一起移除。 -->
                                 <div class="ach-devtool-row">
                                     <button id="achBtnResetAll" class="ach-devtool-btn"
-                                            title="測試用：清空本機與雲端的所有玩家資料">⟲ 重置</button>
+                                            title="測試用：把玩家設到指定青雲梯站點，或完整重置">⟲ 重置</button>
                                 </div>
                             </div>
                         </div>
@@ -313,6 +313,151 @@
                     achCont.style.transformOrigin = 'top left';
                 });
             }
+
+            this.createDevtoolStationModal();
+        },
+
+        /**
+         * ⚠️ 測試期專用：設站選單（正式上線前整段移除）。
+         * 獨立掛在 document.body（不隨 ach-container 縮放），
+         * 列出所有需應試的文位／小站，點擊後呼叫
+         * ScoreManager.debugJumpToStation 把玩家設到該站「差一局學完課程」。
+         */
+        createDevtoolStationModal: function () {
+            if (document.getElementById('achDevtoolStationOverlay')) return;
+
+            const overlay = document.createElement('div');
+            overlay.id = 'achDevtoolStationOverlay';
+            overlay.className = 'ach-devtool-modal-overlay hidden';
+            overlay.innerHTML = `
+                <div class="ach-devtool-modal">
+                    <div class="ach-devtool-modal-title">【測試用】設定青雲梯站點</div>
+                    <div class="ach-devtool-modal-hint">
+                        點擊項目：本機＋雲端資料會改成「已學到這一站，只差最後一局
+                        就能修完課程、取得應試資格」的狀態；之前所有應試站一律視為已通過。
+                    </div>
+                    <div class="ach-devtool-modal-list" id="achDevtoolStationList"></div>
+                    <div class="ach-devtool-modal-actions">
+                        <button class="ach-devtool-btn" id="achDevtoolModalClose">關閉</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            this.devtoolOverlay = overlay;
+
+            overlay.querySelector('#achDevtoolModalClose').addEventListener('click', () => {
+                overlay.classList.add('hidden');
+            });
+            // 點背景關閉
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.classList.add('hidden');
+            });
+        },
+
+        /** 依 PathStations 建出站點清單，動態填入設站選單 */
+        renderDevtoolStationList: function () {
+            const list = document.getElementById('achDevtoolStationList');
+            if (!list) return;
+            list.innerHTML = '';
+
+            const resetBtn = document.createElement('button');
+            resetBtn.className = 'ach-devtool-station-item ach-devtool-station-reset';
+            resetBtn.innerHTML = '<span class="ach-devtool-station-name">🆕 完整重置（全新玩家）</span>';
+            resetBtn.addEventListener('click', () => this.runDevtoolReset());
+            list.appendChild(resetBtn);
+
+            if (!window.PathStations) return;
+            const stations = window.PathStations.build();
+            const EC = window.FMExamConfig;
+            stations.forEach((st, idx) => {
+                if (!st.examKind) return;
+                const item = document.createElement('button');
+                item.className = 'ach-devtool-station-item';
+                const tagClass = st.examKind === 'rank' ? 'tag-rank' : 'tag-minor';
+                const tagText = st.examKind === 'rank' ? '文位考' : '小考';
+                const poemCount = (st.poemIds || []).length;
+                const countText = poemCount > 0 ? (poemCount + ' 首詩') : '已學完全部';
+
+                // 這一站的考試題數／及格線，直接借考試引擎真正用的那支函式算，
+                // 不重寫一份規則（範圍＝上一場考試之後到這一站，見 getPlanForStation）。
+                let examText = '';
+                const plan = (EC && typeof EC.getPlanForStation === 'function')
+                    ? EC.getPlanForStation(st) : null;
+                if (plan) examText = ' · ' + plan.totalQuestions + ' 題（及格 ' + plan.passCount + '）';
+
+                item.innerHTML = `
+                    <div class="ach-devtool-station-toprow">
+                        <span class="ach-devtool-station-name">${st.name}</span>
+                        <span class="ach-devtool-station-tag ${tagClass}">${tagText}</span>
+                    </div>
+                    <div class="ach-devtool-station-meta">${countText}${examText}</div>`;
+                item.addEventListener('click', () => this.runDevtoolJump(idx, st.name));
+                list.appendChild(item);
+            });
+        },
+
+        /** 選單項目：完整重置（沿用原本的行為） */
+        runDevtoolReset: async function () {
+            const id = (window.SupabaseClient && window.SupabaseClient.getCurrentId)
+                ? (window.SupabaseClient.getCurrentId() || '(未綁定)') : '(未綁定)';
+            const msg = [
+                '【測試用】完整重置',
+                '',
+                '引繼碼：' + id,
+                '',
+                '將清除：',
+                '　· 本機積分、關卡進度、成就、詩詞紀錄',
+                '　· 本機文錢、考試通過紀錄、江南小院',
+                '　· 雲端 player_saves 與 game_logs',
+                '',
+                '此操作無法復原，確定嗎？'
+            ].join(String.fromCharCode(10));
+            if (!window.confirm(msg)) return;
+
+            this.setDevtoolBusy(true, '重置中…');
+            try {
+                const r = await window.ScoreManager.resetAll();
+                const cloudTxt = r.cloud
+                    ? (r.cloud.ok
+                        ? ('雲端已刪除（存檔 ' + r.cloud.saves + ' 筆、紀錄 ' + r.cloud.logs + ' 筆）')
+                        : ('雲端刪除失敗：' + r.cloud.error))
+                    : '未綁定引繼碼，僅清除本機';
+                window.alert(['重置完成。', cloudTxt, '', '按確定後將重新整理頁面。'].join(String.fromCharCode(10)));
+            } catch (e) {
+                window.alert('重置失敗：' + e);
+            }
+            window.location.reload();
+        },
+
+        /** 選單項目：把玩家設到指定站點 */
+        runDevtoolJump: async function (stationIndex, stationName) {
+            const msg = [
+                '【測試用】設站：' + stationName,
+                '',
+                '將把本機＋雲端資料改成：',
+                '　· 之前所有需應試的文位／小站皆視為已通過',
+                '　· 這一站已學會大部分詩詞，只差最後一局就能修完課程',
+                '',
+                '此操作會先完整重置玩家再套用新進度，無法復原，確定嗎？'
+            ].join(String.fromCharCode(10));
+            if (!window.confirm(msg)) return;
+
+            this.setDevtoolBusy(true, '設定中…');
+            try {
+                await window.ScoreManager.debugJumpToStation(stationIndex);
+                window.alert('已設定到「' + stationName + '」。按確定後將重新整理頁面。');
+            } catch (e) {
+                window.alert('設定失敗：' + e);
+            }
+            window.location.reload();
+        },
+
+        /** 設站選單忙碌狀態（重置按鈕與選單項目一律鎖住，避免重複觸發） */
+        setDevtoolBusy: function (busy, text) {
+            const btn = this.overlay && this.overlay.querySelector('#achBtnResetAll');
+            if (btn) {
+                btn.disabled = busy;
+                if (busy && text) btn.textContent = text;
+            }
         },
 
 
@@ -364,41 +509,12 @@
 
 
 
-            // ⚠️ 測試期專用：完整重置按鈕（正式上線前連同 HTML 一起移除）
+            // ⚠️ 測試期專用：設站選單（正式上線前連同 HTML 一起移除）
             const btnReset = this.overlay.querySelector('#achBtnResetAll');
             if (btnReset) {
-                btnReset.addEventListener('click', async () => {
-                    const id = (window.SupabaseClient && window.SupabaseClient.getCurrentId)
-                        ? (window.SupabaseClient.getCurrentId() || '(未綁定)') : '(未綁定)';
-                    const msg = [
-                        '【測試用】完整重置',
-                        '',
-                        '引繼碼：' + id,
-                        '',
-                        '將清除：',
-                        '　· 本機積分、關卡進度、成就、詩詞紀錄',
-                        '　· 本機文錢、考試通過紀錄、江南小院',
-                        '　· 雲端 player_saves 與 game_logs',
-                        '',
-                        '此操作無法復原，確定嗎？'
-                    ].join(String.fromCharCode(10));
-                    if (!window.confirm(msg)) return;
-
-                    btnReset.disabled = true;
-                    btnReset.textContent = '重置中…';
-                    try {
-                        const r = await window.ScoreManager.resetAll();
-                        const cloudTxt = r.cloud
-                            ? (r.cloud.ok
-                                ? ('雲端已刪除（存檔 ' + r.cloud.saves + ' 筆、紀錄 ' + r.cloud.logs + ' 筆）')
-                                : ('雲端刪除失敗：' + r.cloud.error))
-                            : '未綁定引繼碼，僅清除本機';
-                        window.alert(['重置完成。', cloudTxt, '', '按確定後將重新整理頁面。']
-                            .join(String.fromCharCode(10)));
-                    } catch (e) {
-                        window.alert('重置失敗：' + e);
-                    }
-                    window.location.reload();
+                btnReset.addEventListener('click', () => {
+                    this.renderDevtoolStationList();
+                    if (this.devtoolOverlay) this.devtoolOverlay.classList.remove('hidden');
                 });
             }
 

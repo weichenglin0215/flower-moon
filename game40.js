@@ -484,9 +484,21 @@
             this.renderQuestion();
             this.renderHint();
 
-            // ⚠️ 必須先依 rows/cols 設好 wrapper 高度（確保每格正方形），再渲染棋盤
-            this._resizeBoardWrapper();
-            this.renderBoard();
+            // ⚠️ 必須先依 rows/cols 設好 wrapper 高度（確保每格正方形），再渲染棋盤。
+            // ⚠️⚠️ 這兩支不能同步呼叫：showDifficultySelector 的回呼是先
+            //    `container.classList.remove('hidden')` 再馬上呼叫
+            //    startNewGame → startGameProcess，同一個事件循環內瀏覽器
+            //    還沒排版，_resizeBoardWrapper／renderBoard 量到的
+            //    offsetWidth／offsetHeight 是舊值（容器剛從 hidden 切出來，
+            //    常見量到 0 或極小值），算出來的字級會被 Math.max(12, ...)
+            //    夾在最小值，整面棋盤字級被壓得極小（實測：第一次進入
+            //    正常會這樣，點「重來」重新產生盤面後卻恢復正常——因為
+            //    那時容器已經顯示過一次，排版早就完成了）。
+            //    用 requestAnimationFrame 等瀏覽器排版完成後再量測即可。
+            requestAnimationFrame(() => {
+                this._resizeBoardWrapper();
+                this.renderBoard();
+            });
 
             const svg = document.getElementById('game40-timer-ring');
             if (svg) svg.style.display = 'block';

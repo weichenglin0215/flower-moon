@@ -118,7 +118,8 @@
 }
 
 .ladder-btn-37:hover {
-    filter: brightness(1.3);
+    /*filter: brightness(1.3);*/
+    /*取消hover 避免在手機上會殘留高量按鈕造成干擾 */
 }
 
 /* 第1個字：單顆大按鈕，寬度撐滿宮格容器（400px） */

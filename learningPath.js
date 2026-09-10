@@ -163,6 +163,7 @@
         _reviewMode: false,   // 目前是否在溫習舊文位（不累計局數）
         _examPrompted: null,  // 已經跳過「可赴科場」提示的文位（僅本工作階段）
         _stationIdxAtLaunch: -1, // 開局當下的站點索引，用來偵測「這一局讓玩家晉升了」
+        _navLockedGameNo: null, // 目前被鎖住「難度標籤／開新局」鈕的遊戲編號
 
         /** 建立「文位 → 可玩遊戲清單」的累加對照表 */
         buildRankGames: function () {
@@ -938,6 +939,22 @@
             if (window.LevelTable && typeof window.LevelTable.clearAllowedPoemIds === 'function') {
                 window.LevelTable.clearAllowedPoemIds();
             }
+            // ⚠️⚠️ 關卡情境也必須一起清（2026-09 亂序模擬抓到）：
+            //    舊版只清白名單，`LevelTable.getContext()` 會一路停在
+            //    青雲梯最後派出的那一關，離開之後仍然掛著。而
+            //    **「有沒有情境」正是全站用來判斷「這一局算不算晉升局」的依據**：
+            //      · supabaseClient.logGame 用它決定 game_logs 的 is_ranked
+            //        → 之後在漢堡選單玩的自由練習會被記成晉升局（雲端資料污染）
+            //      · scoreManager.js 的 FMRoundLabel 用它決定要不要顯示「第 X 局」
+            //        → 自由練習的難度標籤會冒出局號
+            //      · script.js 的 getSharedRandomPoem 會依情境限縮選詩範圍
+            //    difficulty-selector 進入隨機練習前雖然也會 clearContext()，
+            //    但那只擋得住「有經過難度選單」的路徑，擋不住上面那兩個
+            //    直接讀情境的地方。清除的正確位置就是這裡 ——
+            //    與白名單同一個「玩家真的離開青雲梯了」的時機。
+            if (window.LevelTable && typeof window.LevelTable.clearContext === 'function') {
+                window.LevelTable.clearContext();
+            }
             if (window.ScoreManager && window.ScoreManager.setReviewMode) {
                 window.ScoreManager.setReviewMode(false);
             }
@@ -1047,12 +1064,11 @@
             // 已通過考試的文位清單，用來判斷考試站要不要掛「可應試」標記。
             // ⚠️ 在迴圈外先取一次：這是讀存檔的操作，放進 forEach 會被
             //    每個站點各讀一遍（站點有近百個）。
-            const passedRanks = (function () {
-                try {
-                    const coll = window.FMCollectionSave && window.FMCollectionSave.load();
-                    return (coll && coll.ranks && coll.ranks.passed) || [];
-                } catch (e) { return []; }
+            const coll = (function () {
+                try { return window.FMCollectionSave && window.FMCollectionSave.load(); }
+                catch (e) { return null; }
             })();
+            const passedRanks = (coll && coll.ranks && coll.ranks.passed) || [];
 
             // ── 唯一一個「可應試」的站（規則第二步）──────────────────────
             // ⚠️ 以前是 `st.isExam && i <= currentIdx && 尚未通過`，也就是
@@ -1064,6 +1080,14 @@
             const gateState = this.getExamGateState();
             const examReadyIdx = (gateState.blocked && gateState.qualified)
                 ? this.getExamGateIndex() : -1;
+
+            // 模擬考今日是否已用過（只有可應試的那一站會畫模擬考鈕，算一次就夠）。
+            // ⚠️ 只做灰階區分，鈕仍要可以點——玩家點下去才會看到「今日已用過」
+            //    的提示，直接 disabled 會讓那句提示永遠沒有機會顯示。
+            const examReadySt = (examReadyIdx >= 0) ? this.stations[examReadyIdx] : null;
+            const mockUsedToday = (examReadySt && examReadySt.examKind === 'rank' && window.FMExamConfig)
+                ? !window.FMExamConfig.canAttemptToday(coll, 'mock', examReadySt.name)
+                : false;
 
             this.stations.forEach((st, i) => {
                 const x = 250 + Math.sin(i * 0.62) * AMP;
@@ -1127,7 +1151,7 @@
                             `<div class="lp-exam-badge lp-exam-real" data-exam="real">小考</div>` +
                             `</div>`
                             : `<div class="lp-exam-badges">` +
-                            `<div class="lp-exam-badge lp-exam-mock" data-exam="mock">模擬考</div>` +
+                            `<div class="lp-exam-badge lp-exam-mock${mockUsedToday ? ' lp-exam-used' : ''}" data-exam="mock">模擬考</div>` +
                             `<div class="lp-exam-badge lp-exam-real" data-exam="real">正式考</div>` +
                             `</div>`)
                         : '') +
@@ -1325,8 +1349,8 @@
                 const minor = (gate.kind === 'minor');
                 box.classList.remove('hidden');
                 box.innerHTML =
-                    `<span class="lp-notice-text">「${gate.station.name}」課程已修畢，`
-                    + (minor ? '通過小考方可續進' : '中式方可續進') + `</span>` +
+                    `<span class="lp-notice-text">「${gate.station.name}」課程已修畢，<br>`
+                    + (minor ? '通過小考方可續進。' : '中式(通過考試)方可續進。') + `</span>` +
                     `<button class="lp-notice-btn" id="lpBtnGoExam">`
                     + (minor ? '應小考' : '前往應試') + `</button>`;
                 const b = box.querySelector('#lpBtnGoExam');
@@ -1403,11 +1427,41 @@
             this.toast('已捐納，這一關視同通過。');
         },
 
+        /**
+         * 一次性提示：借用 renderNotice() 那條常駐提示列來顯示，用完自動還原。
+         *
+         * ⚠️ 兩個實測踩過的坑：
+         *   1. 連續點擊觸發「一模一樣的訊息」時（例如反覆點「模擬考」都得到
+         *      「今日模擬考已用過，明日請早。」），若直接覆寫 innerHTML，
+         *      前後 DOM 內容完全相同、畫面毫無變化，玩家會以為按鍵沒有反應。
+         *      因此一律先清空、停 0.3 秒讓玩家「看到有東西真的被清掉」，
+         *      再顯示新訊息，即使兩次文字一樣也看得出有反應。
+         *   2. toast 蓋掉的是 renderNotice() 畫出來的常駐提示（例如「課程已
+         *      修畢，前往應試」那顆按鈕）。過去沒有計時器，這條常駐提示會
+         *      被永久蓋住，直到玩家做了其他動作觸發下一次 render() 才會
+         *      意外重新出現——這段期間玩家完全看不到「可以去應試」的入口。
+         *      因此 5 秒後自動把提示列還原成目前真正該常駐顯示的內容。
+         */
         toast: function (msg) {
             const box = this.overlay && this.overlay.querySelector('#lpNotice');
             if (!box) return;
+
+            if (this._toastClearTimer) clearTimeout(this._toastClearTimer);
+            if (this._toastRevertTimer) clearTimeout(this._toastRevertTimer);
+
             box.classList.remove('hidden');
-            box.innerHTML = `<span class="lp-notice-text">${msg}</span>`;
+            box.innerHTML = '';
+
+            this._toastClearTimer = setTimeout(() => {
+                this._toastClearTimer = null;
+                box.innerHTML = `<span class="lp-notice-text">${msg}</span>`;
+
+                this._toastRevertTimer = setTimeout(() => {
+                    this._toastRevertTimer = null;
+                    const st = this.stations && this.stations[this.getCurrentStationIndex()];
+                    this.renderNotice(st);
+                }, 5000);
+            }, 300);
         },
 
         // ══════════════════════════════════════════════════════════════
@@ -1546,6 +1600,21 @@
         onStationClick: function (idx) {
             const st = this.stations[idx];
             if (!st) return;
+
+            // ⚠️ 考試進行中不得再開課程局（2026-09 亂序模擬抓到）：
+            //    考試引擎會覆寫該款遊戲的 gameOver／startNextLevel 來接管答題，
+            //    青雲梯派局時也會覆寫 startNextLevel 來接管關卡推進。
+            //    兩者交錯時，還原階段會把「對方的替身」當成原版裝回去，
+            //    那款遊戲的 startNextLevel 就永久停在別人的閉包上
+            //    （玩家之後自由練習過關，會被導回青雲梯的流程）。
+            //    正常情況下考試期間看不到青雲梯地圖，但殘留點擊、
+            //    測試熱鍵與任何新入口都可能走到這裡，必須在這裡擋掉。
+            if (window.ExamEngine && typeof window.ExamEngine.isBusy === 'function'
+                && window.ExamEngine.isBusy()) {
+                this.toast('考試進行中，請先考完或離場。');
+                return;
+            }
+
             const currentIdx = this.getCurrentStationIndex();
 
             // ── 尚未解鎖的站 → 詢問是否要越級考試 ────────────────────────
@@ -1564,6 +1633,35 @@
                 this.showReviewConfirm(st, () => this.enterStation(idx, true));
                 return;
             }
+
+            // ── 課程修完了、但考試還沒過 → 也是溫習 ──────────────────────
+            //
+            // ⚠️⚠️ 這一段補的是實際回報的災情：玩家修完「塾生」的課程、
+            //    在「可赴科場」彈窗按了「容後再議」，回到青雲梯再點一次
+            //    塾生站，會被當成**正常課程**開局：
+            //      · pickUnit 找不到未完成的單元 → 退回「整站隨機重抽」
+            //        （見該函式的複習分支），於是又派出一關早就學會的詩；
+            //      · _reviewMode 是 false → completeLevel 照樣把 pathRounds +1，
+            //        局號一路往上跳（第 50 局、第 51 局…），
+            //        但那些局數對應的內容其實是已經學完的舊課程。
+            //    玩家看到的就是「局數莫名其妙一直加，站點卻永遠不動」。
+            //
+            //    站點之所以停在這裡，是因為考試擋路（getExamGateIndex），
+            //    不是因為課程還沒修完 —— 對玩家而言這一站的課程已經結束了，
+            //    再進來就是溫習。因此改為與「回頭點舊站」同一套待遇：
+            //    先跳「溫故知新」說清楚，同意後才以溫習模式進入
+            //    （溫習不累計局數，難度標籤也會顯示「溫習」而不是局號）。
+            //
+            // ⚠️ 用「這一站自己的必通關卡是否全數完成」判斷，而不是看考試
+            //    關卡 —— 前者才是「課程有沒有修完」的直接定義。
+            //    total 為 0 的站（最後一站大儒沒有課程）不走這條，
+            //    留給 enterStation 既有的「這一站沒有安排課程」提示。
+            const prog = this.getStationProgress(st);
+            if (prog.total > 0 && prog.done >= prog.total) {
+                this.showReviewConfirm(st, () => this.enterStation(idx, true), 'done');
+                return;
+            }
+
             this.enterStation(idx, false);
         },
 
@@ -1686,22 +1784,41 @@
             //    青雲梯重新挑題、重新挑遊戲，切換規則才能逐關生效。
             this.restorePatchedGame();
             if (typeof GameObj.startNextLevel === 'function') {
-                this._patched = { no: gameNo, original: GameObj.startNextLevel };
+                // ⚠️ 一律回推到「真正的原版」再存（2026-09 亂序模擬抓到）：
+                //    考試引擎也會覆寫同一支 startNextLevel。若兩邊都直接把
+                //    「我覆寫前看到的那一個」當成原版存起來，交錯還原時就會
+                //    把對方的替身當成原版裝回去，該款遊戲從此永久停在別人的
+                //    閉包上（玩家自由練習過關會被導回青雲梯的流程，且完全
+                //    不會有錯誤訊息）。替身身上掛 __fmOriginal 指向真正的原版，
+                //    不論誰先誰後、包幾層，還原時都拿得回同一個原版。
+                const cur = GameObj.startNextLevel;
+                const trueOrig = cur.__fmOriginal || cur;
                 const self = this;
-                GameObj.startNextLevel = function () { self.advanceAfterWin(gameNo); };
+                const patched = function () { self.advanceAfterWin(gameNo); };
+                patched.__fmOriginal = trueOrig;
+                this._patched = { no: gameNo, original: trueOrig };
+                GameObj.startNextLevel = patched;
             }
 
             const DS = window.DifficultySelector;
             if (DS && typeof DS.show === 'function') {
-                const originalShow = DS.show;
+                // ⚠️ 回推到真正的原版：考試沙箱也會覆寫 DS.show（見
+                //    examEngine._installSandbox）。兩邊若各自把「我覆寫前看到
+                //    的那一個」當成原版，交錯還原時會互相把對方的替身裝回去，
+                //    玩家從漢堡選單進自由練習就選不了難度（會被直接丟進
+                //    上一次青雲梯派的那一關），而且沒有任何錯誤訊息。
+                //    作法與 startNextLevel／gameOver 相同。
+                const originalShow = DS.show.__fmOriginal || DS.show;
                 let restored = false;
                 const restore = () => {
                     if (!restored) { DS.show = originalShow; restored = true; }
                 };
-                DS.show = function (gameName, callback) {
+                const patchedShow = function (gameName, callback) {
                     restore();   // 立即還原，避免影響之後從選單進入的一般流程
                     if (typeof callback === 'function') callback(tier, levelIndex);
                 };
+                patchedShow.__fmOriginal = originalShow;
+                DS.show = patchedShow;
                 setTimeout(restore, 3000);   // 安全網
             }
 
@@ -1735,16 +1852,69 @@
                     this.show();
                     this.toast('這一關暫時無法出題，請改玩其他站點。');
                 }
+                return;
             }
+
+            // 成功開局：禁止點擊這款遊戲自己的「難度標籤」與「開新局」鈕
+            // （只擋點擊、照常顯示，難度標籤這時顯示的是局數／考試別）。
+            // 見 setGameNavLocked 的說明。
+            this.setGameNavLocked(gameNo, true);
+            this._navLockedGameNo = gameNo;
         },
 
         /** 還原先前被覆寫的 startNextLevel，避免影響從選單進入的一般流程 */
         restorePatchedGame: function () {
             const p = this._patched;
             this._patched = null;
+            this.unlockGameNav();
             if (!p) return;
             const G = window['Game' + p.no];
             if (G) G.startNextLevel = p.original;
+        },
+
+        /**
+         * 禁止／恢復點擊某款遊戲自己的「難度標籤」與「開新局」鈕。
+         *
+         * ⚠️ 為什麼要擋：這兩顆鈕平常是漢堡選單自由練習的入口，點下去會
+         *    呼叫 showDifficultySelector() 跳出**真正**的難度選單，讓玩家
+         *    中途岔出去玩別的關卡／難度。青雲梯這時記著的 _pendingUnit／
+         *    _currentStation 仍是原本那一關，玩家後續操作會對不上——
+         *    實測會造成「明明在打別的關卡，青雲梯卻以為還在等原本那一題」
+         *    的錯亂（考試引擎也有相同風險，見 examEngine.js 的
+         *    setGameNavLocked 呼叫）。
+         *
+         * ⚠️⚠️ 只擋點擊，**不可以隱藏**：難度標籤在青雲梯／考試期間顯示的
+         *    不是難度，而是 window.FMRoundLabel() 寫進去的
+         *    「第 X 局／考試／越級考試／溫習」——那是玩家判斷自己進度與
+         *    現況的唯一指示。實際做法見 theme_xuanzhi.css 的 .fm-nav-locked
+         *    （pointer-events:none，不動 display）。
+         *
+         * ⚠️ 用 class 而不是 disabled 屬性或 inline style：各遊戲每開一局都會
+         *    自己設一次 `newGame-btn.disabled = false`、`style.display`，
+         *    屬性與 inline style 都會被蓋掉，class 則不會（遊戲只改
+         *    textContent 與 style）。
+         * ⚠️ 只能靠 id 定位元素：40 款遊戲的 id 命名一致
+         *    （gameN-diff-tag／gameN-newGame-btn），class 用字卻不一致
+         *    （例如 game40 用 .fmd-difficulty-tag／.nav-btn）。
+         * ⚠️ 兩顆鈕的 DOM 只建立一次（各遊戲的 createDOM 都有
+         *    `!this.container` 的守衛），因此「鎖住」必須配對「解除」，
+         *    否則玩家下次從漢堡選單自由練習這款遊戲時會永遠點不動。
+         *
+         * @param {number} gameNo
+         */
+        setGameNavLocked: function (gameNo, locked) {
+            if (!gameNo) return;
+            ['diff-tag', 'newGame-btn'].forEach(suffix => {
+                const el = document.getElementById('game' + gameNo + '-' + suffix);
+                if (el) el.classList.toggle('fm-nav-locked', locked);
+            });
+        },
+
+        /** 解除目前鎖住的那一款遊戲（若有），配合 setGameNavLocked 的說明 */
+        unlockGameNav: function () {
+            if (this._navLockedGameNo === null) return;
+            this.setGameNavLocked(this._navLockedGameNo, false);
+            this._navLockedGameNo = null;
         },
 
         /**
@@ -2330,6 +2500,14 @@
                 this.toast('考試模組尚未載入。');
                 return;
             }
+            // ⚠️ 重入防護（破壞性測試 A1／B1）：考試進行中再開一場，會把
+            //    正在進行的那一場無聲吃掉——已扣的報名費拿不回來，
+            //    前一場的 onDone（負責演出晉升、把畫面帶回青雲梯）也永遠
+            //    不會被呼叫。連點兩下考試標記就會踩到。
+            if (typeof window.ExamEngine.isBusy === 'function' && window.ExamEngine.isBusy()) {
+                this.toast('考試進行中，請先考完或離場。');
+                return;
+            }
             // ⚠️ 2026-09-06 起 target 是**站名**：文位考的站名剛好等於文位名，
             //    小考則只有站名。兩者共用這一支。
             const station = PS.getStationByName(target);
@@ -2351,26 +2529,60 @@
 
             const coll = S.load();
 
+            // ⚠️ 已經通過的考試不得再報名（破壞性測試 C1）：舊版照收報名費，
+            //    但這場考試對進度毫無意義——通過紀錄已經在了，考過也不會
+            //    再發一次文位或獎勵，等於白花錢。正常 UI 不會出現這顆鈕
+            //    （考試標記只掛在「還沒通過的那一站」），但晉升後畫面還沒
+            //    重繪時的殘留點擊、或任何外部入口都會走到這裡。
+            if (C.isExamPassed(coll, station)) {
+                this.toast('「' + rankName + '」已經通過，不必再考。');
+                return;
+            }
+
             if (mode === 'mock' && !C.canAttemptToday(coll, mode, rankName)) {
                 this.toast('今日模擬考已用過，明日請早。');
                 return;
             }
 
             // 正式考要收報名費；模擬考不收
-            if (mode === 'real') {
-                const fee = this.getExamFee(rankName);
-                if ((coll.silver || 0) < fee) {
-                    this.toast('盤纏不足，報名費需 ' + fee.toLocaleString() + ' 文錢。');
-                    return;
+            const fee = (mode === 'real') ? this.getExamFee(rankName) : 0;
+            if (mode === 'real' && (coll.silver || 0) < fee) {
+                this.toast('盤纏不足，報名費需 ' + fee.toLocaleString() + ' 文錢。');
+                return;
+            }
+
+            // ⚠️ 報名費／模擬考名額只在玩家真的按下「入場應試」才扣，不能在
+            //    這裡先扣——這裡只是顯示考試簡介，玩家還沒決定要不要考。
+            //    2026-09 實測回報：在簡介畫面按「先回家苦讀」取消，回到
+            //    青雲梯卻發現今日模擬考名額已經用掉，因為舊寫法在**開啟
+            //    簡介之前**就先扣了，取消等於白白燒掉一次機會。改成透過
+            //    ExamEngine 的 onEnter 回呼，真正入場（點下「入場應試」）
+            //    那一刻才扣，見 examEngine.js 的 start() 說明。
+            //
+            // ⚠️ 入場當下必須**重新驗一次餘額**（破壞性測試 D1）：資格檢查
+            //    是在開啟簡介之前做的，玩家可能在簡介畫面停留期間把文錢
+            //    花掉。少了這一次重驗，addSilver 會照扣，餘額直接變成負數。
+            //    回傳 false ＝ 拒絕入場，examEngine 會當作沒入場直接離場。
+            const self0 = this;
+            const onEnter = function () {
+                const coll2 = S.load();
+                if (mode === 'real') {
+                    if ((coll2.silver || 0) < fee) {
+                        window.ExamEngine._abortReason =
+                            '盤纏不足，報名費需 ' + fee.toLocaleString() + ' 文錢。';
+                        self0.toast('盤纏不足，報名費需 ' + fee.toLocaleString() + ' 文錢。');
+                        return false;
+                    }
+                    S.addSilver(coll2, -fee, 'exam_fee', rankName);
+                } else {
+                    C.markAttemptToday(coll2, mode, rankName);
                 }
-                S.addSilver(coll, -fee, 'exam_fee', rankName);
-            } else {
-                C.markAttemptToday(coll, mode, rankName);
-            }
-            S.save(coll);
-            if (window.CollectionDialog && typeof window.CollectionDialog.refreshHud === 'function') {
-                window.CollectionDialog.refreshHud();
-            }
+                S.save(coll2);
+                if (window.CollectionDialog && typeof window.CollectionDialog.refreshHud === 'function') {
+                    window.CollectionDialog.refreshHud();
+                }
+                return true;
+            };
 
             this.hide();
             const self = this;
@@ -2380,6 +2592,7 @@
             //    advanceAfterWin 完全沒有參與，蒙童的獎狀動畫就被吃掉了（實測）。
             const idxBefore = this.getCurrentStationIndex();
             window.ExamEngine.start({
+                onEnter: onEnter,
                 rankName: rankName,
                 mode: mode,
                 onDone: function () {
@@ -2634,6 +2847,12 @@
             const PS = window.PathStations;
             if (!C || !S || !PS || !window.ExamEngine) return;
 
+            // 重入防護，理由同 startExam
+            if (typeof window.ExamEngine.isBusy === 'function' && window.ExamEngine.isBusy()) {
+                this.toast('考試進行中，請先考完或離場。');
+                return;
+            }
+
             // ⚠️ 2026-09-06 起 rankName 是**站名**（可能是小考站）。
             //    而且越級必須依序：只有「下一個還沒通過的考試站」可以考。
             const station = PS.getStationByName(rankName);
@@ -2658,16 +2877,31 @@
                 this.toast('盤纏不足，越級報名費需 ' + fee.toLocaleString() + ' 文錢。');
                 return;
             }
-            S.addSilver(coll, -fee, 'exam_fee', '越級-' + rankName);
-            C.markAttemptToday(coll, 'skip', rankName);
-            S.save(coll);
-            if (window.CollectionDialog && typeof window.CollectionDialog.refreshHud === 'function') {
-                window.CollectionDialog.refreshHud();
-            }
+
+            // 同 startExam：報名費／今日名額只在玩家真的按下「入場應試」才扣，
+            // 且入場當下必須重新驗一次餘額，否則文錢會被扣成負數。
+            const self0 = this;
+            const onEnter = function () {
+                const coll2 = S.load();
+                if ((coll2.silver || 0) < fee) {
+                    window.ExamEngine._abortReason =
+                        '盤纏不足，越級報名費需 ' + fee.toLocaleString() + ' 文錢。';
+                    self0.toast('盤纏不足，越級報名費需 ' + fee.toLocaleString() + ' 文錢。');
+                    return false;
+                }
+                S.addSilver(coll2, -fee, 'exam_fee', '越級-' + rankName);
+                C.markAttemptToday(coll2, 'skip', rankName);
+                S.save(coll2);
+                if (window.CollectionDialog && typeof window.CollectionDialog.refreshHud === 'function') {
+                    window.CollectionDialog.refreshHud();
+                }
+                return true;
+            };
 
             this.hide();
             const self = this;
             window.ExamEngine.start({
+                onEnter: onEnter,
                 rankName: rankName,
                 mode: 'skip',
                 onDone: function () {
@@ -2745,12 +2979,32 @@
         },
 
         /** 溫習確認彈窗：點到已走過的舊站點時出現 */
-        showReviewConfirm: function (station, onAgree) {
-            const html = '<h2>溫故知新</h2>'
-                + '<p>「<b>' + station.name + '</b>」是你已經走過的路。'
+        /**
+         * 「溫故知新」確認彈窗。
+         *
+         * @param {object}   station 這一站
+         * @param {Function} onAgree 玩家按下「同意溫習」後要做的事
+         * @param {string}   [reason] 'past'（預設，回頭點已走過的舊站）
+         *                            'done'（這一站課程已修完、只差考試）
+         *                            —— 兩者都是溫習，但「接下來該做什麼」
+         *                            完全不同，文案必須分開：前者要玩家往上走，
+         *                            後者要玩家去應試，寫錯會把玩家導到死路。
+         */
+        showReviewConfirm: function (station, onAgree, reason) {
+            const isDone = (reason === 'done');
+            const body = isDone
+                ? '「<b>' + station.name + '</b>」的課程你已經全部修畢，'
+                + '目前卡在<b>考試</b>這一關，還沒中式。'
+                + '在這裡重玩<b>不會增加晉升局數</b>，也不會讓站點前進，'
+                + '純粹供你考前溫習；過關仍可照常獲得文錢與積分。<br><br>'
+                + '想繼續往前走，請點這一站的<b>「正式考」</b>應試中式，'
+                + '沒把握可先點<b>「模擬考」</b>練手感。'
+                : '「<b>' + station.name + '</b>」是你已經走過的路。'
                 + '在這裡重玩<b>不會增加晉升局數</b>，純粹供你溫習舊作；'
                 + '過關仍可照常獲得文錢與積分。<br><br>'
-                + '想繼續往前走，請點選道路最上方的站。</p>'
+                + '想繼續往前走，請點選道路最上方的站。';
+            const html = '<h2>溫故知新</h2>'
+                + '<p>' + body + '</p>'
                 + '<div class="lp-pop-footer">'
                 + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopCancel">取消</button>'
                 + '<button class="lp-pop-btn" id="lpPopReview">同意溫習</button>'

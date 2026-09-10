@@ -538,6 +538,18 @@
             }
         } catch (e) { console.warn('[Menu] 隱藏青雲梯失敗', e); }
 
+        // ⚠️ 考試沙箱必須跟著全域清理一起收：玩家若在考試進行中（不論是
+        //    青雲梯站點上的模擬考／正式考，還是江南小院派出的越級考試）
+        //    從漢堡選單離開，ExamEngine 的沙箱（ScoreManager.completeLevel
+        //    等）若沒被還原，會一路停在「考試專用的空函式」狀態，
+        //    導致玩家回到青雲梯後打贏任何一局都不會真的記進度
+        //    （2026-09 實測回報：站點卡住原地不動、同一課程反覆重派）。
+        try {
+            if (window.ExamEngine && typeof window.ExamEngine.forceStop === 'function') {
+                window.ExamEngine.forceStop();
+            }
+        } catch (e) { console.warn('[Menu] 中止考試沙箱失敗', e); }
+
         try {
             if (window.AchievementDialog && typeof window.AchievementDialog.hide === 'function') {
                 window.AchievementDialog.hide();

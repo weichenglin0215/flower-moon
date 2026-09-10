@@ -1938,12 +1938,15 @@
             const fee = EXAM_FEES[rank.name];
             if (this.data.silver < fee) { this.showToast('盤纏不足'); return; }
 
-            // ⚠️ 正式考沒有每日次數限制（作者定案），只要付得起報名費就能再考。
+            // 重入防護：考試進行中不得再開一場，否則正在進行的那一場會被
+            // 無聲取代（已扣的報名費拿不回來）。理由詳見 examEngine.start()。
+            if (window.ExamEngine && typeof window.ExamEngine.isBusy === 'function'
+                && window.ExamEngine.isBusy()) {
+                this.showToast('考試進行中，請先考完或離場。');
+                return;
+            }
 
-            // 扣入場費並存檔
-            window.FMCollectionSave.addSilver(this.data, -fee, 'exam_fee', rank.name);
-            window.FMCollectionSave.save(this.data);
-            this.refreshHUD();
+            // ⚠️ 正式考沒有每日次數限制（作者定案），只要付得起報名費就能再考。
 
             // 關閉江南小院視窗、彈窗，交由 Exam 模組接手
             this.hidePopup();
@@ -1954,6 +1957,27 @@
                 if (wasOpen && typeof this.show === 'function') this.show();
             };
 
+            // ⚠️ 報名費只在玩家真的按下「入場應試」才扣，不能在這裡先扣——
+            //    這裡只是準備開啟考試簡介，玩家還沒決定要不要考。2026-09
+            //    實測回報：在簡介畫面按「先回家苦讀」取消，報名費卻已經
+            //    先扣了。改成透過 ExamEngine 的 onEnter 回呼，真正入場
+            //    （點下「入場應試」）那一刻才扣，見 examEngine.js 的
+            //    start() 說明；learningPath.js 的站點考試鈕也是同一套作法。
+            // ⚠️ 入場當下重驗餘額：玩家可能在簡介畫面停留時把文錢花掉，
+            //    少了這一次重驗會把餘額扣成負數。回傳 false ＝ 拒絕入場。
+            const self = this;
+            const onEnter = function () {
+                if ((self.data.silver || 0) < fee) {
+                    if (window.ExamEngine) window.ExamEngine._abortReason = '盤纏不足，無法入場。';
+                    self.showToast('盤纏不足');
+                    return false;
+                }
+                window.FMCollectionSave.addSilver(self.data, -fee, 'exam_fee', rank.name);
+                window.FMCollectionSave.save(self.data);
+                self.refreshHUD();
+                return true;
+            };
+
             // ⚠️ 2026-08-28 起考試改由 examEngine.js（實際玩五款遊戲）負責。
             //    舊的 exam.js（四選一問答）保留但不再是主要路徑，
             //    只有在新引擎沒載入時才會退回它。
@@ -1961,9 +1985,12 @@
                 window.ExamEngine.start({
                     rankName: rank.name,
                     mode: 'real',
+                    onEnter: onEnter,
                     onDone: reopenSelf
                 });
             } else if (window.Exam && typeof window.Exam.start === 'function') {
+                // 舊版問答模組沒有「先回家苦讀」的取消步驟，一開始就算入場。
+                onEnter();
                 window.Exam.start(rank, {
                     onPass: reopenSelf,
                     onFail: reopenSelf
@@ -1977,12 +2004,9 @@
                 //    沒有 minScore，算出來是 NaN，`Math.random() < NaN` 恆為
                 //    false，等於玩家付了報名費、必定落榜還被記一次失敗紀錄。
                 //    考試模組沒載入是安裝或載入順序出錯，屬於程式問題，
-                //    正確處理是退費並如實告知，絕不能靠運氣發放功名。
-                console.error('[江南小院] 考試模組未載入，無法應試；已退還報名費。');
-                window.FMCollectionSave.addSilver(this.data, fee, 'exam_refund', rank.name);
-                window.FMCollectionSave.save(this.data);
-                this.refreshHUD();
-                this.showToast('考場尚未開放，報名費已退還。');
+                //    正確處理是如實告知，不扣任何報名費，絕不能靠運氣發放功名。
+                console.error('[江南小院] 考試模組未載入，無法應試。');
+                this.showToast('考場尚未開放，請稍後再試。');
                 reopenSelf();
             }
         },
