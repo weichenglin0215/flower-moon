@@ -154,7 +154,7 @@
             document.getElementById('game7-newGame-btn').onclick = (e) => {
                 e.stopPropagation();
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
-                this.newGame();
+                this.startNewGame();
             };
             document.getElementById('game7-diff-tag').onclick = (e) => {
                 e.stopPropagation();
@@ -355,7 +355,11 @@
         },
 
         // 開新局：重置遊戲狀態（換一首新詩），並顯示規則摘要
-        newGame: function (levelIndex) {
+        // ⚠️ 2026-09-11 由 newGame() 更名為 startNewGame()。
+        //    39 款遊戲裡只有這一款叫 newGame，青雲梯／考試接管遊戲時
+        //    呼叫的是契約上的 startNewGame()，名字不同就等於接不上
+        //    （game13 那行 MenuManager.closeAll() 是同一類問題：自成一格）。
+        startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.resetGame(false, levelIndex);
             if (window.GameMessage) window.GameMessage.hide();
@@ -369,8 +373,7 @@
 
         // 過關後進入下一關：關卡索引加一並重新開局
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.newGame();
+            window.FMGame.nextLevel(this);
         },
 
         // 依目前難度設定，隨機（或依關卡種子）挑選一首符合字數/星等條件的詩詞，
@@ -973,12 +976,12 @@
 
         // 遊戲結束處理：依勝負分別寫入紀錄（失敗時直接記 log，勝利則由 ScoreManager 結算動畫負責），
         // 並顯示結果訊息框（含「下一關/下一局」或「再試一次」按鈕）
-        gameOver: function (isWin, message) {
+        gameOver: function (win, reason) {
             this.isActive = false;
-            this.isWin = isWin;
+            this.isWin = win;
             // 失敗時寫入 game_logs（score=0，記錄本局時長）
             // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!isWin && window.SupabaseClient) {
+            if (!win && window.SupabaseClient) {
                 const durationS = this.gameStartTime
                     ? Math.floor((Date.now() - this.gameStartTime) / 1000)
                     : 0;
@@ -992,7 +995,7 @@
             }
             this.state = 'GAME_OVER';
 
-            if (isWin) {
+            if (win) {
                 document.getElementById('game7-retryGame-btn').disabled = true;
                 document.getElementById('game7-newGame-btn').disabled = true;
             } else {
@@ -1000,26 +1003,26 @@
                 document.getElementById('game7-newGame-btn').disabled = false;
             }
 
-            const showMessage = (finalScore) => {
+            const onConfirm = () => {
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
+            };
+
+            const showMsg = (finalScore) => {
                 if (window.GameMessage) {
                     window.GameMessage.show({
-                        isWin: isWin,
-                        score: isWin ? (finalScore || this.score) : 0,
-                        reason: isWin ? "" : (typeof message === 'string' ? message : "挑戰結束"),
-                        btnText: isWin ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: () => {
-                            if (isWin) {
-                                if (this.isLevelMode) this.startNextLevel();
-                                else this.newGame();
-                            } else {
-                                this.retryGame();
-                            }
-                        }
+                        isWin: win,
+                        score: win ? (finalScore || this.score) : 0,
+                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
+                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
+                        onConfirm: onConfirm
                     });
                 }
             };
 
-            if (isWin && window.ScoreManager) {
+            if (win && window.ScoreManager) {
                 window.ScoreManager.playWinAnimation({
                     game: this,
                     gameKey: 'game7',
@@ -1037,11 +1040,17 @@
                     },
                     onComplete: (finalScore) => {
                         this.score = finalScore;
-                        showMessage(finalScore);
+                        // 關卡模式的通關紀錄。
+                        // ⚠️ 2026-09-11 補上：39 款裡只有這一款漏了，
+                        //    等於關卡模式贏了也不會寫進 levelCleared ——
+                        //    青雲梯的進度完全由那份紀錄推導，將來把 game7
+                        //    納入課程時會整款白打（而且不會有任何錯誤訊息）。
+                        window.FMGame.completeLevel('game7', this);
+                        showMsg(finalScore);
                     }
                 });
             } else {
-                showMessage();
+                showMsg();
             }
         },
 

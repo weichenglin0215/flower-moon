@@ -167,8 +167,9 @@ const CORE_FILES = [
     'fmCollectionSave.js',
     'examConfig.js',
     'achievement.js',          // rankRewards（獎勵金額的唯一來源）
-    'collection.js',           // CollectionDialog.getExamFee（報名費的唯一來源）
+    'collection.js',           // 江南小院（養成／文錢；2026-09-11 起不再參與考試）
     'supabaseClient.js',       // logGame（雲端 game_logs 的唯一組裝處）
+    'gameContract.js',         // 全遊戲共同契約（FMGame.nextLevel／advance／completeLevel）
     'promotionCelebration.js',
     'difficulty-selector.js',
     'gameMessage.js',

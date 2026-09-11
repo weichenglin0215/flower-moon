@@ -75,50 +75,9 @@
     const WATER_INTERVAL = 6 * HOUR;
     const NIGHT_START_H = 22, NIGHT_END_H = 6;
 
-    // ── 考試入場費（作者定案 2026-08-23）────────────────────────────
-    // 設計原則：**玩家抵達某文位時，身上的文錢至少夠考兩次；**
-    // **萬一都落榜，再賺一點就能考第三次。**
-    // 例：抵達縣案首時光靠遊戲收入約有 800 文錢（尚未計入獎狀獎勵），
-    //     費用 300 → 可考兩次，再賺 100 即可考第三次。
-    //
-    // ⚠️ 刻意**不做補考費遞增**。落榜本身已經夠挫折，
-    //    再對失敗加收費用等於懲罰失敗，與花月「不用體力機制、
-    //    不用默寫考玩家」的一貫精神相違背。
-    //    費用只隨「文位高低」變動，同一文位考幾次都是同一個價。
-    //
-    // 舊版問題：進士～狀元全部卡在 10000 不再成長，但玩家在研究所階段
-    // 的文錢收入是小學的 15 倍，等於後期考試形同免費、失去份量。
-    // ⚠️ 塾生／童生是 2026-08-28 考試門檻前移後新增的兩個應試文位。
-    //    金額沿用原本「逐級加倍」的節奏往回推（縣案首 300 → 童生 150 → 塾生 75），
-    //    刻意壓得很低：這兩場的定位是「讓新手先熟悉考試流程」的教學局，
-    //    收費太高會讓玩家不敢嘗試，失去提前接觸考試的意義。
-    const EXAM_FEES = {
-        '塾生': 75, '童生': 150,
-        '縣案首': 300, '府案首': 600, '文童': 1200, '秀才': 2400,
-        '舉人': 4800, '貢士': 7200,
-        '進士': 14400, '探花': 28800, '榜眼': 57600,
-        '狀元': 115200, '大儒': 230400
-    };
-    /**
-     * 需應試文位的順序（由低到高）。
-     *
-     * ⚠️ 這裡原本是一份手抄的字串陣列，註解還特別警告「三處任一漏改都會
-     *    產生難以察覺的錯位」—— 那個錯位後來真的發生了（企畫書附錄 F 問題④）。
-     *    現已改為向 PathStations 取唯一真本，手抄副本全部刪除。
-     *    「必須包含大儒」這類過去要靠人記住的注意事項也隨之自動成立，
-     *    因為名單直接由 RANK_TABLE 推導，不可能漏掉任何一個文位。
-     */
-    function examRanksOrder() {
-        const PS = window.PathStations;
-        if (PS && typeof PS.getExamRankNames === 'function') {
-            const list = PS.getExamRankNames();
-            if (list && list.length) return list;
-        }
-        const C = window.FMExamConfig;
-        if (C && C.EXAM_RANK_ORDER && C.EXAM_RANK_ORDER.length) return C.EXAM_RANK_ORDER;
-        console.warn('[江南小院] 取不到文位名單，考棚功能可能不正常');
-        return [];
-    }
+    // ⚠️ 2026-09-11：考試入場費表（EXAM_FEES）與需應試文位順序（examRanksOrder）
+    //    已搬到 examConfig.js。江南小院自考棚移除後不再參與考試流程，
+    //    規則性的資料不該再寄生在這個「場景」檔裡。
 
     const PLOT_PRICES = {
         '茶寮': { rank: '童生', price: 500 },
@@ -138,10 +97,11 @@
     /* 場景固定佈局；命中框相對該磚頂點
        錯開設計：物件分散於 5 列，相鄰物件至少隔 2 格 (=64 世界 px)，避免擠在一起。
        想調整任何物件位置，改下方 gx/gy 即可（X→東南、Y→西南，等角投影）。 */
+    // ⚠️ 2026-09-11：原本最北端單獨一列是「考棚」（{ type:'exam', gx:0, gy:-5 }）。
+    //    考試入口已統一改由青雲梯就地進入，考棚連同它的 sprite、點擊分派、
+    //    報名彈窗一併移除，江南小院回歸單純的「養成賺文錢」場景。
+    //    那一列刻意留空不補東西：北面留白讓視覺重心落在中央的書生與井。
     const LAYOUT = [
-        // ── 北：考棚（單獨一列，最遠處） ──
-        { type: 'exam', gx: 0, gy: -5, rect: [-36, -36, 72, 44] },
-
         // ── 北中：4 個花盆，橫向 spread by 3 grid ──
         { type: 'pot', idx: 0, gx: -5, gy: -3, rect: [-26, -40, 52, 58] },
         { type: 'pot', idx: 1, gx: -2, gy: -3, rect: [-26, -40, 52, 58] },
@@ -268,6 +228,7 @@
                     <div class="fm-collection-hud">
                         <div class="fm-collection-hud-cell">
                             <div id="fmHudRank">書僮</div>
+                            <div class="fm-collection-hud-cell-label" id="fmHudScore">積分 0</div>
                         </div>
                         <div class="fm-collection-hud-cell">
                             <div id="fmHudSilver">0 文錢</div>
@@ -475,9 +436,13 @@
             const silverEl = this.overlay.querySelector('#fmHudSilver');
             const rankEl = this.overlay.querySelector('#fmHudRank');
             const timeEl = this.overlay.querySelector('#fmHudTime');
+            const scoreEl = this.overlay.querySelector('#fmHudScore');
             if (silverEl) silverEl.textContent = this.fmtSilver(this.data.silver);
             if (rankEl) rankEl.textContent = this.currentRank();
             if (timeEl) timeEl.textContent = this.currentShichen();
+            // ⚠️ 積分只是顯示，**不參與**文位判定（文位一律由 currentRank()
+            //    走青雲梯站點進度＋考試通過紀錄推導，見上面 currentRank 的說明）。
+            if (scoreEl) scoreEl.textContent = '積分 ' + this.getCurrentScore().toLocaleString();
         },
 
         /**
@@ -739,15 +704,6 @@
             });
         },
 
-        examSprite: function () {
-            return this.getSprite('exam', cx => {
-                cx.fillStyle = 'hsl(36, 50%, 70%)'; cx.fillRect(-32, -28, 64, 32);
-                cx.fillStyle = 'hsl(0, 60%, 36%)'; cx.fillRect(-34, -34, 68, 8);
-                cx.fillStyle = '#fdfaf6';
-                cx.font = 'bold 13px "Noto Serif TC", serif';
-                cx.fillText('考棚', 0, -10);
-            });
-        },
 
         deskSprite: function () {
             return this.getSprite('desk', cx => {
@@ -859,7 +815,6 @@
                 case 'wine': return this.wineSprite(this.data.wines[o.idx]);
                 case 'well': return this.wellSprite();
                 case 'shop': return this.shopSprite();
-                case 'exam': return this.examSprite();
                 case 'scribe': return this.deskSprite();
             }
             return this.getSprite('blank', () => { });
@@ -1192,7 +1147,6 @@
                 case 'well': return this.waterAll();
                 case 'scribe': return this.toggleScribe();
                 case 'shop': return this.openShop();
-                case 'exam': return this.openExam();
             }
         },
 
@@ -1312,7 +1266,6 @@
                 case 'well': return this.openWellMenu();
                 case 'scribe': return this.openScribeMenu();
                 case 'shop': return this.openShop();
-                case 'exam': return this.openExam();
             }
         },
 
@@ -1846,169 +1799,27 @@
         },
 
         /* =====================================================
-         * 考棚（積分、入場費、雙鉤子顯示）
+         * ⚠️ 2026-09-11：考棚已移除（openExam／takeExam／nextExamRank／
+         *    getExamFee 一併刪除）。考試入口統一改由青雲梯就地進入，
+         *    江南小院回歸單純的「養成賺文錢」。
+         *    報名費表改由 examConfig.js 持有（FMExamConfig.getExamFee）。
          * ===================================================== */
-        openExam: function () {
-            this.hidePopup();
-            const nextRank = this.nextExamRank();
-            let html = '<div class="fm-collection-popup-title">考棚</div>';
-            // ⚠️ 舊版這裡有一列「目前積分」。新規則下積分與應試資格完全無關
-            //    （企劃書 §6），留著只會讓玩家誤以為要靠刷分才能應試，故移除。
-            //    資格改看下方的「必通關卡」與「已學詩詞」兩列。
-            if (!nextRank) {
-                html += '<div class="fm-collection-popup-row">已達大儒之境，無更高功名可考。</div>';
-            } else {
-                const fee = EXAM_FEES[nextRank.name];
-                const silverGap = this.data.silver - fee;
-                // ── 應試資格改看「必通關卡」而非積分（企畫書 9.4）──────────
-                // 積分可以靠反覆刷低難度遊戲累積，不代表學會了詩詞。
-                const prog = (window.LearningPath && window.LearningPath.getRankExamProgress)
-                    ? window.LearningPath.getRankExamProgress(nextRank.name)
-                    : { ok: false, unitsDone: 0, unitsTotal: 0, poemsDone: 0, poemsNeed: 0 };
-                const scoreCell = prog.ok
-                    ? prog.unitsDone + ' / ' + prog.unitsTotal + ' <span class="fm-collection-gap-ok">(已達)</span>'
-                    : prog.unitsDone + ' / ' + prog.unitsTotal + ' <span class="fm-collection-gap-red">(尚缺 ' + (prog.unitsTotal - prog.unitsDone) + ')</span>';
-                const feeCell = (silverGap >= 0)
-                    ? fee + ' 文錢 <span class="fm-collection-gap-ok">(已達)</span>'
-                    : fee + ' 文錢 <span class="fm-collection-gap-red">(' + silverGap.toLocaleString() + ')</span>';
 
-                // 本次為第幾次挑戰 + 歷史通過/失敗次數
-                const stats = (this.data.examStats && this.data.examStats[nextRank.name])
-                    || { passCount: 0, failCount: 0 };
-                const attemptNo = (stats.passCount || 0) + (stats.failCount || 0) + 1;
-
-                html += '<div class="fm-collection-popup-row"><span>應試文位</span><span>' + nextRank.name + '</span></div>';
-                html += '<div class="fm-collection-popup-row"><span>應試次數</span><span>第 ' + attemptNo + ' 次</span></div>';
-                if (stats.passCount > 0 || stats.failCount > 0) {
-                    html += '<div class="fm-collection-popup-row" style="font-size:14px;opacity:.85;">'
-                        + '<span>歷次紀錄</span><span>通過 ' + stats.passCount + ' 次 / 失敗 ' + stats.failCount + ' 次</span>'
-                        + '</div>';
-                }
-                html += '<div class="fm-collection-popup-row"><span>必通關卡</span><span>' + scoreCell + '</span></div>';
-                html += '<div class="fm-collection-popup-row" style="font-size:14px;opacity:.85;">'
-                    + '<span>已學詩詞</span><span>' + prog.poemsDone + ' / ' + prog.poemsNeed + ' 首</span></div>';
-                html += '<div class="fm-collection-popup-row"><span>入場費</span><span>' + feeCell + '</span></div>';
-                const okScore = prog.ok, okSilver = (silverGap >= 0);
-                if (!okScore) html += '<div class="fm-collection-popup-row" style="color:#888">學問未足，請再勤工。</div>';
-                else if (!okSilver) html += '<div class="fm-collection-popup-row" style="color:#aa3">學問已成，盤纏未足。請再勤工或變賣盆中之物。</div>';
-                else html += '<button class="fm-collection-popup-btn" data-act="exam">報考 ' + nextRank.name + '（扣 ' + fee + ' 文錢）</button>';
-            }
-            this.showPopup(html, e => {
-                if (e.target.getAttribute('data-act') === 'exam') this.takeExam(nextRank);
-                this.hidePopup();
-            });
-        },
-
+        /**
+         * 目前總積分。
+         *
+         * ⚠️ 2026-09-11：這支原本是**死程式碼** —— 考棚時期留下來的，
+         *    考棚移除後全專案沒有任何地方呼叫它，內容卻又跟
+         *    `learningPath.js` 的 `getTotalScore()` 一字不差地重複了一份。
+         *    現在改為：實作收口到 `FMGame.getScore()`（全站唯一的讀取點），
+         *    這裡只留一支具名入口，並且**真的被用到** ——
+         *    江南小院 HUD 的文位格底下顯示積分（見 refreshHUD）。
+         *
+         * ⚠️ 積分與文位是兩回事：積分只供顯示與排行榜，
+         *    完全不參與文位判定（總企畫書 §2）。
+         */
         getCurrentScore: function () {
-            try { if (window.ScoreManager) return window.ScoreManager.loadPlayerData().totalScore || 0; }
-            catch (e) { }
-            return 0;
-        },
-
-        /**
-         * 某文位的報名費。
-         * ⚠️ 對外開放是為了讓 learningPath.js 的站點考試按鈕共用同一份費用表——
-         *    費用若在兩個檔案各寫一份，遲早會改了一邊忘了另一邊。
-         */
-        getExamFee: function (rankName) {
-            return EXAM_FEES[rankName] || 0;
-        },
-
-        /**
-         * 下一個還沒考過的文位。
-         *
-         * ⚠️ 舊版是走訪 ScoreManager.ranks（積分門檻序列）來取得文位順序，
-         *    等於把考試資格綁在積分上。新規則下積分完全不參與文位判定
-         *    （note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md），
-         *    因此改為直接依「考試文位順序」找（來源見 examRanksOrder()）。
-         *    是否**有資格**應試另由 LearningPath.getRankExamProgress()
-         *    以青雲梯的必通關卡進度判定（見 openExam）。
-         *
-         * @returns {{name:string}|null} 已全部考完時回 null
-         */
-        nextExamRank: function () {
-            const passed = this.data.ranks.passed || [];
-            for (const name of examRanksOrder()) {
-                if (passed.indexOf(name) < 0) return { name: name };
-            }
-            return null;
-        },
-
-        takeExam: function (rank) {
-            const fee = EXAM_FEES[rank.name];
-            if (this.data.silver < fee) { this.showToast('盤纏不足'); return; }
-
-            // 重入防護：考試進行中不得再開一場，否則正在進行的那一場會被
-            // 無聲取代（已扣的報名費拿不回來）。理由詳見 examEngine.start()。
-            if (window.ExamEngine && typeof window.ExamEngine.isBusy === 'function'
-                && window.ExamEngine.isBusy()) {
-                this.showToast('考試進行中，請先考完或離場。');
-                return;
-            }
-
-            // ⚠️ 正式考沒有每日次數限制（作者定案），只要付得起報名費就能再考。
-
-            // 關閉江南小院視窗、彈窗，交由 Exam 模組接手
-            this.hidePopup();
-            const wasOpen = this.overlay && !this.overlay.classList.contains('hidden');
-            if (typeof this.hide === 'function') this.hide();
-
-            const reopenSelf = () => {
-                if (wasOpen && typeof this.show === 'function') this.show();
-            };
-
-            // ⚠️ 報名費只在玩家真的按下「入場應試」才扣，不能在這裡先扣——
-            //    這裡只是準備開啟考試簡介，玩家還沒決定要不要考。2026-09
-            //    實測回報：在簡介畫面按「先回家苦讀」取消，報名費卻已經
-            //    先扣了。改成透過 ExamEngine 的 onEnter 回呼，真正入場
-            //    （點下「入場應試」）那一刻才扣，見 examEngine.js 的
-            //    start() 說明；learningPath.js 的站點考試鈕也是同一套作法。
-            // ⚠️ 入場當下重驗餘額：玩家可能在簡介畫面停留時把文錢花掉，
-            //    少了這一次重驗會把餘額扣成負數。回傳 false ＝ 拒絕入場。
-            const self = this;
-            const onEnter = function () {
-                if ((self.data.silver || 0) < fee) {
-                    if (window.ExamEngine) window.ExamEngine._abortReason = '盤纏不足，無法入場。';
-                    self.showToast('盤纏不足');
-                    return false;
-                }
-                window.FMCollectionSave.addSilver(self.data, -fee, 'exam_fee', rank.name);
-                window.FMCollectionSave.save(self.data);
-                self.refreshHUD();
-                return true;
-            };
-
-            // ⚠️ 2026-08-28 起考試改由 examEngine.js（實際玩五款遊戲）負責。
-            //    舊的 exam.js（四選一問答）保留但不再是主要路徑，
-            //    只有在新引擎沒載入時才會退回它。
-            if (window.ExamEngine && typeof window.ExamEngine.start === 'function') {
-                window.ExamEngine.start({
-                    rankName: rank.name,
-                    mode: 'real',
-                    onEnter: onEnter,
-                    onDone: reopenSelf
-                });
-            } else if (window.Exam && typeof window.Exam.start === 'function') {
-                // 舊版問答模組沒有「先回家苦讀」的取消步驟，一開始就算入場。
-                onEnter();
-                window.Exam.start(rank, {
-                    onPass: reopenSelf,
-                    onFail: reopenSelf
-                });
-            } else {
-                // ⚠️⚠️ 這裡原本是「Exam 模組沒載入就改用機率決定有沒有考上」的
-                //    降級機制，公式是 `score / rank.minScore` —— 也就是
-                //    **用積分擲骰子直接發文位**，與新規則（文位只能靠通過考試
-                //    取得、積分完全不參與）正面衝突。
-                //    而且它其實早就壞了：nextExamRank() 現在只回 { name }，
-                //    沒有 minScore，算出來是 NaN，`Math.random() < NaN` 恆為
-                //    false，等於玩家付了報名費、必定落榜還被記一次失敗紀錄。
-                //    考試模組沒載入是安裝或載入順序出錯，屬於程式問題，
-                //    正確處理是如實告知，不扣任何報名費，絕不能靠運氣發放功名。
-                console.error('[江南小院] 考試模組未載入，無法應試。');
-                this.showToast('考場尚未開放，請稍後再試。');
-                reopenSelf();
-            }
+            return window.FMGame ? window.FMGame.getScore() : 0;
         },
 
         /* =====================================================

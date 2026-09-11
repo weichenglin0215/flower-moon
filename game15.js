@@ -14,6 +14,12 @@
         isActive: false,
         pendingWin: false,          // 本幀吃到最後一字後，等下一次渲染再結算
         difficulty: '小學',
+        // ── 關卡模式（青雲梯／考試派局時為 true）──────────────────────
+        // ⚠️ 2026-09-11 補上宣告：原本只在 showDifficultySelector 的回呼裡
+        //    才第一次賦值，物件上看不到這兩個欄位，契約稽核抓不到它們，
+        //    任何在賦值之前就讀取的路徑都會拿到 undefined。
+        currentLevelIndex: 1,
+        isLevelMode: false,
         score: 0,
         hearts: 7,
         maxHearts: 7,
@@ -333,6 +339,17 @@
         // ================================================================
         // 開新局（抽新詩 + 重置）
         // ================================================================
+        // ── 關卡模式過關後推進下一關 ──────────────────────────────────
+        // ⚠️ 必須獨立成一支具名函式：青雲梯（learningPath.js launchGame）會在
+        //    派局前暫時覆寫它，好在每一關結束後收回控制權重新挑題、挑遊戲。
+        //    2026-09-11 補上 —— 這一款原本把 `currentLevelIndex++` 直接寫死在
+        //    gameOver 的 onConfirm 裡，青雲梯攔不到，一被派出就會自己一路打
+        //    下去（game16「打地詩」連出四局同一首詩就是這個 bug，
+        //    見「青雲梯遊戲接入規範與已知錯誤」§4 №1）。
+        startNextLevel: function () {
+            window.FMGame.nextLevel(this);
+        },
+
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.updateUIForMode();
@@ -862,17 +879,10 @@
             }
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) {
-                        // 挑戰模式：關卡編號遞增後繼續下一關
-                        this.currentLevelIndex++;
-                        this.startNewGame();
-                    } else {
-                        this.startNewGame();
-                    }
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMsg = (finalScore) => {
@@ -899,7 +909,7 @@
                         this.score = finalScore;
                         // 挑戰模式：記錄關卡通關進度到 levelProgress
                         if (this.isLevelMode) {
-                            const achId = window.ScoreManager.completeLevel('game15', this.difficulty, this.currentLevelIndex);
+                            const achId = window.FMGame.completeLevel('game15', this);
                             if (achId && window.AchievementDialog) {
                                 window.AchievementDialog.showInstantAchievementPop(achId, 'game15', this.currentLevelIndex, showMsg);
                             } else {

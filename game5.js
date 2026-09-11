@@ -693,8 +693,7 @@
 
         // 進入下一關：關卡索引 +1 後以關卡模式重新開局
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame(this.currentLevelIndex); // 傳入 currentLevelIndex 以維持關卡模式
+            window.FMGame.nextLevel(this);
         },
 
         // 重玩本局：沿用相同的目標詩詞與版面，僅重置生命值、收集進度與物件位置
@@ -1605,12 +1604,10 @@
             if (this.requestID) cancelAnimationFrame(this.requestID);
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -1636,7 +1633,7 @@
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         if (this.isLevelMode) {
-                            window.ScoreManager.completeLevel('game5', this.difficulty, this.currentLevelIndex);
+                            window.FMGame.completeLevel('game5', this);
                         }
                         showMessage(finalScore);
                     }

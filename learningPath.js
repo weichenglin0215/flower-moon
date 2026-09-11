@@ -692,21 +692,21 @@
             };
         },
 
+        // ── 文錢與積分：一律委派給全站唯一的讀取收口（gameContract.js）──
+        //
+        // ⚠️ 2026-09-11 收口。改版前同樣的兩段邏輯在
+        //    `collection.js`（getCurrentScore，且是死程式碼）與這裡各有一份，
+        //    欄位名稱一旦改動就得四處找齊。保留這兩支具名入口是為了
+        //    不動既有呼叫端（#lpSilver 的顯示、報名費餘額判斷）。
+
         /** 取得文錢（存放於收集系統的存檔中） */
         getSilver: function () {
-            try {
-                if (window.FMCollectionSave && typeof window.FMCollectionSave.load === 'function') {
-                    return window.FMCollectionSave.load().silver || 0;
-                }
-            } catch (e) { /* 收集系統尚未初始化時視為 0 */ }
-            return 0;
+            return window.FMGame ? window.FMGame.getSilver() : 0;
         },
 
         /** 取得總積分（僅供顯示與排行榜，不參與任何進度判定） */
         getTotalScore: function () {
-            if (!window.ScoreManager) return 0;
-            const data = window.ScoreManager.loadPlayerData();
-            return (data && data.totalScore) || 0;
+            return window.FMGame ? window.FMGame.getScore() : 0;
         },
 
         // ══════════════════════════════════════════════════════════════
@@ -883,6 +883,9 @@
         show: function () {
             this.init();
             this.checkPendingUnit();
+            // ⚠️ 必須排在 checkPendingUnit() 之後：那一支會把 _pendingUnit 收掉，
+            //    守門才算得出「已經回到地圖、沒有課程局在進行」。
+            this.updateSessionGuard();
             this.render();
             this.overlay.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
@@ -933,6 +936,9 @@
             // 玩家離開青雲梯（例如從漢堡選單切走）→ 還原被覆寫的遊戲方法，
             // 讓該遊戲回到自己原本的關卡推進行為。
             this.restorePatchedGame();
+            // 離開青雲梯就不該再鎖著漢堡選單（否則玩家永遠回不了首頁）
+            this._pendingUnit = null;
+            this.updateSessionGuard();
             this._currentStation = null;
             this._reviewMode = false;
             // 離開青雲梯就解除候選詩白名單，避免殘留影響漢堡選單的自由練習
@@ -974,6 +980,13 @@
         checkPendingUnit: function () {
             const u = this._pendingUnit;
             this._pendingUnit = null;
+            // ⚠️ 這裡就是「課程局結束」的那一刻，守門必須在這裡重算 ——
+            //    不能只放在 show() 裡。亂序模擬抓到過：任何只呼叫
+            //    checkPendingUnit() 而沒走 show() 的路徑（例如玩家中途
+            //    直接關掉遊戲），漢堡選單會永遠停在鎖定狀態，
+            //    玩家再也回不了首頁。把更新綁在狀態改變的那一行，
+            //    就不可能有「改了狀態卻忘了更新守門」的路徑。
+            this.updateSessionGuard();
             if (!u || !window.ScoreManager) return;
             // 這個單元的通關遊戲集合沒有增加，視為這一次沒過
             const nowCount = this.getUnitPlays(u.tier, u.level);
@@ -1081,8 +1094,9 @@
             const examReadyIdx = (gateState.blocked && gateState.qualified)
                 ? this.getExamGateIndex() : -1;
 
-            // 模擬考今日是否已用過（只有可應試的那一站會畫模擬考鈕，算一次就夠）。
-            // ⚠️ 只做灰階區分，鈕仍要可以點——玩家點下去才會看到「今日已用過」
+            // 今日的模擬考次數是否已用完（每日 5 次，見 FMExamConfig.EXAM_DAILY_LIMITS）。
+            // 只有可應試的那一站會畫模擬考鈕，算一次就夠。
+            // ⚠️ 只做灰階區分，鈕仍要可以點——玩家點下去才會看到「今日已用完」
             //    的提示，直接 disabled 會讓那句提示永遠沒有機會顯示。
             const examReadySt = (examReadyIdx >= 0) ? this.stations[examReadyIdx] : null;
             const mockUsedToday = (examReadySt && examReadySt.examKind === 'rank' && window.FMExamConfig)
@@ -1355,8 +1369,9 @@
                     + (minor ? '應小考' : '前往應試') + `</button>`;
                 const b = box.querySelector('#lpBtnGoExam');
                 if (b) b.addEventListener('click', () => {
-                    if (minor) this.startExam(gate.station.name, 'real');
-                    else this.goToExam();
+                    // 小考與文位考現在走的是同一條路（就地開考），
+                    // 差別只在報名費與通過後的獎勵，見 startExam()。
+                    this.startExam(gate.station.name, 'real');
                 });
                 return;
             }
@@ -1860,6 +1875,8 @@
             // 見 setGameNavLocked 的說明。
             this.setGameNavLocked(gameNo, true);
             this._navLockedGameNo = gameNo;
+            // 課程局開始 → 鎖住漢堡選單，改顯示「←（放棄）」
+            this.updateSessionGuard();
         },
 
         /** 還原先前被覆寫的 startNextLevel，避免影響從選單進入的一般流程 */
@@ -1910,6 +1927,160 @@
             });
         },
 
+        // ══════════════════════════════════════════════════════════════
+        //  課程／考試進行中的「離場守門」
+        // ══════════════════════════════════════════════════════════════
+
+        /**
+         * 依**當下狀態**決定要不要鎖住漢堡選單、並顯示「←（放棄）」按鈕。
+         *
+         * ⚠️⚠️ 2026-09-11 玩家回報的災情：考試進行中漢堡選單仍可點開，
+         *    玩家從那裡切到別的遊戲時，`switchPage()` 會先跑
+         *    `closeAllActiveOverlays()` → `ExamEngine.forceStop()`，
+         *    **正在進行的考試就這樣被靜默中止**：報名費已扣不退、
+         *    examLog 一筆紀錄都沒有，緊接著新遊戲叫出真正的難度選單。
+         *    玩家看到的是「考到一半突然跳出難度選單，考試就沒了，錢白花」。
+         *    課程局同理：中途被切走，那一局等於白打。
+         *
+         * ⚠️ 刻意採「由狀態推導」而不是「進場開、離場關」的配對記帳：
+         *    考試與課程的結束路徑有七、八條（考完／棄考／forceStop／
+         *    切站／重新整理…），配對記帳只要漏掉一條，漢堡選單就會
+         *    永久消失，玩家再也回不了首頁 —— 那比原本的 bug 更嚴重。
+         *    這裡改成任何時候呼叫都會算出正確答案，漏呼叫只是晚一點更新，
+         *    不會把玩家鎖死（與 `__fmOriginal` 是同一個教訓）。
+         */
+        /**
+         * 目前有沒有「局」在進行？回傳 'exam' / 'course' / null。
+         *
+         * ⚠️ 這是**推導**出來的，不是記帳。進場開一個旗標、離場關一個旗標的做法
+         *    看似直覺，但結束路徑有七八條，漏掉任何一條就是漢堡選單永遠不解鎖、
+         *    玩家再也回不了首頁 —— 比原本要防的 bug 更嚴重。
+         *    這裡一律從當下的真實狀態重新算，就不存在「忘了關」的路徑。
+         */
+        sessionKind: function () {
+            const examOn = !!(window.ExamEngine && typeof window.ExamEngine.isBusy === 'function'
+                && window.ExamEngine.isBusy());
+            if (examOn) return 'exam';
+            // 課程局進行中 ＝ 派出去的關卡還沒被 checkPendingUnit() 收回
+            return this._pendingUnit ? 'course' : null;
+        },
+
+        /** 有沒有課程／考試正在進行（供 FMGame.exit 判斷該不該先問玩家）*/
+        isSessionActive: function () {
+            return !!this.sessionKind();
+        },
+
+        updateSessionGuard: function () {
+            const kind = this.sessionKind();
+
+            if (window.MenuManager && typeof window.MenuManager.setNavLocked === 'function') {
+                window.MenuManager.setNavLocked(!!kind);
+            }
+            this._renderAbandonBtn(kind);
+        },
+
+        /** 建立／更新「←」放棄按鈕（掛在 menuWrapper 裡，沿用漢堡的縮放與定位） */
+        _renderAbandonBtn: function (kind) {
+            let btn = document.getElementById('lpAbandonBtn');
+            if (!kind) {
+                if (btn) btn.style.display = 'none';
+                return;
+            }
+            if (!btn) {
+                btn = document.createElement('div');
+                btn.id = 'lpAbandonBtn';
+                btn.className = 'lp-abandon-btn';
+                btn.textContent = '←';
+                btn.style.pointerEvents = 'auto';
+                // ⚠️ 掛進 #menuWrapper：那個容器已經由 menu.js 註冊了
+                //    registerOverlayResize，會跟著 stage 一起縮放與定位。
+                //    自己另外掛到 body 就得再維護一份縮放邏輯。
+                const wrap = document.getElementById('menuWrapper');
+                (wrap || document.body).appendChild(btn);
+                // ⚠️ 刻意繞一圈走 FMGame.exit()，不直接呼叫 confirmAbandonSession：
+                //    「想離開現在這個畫面」全站只有這一條路徑，
+                //    由它去判斷現在有沒有課程／考試在進行。
+                //    這顆按鈕只在有局在進行時才顯示，所以實際結果相同，
+                //    但規範要求遊戲一律呼叫 FMGame.exit()，青雲梯自己更沒有理由破例
+                //    —— 而且這樣一來，那支函式每次放棄課程／考試都會被走過一遍，
+                //    不會變成「只寫在文件裡、沒人跑過」的擺設。
+                btn.addEventListener('click', () => {
+                    if (window.FMGame && typeof window.FMGame.exit === 'function') window.FMGame.exit();
+                    else this.confirmAbandonSession();
+                });
+            }
+            btn.title = (kind === 'exam') ? '放棄本次考試' : '離開本次課程';
+            btn.style.display = '';
+        },
+
+        /** 點下「←」：先問清楚再放棄，絕不靜默中止 */
+        confirmAbandonSession: function () {
+            const EE = window.ExamEngine;
+            const examOn = !!(EE && typeof EE.isBusy === 'function' && EE.isBusy());
+            if (window.SoundManager) window.SoundManager.playOpenItem();
+
+            // 已經按過「入場應試」才算真的花掉報名費／今日次數；
+            // 還停在簡介畫面時放棄，等同「先回家苦讀」，什麼都不會損失。
+            const entered = examOn && !!EE._entered;
+            const html = examOn
+                ? ('<h2>放棄本次考試？</h2>'
+                    + '<p>'
+                    + (entered
+                        ? '本次成績不列入紀錄，<br><b>報名費不予退還</b>，'
+                        + '今日已用掉的應試次數也不會返還。<br><br>'
+                        : '你尚未入場，<b>不會損失報名費與應試次數</b>。<br><br>')
+                    + '確定要離開考場嗎？</p>'
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopStay">繼續作答</button>'
+                    + '<button class="lp-pop-btn" id="lpPopQuit">放棄考試</button>'
+                    + '</div>')
+                : ('<h2>離開本次課程？</h2>'
+                    + '<p>這一局尚未完成，離開後不會計入晉升局數，<br>'
+                    + '這一關要重新再打一次。<br><br>確定要離開嗎？</p>'
+                    + '<div class="lp-pop-footer">'
+                    + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopStay">繼續遊戲</button>'
+                    + '<button class="lp-pop-btn" id="lpPopQuit">離開課程</button>'
+                    + '</div>');
+
+            const overlay = this._makePopup(html);
+            const stay = overlay.querySelector('#lpPopStay');
+            if (stay) stay.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playCloseItem();
+                overlay.remove();
+            };
+            const quit = overlay.querySelector('#lpPopQuit');
+            if (quit) quit.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                overlay.remove();
+                this.abandonSession();
+            };
+        },
+
+        /**
+         * 真的放棄：收掉考試／課程，回到青雲梯。
+         *
+         * ⚠️ 一律走既有的收口（ExamEngine.forceStop／各遊戲 stopGame），
+         *    不要在這裡自己拆沙箱或還原函式 —— 那會變成第二份清理邏輯，
+         *    兩邊遲早飄移（見已知錯誤 №26）。
+         */
+        abandonSession: function () {
+            const EE = window.ExamEngine;
+            if (EE && typeof EE.forceStop === 'function') EE.forceStop();
+            this.restorePatchedGame();
+            Object.keys(GAME_NAMES).forEach(k => {
+                const G = window['Game' + k];
+                if (G && typeof G.stopGame === 'function') G.stopGame();
+            });
+            this._pendingUnit = null;
+            this._reviewMode = false;
+            if (window.ScoreManager && window.ScoreManager.setReviewMode) {
+                window.ScoreManager.setReviewMode(false);
+            }
+            this.invalidateProgress();
+            this.show();
+            setTimeout(() => this.scrollToCurrent(true), 120);
+        },
+
         /** 解除目前鎖住的那一款遊戲（若有），配合 setGameNavLocked 的說明 */
         unlockGameNav: function () {
             if (this._navLockedGameNo === null) return;
@@ -1928,6 +2099,12 @@
             // 剛剛通關了，進度快取必須重算，否則會重複派同一關
             this.invalidateProgress();
             this._pendingUnit = null;
+            // ⚠️ 與 checkPendingUnit() 同樣的理由：課程局的狀態在這一行改變了，
+            //    守門就必須在這裡重算，不能指望「後面每一條分支都會走到
+            //    show() 或 launchGame()」——那是記帳，漏一條玩家就被鎖死。
+            //    這一整段是同步執行的：若下面接著派了新局，launchGame 會立刻
+            //    再鎖回去，瀏覽器不會畫出中間那一幀，玩家看不到閃爍。
+            this.updateSessionGuard();
 
             // ── 這一局是否讓玩家晉升到下一站？────────────────────────────
             // 站點索引往前跳 = 這一站的必通關卡剛剛全部完成。
@@ -2197,7 +2374,7 @@
          *    或整個錯過一次「該去考試了」的提示。
          *
          * ⚠️ 中途若玩家在「應試資格」彈窗按下「即赴科場」，佇列會就此中止
-         *    （goToExam 會把畫面帶去江南小院考棚）。這是可接受的：獎勵在
+         *    （goToExam 會就地開始考試）。這是可接受的：獎勵在
          *    彈窗出現之前就已經入帳，後面沒演到的只是慶祝動畫；而且玩家
          *    回到青雲梯時，render() 的 settleArrivedRewards() 還會再補一次刀。
          *
@@ -2282,7 +2459,7 @@
          * 三種型態（企劃書 §5）：
          *   · 小階（例如「書僮二階」）→ 簡易全畫面動畫（無獎狀圖）
          *   · 免考文位（書僮／蒙童）→ 華麗全畫面動畫（獎狀圖＋特效）
-         *   · 需應試的文位（塾生起）→ 引導彈窗，導向江南小院考棚
+         *   · 需應試的文位（塾生起）→ 引導彈窗，就地開始考試
          *
          * ⚠️ 獎勵在彈窗出現「之前」就已經發放（見 grantStationReward），
          *    按鈕只負責關閉彈窗與播放慶祝動畫，不再是領取動作。
@@ -2322,7 +2499,7 @@
                 html = '<h2>學問已成，可赴科場</h2>'
                     + '<p>積跬步以至千里。<br>閣下已通過「<b>' + prevName + '</b>」全部課程，<br>'
                     + '已具應試「<b>' + station.name + '</b>」之學力。<br>'
-                    + '惟功名須經場屋一試方得冊封 ——<br>可即刻前往江南小院考棚報名，<br>'
+                    + '惟功名須經場屋一試方得冊封 ——<br>可即刻就地報名應試，<br>'
                     + '亦可再溫書數日，待胸有成竹再去。</p>'
                     + '<div class="lp-pop-footer">'
                     + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">容後再議</button>'
@@ -2399,8 +2576,8 @@
             if (btnExam) btnExam.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 overlay.remove();
-                // 沿用江南小院既有的考棚流程（資格達標→付文錢→應試）
-                this.goToExam();
+                // 就地開考（資格已在 alreadyQualified 判定過，付費在入場時才扣）
+                this.goToExam(station.name);
             };
         },
 
@@ -2433,7 +2610,7 @@
                 : ('<h2>學問已成，可赴科場</h2>'
                     + '<p>積跬步以至千里。<br>閣下已通過「<b>' + station.name + '</b>」全部課程，<br>'
                     + '已具應試「<b>' + station.name + '</b>」之學力。<br>'
-                    + '惟功名須經場屋一試方得冊封 ——<br>可即刻前往江南小院考棚報名，<br>'
+                    + '惟功名須經場屋一試方得冊封 ——<br>可即刻就地報名應試，<br>'
                     + '亦可再溫書數日，待胸有成竹再去。</p>'
                     + '<div class="lp-pop-footer">'
                     + '<button class="lp-pop-btn lp-pop-btn-sub" id="lpPopLater">容後再議</button>'
@@ -2458,36 +2635,46 @@
             if (btnExam) btnExam.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 overlay.remove();
-                // ⚠️ 小考不經江南小院考棚：那裡的入口是「下一個沒考過的**文位**」，
-                //    找不到小站；而且小考免報名費，走那條路只會讓玩家困惑。
-                if (isMinor) this.startExam(station.name, 'real');
-                else this.goToExam();
+                // 小考與文位考共用同一條路（就地開考）；差別只在報名費與獎勵。
+                this.startExam(station.name, 'real');
             };
         },
 
         /**
-         * 前往江南小院的考棚。
-         * 晉升彈窗的「即赴科場」與站點上的「應試」標記共用這一支，
-         * 避免同一段導頁邏輯在兩處各寫一遍。
+         * 就地開始正式考。
+         *
+         * ⚠️ 2026-09-11 改版：考試入口統一由青雲梯進入，江南小院的「考棚」已移除。
+         *    舊版這一支會 `hide()` 青雲梯 → 開啟江南小院 → 350ms 後呼叫
+         *    `CollectionDialog.openExam()`，等於為了報名一場考試把玩家
+         *    丟到另一個頁面，回來還要自己找路（實測回報過「考完停在江南小院、
+         *    關掉卻回不到青雲梯」）。而且那個入口只認「下一個沒考過的**文位**」，
+         *    小考（小站）在那裡根本找不到，於是小考得另外寫一條路 ——
+         *    同一件事兩套流程，正是先前多個考試 bug 的溫床。
+         *    現在一律就地呼叫 startExam()，不再跳頁。
+         *
+         * @param {string} [target] 要考的站名；省略時取目前被考試擋住的那一站
          */
-        goToExam: function () {
-            this.hide();
-            if (window.CollectionDialog && window.CollectionDialog.show) {
-                window.CollectionDialog.show();
-                setTimeout(() => {
-                    if (typeof window.CollectionDialog.openExam === 'function') {
-                        window.CollectionDialog.openExam();
-                    }
-                }, 350);
+        goToExam: function (target) {
+            let name = target;
+            if (!name) {
+                const gate = this.getExamGateState();
+                name = gate.station ? gate.station.name : '';
             }
+            if (!name) {
+                this.toast('目前沒有可以應試的科目。');
+                return;
+            }
+            this.startExam(name, 'real');
         },
 
         /**
          * 從青雲梯站點直接開考（模擬考／正式考）。
          *
-         * ⚠️ 模擬考「一天一次」；正式考**沒有次數限制**，只要付得起報名費
-         *    就能一直應試——作者定案：正式考的節流機制只有「文錢」，
-         *    不設每日次數上限。
+         * ⚠️ 每日次數（作者 2026-09-11 定案，見 FMExamConfig.EXAM_DAILY_LIMITS）：
+         *    正式考**不限次數**——節流機制只有「文錢」，考越多次越貴；
+         *    模擬考每日 5 次——免費，但不能無限刷，否則等於直接看考卷；
+         *    越級考每日 5 次——另外還要付 2 倍報名費。
+         *    次數是**逐場**計算的（以站名為鍵），不是全域共用。
          *
          * @param {string} rankName 應試文位
          * @param {string} mode     'mock' | 'real'
@@ -2540,7 +2727,7 @@
             }
 
             if (mode === 'mock' && !C.canAttemptToday(coll, mode, rankName)) {
-                this.toast('今日模擬考已用過，明日請早。');
+                this.toast('今日模擬考已用完（每日 ' + C.dailyLimit('mock') + ' 次），明日請早。');
                 return;
             }
 
@@ -2610,25 +2797,28 @@
         },
 
         /**
-         * 報名費：交給 collection.js 那份唯一的費用表，這裡不另外複製一份。
+         * 報名費：交給 examConfig.js 那份唯一的費用表，這裡不另外複製一份。
          *
          * ⚠️ 小考（小站考試）一律免費 —— 它是課程的一部分，不該再收一次錢；
          *    而且改版後考試從 13 場變成 33 場，若每場都收費，後段文位的
          *    盤纏缺口會再擴大一倍以上（見驗證程式第 8 節的收支分析）。
          *
+         * ⚠️ 2026-09-11 費用表從 `collection.js` 搬到 `examConfig.js`：
+         *    考棚取消後小院不再參與考試流程，費用表若留在那裡，
+         *    小院沒載入時這裡會靜靜地回 0（考試全部免費且無錯誤訊息）。
+         *
          * @param {string} target 文位名或站名
          */
         getExamFee: function (target) {
+            const EC = window.FMExamConfig;
             const PS = window.PathStations;
             if (PS && typeof PS.getStationByName === 'function') {
                 const st = PS.getStationByName(target);
                 if (st && st.examKind === 'minor') {
-                    return (window.FMExamConfig && window.FMExamConfig.MINOR_FEE) || 0;
+                    return (EC && EC.MINOR_FEE) || 0;
                 }
             }
-            if (window.CollectionDialog && typeof window.CollectionDialog.getExamFee === 'function') {
-                return window.CollectionDialog.getExamFee(target);
-            }
+            if (EC && typeof EC.getExamFee === 'function') return EC.getExamFee(target);
             return 0;
         },
 
@@ -2840,7 +3030,7 @@
             }, true);
         },
 
-        /** 實際開始越級考試（收費、一天一次） */
+        /** 實際開始越級考試（收費、每日 5 次，見 FMExamConfig.EXAM_DAILY_LIMITS） */
         startSkipExam: function (rankName) {
             const C = window.FMExamConfig;
             const S = window.FMCollectionSave;
@@ -2869,7 +3059,7 @@
 
             const coll = S.load();
             if (!C.canAttemptToday(coll, 'skip', rankName)) {
-                this.toast('今日越級考試已用過，明日請早。');
+                this.toast('今日越級考試已用完（每日 ' + C.dailyLimit('skip') + ' 次），明日請早。');
                 return;
             }
             const fee = this.getExamFee(rankName) * C.SKIP_FEE_MULTIPLIER;

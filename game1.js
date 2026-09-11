@@ -306,8 +306,7 @@
 
         // 關卡模式下過關成功，前進到下一關並開始新的一局
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // 切換到下一題（保留目前分數／錯誤數，不重設整局），僅重新抽題並重設計時器
@@ -821,12 +820,10 @@
                 document.getElementById('game1-newGame-btn').disabled = false;
             }
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = () => {
@@ -842,7 +839,7 @@
             };
 
             if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game1', this.difficulty, this.currentLevelIndex);
+                const achId = window.FMGame.completeLevel('game1', this);
                 if (achId && window.AchievementDialog) {
                     window.AchievementDialog.showInstantAchievementPop(achId, 'game1', this.currentLevelIndex, showMessage);
                 } else {

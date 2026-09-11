@@ -44,7 +44,19 @@ node tools/verify_learning_path.js
 - ⚠️ 尚未解決：新詩會插進學習序列中間，既有玩家的站點會倒退
   （見 `note/青雲梯與獎勵企畫書/文位升等已知錯誤紀錄.md` №14 附記）。
 
+# 全遊戲共同契約（新增或修改任何 gameXX 之前必讀）
+`gameContract.js`（`window.FMGame`）是 39 款遊戲的共同契約：
+必備函式 `show／stopGame／startNewGame／retryGame／startNextLevel／gameOver(win, reason)`、
+必備變數 `isLevelMode／currentLevelIndex／difficultySettings`，
+以及 `FMGame.nextLevel／advance／completeLevel／exit／getScore／getSilver／audit`。
+**契約的權威來源是那個檔案的常數，不是任何一份 .md**；驗證工具直接拿它驗 39 款，
+任何一款不符都是 ❌，不會因為「這款還沒納入青雲梯」而降級為提醒。
+詳見 `.agent/skills/花月開發常見錯誤與解法.md` §4.0。
+
 # 絕對禁止事項⛔
+- 遊戲內不得呼叫 `MenuManager.closeAll()`／`closeAllActiveOverlays()`／`FMGoHome()`／
+  `MenuManager.goHome()`／`this.startNextLevel()`（要離開請用 `FMGame.exit()`）
+- 遊戲內不得自行 `currentLevelIndex++`（一律 `FMGame.nextLevel(this)`）
 - 不得使用無前綴的通用 class 名稱
 - 不得在模組外直接呼叫 localStorage
 - 不得修改 screen_adaptive.js 的核心邏輯

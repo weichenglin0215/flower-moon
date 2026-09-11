@@ -1161,10 +1161,47 @@
         }
     }
 
+    /**
+     * 鎖住／解鎖漢堡選單。
+     *
+     * ⚠️⚠️ 這是 2026-09-11 玩家回報的災情根因所在：
+     *    青雲梯的課程局與考試進行中，漢堡選單仍然可以點開。玩家一旦
+     *    從那裡切到別的遊戲，`switchPage()` 會先跑 `closeAllActiveOverlays()`
+     *    → `ExamEngine.forceStop()`，**正在進行的考試就被靜默中止**：
+     *    報名費已經扣了、不退、examLog 連一筆紀錄都沒有，
+     *    接著新遊戲的 `show()` 叫出真正的難度選單 ——
+     *    玩家看到的就是「考到一半突然跳出難度選單，然後考試就沒了」。
+     *
+     *    鎖住期間改由 LearningPath 顯示「←（放棄）」按鈕，
+     *    點下去會先跳確認彈窗，玩家必須明確知道自己正在放棄什麼。
+     *
+     * ⚠️ 鎖定只藏「入口」，不動 `closeAllActiveOverlays()` 本身 ——
+     *    那支函式仍然是所有離開路徑的共同收口（含放棄按鈕自己）。
+     *
+     * @param {boolean} locked
+     */
+    function setNavLocked(locked) {
+        const btn = document.getElementById('hamburgerBtn');
+        if (!btn) return;
+        if (locked) {
+            // ⚠️ 不能呼叫 setupMenuEvents() 內部的 closeMenu()（它巢狀在那支
+            //    函式裡，模組層取不到）。這裡直接做同樣的三件事：
+            //    收起面板、還原漢堡圖示、解除 body 的鎖捲。
+            const panel = document.getElementById('menuPanel');
+            const overlay = document.getElementById('menuOverlay');
+            if (panel) panel.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+            btn.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        btn.style.display = locked ? 'none' : '';
+    }
+
     // 暴露全域函數
     window.MenuManager = {
         closeAll: closeAllActiveOverlays,
         goHome: goHome,
+        setNavLocked: setNavLocked,
         HOME_PAGE: HOME_PAGE
     };
     window.FMGoHome = goHome;

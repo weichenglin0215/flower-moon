@@ -193,8 +193,7 @@
         // ⚠️ 青雲梯會在 launchGame() 時暫時覆寫本方法，改由它決定
         //    下一關要玩哪一題、哪一款遊戲（企畫書第十章 遊戲切換規則）。
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         startNewGame: function () {
@@ -606,19 +605,10 @@
             const onConfirm = () => {
                 document.getElementById('game37-retryGame-btn').disabled = false;
                 document.getElementById('game37-newGame-btn').disabled = false;
-
-                if (win) {
-                    if (this.isLevelMode) {
-                        // ⚠️ 一律走 startNextLevel()，不要在這裡直接 ++。
-                        //    青雲梯會覆寫這個方法以收回關卡推進的控制權
-                        //    （見 learningPath.js advanceAfterWin）。
-                        this.startNextLevel();
-                    } else {
-                        this.startNewGame();
-                    }
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = () => {
@@ -646,7 +636,7 @@
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         if (this.isLevelMode) {
-                            const achId = window.ScoreManager.completeLevel('game37', this.difficulty, this.currentLevelIndex);
+                            const achId = window.FMGame.completeLevel('game37', this);
                             if (achId && window.AchievementDialog) {
                                 window.AchievementDialog.showInstantAchievementPop(achId, 'game37', this.currentLevelIndex, showMessage);
                             } else {

@@ -187,6 +187,20 @@ function findPoemFn(G) {
 //  第 1 節　遊戲接入契約（GAME1 ~ GAME40）
 // ══════════════════════════════════════════════════════════════════════
 
+/**
+ * 剝掉註解後再比對 —— 原始碼指紋檢查一律先過這一關。
+ *
+ * ⚠️ 為什麼一定要：修 bug 時留下的說明註解裡，往往一字不差地寫著
+ *    正要禁止的那串字（例如「絕不可在這裡自行 currentLevelIndex++」）。
+ *    不剝註解就會把自己的說明當成罪證，測試永遠紅著 —— 實測踩過兩次
+ *    （2026-09-11 的 10.13，以及同日的 1.6）。
+ */
+function stripComments(txt) {
+    return String(txt || '')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
 /** 取出原始碼中某個具名函式的整段本體（大括號配對，不用正規表示式硬猜） */
 function fnBody(src, name) {
     const key = name + ': function';
@@ -300,10 +314,37 @@ function verifyGames() {
         always(new RegExp('(^|[^0-9])' + n + ":\\s*'").test(dbViewer),
             'tools/db_viewer.html GAME_NAMES 有第 ' + n + ' 款', '資料檢視器會顯示編號而非名稱');
 
-        // ── 1.3 關卡模式契約（青雲梯派局時真正會用到的）─────────────────
-        must(typeof G.startNewGame === 'function' || typeof G.startGameProcess === 'function',
-            'startNewGame()／startGameProcess() 存在', '開新局的入口');
-        must(typeof G.retryGame === 'function', 'retryGame() 存在', '失敗重來的入口');
+        // ── 1.3 共同契約：39 款一律相同，沒有例外 ───────────────────────
+        //
+        // ⚠️⚠️ 2026-09-11 由 `must`（課程遊戲才 ❌，其餘只 ⚠）改為 `always`（一律 ❌）。
+        //    作者指示：「即使是目前尚未納入學習或考試的遊戲也要先統一規範，
+        //    避免後續增加遊戲時造成困擾」。
+        //    理由是真實災情：青雲梯與考試是以「每一款遊戲都長一樣」為前提
+        //    在接管遊戲的（暫時覆寫 startNextLevel／DifficultySelector.show）。
+        //    只要有一款自成一格，接管就會在那一款身上靜靜破掉 ——
+        //    game13 那行 MenuManager.closeAll()、game7 把開新局叫成 newGame()、
+        //    game15／17／19 沒有 startNextLevel，都是同一個病。
+        //    等到「要納入課程時再補」已經太晚：那時它早就被自由練習用了幾個月。
+        //
+        //    契約的權威來源是 gameContract.js 的 FMGame.REQUIRED_METHODS／
+        //    REQUIRED_FIELDS，不是這裡的字面列表 —— 這裡直接拿它來驗。
+        const CONTRACT = global.FMGame;
+        always(!!CONTRACT, 'gameContract.js 已載入（FMGame 契約來源）',
+            '沒有它就沒有共同契約可驗，而且 39 款遊戲的 startNextLevel／onConfirm 都會炸');
+        (CONTRACT ? CONTRACT.REQUIRED_METHODS : []).forEach(fn => {
+            always(typeof G[fn] === 'function', fn + '() 存在（共同契約）',
+                '39 款遊戲必須具備同名同義的 ' + fn + '()；'
+                + '少一支，青雲梯／考試就得為這一款特判，而特判正是 bug 的來源');
+        });
+
+        // gameOver 的簽章也要一致 —— 名字對了但參數順序不同，一樣是例外
+        const goSig = (stripComments(src).match(/gameOver\s*:\s*function\s*\(([^)]*)\)/) || [])[1];
+        if (goSig !== undefined) {
+            always(goSig.replace(/\s+/g, '') === 'win,reason',
+                'gameOver(win, reason) 的參數名與其餘 38 款一致',
+                '實際是 gameOver(' + goSig + ')。規範 §7.3 明定結算入口為 gameOver(win, reason)；'
+                + '參數不同代表這一款的結算語意得另外讀一次程式碼才知道');
+        }
 
         // ★★ 最關鍵：青雲梯靠「暫時覆寫 startNextLevel」收回關卡推進的控制權
         const hasSNL = typeof G.startNextLevel === 'function';
@@ -354,9 +395,18 @@ function verifyGames() {
         }
 
         // ── 1.5 關卡模式旗標與難度設定 ──────────────────────────────────
-        must(('isLevelMode' in G), '具備 isLevelMode 欄位',
-            '青雲梯一律以關卡模式開局；沒有這個旗標，選詩會退回隨機');
-        must(('currentLevelIndex' in G), '具備 currentLevelIndex 欄位', '');
+        //
+        // ⚠️ 同 1.3，2026-09-11 起這三個欄位對 39 款一律 ❌。
+        //    「只在回呼裡才第一次賦值」不算數：物件上看不到欄位，
+        //    任何在賦值之前就讀取的路徑都會拿到 undefined，而且不會報錯
+        //    （game15 原本就是這樣）。
+        (CONTRACT ? CONTRACT.REQUIRED_FIELDS : []).forEach(f => {
+            if (f === 'difficultySettings') return;    // 下面另外驗五個難度層
+            always((f in G), '具備 ' + f + ' 欄位（共同契約）',
+                f === 'isLevelMode'
+                    ? '青雲梯一律以關卡模式開局；沒有這個旗標，選詩會退回隨機'
+                    : '關卡編號同時是 getSharedRandomPoem 的種子，缺了就查不到關卡表');
+        });
 
         const ds = G.difficultySettings;
         if (must(ds && typeof ds === 'object', 'difficultySettings 存在',
@@ -384,23 +434,62 @@ function verifyGames() {
         must(src.indexOf('levelIndex !== undefined') >= 0,
             '以 (levelIndex !== undefined) 判定關卡模式', '這是全專案一致的寫法');
 
-        // (b) ★ game16 那個 bug 的精準指紋：
-        //     currentLevelIndex++ 只能出現在 startNextLevel 裡。
-        //     出現在別處（多半是 gameOver 的 onConfirm）就代表繞過了青雲梯的攔截點。
-        const incs = allIndexOf(src, 'currentLevelIndex++');
-        const snlSrc = fnBody(src, 'startNextLevel');
-        if (incs.length) {
-            const snlAt = snlSrc ? src.indexOf(snlSrc) : -1;
-            const outside = incs.filter(i => !(snlAt >= 0 && i > snlAt && i < snlAt + snlSrc.length));
-            must(outside.length === 0, 'currentLevelIndex++ 只出現在 startNextLevel() 內',
-                '有 ' + outside.length + ' 處寫在別的地方（多半是 gameOver 的 onConfirm）。'
-                + '青雲梯只覆寫 startNextLevel，寫在別處等於繞過攔截點 —— '
-                + 'game16 就是這樣連玩四局同一款、每關都是同一首詩的。');
+        // ⚠️ 以下的原始碼指紋一律比對「剝掉註解後」的版本。
+        //    修 bug 時留下的說明註解裡就寫著正要禁止的那串字，
+        //    不剝就會把自己的說明當成罪證（見 stripComments 的說明）。
+        const srcNC = stripComments(src);
+
+        // (b) ★ game16 那個 bug 的精準指紋（2026-09-11 升級版）：
+        //     關卡推進一律委由 gameContract.js 的 FMGame.nextLevel()，
+        //     **遊戲檔內不得再出現任何 currentLevelIndex++**。
+        //
+        //     舊版規則是「currentLevelIndex++ 只能寫在 startNextLevel 裡」。
+        //     那條規則擋得住 game16，卻擋不住 game15／17／19 —— 它們根本
+        //     沒有 startNextLevel，`if (incs.length)` 底下的比對就整段跳過，
+        //     三款把 currentLevelIndex++ 寫死在 onConfirm 裡的遊戲因此一路
+        //     通過驗證。收口成一支共用函式之後，規則變成「一處都不准有」，
+        //     沒有「剛好沒有那支函式所以不用驗」的漏洞。
+        always(allIndexOf(srcNC, 'currentLevelIndex++').length === 0
+            && allIndexOf(srcNC, 'currentLevelIndex +=').length === 0,
+            '沒有自行遞增 currentLevelIndex（一律委由 FMGame.nextLevel）',
+            '關卡推進的唯一實作在 gameContract.js。自己 ++ 就代表繞過了'
+            + '青雲梯的攔截點 —— game16 就是這樣連玩四局同一款、每關都是同一首詩的。');
+
+        if (hasSNL) {
+            const snlNC = stripComments(fnBody(src, 'startNextLevel') || '');
+            always(/window\.FMGame\.nextLevel\(\s*this\s*\)/.test(snlNC),
+                'startNextLevel() 委由 FMGame.nextLevel(this)',
+                '39 款必須用同一份實作；各寫各的就會像 game5／7／16 那樣'
+                + '長出三種不同的變體，日後改行為得逐檔找齊');
         }
+
+        // ★ startNextLevel 是青雲梯／考試用來攔截「玩家過關了」的那一支。
+        //   遊戲自己呼叫它，等於在非過關的情境下通報「這一關過了」。
+        //
+        //   2026-09-11 由 39 款全掃找出唯一一個違規者：`game2`「飛花令」
+        //   在「關卡模式選不到詩」時寫著 `this.startNextLevel(); // 遞增跳過`。
+        //   game2 目前不在 GAME_CHANNELS 所以還沒出事，但只要哪天納入課程，
+        //   選不到詩就會變成「玩家一題沒玩、局數 +1、站點往前推進」，
+        //   而且完全不會報錯。正確作法是發出「載入詩詞失敗」，
+        //   交給 launchGame 既有的安全網自動改派另一款遊戲。
+        //
+        //   唯一合法的呼叫點是結算彈窗，而結算彈窗已經收口到
+        //   FMGame.advance ——所以遊戲檔內應該一處 this.startNextLevel() 都沒有。
+        always(allIndexOf(srcNC, 'this.startNextLevel()').length === 0,
+            '沒有自行呼叫 this.startNextLevel()（只有 FMGame.advance 可以）',
+            'startNextLevel 是青雲梯／考試攔截「過關」的掛鉤點。'
+            + '在非過關的情境呼叫它（例如選詩失敗時「遞增跳過」），'
+            + '等於通報玩家過關了：局數 +1、站點往前推進，而且不會報錯。'
+            + '出不了題請改成 alert(\'載入詩詞失敗，請重試。\') + stopGame()，'
+            + '讓 learningPath.launchGame 的安全網自動改派其他遊戲。');
+
         const ocb = onConfirmBody(src);
         if (ocb) {
-            must(ocb.indexOf('startNextLevel()') >= 0, '過關結算（onConfirm）走 startNextLevel()',
-                '關卡模式下過關必須呼叫 this.startNextLevel()，不可以直接 startNewGame()');
+            always(/window\.FMGame\.advance\(\s*this\s*,\s*(win|true)\s*\)/.test(stripComments(ocb)),
+                '過關結算（onConfirm）委由 FMGame.advance(this, win)',
+                '結算按鈕的分支判斷 39 款共用同一份（gameContract.js）。'
+                + '自己寫一份的風險在 game15／17／19 身上實際發生過：'
+                + '三款都在這裡直接 currentLevelIndex++，青雲梯攔不到。');
         }
 
         // (c) 選詩必須把關卡編號當種子傳進去，否則跨遊戲共用關卡表整組失效。
@@ -421,14 +510,44 @@ function verifyGames() {
                     + '這正是 21／23／36 被放進 REVIEW_ONLY_GAMES 的原因'));
 
         // (d) 通關紀錄：不記錄就永遠推不動青雲梯的進度
-        must(src.indexOf('ScoreManager.completeLevel(') >= 0,
-            '過關時呼叫 ScoreManager.completeLevel()',
+        //     2026-09-11 起一律走 FMGame.completeLevel（gameContract.js），
+        //     並且對 39 款都是 ❌ —— game7 原本整款漏記，關卡模式贏了也不算，
+        //     將來要納入課程時會整款白打，而且不會有任何錯誤訊息。
+        always(/window\.FMGame\.completeLevel\(/.test(srcNC),
+            '過關時呼叫 FMGame.completeLevel()（共同契約）',
             '青雲梯的站點進度完全由 levelCleared 推導，沒記錄等於這一局白打');
-        const cl = src.match(/completeLevel\(\s*'([^']+)'\s*,/);
+        const cl = srcNC.match(/completeLevel\(\s*'([^']+)'\s*,/);
         if (cl) {
-            must(cl[1] === key, "completeLevel 的 gameKey 是 '" + key + "'",
+            always(cl[1] === key, "completeLevel 的 gameKey 是 '" + key + "'",
                 '實際傳的是 ' + cl[1] + '，通關紀錄會記到別款遊戲頭上');
         }
+
+        // ── 1.6-(e) 禁用指紋：遊戲不得自行發動全站層級的動作 ────────────
+        //
+        // 2026-09-11 玩家回報：「考試中途某一題突然跳出難度選單，考試就沒了、
+        // 報名費白花」。根因是 game13「人事時地」的開局流程裡有一行
+        // `MenuManager.closeAll()` —— 39 款裡唯一這樣寫的。
+        // 全域清理會呼叫 `ExamEngine.forceStop()`，考試抽到它出題時，
+        // 等於在開局那一刻把自己這場考試殺掉。
+        //
+        // ⚠️⚠️ 當初的補丁只驗**八款考試遊戲**的**開局函式**（見第 10.13 節）。
+        //    那是兩重不夠：
+        //      ① 另外 31 款雖然不會被考試派出，**卻會被課程局派出** ——
+        //         同一行寫在它們身上，毀掉的是課程局與離場守門。
+        //      ② 同一行寫在開局以外的地方（例如結算、暫停、返回鈕）一樣會炸。
+        //    作者指示「其餘 32 款的開局流程沒驗，必須驗」，因此這裡改為
+        //    **39 款 × 整個檔案**全驗，禁用清單以 gameContract.js 為唯一來源。
+        //
+        // 要離開遊戲一律改呼叫 FMGame.exit()：它會先問「現在有沒有課程／考試
+        // 在進行」，有的話交給青雲梯跳確認彈窗，講清楚會損失什麼才離開。
+        (CONTRACT ? CONTRACT.FORBIDDEN_IN_GAMES : []).forEach(rule => {
+            always(!rule.re.test(srcNC), '沒有自行呼叫 ' + rule.why,
+                '這是全站層級的動作，青雲梯與考試完全無從得知：'
+                + '進行中的考試會被 ExamEngine.forceStop() 靜默殺掉（報名費白花）、'
+                + '課程局不會被記成失敗、離場守門也不會解鎖。'
+                + '要離開請改呼叫 FMGame.exit()（gameContract.js）。'
+                + '　← 2026-09-11 game13 實測災情');
+        });
 
         // ── 1.7 課程遊戲專屬 ────────────────────────────────────────────
         if (lv === '課程') {
@@ -2259,8 +2378,45 @@ function verifyExam() {
         check(r.feePaid === 0 && !(r.ledger || []).some(e => e.source === 'exam_fee'),
             '模擬考', '模擬考不收報名費',
             '流水帳出現 exam_fee：' + JSON.stringify((r.ledger || []).filter(e => e.source === 'exam_fee')));
-        check(EC.canAttemptToday(CS.load(), 'mock', rank) === false, '模擬考',
-            '模擬考一天只能考一次（已用過）', '每日限制沒有生效');
+        // ── 每日次數（作者 2026-09-11 定案：正式不限／模擬 5 次／越級 5 次）──
+        const mockLimit = EC.dailyLimit('mock');
+        check(mockLimit === 5, '模擬考', '模擬考每日上限為 5 次',
+            '目前設定為 ' + mockLimit + '，與定案不符');
+        check(EC.canAttemptToday(CS.load(), 'mock', rank) === true, '模擬考',
+            '考過一次之後今天還能再考（沒有被舊的「一天一次」擋住）',
+            '每日次數沒有改成計次制');
+        check(EC.remainingToday(CS.load(), 'mock', rank) === mockLimit - 1, '模擬考',
+            '考一次之後剩餘次數正確遞減',
+            '剩餘 ' + EC.remainingToday(CS.load(), 'mock', rank) + '，應為 ' + (mockLimit - 1));
+        (function () {
+            // 用光額度：必須剛好在第 mockLimit 次之後才擋下來
+            const c = CS.load();
+            for (let i = 1; i < mockLimit; i++) EC.markAttemptToday(c, 'mock', rank);
+            CS.save(c);
+            check(EC.remainingToday(CS.load(), 'mock', rank) === 0
+                && EC.canAttemptToday(CS.load(), 'mock', rank) === false, '模擬考',
+                '模擬考用滿 ' + mockLimit + ' 次之後今天不能再考',
+                '剩餘 ' + EC.remainingToday(CS.load(), 'mock', rank));
+            // 正式考不受每日次數限制（節流只有文錢）
+            check(EC.dailyLimit('real') === 0
+                && EC.canAttemptToday(CS.load(), 'real', rank) === true, '正式考',
+                '正式考不限每日次數', '正式考被加上了每日上限');
+            check(EC.dailyLimit('skip') === 5, '越級考', '越級考試每日上限為 5 次',
+                '目前設定為 ' + EC.dailyLimit('skip'));
+            // 舊存檔相容：一天一次時代存的是日期字串，應視為「今天已考 1 次」
+            const c2 = CS.load();
+            c2.examDaily.mock[rank] = EC.today();          // 舊格式
+            CS.save(c2);
+            check(EC.remainingToday(CS.load(), 'mock', rank) === mockLimit - 1, '模擬考',
+                '舊存檔（日期字串）相容：視為今天已考 1 次',
+                '實際剩餘 ' + EC.remainingToday(CS.load(), 'mock', rank));
+            const c3 = CS.load();
+            c3.examDaily.mock[rank] = '2000-01-01';        // 舊格式、但不是今天
+            CS.save(c3);
+            check(EC.remainingToday(CS.load(), 'mock', rank) === mockLimit, '模擬考',
+                '舊存檔若不是今天，額度完整回復',
+                '實際剩餘 ' + EC.remainingToday(CS.load(), 'mock', rank));
+        })();
     })();
 
     // 5.11 越級考試：必須依序，不能跳場（完整的端到端驗收在劇本 H）
@@ -2731,6 +2887,112 @@ function verifyExamAbuse() {
             }
         }
 
+        // ── 10.13 遊戲的啟動流程不得觸發全域清理（考試會被自己殺掉）──────
+        //
+        // 2026-09-11 玩家回報：「考試中途某一題突然跳出難度選單，考試就沒了、
+        // 報名費白花」。根因是 game13「人事時地」的 showDifficultySelector()
+        // 裡有一行 `MenuManager.closeAll()`（40 款裡唯一這樣寫的），
+        // 而全域清理會呼叫 `ExamEngine.forceStop()` —— 考試抽到它出題時，
+        // 等於在開局那一刻把自己這場考試殺掉；沙箱被拆、DS.show 還原之後，
+        // 下一行的難度選擇器就變成**真的**難度選單彈到玩家臉上。
+        //
+        // ⚠️ 這條用「原始碼指紋」驗，不靠跑起來 —— 因為亂序模擬把遊戲的
+        //    show() 換成了替身，**剛好跳過引發 bug 的那一行**，跑再多次也抓不到。
+        //    這正是當初漏掉它的原因，記在這裡免得重蹈覆轍。
+        //
+        // ⚠️⚠️ 2026-09-11 第二次修正：掃描本體已移到 **第 1.6-(e) 節**，
+        //    範圍由「八款考試遊戲的開局函式」擴大為「39 款 × 整個檔案」。
+        //    舊版的兩個漏洞：
+        //      ① 只驗八款考試遊戲。另外 31 款不會被考試派出，
+        //         但**會被課程局派出** —— 同一行寫在它們身上，
+        //         毀掉的是課程局與離場守門，一樣是玩家的損失。
+        //      ② 只驗開局函式。同一行寫在結算、暫停、返回鈕一樣會炸。
+        //
+        // 這裡改為守住「那份禁用清單本身不可以被掏空」——
+        // 否則有人把 FORBIDDEN_IN_GAMES 清空，1.6-(e) 就會變成永遠通過的空檢查，
+        // 而且不會有任何測試變紅（這種「檢查被靜靜廢掉」比 bug 本身更難發現）。
+        {
+            const FG = global.FMGame;
+            const list = (FG && FG.FORBIDDEN_IN_GAMES) || [];
+            check(list.length > 0, '破壞性',
+                'gameContract.js 的遊戲禁用清單不是空的',
+                '清單一空，第 1.6-(e) 節對 39 款的掃描就變成永遠通過的空檢查');
+            // 用一段假的遊戲原始碼反過來驗「這份清單真的攔得住 game13 那一行」
+            const bait = "showDifficultySelector: function () { MenuManager.closeAll(); }";
+            check(list.some(r => r.re.test(bait)), '破壞性',
+                '禁用清單仍攔得住 game13 那一行（MenuManager.closeAll）',
+                '清單還在，但已經攔不住當初造成「考試中途跳出難度選單、'
+                + '報名費白花」的那一行了');
+            const baitHome = "onBack: function () { FMGoHome(); }";
+            check(list.some(r => r.re.test(baitHome)), '破壞性',
+                '禁用清單仍攔得住遊戲自行回首頁（FMGoHome）',
+                '遊戲自己回首頁，進行中的考試會被靜默清掉、離場守門也不會解鎖');
+        }
+
+        // ── 10.14 派題當下不接受外部中止（_launching 守衛）────────────────
+        {
+            seedAt(EXAM_ST);
+            LP.startExam(stName, 'real');
+            enter();
+            EE._launching = true;
+            EE.forceStop();                       // 模擬遊戲開局途中觸發全域清理
+            const survived = EE.isBusy();
+            EE._launching = false;
+            check(survived, '破壞性',
+                '考試派題當下不會被全域清理殺掉',
+                '只要有任何一款遊戲在自己的 show() 裡觸發全域清理，'
+                + '考試就會在開局那一刻自盡（見 10.13）');
+            EE.forceStop();
+            check(!EE.isBusy(), '破壞性',
+                '派題結束後全域清理照常生效',
+                '_launching 沒有還原，考試從此殺不掉、漢堡選單也永遠解不開');
+            clearEngine();
+        }
+
+        // ── 10.15 離場守門：進行中必鎖選單、結束後必須解鎖 ────────────────
+        //
+        // ⚠️ 這一條的下半段（結束後必須解鎖）比上半段更重要：
+        //    鎖住選單卻忘了解鎖，玩家會永遠回不了首頁 —— 比原本的 bug 更嚴重。
+        {
+            const realMM = global.MenuManager;
+            let locked = null;
+            global.MenuManager = { setNavLocked: function (v) { locked = !!v; } };
+            try {
+                seedAt(EXAM_ST);
+                LP.updateSessionGuard();
+                check(locked === false, '破壞性', '地圖上不鎖漢堡選單', '玩家在地圖上被鎖住了');
+
+                LP.startExam(stName, 'real');
+                check(locked === true, '破壞性', '考試一開始就鎖住漢堡選單',
+                    '玩家可以從選單切走，考試會被靜默中止且報名費不退');
+                enter();
+                check(locked === true, '破壞性', '入場作答期間維持鎖定', '');
+
+                EE._aborted = true; EE._finish();
+                check(locked === false, '破壞性', '考試結束後解除鎖定',
+                    '⚠️ 漢堡選單沒還回去＝玩家永遠回不了首頁，比原本的 bug 更嚴重');
+                clearEngine();
+
+                // forceStop 這條路也必須解鎖
+                seedAt(EXAM_ST);
+                LP.startExam(stName, 'real');
+                enter();
+                EE.forceStop();
+                check(locked === false, '破壞性', 'forceStop 收掉考試後也會解除鎖定', '');
+                clearEngine();
+
+                // 課程局：由 _pendingUnit 推導
+                LP._pendingUnit = { tier: '中學', level: 1, playsBefore: 0 };
+                LP.updateSessionGuard();
+                check(locked === true, '破壞性', '課程局進行中鎖住漢堡選單', '');
+                LP._pendingUnit = null;
+                LP.updateSessionGuard();
+                check(locked === false, '破壞性', '課程局結束後解除鎖定', '');
+            } finally {
+                global.MenuManager = realMM;
+            }
+        }
+
         // ── 10.10 考試流水帳必須有上限 ────────────────────────────────
         {
             seedAt(EXAM_ST);
@@ -2852,6 +3114,14 @@ function verifyChaos() {
         G.stopGame = function () { this.__chaosOpen = false; };
     });
 
+    // 假的 MenuManager：記錄「漢堡選單有沒有被鎖住」供不變式 ⑨-2 比對。
+    // Node 載不動 menu.js（它在模組層就抓 DOM），因此這裡自備一個替身。
+    const GUARD = { locked: null };
+    const savedMenuManager = global.MenuManager;
+    global.MenuManager = Object.assign({}, savedMenuManager, {
+        setNavLocked: function (v) { GUARD.locked = !!v; }
+    });
+
     const savedLP = {
         celeb: LP.playPromotionCelebration, scroll: LP.scrollToCurrent,
         popup: LP.showPromotionPopup, queue: LP.showPromotionQueue,
@@ -2957,6 +3227,22 @@ function verifyChaos() {
             if (EE.start({ rankName: EE._plan && EE._plan.examId, mode: 'mock' }) !== false
                 || EE._mode !== mode0) {
                 bad.push('考試進行中竟然可以再開一場');
+            }
+        }
+
+        // ⑨-2 離場守門：課程／考試進行中必須鎖住漢堡選單；否則必須解鎖。
+        //
+        // ⚠️ 這條是 2026-09-11 玩家回報「考試中途從選單切走 → 考試被靜默中止、
+        //    報名費白花」之後補的。舊版的不變式全都在檢查「程式有沒有壞」
+        //    （沙箱、全域函式、旗標），沒有一條在檢查「**玩家的權益有沒有被
+        //    默默拿走**」—— 那次就是這樣漏掉的。
+        //    下半段（沒在進行時必須解鎖）同樣重要：鎖住卻沒還，玩家會永遠
+        //    回不了首頁，比原本的 bug 更嚴重。
+        {
+            const shouldLock = examOn || !!LP._pendingUnit;
+            if (GUARD.locked !== null && GUARD.locked !== shouldLock) {
+                bad.push('離場守門狀態不對：漢堡選單 ' + (GUARD.locked ? '鎖著' : '沒鎖')
+                    + '，但目前' + (shouldLock ? '有課程／考試進行中（應鎖）' : '沒有任何進行中的局（應解鎖）'));
             }
         }
 
@@ -3105,6 +3391,7 @@ function verifyChaos() {
         LP._pendingUnit = null; LP._currentStation = null; LP._reviewMode = false;
         LP._stationIdxAtLaunch = -1; LP._examPrompted = null; LP._navLockedGameNo = null;
         LP._recent = []; LP._lastGame = null; LP._sameGameStreak = 0;
+        GUARD.locked = null;
         SM.setReviewMode(false);
         // 種子之間不得互相污染：上一個種子若停在「情境還鎖著」的狀態，
         // 下一個種子一開場就會踩到別人留下的殘局（實測發生過）。
@@ -3185,6 +3472,7 @@ function verifyChaos() {
         EE.forceStop();
         LP.stopGame();
         SM.setReviewMode(false);
+        global.MenuManager = savedMenuManager;
         env.resetSave();
     }
 }

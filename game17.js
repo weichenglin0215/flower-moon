@@ -256,6 +256,17 @@
         },
 
         // ── 開新局 ───────────────────────────────────────────────
+        // ── 關卡模式過關後推進下一關 ──────────────────────────────────
+        // ⚠️ 必須獨立成一支具名函式：青雲梯（learningPath.js launchGame）會在
+        //    派局前暫時覆寫它，好在每一關結束後收回控制權重新挑題、挑遊戲。
+        //    2026-09-11 補上 —— 這一款原本把 `currentLevelIndex++` 直接寫死在
+        //    gameOver 的 onConfirm 裡，青雲梯攔不到，一被派出就會自己一路打
+        //    下去（game16「打地詩」連出四局同一首詩就是這個 bug，
+        //    見「青雲梯遊戲接入規範與已知錯誤」§4 №1）。
+        startNextLevel: function () {
+            window.FMGame.nextLevel(this);
+        },
+
         startNewGame: function () {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.updateUIForMode();
@@ -1780,15 +1791,10 @@
             }
 
             const onConfirm = () => {
-                if (win && this.isLevelMode) {
-                    this.currentLevelIndex++;
-                    this.updateUIForMode();
-                    this.startNewGame();
-                } else if (win) {
-                    this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMsg = (finalScore) => {
@@ -1805,7 +1811,7 @@
 
             const showAfterAch = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game17', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game17', this);
                     if (achId && window.AchievementDialog) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game17', this.currentLevelIndex, () => showMsg(finalScore));
                         return;

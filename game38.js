@@ -321,8 +321,7 @@
         },
 
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         /**
@@ -852,9 +851,10 @@
             }
 
             const onConfirm = () => {
-                if (!win) { this.retryGame(); return; }
-                if (this.isLevelMode) this.startNextLevel();
-                else this.startNewGame();
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -872,7 +872,7 @@
             // 關卡挑戰過關：登錄通關紀錄，若因此解鎖成就則先跳成就彈窗再顯示結算
             const recordLevelAndShow = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game38', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game38', this);
                     if (achId && window.AchievementDialog && window.AchievementDialog.showInstantAchievementPop) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game38', this.currentLevelIndex, () => showMessage(finalScore));
                         return;

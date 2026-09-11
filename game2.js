@@ -342,8 +342,20 @@
                 this.startTimer();
             } else {
                 if (this.isLevelMode) {
-                    console.log("[Game2] 關卡模式選詩失敗，嘗試放寬關鍵字或跳過");
-                    this.startNextLevel(); // 遞增跳過
+                    // ⚠️⚠️ 2026-09-11 修正。舊版這裡是
+                    //        this.startNextLevel();   // 遞增跳過
+                    //    那是 39 款裡**唯一**一處在「非過關」情境呼叫
+                    //    startNextLevel() —— 而 startNextLevel 正是青雲梯與考試
+                    //    用來攔截「玩家過關了」的那一支函式（learningPath.js 的
+                    //    launchGame 會把它暫時換成 advanceAfterWin）。
+                    //    只要 game2 被納入課程，選不到詩就等於直接通報
+                    //    「這一關過了」：玩家一題都沒玩，局數卻 +1、站點還往前推進，
+                    //    而且不會有任何錯誤訊息。
+                    //    改為與其餘 38 款一致 —— 發出「載入詩詞失敗」，
+                    //    交給 launchGame 的安全網接手自動改派另一款遊戲。
+                    console.warn('[Game2] 關卡模式選詩失敗，交由青雲梯改派其他遊戲');
+                    alert('載入詩詞失敗，請重試。');
+                    this.stopGame();
                     return;
                 }
                 alert(`找不到包含「${this.selectedKeyword}」且符合進度的詩詞，請換個主字試試。`);
@@ -356,8 +368,7 @@
 
         // 前進到下一關：關卡序號加一後直接開始新的一局。
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
 
@@ -788,12 +799,10 @@
             //this.renderQuestion();
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = () => {
@@ -809,7 +818,7 @@
             };
 
             if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game2', this.difficulty, this.currentLevelIndex);
+                const achId = window.FMGame.completeLevel('game2', this);
                 if (achId && window.AchievementDialog) {
                     window.AchievementDialog.showInstantAchievementPop(achId, 'game2', this.currentLevelIndex, showMessage);
                 } else {

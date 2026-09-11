@@ -268,8 +268,7 @@
 
         // 進入下一關：關卡索引 +1 並重新開始遊戲
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // 準備本次挑戰：抽取符合難度條件的詩詞，並將詩詞文字隨機分配到網格各格子
@@ -690,12 +689,10 @@
             }
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -711,7 +708,7 @@
             };
 
             if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game11', this.difficulty, this.currentLevelIndex);
+                const achId = window.FMGame.completeLevel('game11', this);
                 if (achId && window.AchievementDialog) {
                     window.AchievementDialog.showInstantAchievementPop(achId, 'game11', this.currentLevelIndex, () => showMessage(reason));
                 } else {

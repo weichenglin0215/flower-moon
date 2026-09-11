@@ -178,6 +178,47 @@
     //    要改金額改這一個數字即可。
     const SKIP_FEE_MULTIPLIER = 2;
 
+    /* ========================================================================
+     *  ⭐ 文位考的報名費（全站唯一一份）
+     *  ------------------------------------------------------------------
+     *  ⚠️ 2026-09-11 從 `collection.js` 搬來這裡。
+     *     原本這張表住在江南小院，因為報名手續辦在「考棚」；
+     *     考棚取消、考試一律改由青雲梯就地進入之後，
+     *     費用表留在小院等於讓「規則」寄生在「場景」裡——
+     *     小院只要改版就可能把報名費一起弄壞，而且
+     *     `learningPath.getExamFee()` 是透過 `CollectionDialog.getExamFee()`
+     *     轉呼叫的，小院一旦沒載入，報名費會**靜靜地變成 0**
+     *     （fallback `return 0`），所有考試變免費且不會有任何錯誤訊息。
+     *     規則層（本檔）才是它該待的地方。
+     *
+     *  舊版問題：進士～狀元全部卡在 10000 不再成長，但玩家在研究所階段
+     *  的文錢收入是小學的 15 倍，等於後期考試形同免費、失去份量。
+     *  ⚠️ 塾生／童生是 2026-08-28 考試門檻前移後新增的兩個應試文位。
+     *     金額沿用「逐級加倍」的節奏往回推（縣案首 300 → 童生 150 → 塾生 75），
+     *     刻意壓得很低：這兩場的定位是「讓新手先熟悉考試流程」的教學局。
+     * ===================================================================== */
+    const EXAM_FEES = {
+        '塾生': 75, '童生': 150,
+        '縣案首': 300, '府案首': 600, '文童': 1200, '秀才': 2400,
+        '舉人': 4800, '貢士': 7200,
+        '進士': 14400, '探花': 28800, '榜眼': 57600,
+        '狀元': 115200, '大儒': 230400
+    };
+
+    /* ========================================================================
+     *  ⭐ 每日應試次數上限（作者 2026-09-11 定案）
+     *  ------------------------------------------------------------------
+     *    real  正式考   不限次數 —— 節流機制只有「文錢」，考越多次越貴
+     *    mock  模擬考   每日 5 次 —— 免費，但不能無限刷，否則等於直接看考卷
+     *    skip  越級考   每日 5 次 —— 要收 2 倍報名費，次數限制是第二道閘
+     *
+     *  ⚠️ 0 代表「不限次數」，不是「不能考」。
+     *  ⚠️ 次數是**逐場**計算的（以站名為鍵），不是全域共用：
+     *     玩家同一天在不同文位各考 5 次是允許的，
+     *     限制的是「同一場考試反覆刷」。
+     * ===================================================================== */
+    const EXAM_DAILY_LIMITS = { real: 0, mock: 5, skip: 5 };
+
     const FMExamConfig = {
 
         EXAM_GAMES: EXAM_GAMES,
@@ -451,8 +492,14 @@
         },
 
         /* ====================================================================
-         *  一天一次的節流
+         *  每日應試次數的節流
+         *
+         *  ⚠️ 2026-09-11 由「一天一次」改為「一天 N 次」（見 EXAM_DAILY_LIMITS）。
+         *     存檔格式同步從「日期字串」改為 `{ d: 日期, n: 次數 }`；
+         *     舊存檔（字串）一律視為「那天考過 1 次」，見 _slotOf()。
          * ================================================================= */
+
+        EXAM_DAILY_LIMITS: EXAM_DAILY_LIMITS,
 
         /** 今天的日期字串（Asia/Taipei，與雲端彙總表的分日一致） */
         today: function () {
@@ -463,6 +510,39 @@
                 String(d.getDate()).padStart(2, '0');
         },
 
+        /** 這一場考試今天的上限（0 = 不限次數） */
+        dailyLimit: function (key) {
+            const n = EXAM_DAILY_LIMITS[key];
+            return (typeof n === 'number') ? n : 0;
+        },
+
+        /**
+         * 讀出某一場考試「今天已經考了幾次」。
+         *
+         * ⚠️ 相容兩種格式：
+         *    舊（一天一次時代）：`slot[rankName] = '2026-09-10'`（字串）
+         *    新：                `slot[rankName] = { d: '2026-09-10', n: 3 }`
+         *    舊格式若日期就是今天，視為已考 1 次；不是今天則視為 0 次。
+         */
+        _attemptsToday: function (coll, key, rankName) {
+            const slot = ((coll && coll.examDaily) || {})[key] || {};
+            const rec = slot[rankName];
+            if (!rec) return 0;
+            if (typeof rec === 'string') return (rec === this.today()) ? 1 : 0;
+            if (rec.d !== this.today()) return 0;
+            return Math.max(0, parseInt(rec.n, 10) || 0);
+        },
+
+        /**
+         * 今天還剩幾次可以考。
+         * @returns {number} 不限次數時回傳 Infinity
+         */
+        remainingToday: function (coll, key, rankName) {
+            const limit = this.dailyLimit(key);
+            if (limit <= 0) return Infinity;
+            return Math.max(0, limit - this._attemptsToday(coll, key, rankName));
+        },
+
         /**
          * 今天是否還能考。
          * @param {object} coll  FMCollectionSave.load() 的存檔
@@ -470,18 +550,24 @@
          * @param {string} rankName
          */
         canAttemptToday: function (coll, key, rankName) {
-            const log = (coll && coll.examDaily) || {};
-            const slot = log[key] || {};
-            return slot[rankName] !== this.today();
+            return this.remainingToday(coll, key, rankName) > 0;
         },
 
-        /** 記下今天已經考過（呼叫端負責 save） */
+        /** 記下今天又考了一次（呼叫端負責 save） */
         markAttemptToday: function (coll, key, rankName) {
             if (!coll) return;
             if (!coll.examDaily) coll.examDaily = {};
             if (!coll.examDaily[key]) coll.examDaily[key] = {};
-            coll.examDaily[key][rankName] = this.today();
-        }
+            const used = this._attemptsToday(coll, key, rankName);
+            coll.examDaily[key][rankName] = { d: this.today(), n: used + 1 };
+        },
+
+        /** 報名費（全站唯一來源；小考免費由 LearningPath.getExamFee 處理） */
+        getExamFee: function (rankName) {
+            return EXAM_FEES[rankName] || 0;
+        },
+
+        EXAM_FEES: EXAM_FEES
     };
 
     if (typeof window !== 'undefined') window.FMExamConfig = FMExamConfig;

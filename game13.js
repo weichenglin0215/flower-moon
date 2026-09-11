@@ -144,8 +144,16 @@
             clearInterval(this.timerInterval);
             if (window.GameMessage) window.GameMessage.hide();
 
-            if (window.MenuManager) window.MenuManager.closeAll();
-
+            // ⚠️⚠️ 這裡原本有一行 `window.MenuManager.closeAll()`，2026-09-11 移除。
+            //    40 款遊戲裡只有本檔這樣做，而它會呼叫 menu.js 的
+            //    closeAllActiveOverlays()——那是「玩家切換頁面」的全域清理，
+            //    會關掉所有遊戲與青雲梯、並中止進行中的考試（ExamEngine.forceStop）。
+            //    後果：考試抽到本遊戲出題時，開局當下就把自己那場考試殺掉，
+            //    沙箱被拆、DS.show 還原，於是下一行的難度選擇器變成**真的**
+            //    難度選單彈到玩家面前——玩家看到的是「考到一半突然跳出難度
+            //    選單，考試就沒了，報名費白花」（實測可穩定重現）。
+            //    關掉別的遊戲本來就由 learningPath.launchGame 與
+            //    menu.js 的切頁流程負責，這一行既多餘又有害。
             if (window.DifficultySelector) {
                 window.DifficultySelector.show('人事時地', (selectedLevel, levelIndex) => {
                     this.difficulty = selectedLevel;
@@ -187,8 +195,7 @@
         // ⚠️ 青雲梯會在 launchGame() 時暫時覆寫本方法，改由它決定
         //    下一關要玩哪一題、哪一款遊戲（企畫書第十章 遊戲切換規則）。
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         startNewGame: function () {
@@ -916,22 +923,12 @@
             }
 
             const onConfirm = () => {
-                // 恢復按鈕狀態
                 document.getElementById('game13-retryGame-btn').disabled = false;
                 document.getElementById('game13-newGame-btn').disabled = false;
-
-                if (win) {
-                    if (this.isLevelMode) {
-                        // ⚠️ 一律走 startNextLevel()，不要在這裡直接 ++。
-                        //    青雲梯會覆寫這個方法以收回關卡推進的控制權
-                        //    （見 learningPath.js advanceAfterWin）。
-                        this.startNextLevel();
-                    } else {
-                        this.startNewGame();
-                    }
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = () => {
@@ -957,7 +954,7 @@
                     onComplete: (finalScore) => {
                         this.score = finalScore;
                         if (this.isLevelMode) {
-                            const achId = window.ScoreManager.completeLevel('game13', this.difficulty, this.currentLevelIndex);
+                            const achId = window.FMGame.completeLevel('game13', this);
                             if (achId && window.AchievementDialog) {
                                 window.AchievementDialog.showInstantAchievementPop(achId, 'game13', this.currentLevelIndex, showMessage);
                             } else {

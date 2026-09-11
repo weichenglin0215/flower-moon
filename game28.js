@@ -296,8 +296,7 @@
 
         // ── 關卡挑戰模式：進入下一關（關卡索引 +1 後重新開局） ──
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // 透過 isRetry 控制是否重新生成詩或維持上一局
@@ -1362,12 +1361,10 @@
             }
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -1384,7 +1381,7 @@
 
             const checkAchievementsAndShow = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game28', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game28', this);
                     if (achId && window.AchievementDialog) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game28', this.currentLevelIndex, () => showMessage(finalScore));
                     } else {

@@ -32,6 +32,8 @@
     const FLIP_STEP_MS = 150;    // 逐格翻牌間隔
 
     const Game36 = {
+        // 重來時沿用同一句目標（見 retryGame / _pickTarget）
+        _keepTarget: false,
         isActive: false,
         difficulty: '小學',
         currentLevelIndex: 1,
@@ -332,14 +334,34 @@
             }
         },
 
+        /**
+         * 重來 —— 保留同一句目標重新開局（與其餘 38 款語意一致）。
+         *
+         * ⚠️ 2026-09-11 補上。本作沒有失敗條件，畫面上也沒有「重來」按鈕，
+         *    但契約要求 39 款一律具備同名同義的 retryGame()：
+         *    青雲梯與考試是以「每一款都長一樣」為前提在接管遊戲的，
+         *    少一支就是一個必須特判的例外。
+         */
+        retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
+            if (!this.targetLine) { this.startNewGame(); return; }
+            this._keepTarget = true;
+            try { this.startNewGame(); } finally { this._keepTarget = false; }
+        },
+
         // ── 進入下一關（關卡模式）：關卡序號 +1 後重新開局 ──
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // ── 挑選目標詩句（等長 + 評分達標 + 孤立字數限制；關卡模式以序號確定性挑選）──
         _pickTarget: function () {
+            // 重來（retryGame）：沿用上一局的目標句，不重新抽題。
+            if (this._keepTarget && this.targetLine) {
+                this.N = this.targetLine.length;
+                this.targetChars = this.targetLine.split('');
+                return true;
+            }
             if (typeof POEMS === 'undefined' || !POEMS.length) return false;
             const s = this.settings;
             const lens = s.wordLens;
@@ -661,7 +683,7 @@
                         if (window.SoundManager.playSuccess) window.SoundManager.playSuccess();
                     }
                 }
-                if (winThis) this._win();
+                if (winThis) this.gameOver(true, '');
             }, GRID_COLS * FLIP_STEP_MS + 260);
         },
 
@@ -913,8 +935,18 @@
         // ========================================================
         // 勝利
         // ========================================================
-        // ── 猜中勝利：停用遊戲、揭曉詩詞資訊、播放得分動畫，動畫結束後進入 _gameOver ──
-        _win: function () {
+        /**
+         * 判定勝負 —— 全 39 款遊戲統一的結算入口（契約見 gameContract.js）。
+         *
+         * ⚠️ 本作沒有失敗條件：時間到只是停止時間加成，不會結束遊戲，
+         *    因此 win 恆為 true、reason 恆為空字串。
+         *    參數仍與其餘 38 款保持一致 —— 青雲梯、考試與共用工具
+         *    是以「所有遊戲都長一樣」為前提在呼叫的，少一個參數就是一個例外，
+         *    而例外正是 game13 那類災情的來源。
+         *
+         * 2026-09-11 由 _win() 更名（原本是私有函式，物件上看不出結算入口）。
+         */
+        gameOver: function (win, reason) {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
             this._showPoemInfo(true);
@@ -928,16 +960,22 @@
                     timerContainerId: 'game36-grid-viewport',
                     scoreElementId: 'game36-score',
                     heartsSelector: '#game36-no-hearts',   // 本作無紅心，選不到 → 直接跳過紅心加成
-                    onComplete: (finalScore) => { this.score = finalScore; this._gameOver(); }
+                    onComplete: (finalScore) => { this.score = finalScore; this._showResult(); }
                 });
             } else {
-                this._gameOver();
+                this._showResult();
             }
         },
 
-        // ── 遊戲結束收尾：關卡模式先結算成就與解鎖，再顯示勝利訊息彈窗（依模式提供「下一關」或「下一局」按鈕）──
-        _gameOver: function () {
+        // ── 結算收尾：關卡模式先結算成就與解鎖，再顯示勝利訊息彈窗（依模式提供「下一關」或「下一局」按鈕）──
+        _showResult: function () {
             document.getElementById('game36-newGame-btn').disabled = false;
+            const onConfirm = () => {
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。本作沒有失敗條件，
+                //    走到這裡必定是過關，因此 win 固定傳 true。
+                window.FMGame.advance(this, true);
+            };
+
             const showMessage = () => {
                 if (window.GameMessage) {
                     window.GameMessage.show({
@@ -945,15 +983,12 @@
                         score: this.score,
                         reason: '',
                         btnText: this.isLevelMode ? '下一關' : '下一局',
-                        onConfirm: () => {
-                            if (this.isLevelMode) this.startNextLevel();
-                            else this.startNewGame();
-                        }
+                        onConfirm: onConfirm
                     });
                 }
             };
             if (this.isLevelMode && window.ScoreManager) {
-                const achId = window.ScoreManager.completeLevel('game36', this.difficulty, this.currentLevelIndex);
+                const achId = window.FMGame.completeLevel('game36', this);
                 if (achId && window.AchievementDialog) {
                     window.AchievementDialog.showInstantAchievementPop(achId, 'game36', this.currentLevelIndex, showMessage);
                 } else {

@@ -1490,7 +1490,11 @@
             wrap.id = 'achExamCtaWrap';
             wrap.style.cssText = 'margin-top:10px;display:flex;flex-direction:column;align-items:center;gap:6px;';
 
-            // 已具應試資格但未考 → 引導到江南小院考棚
+            // 已具應試資格但未考 → 直接開考
+            // ⚠️ 2026-09-11 改版：江南小院的「考棚」已移除，考試入口統一由
+            //    青雲梯負責。舊版是「關成就殿堂 → 開江南小院 → 350ms 後
+            //    呼叫 openExam()」，那支函式現在不存在，守衛會讓它靜靜失敗、
+            //    玩家被丟在江南小院什麼也沒發生。改成開青雲梯後就地開考。
             const st = stats[toExam.name] || { passCount: 0, failCount: 0 };
             const attemptNo = (st.passCount || 0) + (st.failCount || 0) + 1;
             const btn = document.createElement('button');
@@ -1500,14 +1504,12 @@
             btn.onclick = () => {
                 if (window.SoundManager) window.SoundManager.playConfirmItem();
                 this.hide();
-                if (window.CollectionDialog && window.CollectionDialog.show) {
-                    window.CollectionDialog.show();
-                }
-                setTimeout(() => {
-                    if (window.CollectionDialog && typeof window.CollectionDialog.openExam === 'function') {
-                        window.CollectionDialog.openExam();
-                    }
-                }, 350);
+                const LP = window.LearningPath;
+                if (!LP || typeof LP.startExam !== 'function') return;
+                // 先讓青雲梯顯示出來：考完之後 onDone 會把玩家留在青雲梯，
+                // 若這裡不先 show()，考完會回到一個空畫面。
+                if (typeof LP.show === 'function') LP.show();
+                setTimeout(() => LP.startExam(toExam.name, 'real'), 120);
             };
             wrap.appendChild(btn);
             if (st.failCount > 0) {

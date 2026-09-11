@@ -344,8 +344,7 @@
 
         // 挑戰模式：進入下一關（關卡索引 +1 後重新開新局）
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // 抽詩（共用 getSharedRandomPoem，種子=挑戰關卡時帶入 levelIndex）
@@ -517,7 +516,7 @@
             // 確保出生不直接與堆疊衝突
             if (this.collidesAt(brick, brick.r, brick.c, brick.cells)) {
                 // 若一出生就重疊，視為觸頂失敗
-                this.handleGameOver(false, '堆疊觸頂！');
+                this.gameOver(false, '堆疊觸頂！');
                 return brick;
             }
             this.updatePreview();
@@ -630,7 +629,7 @@
                 const cc = b.c + dc;
                 if (rr < 0) {
                     // 出生時就有格子留在棋盤外上方 → 觸頂失敗
-                    this.handleGameOver(false, '堆疊觸頂！');
+                    this.gameOver(false, '堆疊觸頂！');
                     return;
                 }
                 if (rr >= 0 && rr < this.rows && cc >= 0 && cc < this.cols) {
@@ -889,13 +888,13 @@
             setTimeout(() => { if (soul.parentNode) soul.parentNode.removeChild(soul); }, 900);
         },
 
-        // 過關動畫：進度卡逐一發金光 → 呼叫 handleGameOver(true) → ScoreManager → MessageBox
+        // 過關動畫：進度卡逐一發金光 → 呼叫 gameOver(true) → ScoreManager → MessageBox
         playWinSequence: function () {
             const cards = Array.from(document.querySelectorAll('#game27-collect-bar .game27-char-group'));
             const GAP = 180;
             cards.forEach((g, i) => setTimeout(() => g.classList.add('stage-flash'), i * GAP));
             const total = cards.length * GAP + 500;
-            setTimeout(() => this.handleGameOver(true, ''), total);
+            setTimeout(() => this.gameOver(true, ''), total);
         },
 
         advanceLine: function () {
@@ -1188,7 +1187,7 @@
                 const ratio = 1 - (elapsed / duration);
                 if (ratio <= 0) {
                     this.updateTimerRing(0);
-                    this.handleGameOver(false, '時間到！');
+                    this.gameOver(false, '時間到！');
                 } else {
                     this.updateTimerRing(ratio);
                 }
@@ -1229,7 +1228,7 @@
         },
 
         // ── 遊戲結束 ──
-        handleGameOver: function (win, reason) {
+        gameOver: function (win, reason) {
             if (!this.isActive) return;
             this.isActive = false;
             this.isWin = win;
@@ -1258,12 +1257,10 @@
             }
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -1280,7 +1277,7 @@
 
             const checkAchievementsAndShow = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game27', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game27', this);
                     if (achId && window.AchievementDialog) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game27', this.currentLevelIndex, () => showMessage(finalScore));
                     } else {

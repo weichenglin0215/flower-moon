@@ -327,8 +327,7 @@
 
         // 關卡模式過關後，關卡編號 +1 並開始下一關
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // 依難度設定的最低評分（poemMinRating）隨機挑選一首至少有兩句的詩詞，
@@ -829,12 +828,10 @@
             this.renderQuestion();
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -851,7 +848,7 @@
 
             const checkAchievementsAndShow = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game4', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game4', this);
                     if (achId && window.AchievementDialog) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game4', this.currentLevelIndex, () => showMessage(finalScore));
                     } else {

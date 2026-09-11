@@ -291,8 +291,7 @@
         },
 
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         selectRandomPoem: function () {
@@ -1088,12 +1087,10 @@
             }
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -1110,7 +1107,7 @@
 
             const checkAchievementsAndShow = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game31', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game31', this);
                     if (achId && window.AchievementDialog) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game31', this.currentLevelIndex, () => showMessage(finalScore));
                     } else {

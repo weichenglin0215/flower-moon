@@ -239,8 +239,7 @@
 
         // 進入下一關：關卡索引 +1 後開新局
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // 啟動/重啟一局遊戲的共用流程：重置分數、連擊、生命值等狀態，
@@ -746,12 +745,10 @@
             }
 
             const onConfirm = () => {
-                if (win) {
-                    if (this.isLevelMode) this.startNextLevel();
-                    else this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMessage = (finalScore) => {
@@ -768,7 +765,7 @@
 
             const checkAchievementsAndShow = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game34', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game34', this);
                     if (achId && window.AchievementDialog) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game34', this.currentLevelIndex, () => showMessage(finalScore));
                     } else {

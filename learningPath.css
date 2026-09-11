@@ -1091,3 +1091,47 @@
     border-color: hsl(35, 55%, 58%);
     box-shadow: 0 0 8px hsla(35, 60%, 55%, 0.45);
 }
+/* ══════════════════════════════════════════════════════════════════════
+   課程／考試進行中的「←（放棄）」按鈕
+   ----------------------------------------------------------------------
+   由 LearningPath.updateSessionGuard() 建立並掛進 #menuWrapper，
+   佔用與漢堡選單完全相同的位置（左上角）——因為它就是在那段期間
+   「取代」漢堡選單的東西：課程／考試進行中不讓玩家從選單切走，
+   要離開只能按這顆，而且會先跳確認彈窗說清楚會損失什麼。
+
+   ⚠️ 尺寸與定位刻意照抄 .hamburger-btn：兩者輪流出現在同一個位置，
+      大小不一致的話切換的瞬間會跳動。
+   ⚠️ 顏色改用墨藍（非硃紅）與漢堡選單區別，避免玩家以為選單還在。
+   ══════════════════════════════════════════════════════════════════════ */
+.lp-abandon-btn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 42px;
+    height: 42px;
+    max-width: 40px;
+    max-height: 40px;
+    background-color: hsla(210, 45%, 30%, 0.72);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: hsl(40, 60%, 92%);
+    font-size: 26px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 30000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.lp-abandon-btn:hover {
+    background-color: hsla(210, 45%, 30%, 0.92);
+    transform: scale(1.1);
+}
+
+.lp-abandon-btn:active {
+    transform: scale(0.9);
+}

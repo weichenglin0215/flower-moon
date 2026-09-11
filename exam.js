@@ -1,11 +1,20 @@
 /**
- * 考試（考棚）遊戲模組
+ * 考試遊戲模組（舊版四選一問答）
  * 依《青雲梯與文位晉升_總企畫書》規格。
+ *
+ * ⚠️⚠️ 2026-09-11 起本模組**已不在正式流程中**：
+ *    正式的考試引擎是 `examEngine.js`（逐題玩真的課程遊戲），
+ *    而唯一呼叫過本模組的 `collection.takeExam()` 已隨「考棚」一起移除。
+ *    保留本檔的理由只有一個：它自帶的 **Alt + E 沙箱測試熱鍵**
+ *    （只測考題本身、完全不寫入任何資料），見 index.html 的說明。
+ *    ⛔ 若要刪除本檔，請連同 index.html 的 `<script src="exam.js">`、
+ *       `exam.css` 與那個熱鍵一起移除。
  *
  * 對外 API：
  *   window.Exam.start(rank, { onPass, onFail })
- *     - rank: { name, minScore }  來自 collection.js 的 nextExamRank()
- *     - onPass / onFail: 玩家關閉結果彈窗後的回呼（用來重開江南小院）
+ *     - rank: { name }  文位名（舊版由 collection.js 的 nextExamRank() 提供，
+ *       該函式已移除；現在只剩 Alt + E 熱鍵自己組出來的物件會走到這裡）
+ *     - onPass / onFail: 玩家關閉結果彈窗後的回呼
  *
  * 規則摘要：
  *   - 連續 10 題；共用 heart（依難度而異）

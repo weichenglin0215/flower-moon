@@ -238,9 +238,7 @@
         //    本站安排的範圍，LevelTable.resolve 的候選順序是決定性的，
         //    每一關都會解析到**同一首詩的同一段**（實測連續八局都是〈山行〉）。
         startNextLevel: function () {
-            this.currentLevelIndex++;
-            this.updateUIForMode();
-            this.startNewGame();
+            window.FMGame.nextLevel(this);
         },
 
         // ── 停止遊戲（menu.js 全域清理用）──────────────────────
@@ -1045,13 +1043,10 @@
             if (grid) grid.classList.remove('game16-frenzy');
 
             const onConfirm = () => {
-                if (win && this.isLevelMode) {
-                    this.startNextLevel();
-                } else if (win) {
-                    this.startNewGame();
-                } else {
-                    this.retryGame();
-                }
+                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
+                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
+                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
+                window.FMGame.advance(this, win);
             };
 
             const showMsg = (finalScore) => {
@@ -1068,7 +1063,7 @@
 
             const showAfterAch = (finalScore) => {
                 if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.ScoreManager.completeLevel('game16', this.difficulty, this.currentLevelIndex);
+                    const achId = window.FMGame.completeLevel('game16', this);
                     if (achId && window.AchievementDialog) {
                         window.AchievementDialog.showInstantAchievementPop(achId, 'game16', this.currentLevelIndex, () => showMsg(finalScore));
                         return;

@@ -58,6 +58,13 @@
         _finished: false,
         // 非正常入場時要顯示的原因（例如入場當下盤纏已不足）
         _abortReason: '',
+        // 玩家是否真的按過「入場應試」（＝報名費與今日次數已經扣掉）。
+        // 「←放棄」的確認彈窗靠它決定要不要警告「報名費不予退還」。
+        _entered: false,
+        // 正在派出某一題的遊戲（_tryCombo 內 GameObj.show() 那段）。
+        // ⚠️ 存在的理由見 forceStop()：遊戲自己的啟動流程有可能反過來
+        //    觸發全域清理，那一瞬間絕不能讓考試被自己殺掉。
+        _launching: false,
 
         // 這場考試「正在進行」的旗標：true 的區間＝ start() 到 _finish()。
         // ⚠️ 存在的理由：考試期間逐題實際玩的那五款遊戲，右上角原本會顯示
@@ -131,11 +138,16 @@
             this._aborted = false;
             this._finished = false;
             this._abortReason = '';
+            this._entered = false;
             this._active = true;
 
             this._installSandbox();
             this._buildOverlay();
             this._showIntro();
+            // 考試開始 → 鎖住漢堡選單，改顯示「←（放棄考試）」。
+            // ⚠️ 從簡介畫面就鎖：那裡雖然還沒扣錢，但玩家若從漢堡選單切走，
+            //    這場考試一樣會被 closeAllActiveOverlays 靜默收掉。
+            this._syncSessionGuard();
             return true;
         },
 
@@ -172,6 +184,19 @@
          *    不動、同一課程反覆重派，玩家會誤以為「資料亂了」。
          */
         forceStop: function () {
+            // ⚠️⚠️ 派題當下（_tryCombo 正在跑 GameObj.show()）一律忽略。
+            //    2026-09-11 實測：game13「人事時地」的 showDifficultySelector()
+            //    裡有一行 `MenuManager.closeAll()`，而全域清理會呼叫本函式——
+            //    考試抽到它出題時，等於在開局那一刻把自己這場考試殺掉，
+            //    接著真正的難度選單就彈到玩家臉上。那一行已經移除，
+            //    但任何遊戲日後都可能再寫出同樣的呼叫，因此這裡留一道防線：
+            //    **考試正在派題的瞬間，不接受任何外部中止**。
+            //    玩家真的要離開時走的是「←放棄」或切頁，那時 _launching 是 false，
+            //    中止照常生效。
+            if (this._launching) {
+                console.warn('[考試] 正在派題，忽略這次 forceStop（避免考試殺掉自己）');
+                return;
+            }
             if (!this._active && !this._sandbox && !this._overlay) return;
             this._active = false;
             this._aborted = true;
@@ -180,6 +205,17 @@
             this._unpatchGame();
             this._removeSandbox();
             this._teardown();
+            this._syncSessionGuard();   // 被全域清理收掉 → 也要還原漢堡選單
+        },
+
+        /**
+         * 通知青雲梯依當下狀態重算「要不要鎖漢堡選單」。
+         * ⚠️ 判斷邏輯集中在 LearningPath.updateSessionGuard()（由狀態推導），
+         *    這裡只負責在狀態變動時戳它一下，不自己複製一份判斷。
+         */
+        _syncSessionGuard: function () {
+            const LP = window.LearningPath;
+            if (LP && typeof LP.updateSessionGuard === 'function') LP.updateSessionGuard();
         },
 
         // ══════════════════════════════════════════════════════════
@@ -381,6 +417,7 @@
                         return;
                     }
                 }
+                self._entered = true;   // 報名費／今日次數已經扣掉
                 self._nextQuestion();
             };
             this._overlay.querySelector('#exgQuit').onclick = function () {
@@ -471,7 +508,14 @@
 
             this._lastAlert = null;
             this._dsCalls = 0;      // 這一次開局嘗試允許回呼一次難度選擇器
-            GameObj.show();
+            // ⚠️ 開局期間豎起 _launching：遊戲的 show() 有可能（直接或間接）
+            //    呼叫 menu.js 的全域清理，那會把這場考試中止掉（見 forceStop）。
+            this._launching = true;
+            try {
+                GameObj.show();
+            } finally {
+                this._launching = false;
+            }
 
             // ── 正面確認這一局真的拿到了指定的那一首詩 ──
             // ⚠️ 不可以只靠 alert 判斷失敗：五款裡有三款（13／14／37）
@@ -654,6 +698,7 @@
             this._active = false;
             this._unpatchGame();
             this._removeSandbox();
+            this._syncSessionGuard();   // 考完 → 把漢堡選單還給玩家
 
             const p = this._plan;
             const passed = !this._aborted && this._correct >= p.passCount;
