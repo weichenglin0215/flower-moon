@@ -549,6 +549,30 @@ function verifyGames() {
                 + '　← 2026-09-11 game13 實測災情');
         });
 
+        // ── 1.6-(f) overlay 的 position 最終必須是 fixed ──────────────────
+        //
+        // 2026-09-14 玩家回報：手機上往左／左上一滑，整個介面偏移並露出紅色底色。
+        // 根因是 game3／game7／game14 的 `.gameX-overlay` 規則裡 position 寫了兩次
+        // （先 fixed、後 relative），後者勝出，未縮放的 500×850 排版盒被撐進 body，
+        // 寬度不到 500px 的手機上 body 因此可以被拖動 125×38px。
+        // 瀏覽器排版在 Node 裡驗不到，所以用原始碼驗「同一規則裡最後一個 position」。
+        {
+            const css = stripComments(env.readSource(key + '.css') || '');
+            const re = new RegExp('\\.' + key + '-overlay\\s*\\{([^}]*)\\}', 'g');
+            let m, finals = [];
+            while ((m = re.exec(css))) {
+                const ps = m[1].match(/(?:^|[;\s])position\s*:\s*([\w-]+)/g) || [];
+                if (ps.length) finals.push(ps[ps.length - 1].replace(/.*:\s*/, ''));
+            }
+            if (finals.length) {
+                always(finals.every(p => p === 'fixed'),
+                    '.' + key + '-overlay 的 position 最終是 fixed',
+                    '實際為 ' + finals.join('、') + '。overlay 不是 fixed 就會把未縮放的 500×850 '
+                    + '撐進 body，手機上往左／左上滑會整個偏移並露出紅色底色（2026-09-14 實測）。'
+                    + '請檢查同一規則裡是否寫了第二個 position。');
+            }
+        }
+
         // ── 1.7 課程遊戲專屬 ────────────────────────────────────────────
         if (lv === '課程') {
             check(!!NAMES[n], tag, '在 learningPath.GAME_NAMES 有顯示名稱',

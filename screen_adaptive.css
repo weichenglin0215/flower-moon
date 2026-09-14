@@ -18,6 +18,12 @@ body {
     /* 禁止捲軸 */
     background: #0d0d1a;
     /* 畫布外的背景色 */
+
+    /* ⚠️ 2026-09-14：禁止根元素的回彈／拉伸（iOS 橡皮筋、Android 12+ 拉伸效果）。
+       內層捲動區（青雲梯、成就…）捲到底時，手勢會「串接」到根元素，
+       沒有這一行整個介面會被拖著跑、露出 body 的紅色底色。
+       介面是固定 500×850 的舞台，根元素本來就不該有任何捲動行為。 */
+    overscroll-behavior: none;
     font-family: 'Noto Sans TC', sans-serif;
 }
 

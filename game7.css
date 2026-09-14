@@ -12,7 +12,12 @@
     flex-direction: column;
     overflow: hidden;
     z-index: 1000;
-    position: relative;
+    /* ⚠️ 2026-09-14 移除這裡原本的第二個 `position: relative;`。
+       同一規則裡寫了兩次 position，後面的 relative 會蓋掉上面的 fixed，
+       overlay 於是變成 body 裡的一般流動元素，把未縮放的 500×850 排版盒
+       撐進 body —— 手機（寬 < 500px）上 body 因此多出 125×38px 的可捲動區，
+       玩家往左／左上一滑，整個介面就偏移並露出 body 的紅色底色。
+       fixed 本身就會成為絕對定位子元素的包含區塊，拿掉 relative 不影響子元素定位。 */
 }
 
 .game7-header {
