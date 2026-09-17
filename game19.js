@@ -272,8 +272,7 @@
                     this.currentLevelIndex = levelIndex || 1;
                     this.updateUIForMode();
                     document.getElementById('game19-container').classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.setupCanvas();
                     this.startNewGame();
                 });
@@ -314,8 +313,7 @@
                     this.currentLevelIndex = levelIndex || 1;
                     this.updateUIForMode();
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.setupCanvas();
                     this.startNewGame();
                 });
@@ -1385,59 +1383,22 @@
         // 停止計時器與主迴圈，依勝負記錄成績（失敗時上傳紀錄），
         // 若勝利則播放得分動畫（並處理關卡模式的過關進度），最後顯示結算訊息視窗
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
             clearInterval(this.timerInterval);
             this.stopGameLoop();
 
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
-                window.SupabaseClient.logGame({ gameNo: 19, difficulty: this.difficulty, score: 0, isWin: false, durationS });
-            }
-
-            if (win) {
-                document.getElementById('game19-retryGame-btn').disabled = true;
-                document.getElementById('game19-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game19-retryGame-btn').disabled = false;
-                document.getElementById('game19-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? '' : (typeof reason === 'string' ? reason : '挑戰結束'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm
-                    });
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game19',
+            window.FMGame.gameOver(this, win, win ? '' : (typeof reason === 'string' ? reason : '挑戰結束'), {
+                gameNo: 19,
+                gameKey: 'game19',
+                anim: {
                     timerContainerId: 'game19-area',
                     scoreElementId: 'game19-score',
-                    heartsSelector: '#game19-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        if (this.isLevelMode) window.FMGame.completeLevel('game19', this);
-                        showMessage(finalScore);
-                    }
-                });
-            } else {
-                showMessage();
-            }
+                    heartsSelector: '#game19-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game19-retryGame-btn').disabled = win;
+                    document.getElementById('game19-newGame-btn').disabled = win;
+                }
+            });
         },
 
         // 隱藏遊戲（外部呼叫入口，實際邏輯委由 stopGame 處理）
@@ -1449,8 +1410,7 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             this.stopGameLoop();
-            if (this.container) this.container.classList.add('hidden');
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
         }
     };
 

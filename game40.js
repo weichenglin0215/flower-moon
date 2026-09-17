@@ -284,8 +284,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -317,12 +316,9 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
-            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this); // 內含 RuleNoteDialog.hide()
         },
 
         // ====================================================================
@@ -332,6 +328,7 @@
         // 重來：使用同一首詩重新洗牌發牌（不重新取詩，因此沿用上一局的 maxTimer）
         retryGame: function () {
             if (!this.currentPoem) return;
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.startGameProcess();
             this.gameStart();
         },
@@ -484,20 +481,17 @@
             this.renderHint();
 
             // ⚠️ 必須先依 rows/cols 設好 wrapper 高度（確保每格正方形），再渲染棋盤。
-            // ⚠️⚠️ 這兩支不能同步呼叫：showDifficultySelector 的回呼是先
-            //    `container.classList.remove('hidden')` 再馬上呼叫
-            //    startNewGame → startGameProcess，同一個事件循環內瀏覽器
-            //    還沒排版，_resizeBoardWrapper／renderBoard 量到的
-            //    offsetWidth／offsetHeight 是舊值（容器剛從 hidden 切出來，
-            //    常見量到 0 或極小值），算出來的字級會被 Math.max(12, ...)
-            //    夾在最小值，整面棋盤字級被壓得極小（實測：第一次進入
-            //    正常會這樣，點「重來」重新產生盤面後卻恢復正常——因為
-            //    那時容器已經顯示過一次，排版早就完成了）。
-            //    用 requestAnimationFrame 等瀏覽器排版完成後再量測即可。
-            requestAnimationFrame(() => {
-                this._resizeBoardWrapper();
-                this.renderBoard();
-            });
+            //   兩支都可以同步呼叫，不需要 requestAnimationFrame 等版面排好：
+            //   _resizeBoardWrapper() 量的是 wrapper 的 offsetWidth，
+            //   wrapper 的 CSS（.fmd-board-wrapper）定義在 theme_dark.css，
+            //   index.html 一開始就靜態載入，container 剛從 hidden 解除、
+            //   即使同一輪事件循環內立刻讀取 offsetWidth，瀏覽器也會強制
+            //   同步排版給出正確值（實測確認，並非「賭一幀」）。
+            //   renderBoard() 的字級改吃 _resizeBoardWrapper() 算好存在
+            //   this._cellPx 的格邊長，不再自己量 boardEl——詳見 renderBoard
+            //   內的說明（真正的病根是 game40.css 動態載入的時機，不是排版時機）。
+            this._resizeBoardWrapper();
+            this.renderBoard();
 
             const svg = document.getElementById('game40-timer-ring');
             if (svg) svg.style.display = 'block';
@@ -507,24 +501,19 @@
         // 顯示開場規則說明；按下確認才真正開始計時
         showStartMessage: function () {
             const n = this.charsPerLine;
-            if (window.RuleNoteDialog) {
-                window.RuleNoteDialog.show({
-                    title: '點兵成詩',
-                    lines: [
-                        `題目是兩句${n === 5 ? '五' : '七'}言詩。`,
-                        '答案區裡，每句的第 1 個字有 1 塊、',
-                        '第 2 個字有 2 塊…以此類推。',
-                        '　',
-                        '請照著提示，依序把它們點完。',
-                        '點錯字扣一顆紅心。'
-                    ],
-                    btnText: '開始點兵',
-                    styles: { height: '60%', top: '60%' },
-                    onConfirm: () => this.gameStart()
-                });
-            } else {
-                this.gameStart();
-            }
+            window.FMGame.showRuleIntro(this, {
+                title: '點兵成詩',
+                lines: [
+                    `題目是兩句${n === 5 ? '五' : '七'}言詩。`,
+                    '答案區裡，每句的第 1 個字有 1 塊、',
+                    '第 2 個字有 2 塊…以此類推。',
+                    '　',
+                    '請照著提示，依序把它們點完。',
+                    '點錯字扣一顆紅心。'
+                ],
+                btnText: '開始點兵',
+                styles: { height: '60%', top: '60%' }
+            }, () => this.gameStart());
         },
 
         // 正式開始：啟動倒數
@@ -582,18 +571,21 @@
         },
 
         /*
-         * 依 rows/cols 計算 wrapper 高度，保證每格為正方形。
-         *   cell 邊長  = (wrapper 寬 − 28px padding) / cols
-         *   wrapper 高 = cell 邊長 × rows + 28px padding
+         * 依 rows/cols 計算 wrapper 高度，保證每格為正方形，並把算出的格邊長
+         * 存進 this._cellPx 供 renderBoard 算字級共用（見該處註解說明原因）。
+         *   cell 邊長  = (wrapper 寬 − 28px padding − 欄間 3px 間距) / cols
+         *   wrapper 高 = cell 邊長 × rows ＋ 列間 3px 間距 ＋ 28px padding
          */
         _resizeBoardWrapper: function () {
             const wrapper = document.getElementById('game40-board-wrapper');
             if (!wrapper) return;
             const PAD = 14 * 2; // CSS .fmd-board-wrapper padding: 14px
+            const GAP = 3; // CSS .game40-board { gap: 3px }
             let w = wrapper.offsetWidth || wrapper.getBoundingClientRect().width;
             if (!w || !this.cols || !this.rows) return;
-            const cell = (w - PAD) / this.cols;
-            wrapper.style.height = Math.round(cell * this.rows + PAD) + 'px';
+            const cell = (w - PAD - (this.cols - 1) * GAP) / this.cols;
+            this._cellPx = cell;
+            wrapper.style.height = Math.round(cell * this.rows + (this.rows - 1) * GAP + PAD) + 'px';
         },
 
         // 渲染整面棋盤
@@ -604,13 +596,31 @@
             boardEl.style.gridTemplateColumns = `repeat(${this.cols}, 1fr)`;
             boardEl.style.gridTemplateRows = `repeat(${this.rows}, 1fr)`;
 
-            // 字級＝格子邊長的 68%（依規範避免超出格子）
-            let bw = boardEl.offsetWidth, bh = boardEl.offsetHeight;
-            if (!bw || !bh) {
-                const rb = boardEl.getBoundingClientRect();
-                bw = rb.width; bh = rb.height;
-            }
-            const cellSize = Math.min((bw - this.cols * 3) / this.cols, (bh - this.rows * 3) / this.rows);
+            // ⚠️ 字級「不可以」量 boardEl 自己的 offsetWidth／offsetHeight
+            //   （2026-09 二度實測才找到真正病根）：
+            //   .game40-board 的 width:100%／height:100%／display:grid 定義在
+            //   game40.css——依規範由 loadCSS() 動態插入 <link>（見 init()），
+            //   而 index.html 只靜態引入 game1~15.css，game16~40 一律動態載入。
+            //   青雲梯 launchGame() 是「同一輪事件循環內」直接呼叫 GameXX.show()
+            //   （DifficultySelector.show 被暫時替換成立即同步回呼，見
+            //   learningPath.js launchGame 的 patchedShow），沒有真人點擊難度鈕
+            //   的那幾百毫秒緩衝，game40.css 那個 <link> 常常還在下載，
+            //   這一刻 boardEl 完全沒有 CSS 套用、預設 display:block 又沒有
+            //   子元素，offsetHeight 量到 0，字級被 Math.max(12,…) 永遠夾在下限。
+            //   一般選單進入之所以「看起來沒事」，只是因為玩家點難度鈕前
+            //   有真人反應時間，CSS 早就下載完了——不是這支程式碼比較安全。
+            //   GAME24／GAME38 也是 game16~40 動態載入 CSS 的一員，一樣有這個
+            //   缺口，只是兩者都不在青雲梯遊戲清單裡（learningPath.js 的
+            //   GAME_NAMES），從未被那個零延遲的同步路徑碰過，才沒被發現。
+            //   GAME38 更進一步用固定邏輯像素常數（BOARD_MAX_W／BOARD_AREA_H）
+            //   算 tileSize，字級全部用行內樣式設定，本來就不依賴任何一份
+            //   game38.css 是否載完，architecturally 更穩。
+            //   真正的解法：字級改用 _resizeBoardWrapper() 算好、存在
+            //   this._cellPx 的格邊長——那個數字只依賴 wrapper 的寬度，
+            //   而 wrapper 的 CSS（.fmd-board-wrapper）定義在 theme_dark.css，
+            //   index.html 一開始就靜態載入，不受本遊戲 CSS 下載進度影響，
+            //   從第一次呼叫就是穩定值，不需要重試或等待。
+            const cellSize = this._cellPx || 0;
             const fontPx = Math.max(12, Math.floor(cellSize * 0.68));
 
             this.tiles.forEach((t, idx) => {
@@ -833,78 +843,23 @@
 
         gameOver: function (win, reason) {
             if (!this.isActive) return; // 防止重複觸發（如最後一擊同時撞到時間到）
-            this.isActive = false;
-            this.isWin = win;
             clearInterval(this.timerInterval);
 
-            // 失敗時寫入 game_logs；勝利由 ScoreManager.saveScore 寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 40,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
-
-            // 勝利時立刻禁用按鈕，防止動畫期間連點刷分
-            document.getElementById('game40-retryGame-btn').disabled = win;
-            document.getElementById('game40-newGame-btn').disabled = win;
-
-            const onConfirm = () => {
-                document.getElementById('game40-retryGame-btn').disabled = false;
-                document.getElementById('game40-newGame-btn').disabled = false;
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? Math.floor(finalScore || this.score) : 0,
-                        reason: win ? '' : (reason || '點錯了！'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '開新局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
-                } else {
-                    alert((win ? '過關！' : '失敗！') + reason);
-                }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game40', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game40', this.currentLevelIndex, () => showMessage(finalScore));
-                        return;
-                    }
-                }
-                showMessage(finalScore);
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game40',
+            window.FMGame.gameOver(this, win, reason || '點錯了！', {
+                gameNo: 40,
+                gameKey: 'game40',
+                anim: {
                     scoreElementId: 'game40-score',
                     timerContainerId: 'game40-board-wrapper',
-                    heartsSelector: '#game40-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAchievementsAndShow();
-            }
+                    heartsSelector: '#game40-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    // 勝利時立刻禁用按鈕，防止動畫期間連點刷分；
+                    // 下一局的 startGameProcess() 開頭會自己重新啟用，onConfirm 不必再管。
+                    document.getElementById('game40-retryGame-btn').disabled = win;
+                    document.getElementById('game40-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

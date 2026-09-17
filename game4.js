@@ -159,8 +159,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
@@ -210,11 +209,7 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
             this.showOtherContents();
         },
 
@@ -792,89 +787,30 @@
             });
         },
 
-        // 遊戲結束處理（過關或失敗皆會呼叫）：
-        // 失敗時記錄本局遊玩紀錄（SupabaseClient.logGame），過關時播放得分動畫（ScoreManager.playWinAnimation）
-        // 並視情況檢查成就（關卡模式），最後統一透過 GameMessage 顯示結算訊息與下一步按鈕
+        // 遊戲結束處理（過關或失敗皆會呼叫）：轉呼叫 window.FMGame.gameOver
+        // 共用流程（結算動畫／記分／成就彈窗／GameMessage／下一步）
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 4,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             clearInterval(this.timerInterval);
             if (this.showTimeout) clearTimeout(this.showTimeout);
-
             if (win) {
-                document.getElementById('game4-retryGame-btn').disabled = true;
-                document.getElementById('game4-newGame-btn').disabled = true;
                 this.isRevealed = true;
                 this.cluesRevealed = true;
-            } else {
-                document.getElementById('game4-retryGame-btn').disabled = false;
-                document.getElementById('game4-newGame-btn').disabled = false;
             }
             this.renderQuestion();
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game4', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game4', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game4',
+            window.FMGame.gameOver(this, win, win ? '' : (typeof reason === 'string' ? reason : '挑戰結束'), {
+                gameNo: 4,
+                gameKey: 'game4',
+                anim: {
                     timerContainerId: 'game4-grid-container',
                     scoreElementId: 'game4-score',
-                    heartsSelector: '#game4-hearts .fm-heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAchievementsAndShow();
-            }
+                    heartsSelector: '#game4-hearts .fm-heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game4-retryGame-btn').disabled = win;
+                    document.getElementById('game4-newGame-btn').disabled = win;
+                }
+            });
         },
 
         // 輔助函式：計算不含標點符號的字數

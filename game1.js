@@ -175,8 +175,7 @@
 
                     // 顯示遊戲容器
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     // 觸發響應式佈局更新
                     if (window.updateResponsiveLayout) {
                         /* updateResponsiveLayout replaced */
@@ -187,8 +186,7 @@
                 // 降級處理：直接開始遊戲
                 console.warn('[Game1] DifficultySelector not found, using default difficulty');
                 this.container.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
-                document.body.classList.add('overlay-active');
+                window.FMGame.holdOverlayActive();
                 if (window.updateResponsiveLayout) {
                     /* updateResponsiveLayout replaced */
                 }
@@ -245,13 +243,9 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             // 恢復其他內容
             this.showOtherContents();
+            window.FMGame.stop(this);
         },
 
         // 「重來」：沿用目前題目（不重新抽詩），重設分數／錯誤數／計時器後重新開始作答
@@ -723,21 +717,10 @@
                     return c;
                 }).join('');
 
-                document.getElementById('game1-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game1-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game1',
-                    timerContainerId: 'game1-answer-grid-container',
-                    scoreElementId: 'game1-score',
-                    heartsSelector: '#game1-hearts .fm-heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                        this.gameOver(true, '');
-                    }
-                });
+                // 按鈕防呆與結算動畫改由 gameOver() → FMGame.gameOver() 統一處理
+                // （collapse 進共同契約前，這裡曾經直接呼叫 ScoreManager.playWinAnimation
+                // 再由 onComplete 呼叫 gameOver(true,'') 純記錄，見批次 3 遷移說明）。
+                this.gameOver(true, '');
             } else {
                 if (btn.classList.contains('wrong')) return;
                 btn.classList.add('wrong');
@@ -793,61 +776,21 @@
         // 接著依勝負決定按鈕禁用狀態，並顯示結算訊息視窗；若為關卡模式過關，
         // 會先呼叫 completeLevel 判斷是否解鎖成就，再顯示結算視窗。
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 1,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
-
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
-            if (win) {
-                document.getElementById('game1-retryGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game1-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-            } else {
-                document.getElementById('game1-retryGame-btn').disabled = false;
-                document.getElementById('game1-newGame-btn').disabled = false;
-            }
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? this.score : 0, // ScoreManager 播放動畫時已更新過 this.score，這裡直接讀取本地變數即可
-                        reason: win ? "" : reason,
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
+            window.FMGame.gameOver(this, win, reason || '', {
+                gameNo: 1,
+                gameKey: 'game1',
+                anim: {
+                    timerContainerId: 'game1-answer-grid-container',
+                    scoreElementId: 'game1-score',
+                    heartsSelector: '#game1-hearts .fm-heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    // 必須在得分表演之前就先禁用按鈕，避免答對又洗分數；
+                    // 失敗則維持可點擊。
+                    document.getElementById('game1-retryGame-btn').disabled = win;
+                    document.getElementById('game1-newGame-btn').disabled = win;
                 }
-            };
-
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.FMGame.completeLevel('game1', this);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game1', this.currentLevelIndex, showMessage);
-                } else {
-                    showMessage();
-                }
-            } else {
-                showMessage();
-            }
+            });
         },
 
         // 依文字長度動態縮小字型：字數超過 threshold 時等比例縮小字型（避免超長句子溢出容器），

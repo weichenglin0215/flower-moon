@@ -201,6 +201,7 @@
         _rafId: 0,
         _running: false,
         _onDone: null,
+        _certClickHandler: null,   // _showCert() 掛在 #certOverlay 上的點擊監聽器，stop() 要負責卸載
 
         // ══════════════════════════════════════════════════════════
         //  對外介面
@@ -273,6 +274,15 @@
             this._plans = null;
             this._ribbonCtx = null;
             if (this.overlay) { this.overlay.remove(); this.overlay = null; }
+            // ⚠️ _showCert() 掛在 #certOverlay 上的點擊監聽器不會自己消失——
+            //    它只在被點擊時才會 removeEventListener。若這裡被外部強制中止
+            //    （例如玩家在獎狀還沒點掉時就切走），監聽器會留著，下一次
+            //    晉升再掛一個新的就疊加成兩個，點一下觸發兩次 finish()。
+            if (this._certClickHandler) {
+                const certOv = document.getElementById('certOverlay');
+                if (certOv) certOv.removeEventListener('click', this._certClickHandler);
+                this._certClickHandler = null;
+            }
             if (silent) this._onDone = null;
         },
 
@@ -1022,7 +1032,12 @@
 
             const certOv = document.getElementById('certOverlay');
             if (!certOv) { finish(); return; }
-            const onClick = () => { certOv.removeEventListener('click', onClick); setTimeout(finish, 60); };
+            const onClick = () => {
+                certOv.removeEventListener('click', onClick);
+                this._certClickHandler = null;
+                setTimeout(finish, 60);
+            };
+            this._certClickHandler = onClick;
             certOv.addEventListener('click', onClick);
         }
     };

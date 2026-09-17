@@ -164,8 +164,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
@@ -214,11 +213,7 @@
             clearInterval(this.timerInterval);
             if (this.memoryTimerRef) clearInterval(this.memoryTimerRef);
             if (this.showTimeout) clearTimeout(this.showTimeout);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
             this.showOtherContents();
         },
 
@@ -853,84 +848,29 @@
         // 回合結束處理：勝利時觸發計分動畫、成就檢查、並依模式進入下一關或下一局；
         // 失敗時記錄遊戲紀錄（分數 0）、播放失敗音效，並提供重試按鈕
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 12,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             clearInterval(this.timerInterval);
             this.isRevealed = true;
             this.renderQuestion();
-            if (win) this.updatePoemInfoVisibility(true);
-
             if (win) {
-                document.getElementById('game12-retryGame-btn').disabled = true;
-                document.getElementById('game12-newGame-btn').disabled = true;
+                this.updatePoemInfoVisibility(true);
             } else {
-                document.getElementById('game12-retryGame-btn').disabled = false;
-                document.getElementById('game12-newGame-btn').disabled = false;
                 if (window.SoundManager) window.SoundManager.playSadTriple();
             }
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "再試一次吧！"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "勸君更進一杯酒",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game12', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game12', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game12',
+            window.FMGame.gameOver(this, win, win ? '' : (typeof reason === 'string' ? reason : '再試一次吧！'), {
+                gameNo: 12,
+                gameKey: 'game12',
+                anim: {
                     timerContainerId: 'game12-grid-container',
                     scoreElementId: 'game12-score',
-                    heartsSelector: '#game12-hearts .fm-heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAchievementsAndShow();
-            }
+                    heartsSelector: '#game12-hearts .fm-heart:not(.empty)'
+                },
+                message: { btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '勸君更進一杯酒' },
+                setButtons: (win) => {
+                    document.getElementById('game12-retryGame-btn').disabled = win;
+                    document.getElementById('game12-newGame-btn').disabled = win;
+                }
+            });
         },
 
         // 通用延遲工具，回傳 Promise，供 async 函式中 await 使用以製造動畫節奏

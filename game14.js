@@ -103,7 +103,7 @@
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
                     this.container.classList.remove('hidden');
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.startNewGame();
                 });
             }
@@ -128,9 +128,7 @@
         stopGame: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            if (this.container) this.container.classList.add('hidden');
-            document.body.classList.remove('overlay-active');
-            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
+            window.FMGame.stop(this);
         },
 
         // 開新局：重置分數、錯誤次數、時間等所有狀態，重新選詩並準備階梯，
@@ -481,26 +479,21 @@
 
         // 顯示開場規則說明彈窗，玩家確認後才正式開始計時（gameStart）
         showStartMessage: function () {
-            if (window.RuleNoteDialog) {
-                window.RuleNoteDialog.show({
-                    title: '步步驚心',
-                    lines: [
-                        '依序點擊最下方文字。',
-                        '點擊越快，分數越高。',
-                        '錯誤扣紅心。',
-                        '　',
-                        '首字直接點擊，',
-                        '後續二選一。'
-                    ],
-                    btnText: '開始攀登',
-                    styles: { height: '60%', top: '60%' },
-                    onConfirm: () => {
-                        this.gameStart();
-                    }
-                });
-            } else {
+            window.FMGame.showRuleIntro(this, {
+                title: '步步驚心',
+                lines: [
+                    '依序點擊最下方文字。',
+                    '點擊越快，分數越高。',
+                    '錯誤扣紅心。',
+                    '　',
+                    '首字直接點擊，',
+                    '後續二選一。'
+                ],
+                btnText: '開始攀登',
+                styles: { height: '60%', top: '60%' }
+            }, () => {
                 this.gameStart();
-            }
+            });
         },
 
         // 依 historyData 重新渲染左側直排的歷程顯示：
@@ -538,81 +531,22 @@
         // 依勝負決定按鈕啟用狀態，並在確認後進入下一局（勝利：下一關或開新局；失敗：重來）；
         // 若勝利則先播放得分動畫，動畫結束後才顯示結算訊息（並檢查是否有成就達成）
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 14,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             if (this.timerInterval) clearInterval(this.timerInterval);
 
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
-            if (win) {
-                document.getElementById('game14-retryGame-btn').disabled = true;
-                document.getElementById('game14-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game14-retryGame-btn').disabled = false;
-                document.getElementById('game14-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                document.getElementById('game14-retryGame-btn').disabled = false;
-                document.getElementById('game14-newGame-btn').disabled = false;
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? Math.floor(this.score) : 0,
-                        reason: reason,
-                        btnText: win ? (this.isLevelMode ? "下一關" : "開新局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                } else {
-                    alert((win ? "答對了！" : "輸了！") + reason);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game14',
+            window.FMGame.gameOver(this, win, reason, {
+                gameNo: 14,
+                gameKey: 'game14',
+                anim: {
                     scoreElementId: 'game14-score',
                     timerContainerId: 'game14-timer-ring',
-                    heartsSelector: '#game14-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        if (this.isLevelMode) {
-                            const achId = window.FMGame.completeLevel('game14', this);
-                            if (achId && window.AchievementDialog) {
-                                window.AchievementDialog.showInstantAchievementPop(achId, 'game14', this.currentLevelIndex, showMessage);
-                            } else {
-                                showMessage();
-                            }
-                        } else {
-                            showMessage();
-                        }
-                    }
-                });
-            } else {
-                showMessage();
-            }
+                    heartsSelector: '#game14-hearts .heart:not(.empty)'
+                },
+                message: { btnText: win ? (this.isLevelMode ? '下一關' : '開新局') : '再試一次' },
+                setButtons: (win) => {
+                    document.getElementById('game14-retryGame-btn').disabled = win;
+                    document.getElementById('game14-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

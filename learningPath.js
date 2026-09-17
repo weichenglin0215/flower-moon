@@ -964,6 +964,16 @@
             if (window.ScoreManager && window.ScoreManager.setReviewMode) {
                 window.ScoreManager.setReviewMode(false);
             }
+            // ⚠️ 晉升動畫（PromotionCelebration）跟結算動畫是同一種洞：離開
+            // 青雲梯時若晉升動畫還在播（rAF＋setTimeout 鏈可以長達 9 秒以上），
+            // 它會繼續在背景播完、彈出獎狀蓋在別的畫面上。stop(true) 連內部的
+            // onDone 一起清掉，不會再回頭呼叫任何回呼。
+            if (window.PromotionCelebration && typeof window.PromotionCelebration.stop === 'function') {
+                window.PromotionCelebration.stop(true);
+            }
+            if (window.AchievementDialog && typeof window.AchievementDialog.forceCloseCert === 'function') {
+                window.AchievementDialog.forceCloseCert();
+            }
             if (!this.overlay) return;
             this.overlay.classList.add('hidden');
             document.body.style.overflow = '';
@@ -2071,6 +2081,12 @@
                 const G = window['Game' + k];
                 if (G && typeof G.stopGame === 'function') G.stopGame();
             });
+            if (window.PromotionCelebration && typeof window.PromotionCelebration.stop === 'function') {
+                window.PromotionCelebration.stop(true);
+            }
+            if (window.AchievementDialog && typeof window.AchievementDialog.forceCloseCert === 'function') {
+                window.AchievementDialog.forceCloseCert();
+            }
             this._pendingUnit = null;
             this._reviewMode = false;
             if (window.ScoreManager && window.ScoreManager.setReviewMode) {
@@ -2096,6 +2112,16 @@
          * 會**逐關**生效，而不是只在進站時生效一次。
          */
         advanceAfterWin: function (gameNo) {
+            // ⚠️ 這一局的結算動畫（飛星）此刻已經播完（玩家能點「下一關」
+            //    正是因為它播完了才彈出訊息框），但飛星降落是靠
+            //    requestAnimationFrame 各自跑完整趟軌跡、不受 activeIntervals
+            //    追蹤，若前面還有別局卡住沒播完的殘留（例如分頁曾被切到
+            //    背景導致 rAF 停擺），此刻接下來可能呼叫 stopGame() 的分支
+            //    一律先斷開，讓那些遲到的星星降落時變成無害的空跑，
+            //    不會再憑空跳出 completeLevel／「下一關」訊息框。
+            if (window.ScoreManager && typeof window.ScoreManager.cancelAnimation === 'function') {
+                window.ScoreManager.cancelAnimation();
+            }
             // 剛剛通關了，進度快取必須重算，否則會重複派同一關
             this.invalidateProgress();
             this._pendingUnit = null;

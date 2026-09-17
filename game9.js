@@ -204,13 +204,22 @@
                     const container = document.getElementById('game9-container');
                     if (container) {
                         container.classList.remove('hidden');
-                        document.body.classList.add('overlay-active');
+                        window.FMGame.holdOverlayActive();
                     }
 
                     /* updateResponsiveLayout replaced */
-                    setTimeout(() => {
-                        this.startNewGame();
-                    }, 50);
+                    // ⚠️ 必須**同步**開局（曾經是 setTimeout(…, 50)）。
+                    //    考試的 examEngine._tryCombo 在 GameObj.show() 一回來
+                    //    就立刻讀 this.currentPoem.id，用來正面確認「有沒有出到
+                    //    指定的那首詩」。延後選題的話那一刻 currentPoem 還是
+                    //    上一局的（或 null），比對必然不相等，於是這一款
+                    //    **永遠會被判定「出不了指定的詩」而換掉** ——
+                    //    實測：game9 因此從來沒有在任何考試裡出現過，
+                    //    而且完全沒有錯誤訊息。
+                    //    那 50ms 原本是為了等版面，但全檔只有 updateTimerRing()
+                    //    會量 offsetWidth，它自己就有 w === 0 的防護、
+                    //    且每秒會被計時器再呼叫一次，不需要靠延遲。
+                    this.startNewGame();
                 });
             }
         },
@@ -268,11 +277,10 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.initAudio();
-                    setTimeout(() => {
-                        this.startNewGame();
-                    }, 50);
+                    // ⚠️ 同步開局，理由見 showDifficultySelector() 的說明
+                    this.startNewGame();
                 });
             }
         },
@@ -280,9 +288,7 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
         },
@@ -931,93 +937,31 @@
         },
 
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 9,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             clearInterval(this.timerInterval);
-            if (win) this.updatePoemInfoVisibility(true);
-
             if (win) {
+                this.updatePoemInfoVisibility(true);
                 this.isWinning = true;
                 this.renderLevel();
                 this.timer = this.movesLeft;
                 this.maxTimer = this.maxMoves;
-
-                document.getElementById('game9-retryGame-btn').disabled = true;
-                document.getElementById('game9-newGame-btn').disabled = true;
                 if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
             } else {
-                document.getElementById('game9-retryGame-btn').disabled = false;
-                document.getElementById('game9-newGame-btn').disabled = false;
                 if (window.SoundManager) window.SoundManager.playSadTriple();
             }
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "無法繼續"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
+            window.FMGame.gameOver(this, win, win ? '' : (typeof reason === 'string' ? reason : '無法繼續'), {
+                gameNo: 9,
+                gameKey: 'game9',
+                anim: {
+                    timerContainerId: 'game9-timer-ring',
+                    scoreElementId: 'game9-score',
+                    heartsSelector: '#game9-hearts .game9-heart.score'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game9-retryGame-btn').disabled = win;
+                    document.getElementById('game9-newGame-btn').disabled = win;
                 }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game9', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game9', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win) {
-                if (window.ScoreManager && typeof window.ScoreManager.playWinAnimation === 'function') {
-                    window.ScoreManager.playWinAnimation({
-                        game: this,
-                        difficulty: this.difficulty,
-                        gameKey: 'game9',
-                        timerContainerId: 'game9-timer-ring',
-                        scoreElementId: 'game9-score',
-                        heartsSelector: '#game9-hearts .game9-heart.score',
-                        onComplete: (finalScore) => {
-                            this.score = finalScore;
-                            checkAchievementsAndShow(finalScore);
-                        }
-                    });
-                } else {
-                    this.score += 100;
-                    checkAchievementsAndShow(this.score);
-                }
-            } else {
-                checkAchievementsAndShow();
-            }
+            });
         }
     };
 

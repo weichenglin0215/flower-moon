@@ -157,7 +157,7 @@
                     this.isLevelMode = (levelIndex !== undefined);
                     this.currentLevelIndex = levelIndex || 1;
                     this.container.classList.remove('hidden');
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.startNewGame();
                 });
             }
@@ -182,9 +182,7 @@
         stopGame: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            if (this.container) this.container.classList.add('hidden');
-            document.body.classList.remove('overlay-active');
-            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
+            window.FMGame.stop(this); // 內含 RuleNoteDialog.hide()
         },
 
         // 開始全新一局：重置分數/錯誤次數/進度等所有狀態，重新挑選一首詩並建立階梯題目，
@@ -299,6 +297,11 @@
 
             const w = area.offsetWidth;
             const h = area.offsetHeight;
+            // ⚠️ .game37-area 的尺寸定義在 game37.css（loadCSS() 動態載入），
+            //   青雲梯零延遲同步呼叫時該檔可能還在下載，量到 0 就整組跳過不畫，
+            //   等下一次 1000ms tick 量到合理值再補上，避免把 SVG 環先設成 0×0
+            //   （詳見 game40.js renderBoard 的同類根因說明）。
+            if (!w || !h) return;
 
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
@@ -522,26 +525,21 @@
 
         // 顯示開場規則說明視窗；玩家按下「開始佈陣」後才真正呼叫 gameStart 開始計時
         showStartMessage: function () {
-            if (window.RuleNoteDialog) {
-                window.RuleNoteDialog.show({
-                    title: '步步為陣',
-                    lines: [
-                        '依序點擊正確文字。',
-                        '選項會隨字數逐漸增多：',
-                        '1個→2個→4個→9個…最多36個。',
-                        '　',
-                        '選項越多，答對得分越高。',
-                        '錯誤扣紅心。'
-                    ],
-                    btnText: '開始佈陣',
-                    styles: { height: '60%', top: '60%' },
-                    onConfirm: () => {
-                        this.gameStart();
-                    }
-                });
-            } else {
+            window.FMGame.showRuleIntro(this, {
+                title: '步步為陣',
+                lines: [
+                    '依序點擊正確文字。',
+                    '選項會隨字數逐漸增多：',
+                    '1個→2個→4個→9個…最多36個。',
+                    '　',
+                    '選項越多，答對得分越高。',
+                    '錯誤扣紅心。'
+                ],
+                btnText: '開始佈陣',
+                styles: { height: '60%', top: '60%' }
+            }, () => {
                 this.gameStart();
-            }
+            });
         },
 
         // 重繪左側直排的「答題歷程」欄：已答對顯示綠字、答錯顯示紅字加粗、尚未作答顯示空心方框
@@ -578,78 +576,22 @@
         // 若獲勝且有 ScoreManager，會先播放獲勝動畫（含關卡完成判定與成就彈窗）才顯示結果視窗；
         // 若失敗則上傳遊戲紀錄（分數以 0 計）並提供「再試一次」按鈕重玩同一首詩
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 37,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             if (this.timerInterval) clearInterval(this.timerInterval);
 
-            if (win) {
-                document.getElementById('game37-retryGame-btn').disabled = true;
-                document.getElementById('game37-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game37-retryGame-btn').disabled = false;
-                document.getElementById('game37-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                document.getElementById('game37-retryGame-btn').disabled = false;
-                document.getElementById('game37-newGame-btn').disabled = false;
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? Math.floor(this.score) : 0,
-                        reason: reason,
-                        btnText: win ? (this.isLevelMode ? "下一關" : "開新局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                } else {
-                    alert((win ? "答對了！" : "輸了！") + reason);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game37',
+            window.FMGame.gameOver(this, win, reason, {
+                gameNo: 37,
+                gameKey: 'game37',
+                anim: {
                     scoreElementId: 'game37-score',
                     timerContainerId: 'game37-timer-ring',
-                    heartsSelector: '#game37-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        if (this.isLevelMode) {
-                            const achId = window.FMGame.completeLevel('game37', this);
-                            if (achId && window.AchievementDialog) {
-                                window.AchievementDialog.showInstantAchievementPop(achId, 'game37', this.currentLevelIndex, showMessage);
-                            } else {
-                                showMessage();
-                            }
-                        } else {
-                            showMessage();
-                        }
-                    }
-                });
-            } else {
-                showMessage();
-            }
+                    heartsSelector: '#game37-hearts .heart:not(.empty)'
+                },
+                message: { btnText: win ? (this.isLevelMode ? '下一關' : '開新局') : '再試一次' },
+                setButtons: (win) => {
+                    document.getElementById('game37-retryGame-btn').disabled = win;
+                    document.getElementById('game37-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

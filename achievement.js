@@ -2456,6 +2456,19 @@
 
             document.body.classList.remove('overlay-active');
 
+        },
+
+        // ⚠️ #certOverlay（獎狀卡）跟 this.overlay 是兩個不同的 DOM 節點，
+        //    hide() 向來只管後者。獎狀卡平常靠玩家自己點一下才關（見 showCert
+        //    內建的點擊監聽），全域強制清場時完全沒有人管它——這支供
+        //    closeAllActiveOverlays／LearningPath 離場／ExamEngine.forceStop
+        //    這類「關閉一切」路徑呼叫，只做「把 active 拿掉」這一件事。
+        forceCloseCert: function () {
+
+            const ov = document.getElementById('certOverlay');
+
+            if (ov) ov.classList.remove('active');
+
         }
 
     };

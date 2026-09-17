@@ -254,6 +254,7 @@
         show: function () {
             this.init();
             this.container.classList.remove('hidden');
+            window.FMGame.holdOverlayActive();
             const params = new URLSearchParams(window.location.search);
             if (params.get('game') === '15') {
                 this.startNewGame();
@@ -464,7 +465,7 @@
             // Game15 的 overlay 掛在 document.body 而非 #stage，
             // menu.js 全域清理只呼叫 stopGame()，不呼叫 hide()，
             // 因此必須在此主動隱藏，防止 overlay 遮蔽 calendar/card/author_bio 等頁面。
-            if (this.container) this.container.classList.add('hidden');
+            window.FMGame.stop(this);
         },
 
         stopGameLoop: function () {
@@ -851,78 +852,25 @@
         // 統一勝敗流程（規格對應 gameOver(win, reason)）
         // ================================================================
         gameOver: function (win, reason) {
-            this.isActive = false;
             this.stopGameLoop();
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 15,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
+            if (window.SoundManager) {
+                if (win) window.SoundManager.playJoyfulTriple();
+                else window.SoundManager.playSadTriple();
             }
 
-            if (win) {
-                document.getElementById('game15-retryGame-btn').disabled = true;
-                document.getElementById('game15-newGame-btn').disabled = true;
-                if (window.SoundManager) window.SoundManager.playJoyfulTriple();
-            } else {
-                document.getElementById('game15-retryGame-btn').disabled = false;
-                document.getElementById('game15-newGame-btn').disabled = false;
-                if (window.SoundManager) window.SoundManager.playSadTriple();
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMsg = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore ?? Math.floor(this.score)) : 0,
-                        reason: win ? '' : (reason || '墨跡已散！'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game15',
+            window.FMGame.gameOver(this, win, win ? '' : (reason || '墨跡已散！'), {
+                gameNo: 15,
+                gameKey: 'game15',
+                anim: {
                     timerContainerId: 'game15-canvas-wrapper',
                     scoreElementId: 'game15-score',
-                    heartsSelector: '#game15-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        // 挑戰模式：記錄關卡通關進度到 levelProgress
-                        if (this.isLevelMode) {
-                            const achId = window.FMGame.completeLevel('game15', this);
-                            if (achId && window.AchievementDialog) {
-                                window.AchievementDialog.showInstantAchievementPop(achId, 'game15', this.currentLevelIndex, showMsg);
-                            } else {
-                                showMsg(finalScore);
-                            }
-                        } else {
-                            showMsg(finalScore);
-                        }
-                    }
-                });
-            } else {
-                showMsg();
-            }
+                    heartsSelector: '#game15-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game15-retryGame-btn').disabled = win;
+                    document.getElementById('game15-newGame-btn').disabled = win;
+                }
+            });
         },
 
         // ================================================================

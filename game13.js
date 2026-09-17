@@ -161,8 +161,7 @@
                     this.currentLevelIndex = levelIndex || 1;
                     this.updateUIForMode();
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
@@ -185,9 +184,7 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
         },
 
         // 開始全新一局：重置分數/錯誤次數、隨機選詩、產生題目與答案池，並啟動倒數計時
@@ -895,79 +892,22 @@
         // 結束本局遊戲：記錄結果（失敗時寫入 game_logs）、更新按鈕狀態，
         // 並依勝負顯示對應訊息與後續動作（下一關 / 開新局 / 再試一次）
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 13,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             clearInterval(this.timerInterval);
 
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
-            if (win) {
-                document.getElementById('game13-retryGame-btn').disabled = true;
-                document.getElementById('game13-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game13-retryGame-btn').disabled = false;
-                document.getElementById('game13-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                document.getElementById('game13-retryGame-btn').disabled = false;
-                document.getElementById('game13-newGame-btn').disabled = false;
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? this.score : 0,
-                        reason: reason || (win ? "" : "挑戰結束"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "開新局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game13',
+            window.FMGame.gameOver(this, win, reason || (win ? '' : '挑戰結束'), {
+                gameNo: 13,
+                gameKey: 'game13',
+                anim: {
                     timerContainerId: 'game13-answer-pool',
                     scoreElementId: 'game13-score',
-                    heartsSelector: '#game13-hearts .fm-heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        if (this.isLevelMode) {
-                            const achId = window.FMGame.completeLevel('game13', this);
-                            if (achId && window.AchievementDialog) {
-                                window.AchievementDialog.showInstantAchievementPop(achId, 'game13', this.currentLevelIndex, showMessage);
-                            } else {
-                                showMessage();
-                            }
-                        } else {
-                            showMessage();
-                        }
-                    }
-                });
-            } else {
-                showMessage();
-            }
+                    heartsSelector: '#game13-hearts .fm-heart:not(.empty)'
+                },
+                message: { btnText: win ? (this.isLevelMode ? '下一關' : '開新局') : '再試一次' },
+                setButtons: (win) => {
+                    document.getElementById('game13-retryGame-btn').disabled = win;
+                    document.getElementById('game13-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

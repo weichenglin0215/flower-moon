@@ -1,6 +1,7 @@
 (function () {
     const Game11 = {
         isActive: false,        // 遊戲是否進行中
+        container: null,        // 遊戲 overlay 的 DOM（契約必備：FMGame.stop/nextLevel 要讀寫它）
         difficulty: '小學',    // 當前難度
         currentLevelIndex: 1,
         isLevelMode: false,
@@ -134,7 +135,7 @@
                     const container = document.getElementById('game11-container');
                     if (container) {
                         container.classList.remove('hidden');
-                        document.body.classList.add('overlay-active');
+                        window.FMGame.holdOverlayActive();
                     }
 
                     /* updateResponsiveLayout replaced */
@@ -188,7 +189,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.classList.add('overlay-active'); // Ensure overlay-active is added
+                    window.FMGame.holdOverlayActive();
                     if (window.updateResponsiveLayout) {
                         /* updateResponsiveLayout replaced */
                     }
@@ -226,10 +227,8 @@
         stopGame: function () {
             this.isActive = false;
             this.stopAllTimers();
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
             this.showOtherContents();
+            window.FMGame.stop(this);
         },
 
         // 停止所有計時器與動畫：取消計分動畫、遞增 turnId（讓進行中的非同步展示流程失效）、清除 interval
@@ -629,12 +628,10 @@
         delay: function (ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         },
-        // 處理勝利事件：翻開全部字塊、播放得分動畫，完成後進入遊戲結束流程
+        // 處理勝利事件：翻開全部字塊，交給 gameOver() 播結算動畫與訊息框
         handleWin: function () {
             this.isActive = false;
             this.gridContainer.classList.remove('is-player-phase');
-            document.getElementById('game11-retryGame-btn').disabled = true;
-            document.getElementById('game11-newGame-btn').disabled = true;
             document.getElementById('game11-status').textContent = "完美！全數過目不忘！";
 
             // Show all characters
@@ -642,81 +639,31 @@
                 this.tiles[item.gridIdx].el.classList.add('flipped');
             });
 
-            ScoreManager.playWinAnimation({
-                game: this,
-                difficulty: this.difficulty,
-                gameKey: 'game11',
-                timerContainerId: 'game11-grid',
-                scoreElementId: 'game11-score',
-                heartsSelector: '#game11-hearts .fm-heart:not(.empty)',
-                onComplete: (finalScore) => {
-                    this.score = finalScore;
-                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                    this.gameOver(true, '');
-                }
-            });
+            // 按鈕防呆與結算動畫改由 gameOver() → FMGame.gameOver() 統一處理。
+            this.gameOver(true, '');
         },
-        // 處理遊戲結束事件
         // 處理遊戲結束事件（win=true 為勝利，false 為失敗）：寫入紀錄、更新按鈕狀態並顯示結果訊息
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 11,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             this.gridContainer.classList.remove('is-player-phase');
             if (win) this.updatePoemInfoVisibility(true);
 
-            if (win) {
-                document.getElementById('game11-retryGame-btn').disabled = true;
-                document.getElementById('game11-newGame-btn').disabled = true;
-                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
-            } else {
-                document.getElementById('game11-retryGame-btn').disabled = false;
-                document.getElementById('game11-newGame-btn').disabled = false;
-                if (window.SoundManager) window.SoundManager.playSadTriple();
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "再試一次"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
+            window.FMGame.gameOver(this, win, reason || '再試一次', {
+                gameNo: 11,
+                gameKey: 'game11',
+                anim: {
+                    timerContainerId: 'game11-grid',
+                    scoreElementId: 'game11-score',
+                    heartsSelector: '#game11-hearts .fm-heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game11-retryGame-btn').disabled = win;
+                    document.getElementById('game11-newGame-btn').disabled = win;
+                    if (window.SoundManager) {
+                        if (win) window.SoundManager.playJoyfulTripleSlow();
+                        else window.SoundManager.playSadTriple();
+                    }
                 }
-            };
-
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.FMGame.completeLevel('game11', this);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game11', this.currentLevelIndex, () => showMessage(reason));
-                } else {
-                    showMessage(reason);
-                }
-            } else {
-                showMessage(reason);
-            }
+            });
         }
     };
 

@@ -5,6 +5,7 @@
 
     const Game5 = {
         isActive: false,
+        container: null,
         difficulty: '小學',
         currentLevelIndex: 1,
         isLevelMode: false,
@@ -101,9 +102,13 @@
 
         // 初始化遊戲：若容器已存在則略過，否則建立 DOM 並綁定事件
         init: function () {
-            if (document.getElementById('game5-container')) return;
+            if (document.getElementById('game5-container')) {
+                this.container = document.getElementById('game5-container');
+                return;
+            }
             this.createDOM();
             this.bindEvents();
+            this.container = document.getElementById('game5-container');
         },
 
         // 建立遊戲畫面所需的 DOM 結構（頭部、紅心、目標詩句、迷宮畫布、計時器等）
@@ -574,8 +579,7 @@
 
                     const container = document.getElementById('game5-container');
                     container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     /* updateResponsiveLayout replaced */
                     this.startNewGame();
                 });
@@ -636,7 +640,7 @@
                     const container = document.getElementById('game5-container');
                     if (container) {
                         container.classList.remove('hidden');
-                        document.body.classList.add('overlay-active');
+                        window.FMGame.holdOverlayActive();
                     }
 
                     this.setupMaze();
@@ -1576,71 +1580,22 @@
         // 遊戲結束處理：停止計時與動畫迴圈，依勝負記錄戰績並顯示結果訊息，
         // 勝利時可能觸發得分動畫與過關紀錄
         gameOver: function (win, reason) {
-            this.isActive = false;
-            if (win) {
-                document.getElementById('game5-retryGame-btn').disabled = true;
-                document.getElementById('game5-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game5-retryGame-btn').disabled = false;
-                document.getElementById('game5-newGame-btn').disabled = false;
-            }
-            this.isWin = win;
-
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 5,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game5',
+            window.FMGame.gameOver(this, win, win ? '' : (typeof reason === 'string' ? reason : '挑戰結束'), {
+                gameNo: 5,
+                gameKey: 'game5',
+                anim: {
                     timerContainerId: 'game5-timer',
                     scoreElementId: 'game5-score',
-                    heartsSelector: '#game5-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        if (this.isLevelMode) {
-                            window.FMGame.completeLevel('game5', this);
-                        }
-                        showMessage(finalScore);
-                    }
-                });
-            } else {
-                showMessage();
-            }
+                    heartsSelector: '#game5-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game5-retryGame-btn').disabled = win;
+                    document.getElementById('game5-newGame-btn').disabled = win;
+                }
+            });
         },
 
         // 停止遊戲並隱藏遊戲畫面，還原回主頁面（離開遊戲時呼叫）
@@ -1648,11 +1603,7 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            const container = document.getElementById('game5-container');
-            if (container) {
-                container.classList.add('hidden');
-            }
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
             // 還原主頁面顯示
             const mainContainer = document.getElementById('calendarCardContainer') || document.getElementById('cardContainer');
             if (mainContainer) mainContainer.style.display = '';

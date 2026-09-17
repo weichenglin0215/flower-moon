@@ -197,6 +197,17 @@
                 console.warn('[考試] 正在派題，忽略這次 forceStop（避免考試殺掉自己）');
                 return;
             }
+            // ⚠️ 考試通過後的晉升動畫（PromotionCelebration，見 _celebrate）是在
+            //    _finish() 已經把 _active／_sandbox／_overlay 都清掉之後才播放的，
+            //    下面那行「沒有東西在跑就提早 return」擋不住它——播到一半玩家從
+            //    漢堡選單離開，它會繼續在背景播完、彈出獎狀蓋在別的畫面上。
+            //    因此這兩行必須放在提早 return 之前，不受那個守門條件限制。
+            if (window.PromotionCelebration && typeof window.PromotionCelebration.stop === 'function') {
+                window.PromotionCelebration.stop(true);
+            }
+            if (window.AchievementDialog && typeof window.AchievementDialog.forceCloseCert === 'function') {
+                window.AchievementDialog.forceCloseCert();
+            }
             if (!this._active && !this._sandbox && !this._overlay) return;
             this._active = false;
             this._aborted = true;

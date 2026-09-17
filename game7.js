@@ -200,7 +200,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
 
                     // 核心修復：使用 setTimeout 確保 DOM 已渲染且 offsetWidth/Height 不為 0
                     setTimeout(() => {
@@ -250,13 +250,7 @@
         stopGame: function () {
             this.isActive = false;
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
-
-            document.body.classList.remove('overlay-active');
-            document.body.style.overflow = '';
+            window.FMGame.stop(this);
         },
 
         // 依容器實際尺寸設定畫布大小，並將鳥重置到左側固定水平位置
@@ -275,31 +269,28 @@
         // 顯示開始前的規則說明對話框，並啟動渲染循環讓背景先動起來
         showStartMessage: function () {
             this.state = 'START';
-            if (window.RuleNoteDialog) {
-                window.RuleNoteDialog.show({
-                    title: '青鳥雲梯',
-                    lines: [
-                        '點擊螢幕向上跳躍<br>依序降落在文字方塊上',
-                        '錯過方塊將會損血<br>降落在最後一塊黃金平台',
-                        '完成整首詩詞即獲勝'
-                    ],
-                    btnText: '開始挑戰',
-                    styles: {
-                        top: '50%',
-                        left: '66%',
-                        width: '60%',
-                        height: '70%',
-                        bg: 'hsla(210, 80%, 25%, 0.6)',
-                        titleColor: 'hsl(45, 100%, 70%)',
-                        textColor: 'hsl(45, 30%, 90%)',
-                        btnBg: 'hsl(210, 70%, 75%)',
-                        btnColor: 'hsl(220, 60%, 33%)'
-                    },
-                    onConfirm: () => {
-                        this.startGame();
-                    }
-                });
-            }
+            window.FMGame.showRuleIntro(this, {
+                title: '青鳥雲梯',
+                lines: [
+                    '點擊螢幕向上跳躍<br>依序降落在文字方塊上',
+                    '錯過方塊將會損血<br>降落在最後一塊黃金平台',
+                    '完成整首詩詞即獲勝'
+                ],
+                btnText: '開始挑戰',
+                styles: {
+                    top: '50%',
+                    left: '66%',
+                    width: '60%',
+                    height: '70%',
+                    bg: 'hsla(210, 80%, 25%, 0.6)',
+                    titleColor: 'hsl(45, 100%, 70%)',
+                    textColor: 'hsl(45, 30%, 90%)',
+                    btnBg: 'hsl(210, 70%, 75%)',
+                    btnColor: 'hsl(220, 60%, 33%)'
+                }
+            }, () => {
+                this.startGame();
+            });
             this.startLoop(); // 啟動渲染循環，讓背景雲朵與初始場景顯示出來
         },
 
@@ -977,56 +968,12 @@
         // 遊戲結束處理：依勝負分別寫入紀錄（失敗時直接記 log，勝利則由 ScoreManager 結算動畫負責），
         // 並顯示結果訊息框（含「下一關/下一局」或「再試一次」按鈕）
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 7,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             this.state = 'GAME_OVER';
 
-            if (win) {
-                document.getElementById('game7-retryGame-btn').disabled = true;
-                document.getElementById('game7-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game7-retryGame-btn').disabled = false;
-                document.getElementById('game7-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMsg = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    gameKey: 'game7',
-                    difficulty: this.difficulty,
+            window.FMGame.gameOver(this, win, win ? '' : (typeof reason === 'string' ? reason : '挑戰結束'), {
+                gameNo: 7,
+                gameKey: 'game7',
+                anim: {
                     scoreElementId: 'game7-score',
                     timerContainerId: 'game7-timer-container',
                     heartsSelector: '#game7-hearts .heart:not(.empty)',
@@ -1037,21 +984,13 @@
                             x: rect.left + (this.bird.x - this.cameraX),
                             y: rect.top + this.bird.y
                         };
-                    },
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        // 關卡模式的通關紀錄。
-                        // ⚠️ 2026-09-11 補上：39 款裡只有這一款漏了，
-                        //    等於關卡模式贏了也不會寫進 levelCleared ——
-                        //    青雲梯的進度完全由那份紀錄推導，將來把 game7
-                        //    納入課程時會整款白打（而且不會有任何錯誤訊息）。
-                        window.FMGame.completeLevel('game7', this);
-                        showMsg(finalScore);
                     }
-                });
-            } else {
-                showMsg();
-            }
+                },
+                setButtons: (win) => {
+                    document.getElementById('game7-retryGame-btn').disabled = win;
+                    document.getElementById('game7-newGame-btn').disabled = win;
+                }
+            });
         },
 
         // 重來本局：維持同一首詩詞重新開始（isRetry = true），並延遲重啟動畫循環

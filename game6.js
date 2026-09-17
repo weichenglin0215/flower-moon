@@ -281,8 +281,7 @@
                     const container = document.getElementById('game6-container');
                     if (container) {
                         container.classList.remove('hidden');
-                        document.body.style.overflow = 'hidden';
-                        document.body.classList.add('overlay-active');
+                        window.FMGame.holdOverlayActive();
                     }
 
                     this.setupCanvas();
@@ -341,8 +340,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden'; // 隱藏頁面捲軸，避免遊戲期間背景可捲動
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.setupCanvas();
                     /* updateResponsiveLayout replaced */
                     this.startNewGame();
@@ -1225,70 +1223,22 @@
 
         // 遊戲結束處理：停止計時與動畫迴圈，依勝負記錄戰績（失敗時寫入 game_logs），並顯示結算訊息
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 6,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
-            if (win) {
-                document.getElementById('game6-retryGame-btn').disabled = true;
-                document.getElementById('game6-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game6-retryGame-btn').disabled = false;
-                document.getElementById('game6-newGame-btn').disabled = false;
-            }
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game6',
+            window.FMGame.gameOver(this, win, win ? '' : (typeof reason === 'string' ? reason : '挑戰結束'), {
+                gameNo: 6,
+                gameKey: 'game6',
+                anim: {
                     timerContainerId: 'game6-area',
                     scoreElementId: 'game6-score',
-                    heartsSelector: '#game6-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        if (this.isLevelMode) {
-                            window.FMGame.completeLevel('game6', this);
-                        }
-                        showMessage(finalScore);
-                    }
-                });
-            } else {
-                showMessage();
-            }
+                    heartsSelector: '#game6-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game6-retryGame-btn').disabled = win;
+                    document.getElementById('game6-newGame-btn').disabled = win;
+                }
+            });
         },
 
         // 強制停止遊戲：清除計時器與動畫請求，隱藏遊戲容器並還原頁面滾動狀態
@@ -1296,10 +1246,7 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             if (this.requestID) cancelAnimationFrame(this.requestID);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
         }
     };
 

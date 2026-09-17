@@ -64,6 +64,7 @@
     const Game38 = {
         // ── 共用狀態 ──
         isActive: false,
+        container: null,   // 契約必備：FMGame.stop/nextLevel 要讀寫它
         difficulty: '小學',
         score: 0,
         isWin: false,
@@ -266,8 +267,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -294,15 +294,14 @@
         stopGame: function () {
             this.isActive = false;
             this.stopIdleWatcher();
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this);
         },
 
         retryGame: function () {
             if (!this.currentPoem) { this.startNewGame(); return; }
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.startGameProcess();
         },
 
@@ -831,78 +830,35 @@
         // 結算（勝／敗）
         // ========================================================
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
             this.stopIdleWatcher();
 
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
-                window.SupabaseClient.logGame({ gameNo: 38, difficulty: this.difficulty || '', score: 0, isWin: false, durationS: durationS });
-            }
-
             if (win) {
-                document.getElementById('game38-retryGame-btn').disabled = true;
-                document.getElementById('game38-newGame-btn').disabled = true;
-                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
-            } else {
-                document.getElementById('game38-retryGame-btn').disabled = false;
-                document.getElementById('game38-newGame-btn').disabled = false;
-                if (window.SoundManager) window.SoundManager.playFailure();
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? '' : (typeof reason === 'string' ? reason : '步數用盡'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            // 關卡挑戰過關：登錄通關紀錄，若因此解鎖成就則先跳成就彈窗再顯示結算
-            const recordLevelAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game38', this);
-                    if (achId && window.AchievementDialog && window.AchievementDialog.showInstantAchievementPop) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game38', this.currentLevelIndex, () => showMessage(finalScore));
-                        return;
-                    }
-                }
-                showMessage(finalScore);
-            };
-
-            if (win && window.ScoreManager) {
                 // ⚠️ playWinAnimation 原生是「剩餘秒數」換算加分動畫；比照 game24 的
                 //    手法，把 movesLeft/maxMoves 灌進 timer/maxTimer、startTime 設 0，
                 //    讓同一套「剩餘資源飛星轉分數」動畫直接沿用在步數模式上。
+                //    必須在呼叫 FMGame.gameOver()（進而觸發 playWinAnimation）之前設好。
                 this.timer = this.movesLeft;
                 this.maxTimer = this.maxMoves;
                 this.startTime = 0;
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game38',
+            }
+
+            window.FMGame.gameOver(this, win, reason || '步數用盡', {
+                gameNo: 38,
+                gameKey: 'game38',
+                anim: {
                     timerContainerId: 'game38-board-wrapper',
                     scoreElementId: 'game38-score',
-                    heartsSelector: '.game38-no-hearts', // 本作無紅心機制 —— 用永不命中的 selector
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        recordLevelAndShow(finalScore);
+                    heartsSelector: '.game38-no-hearts' // 本作無紅心機制 —— 用永不命中的 selector
+                },
+                setButtons: (win) => {
+                    document.getElementById('game38-retryGame-btn').disabled = win;
+                    document.getElementById('game38-newGame-btn').disabled = win;
+                    if (window.SoundManager) {
+                        if (win) window.SoundManager.playJoyfulTripleSlow();
+                        else window.SoundManager.playFailure();
                     }
-                });
-            } else {
-                showMessage();
-            }
+                }
+            });
         },
     };
 

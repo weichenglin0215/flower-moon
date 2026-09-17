@@ -20,6 +20,7 @@
     const Game26 = {
         // ── 共用狀態 ──
         isActive: false,
+        container: null,   // 契約必備：FMGame.stop/nextLevel 要讀寫它
         difficulty: '小學',
         currentLevelIndex: 1,
         isLevelMode: false,
@@ -263,8 +264,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -305,16 +305,15 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             this.stopRAF();
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this);
         },
 
         // 重來：沿用目前已抽取的詩詞，重新開始本局
         retryGame: function () {
             if (!this.currentPoem) return;
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.startGameProcess(true);
         },
 
@@ -1343,80 +1342,22 @@
         // 遊戲結束總處理：停止計時/RAF、記錄失敗紀錄、播放勝利動畫或直接顯示結算訊息
         gameOver: function (win, reason) {
             if (!this.isActive) return;
-            this.isActive = false;
-            this.isWin = win;
             clearInterval(this.timerInterval);
             this.stopRAF();
 
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 26,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
-
-            if (win) {
-                document.getElementById('game26-retryGame-btn').disabled = true;
-                document.getElementById('game26-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game26-retryGame-btn').disabled = false;
-                document.getElementById('game26-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? '' : (typeof reason === 'string' ? reason : '泡泡觸底！'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game26', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game26', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game26',
+            window.FMGame.gameOver(this, win, reason || '泡泡觸底！', {
+                gameNo: 26,
+                gameKey: 'game26',
+                anim: {
                     timerContainerId: 'game26-board-wrapper',
                     scoreElementId: 'game26-score',
-                    heartsSelector: '.game26-no-hearts',  // 本作無紅心 — 永不命中但語法合法，避免 querySelectorAll('') 拋例外
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAchievementsAndShow();
-            }
+                    heartsSelector: '.game26-no-hearts'  // 本作無紅心 — 永不命中但語法合法，避免 querySelectorAll('') 拋例外
+                },
+                setButtons: (win) => {
+                    document.getElementById('game26-retryGame-btn').disabled = win;
+                    document.getElementById('game26-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

@@ -632,13 +632,14 @@ const ScoreManager = {
         //（note/青雲梯與獎勵企畫書/青雲梯與文位晉升_總企畫書.md）
         // 難度選單已無獨立關卡模式，此獎狀類別失去對應場景。
         //
-        // ⚠️ 本函式的回傳值 achIdToReturn 因此恆為 null。
-        //    38 個遊戲檔的寫法是
-        //        const achId = ScoreManager.completeLevel(...);
-        //        if (achId && window.AchievementDialog) { ...彈窗... }
-        //        else { showMessage(); }
-        //    回傳 null 會直接走 else 分支（本來就是正確的結算流程），
-        //    所以那 38 個檔案完全不需要修改。
+        // ⚠️ 本函式的回傳值 achIdToReturn 因此恆為 null，
+        //    `AchievementDialog.showInstantAchievementPop` 也已一併移除。
+        //
+        //    2026-09-16 起 39 款遊戲的結算全部委派 `FMGame.gameOver()`，
+        //    那裡已經拿掉「接住 achId 就彈窗」的分支（它永遠不會成立），
+        //    只保留必要的通關紀錄呼叫。日後若要恢復這類即時獎狀，
+        //    要同時改三處：本函式的回傳值、achievement.js 的彈窗函式、
+        //    以及 gameContract.js 的 FMGame.gameOver。
         // ─────────────────────────────────────────────────────
 
         if (needsSave) {
@@ -1066,6 +1067,13 @@ const ScoreManager = {
      */
     playWinAnimation: function (options) {
         this.cancelAnimation(); // 在開始新的動畫前，先取消舊的
+        // ⚠️ 這一場動畫的身分證：cancelAnimation() 會遞增 _animGen，
+        //    飛星降落（requestAnimationFrame 驅動，不受 activeIntervals
+        //    追蹤）與最終的 onComplete 都要比對這個值才能繼續執行，
+        //    否則遊戲被外部 stopGame() 關掉之後，飛行中的星星依然會在
+        //    幾秒後降落、呼叫 completeLevel／彈出「下一關」訊息框——
+        //    而那時畫面早已回到別的地方（見 §4.0 已知錯誤）。
+        const animGen = this._animGen;
 
         // 玩家過關瞬間（動畫啟動前）計算本局遊玩時長（秒）
         // 需各遊戲在 options.game 物件上設置 gameStartTime = Date.now()
@@ -1107,6 +1115,9 @@ const ScoreManager = {
 
         // 子階段：套用難度乘數，並實現數字捲動效果
         const applyMultiplier = () => {
+            // 這場動畫已被取消（遊戲被外部關閉、或又開始了新的一場）→ 不再繼續，
+            // 避免遊戲已經離場後才觸發 saveScore／completeLevel／結算彈窗。
+            if (this._animGen !== animGen) return;
             const finalScore = Math.floor(currentScore * multiplier); // 乘數後再次確保整數
             let tempScore = currentScore;
             const diff = finalScore - currentScore;
@@ -1188,6 +1199,11 @@ const ScoreManager = {
                     // 創建飛行星星
                     let customP0 = options.getStarStartPoint ? options.getStarStartPoint(currentRatio) : null;
                     this.createFlyingStar(options.timerContainerId, options.scoreElementId, currentRatio, () => {
+                        // 星星降落靠 requestAnimationFrame 逐幀推進，不受
+                        // cancelAnimation() 的 clearInterval／DOM 清除影響——
+                        // 遊戲若已經在飛行途中被關掉，這裡就是唯一擋得住
+                        // 「幾秒後才憑空跳出結算」的地方。
+                        if (this._animGen !== animGen) return;
                         currentScore += this.getTimeScore(gameKey);
                         document.getElementById(options.scoreElementId).textContent = currentScore;
                         starsLanded++;
@@ -1403,8 +1419,17 @@ const ScoreManager = {
 
     /**
      * 取消目前正在執行的結算動畫與計時器
+     *
+     * ⚠️ 光是 clearInterval／移除 DOM 擋不住已經在飛的星星：
+     *    createFlyingStar() 用 requestAnimationFrame 自己跑完整趟軌跡，
+     *    降落時一樣會呼叫 onLand（進而可能觸發 completeLevel／彈出結算
+     *    訊息框），跟這裡有沒有清掉 DOM、有沒有清 interval 無關。
+     *    因此另外遞增 _animGen，playWinAnimation() 與飛星降落回呼都會
+     *    比對這個值，比對不過就直接放棄——這樣才是真的「取消」，
+     *    而不是只清掉看得到的痕跡。
      */
     cancelAnimation: function () {
+        this._animGen = (this._animGen || 0) + 1;
         this.activeIntervals.forEach(id => clearInterval(id));
         this.activeIntervals = [];
         // 清除所有飛行星星

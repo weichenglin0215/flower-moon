@@ -216,6 +216,27 @@ function fnBody(src, name) {
     return null;
 }
 
+/**
+ * 抓出 `DifficultySelector.show(遊戲名, 回呼)` 那個回呼的函式主體。
+ *
+ * ⚠️ 青雲梯（learningPath.launchGame）與考試（examEngine._installSandbox）
+ *    都是靠「暫時把 DifficultySelector.show 換成立刻回呼指定難度與關卡」
+ *    來派局的，所以這個回呼就是**被編排時的實際開局路徑**。
+ */
+function dsCallbackBody(src) {
+    const at = src.indexOf('DifficultySelector.show(');
+    if (at < 0) return null;
+    const arrow = src.indexOf('=>', at);
+    const open = src.indexOf('{', arrow);
+    if (arrow < 0 || open < 0) return null;
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+        if (src[i] === '{') depth++;
+        else if (src[i] === '}') { depth--; if (!depth) return src.slice(open, i + 1); }
+    }
+    return null;
+}
+
 /** 取出 `const onConfirm = ` 之後那一整個箭頭函式本體 */
 function onConfirmBody(src) {
     const at = src.indexOf('const onConfirm');
@@ -289,14 +310,111 @@ function verifyGames() {
         always(typeof G.stopGame === 'function', 'stopGame() 存在',
             'menu.js 的全域清理只呼叫這一支；青雲梯換遊戲時也靠它關掉上一款');
 
-        // stopGame 必須自己隱藏 overlay（見「花月開發常見錯誤與解法」§4.1）
+        // stopGame 必須自己隱藏 overlay（見「花月開發常見錯誤與解法」§4.1）。
+        // ⚠️ 2026-09 起有兩種合格寫法：自己 classList.add('hidden')，
+        //    或委派給共用的 FMGame.stop(this)（gameContract.js 內部一定會做
+        //    這件事，且同時會取消結算動畫／收掉 RuleNoteDialog／GameMessage——
+        //    見它自己的說明）。逐批遷移到 FMGame.stop 的遊戲不該被這裡擋下。
         const sg = fnBody(src, 'stopGame');
         if (sg) {
-            always(/classList\.add\(\s*'hidden'\s*\)/.test(sg),
-                "stopGame() 內有 classList.add('hidden')",
+            always(/classList\.add\(\s*'hidden'\s*\)/.test(sg) || /FMGame\.stop\(\s*this\s*\)/.test(sg),
+                "stopGame() 內有 classList.add('hidden') 或委派 FMGame.stop(this)",
                 'menu.js 的全域清理只呼叫 stopGame()、不呼叫 hide()；'
-                + '不自己隱藏的話切換頁面後 overlay 會留在畫面上');
+                + '不自己隱藏（或沒有委派給會隱藏的共用函式）的話，'
+                + '切換頁面後 overlay 會留在畫面上');
         }
+
+        // ── 1.1b 開新局與重來都必須取消「還在飛」的結算動畫 ─────────────
+        //
+        // ⚠️⚠️ 這是催生「統一遊戲生命週期契約」那整個專案的原始 bug。
+        //    ScoreManager.playWinAnimation 的飛星各自跑完整趟 requestAnimationFrame
+        //    軌跡，不受任何 interval 追蹤，光是把遊戲藏起來擋不住它。
+        //    玩家在結算動畫還沒播完時按「重來」或「開新局」，舊的那批星星
+        //    會在幾秒後降落、觸發 completeLevel 並彈出「下一關」訊息框 ——
+        //    那時玩家早已在新的一局（甚至已經回到青雲梯）了，畫面就憑空
+        //    跳出一個對不上的彈窗。玩家原始回報：「青雲梯考試通過、領完獎狀
+        //    之後回到青雲梯，卻跳出『下一關』與『步步為陣』的空彈窗」。
+        //
+        //    2026-09 遷移前有 17 款只在 startNewGame() 取消、retryGame() 漏掉，
+        //    **其中包含官方文件指定「新遊戲抄這款」的範本 game8** ——
+        //    範本帶病，這個洞就會一直被複製到新遊戲裡。
+        //    這一項是那 17 款的回歸防線：手工修好但沒有機器把關，等於沒修。
+        //
+        //    兩種寫法都算合格：函式體內直接呼叫 cancelAnimation()，
+        //    或（間接幾層都可以）呼叫一個會做這件事的自家輔助函式。
+        //    實際存在的間接鏈：game9 的 startGameProcess、game12 的 stopAllTimers、
+        //    game36 的 retryGame → startNewGame、
+        //    game11 的 retryGame → resetGameRound → stopAllTimers（兩層）。
+        //    ⚠️ 所以這裡必須是真正的遞迴走訪，不能只追一層 ——
+        //    追一層會把 game11 誤判成不合格（實測過）。
+        const srcNoCmt = stripComments(src);
+        const reachesCancel = (fnName, seen) => {
+            const visited = seen || Object.create(null);
+            if (visited[fnName]) return false;   // 防止 A→B→A 互呼造成無限遞迴
+            visited[fnName] = true;
+            const body = fnBody(srcNoCmt, fnName);
+            if (!body) return false;
+            if (/cancelAnimation\s*\(/.test(body)) return true;
+            const calls = body.match(/this\.([A-Za-z_$][\w$]*)\s*\(/g) || [];
+            return calls.some(c => reachesCancel(c.slice(5).replace(/\s*\($/, ''), visited));
+        };
+        ['startNewGame', 'retryGame'].forEach(fnName => {
+            // 函式根本不存在的情況由 REQUIRED_METHODS 那一項負責報，這裡不重複
+            if (!fnBody(srcNoCmt, fnName)) return;
+            always(reachesCancel(fnName),
+                fnName + '() 會取消還在飛的結算動畫（ScoreManager.cancelAnimation）',
+                '上一局的飛星會在幾秒後降落，憑空觸發 completeLevel 與「下一關」彈窗，'
+                + '而且完全不會有錯誤訊息。請在 ' + fnName + '() 開頭加上 '
+                + 'if (window.ScoreManager) window.ScoreManager.cancelAnimation();'
+                + '（或呼叫一個會做這件事的自家輔助函式）');
+        });
+
+        // ── 1.1c 難度選擇回呼必須「同步」把題目選好 ─────────────────────
+        //
+        // ⚠️⚠️ 2026-09-17 實測抓到的活體 bug：考試的 examEngine._tryCombo 在
+        //    `GameObj.show()` 一回來就**同步**讀 `this.currentPoem.id`，用來
+        //    正面確認「這一局有沒有出到考試指定的那首詩」（那道正面確認本身
+        //    是必要的：13／14／37 取不到詩時是安靜地 return，不會 alert）。
+        //
+        //    若遊戲把開局丟進 setTimeout，那一刻 currentPoem 還是上一局的
+        //    （或 null），比對必然不相等，於是**這一款永遠會被判定「出不了
+        //    指定的詩」而被換掉 —— 它從此不會出現在任何考試裡，而且完全
+        //    沒有錯誤訊息**。game9「詩韻鎖扣」就是這樣靜靜缺席的
+        //    （已於 2026-09-17 改為同步開局）。
+        //
+        //    ⚠️ 混沌模擬那一節（第 11 節）驗不到這件事：它把每一款的 show()
+        //    都換成「同步設好 currentPoem」的替身，真實的非同步行為被替身
+        //    蓋掉了。所以這一項只能靠原始碼指紋擋。
+        //
+        //    延後「量版面」的動作沒問題（例如等 offsetWidth 不為 0），
+        //    但**選詩／開局**必須同步完成。game7 的 setTimeout 屬於前者，
+        //    且它不在青雲梯內，因此只是提醒。
+        const dsCb = dsCallbackBody(srcNoCmt);
+        if (dsCb) {
+            must(!/setTimeout/.test(dsCb),
+                '難度選擇回呼內同步開局（沒有把選題延後到 setTimeout）',
+                '考試在 show() 回來的那一刻就讀 currentPoem.id 做正面確認，'
+                + '延後選題會讓這一款永遠被判定「出不了指定的詩」而從所有考試中缺席，'
+                + '且不會有任何錯誤訊息。請把 startNewGame() 直接同步呼叫，'
+                + '只把需要量測版面的動作留在 setTimeout 裡');
+        }
+
+        // ── 1.1d 選到的詩必須放在 `this.currentPoem` 這個名字上 ──────────
+        //
+        // ⚠️ 考試唯一的「正面確認出題成功」手段就是讀 `GameObj.currentPoem.id`
+        //    （examEngine._tryCombo）。欄位換個名字，考試就再也確認不了，
+        //    這一款會被永遠判定出不了題。目前實際存在的不一致命名：
+        //    game5 用 `targetPoem`、game36 用 `targetLine`／`targetPoem`
+        //    （兩款都不在考試池 EXAM_GAMES 內，所以只是提醒）。
+        //
+        //    ⚠️ 這裡刻意驗「有沒有寫 this.currentPoem =」而不是驗執行後的值：
+        //    Node 環境跑不動大部分遊戲的完整 show()（canvas／量版面），
+        //    第 11 節混沌模擬也是拿替身 show() 取代真品。
+        must(/this\.currentPoem\s*=/.test(srcNoCmt),
+            '選到的詩存放在 this.currentPoem（考試正面確認出題用）',
+            'examEngine._tryCombo 靠 GameObj.currentPoem.id 確認「有沒有出到指定的那首詩」；'
+            + '用別的欄位名（例如 targetPoem）的話，這一款會被永遠判定出不了題、'
+            + '從所有考試中靜默缺席');
 
         // ── 1.2 跨檔註冊（漏一項就是靜默性 bug）────────────────────────
         always(indexHtml.indexOf('src="' + key + '.js"') >= 0,
@@ -513,13 +631,23 @@ function verifyGames() {
         //     2026-09-11 起一律走 FMGame.completeLevel（gameContract.js），
         //     並且對 39 款都是 ❌ —— game7 原本整款漏記，關卡模式贏了也不算，
         //     將來要納入課程時會整款白打，而且不會有任何錯誤訊息。
-        always(/window\.FMGame\.completeLevel\(/.test(srcNC),
-            '過關時呼叫 FMGame.completeLevel()（共同契約）',
+        // ⚠️ 2026-09 起多一種合格寫法：整段結算委派給 FMGame.gameOver(this,
+        //    win, reason, {gameKey, ...})，它內部一定會呼叫 FMGame.completeLevel
+        //    ——見 gameContract.js 的說明。gameKey 正確性的驗法也要跟著多一種。
+        const usesGameOverShared = /window\.FMGame\.gameOver\(/.test(srcNC);
+        always(/window\.FMGame\.completeLevel\(/.test(srcNC) || usesGameOverShared,
+            '過關時呼叫 FMGame.completeLevel()（共同契約，可直接呼叫或委派 FMGame.gameOver）',
             '青雲梯的站點進度完全由 levelCleared 推導，沒記錄等於這一局白打');
         const cl = srcNC.match(/completeLevel\(\s*'([^']+)'\s*,/);
         if (cl) {
             always(cl[1] === key, "completeLevel 的 gameKey 是 '" + key + "'",
                 '實際傳的是 ' + cl[1] + '，通關紀錄會記到別款遊戲頭上');
+        } else if (usesGameOverShared) {
+            const go = fnBody(srcNC, 'gameOver');
+            const gk = go && go.match(/gameKey\s*:\s*'([^']+)'/);
+            always(!!gk && gk[1] === key, "FMGame.gameOver() 傳入的 gameKey 是 '" + key + "'",
+                gk ? ('實際傳的是 ' + gk[1] + '，通關紀錄會記到別款遊戲頭上')
+                    : '委派給 FMGame.gameOver() 卻沒有在 opts 帶 gameKey，completeLevel 會用 undefined 當鍵值');
         }
 
         // ── 1.6-(e) 禁用指紋：遊戲不得自行發動全站層級的動作 ────────────
@@ -3628,6 +3756,58 @@ function verifyHygiene() {
             '只靠畫面擋是不夠的：任何新入口（測試熱鍵、外部呼叫）都會經過這一支');
         check(CS.load().silver === before, '考試入口', '被擋下時不會扣報名費',
             '文錢從 ' + before + ' 變成 ' + CS.load().silver);
+    })();
+
+    // 7.6 晉升動畫（PromotionCelebration）播到一半被強制關閉時必須真的停止
+    //
+    // ⚠️ 這是「考試通過後跳出『下一關』／『步步為陣』空彈窗」同一類洞的
+    //    第二個活體案例：PromotionCelebration 有正確的 stop(true)（清 rAF、
+    //    清五個 setTimeout、清 onDone、拆自己的 overlay），但過去三條
+    //    「關閉一切」的路徑（LearningPath.stopGame／abandonSession、
+    //    ExamEngine.forceStop）都沒有人呼叫它——玩家晉升後立刻離開，
+    //    動畫會繼續在背景播完，彈出獎狀蓋在別的畫面上。
+    //
+    //    這裡不真的等 9 秒的 setTimeout 鏈跑完（也等不到：fm_env.js 的
+    //    requestAnimationFrame 是永遠不會被呼叫的空函式，跟真實瀏覽器
+    //    分頁被切到背景時的行為一致），而是直接戳內部狀態模擬「動畫播到
+    //    一半」，確認三條路徑都會把它停乾淨。
+    (function () {
+        const PC = global.PromotionCelebration;
+        if (!PC) { warn('潔淨度', 'PromotionCelebration 未載入，略過 7.6', ''); return; }
+
+        function simulateMidFlight() {
+            PC._running = true;
+            PC._rafId = 999999;               // 假的 rAF handle，只用來確認 stop() 會歸零
+            PC._timerCert = setTimeout(() => { }, 60000); // 假裝還卡在等獎狀被點擊那一幕
+            PC._onDone = () => { };           // 假裝還掛著回呼，確認會被清掉
+        }
+        function stillMidFlight() {
+            return PC._running === true || PC._rafId !== 0 || PC._timerCert !== 0 || PC._onDone !== null;
+        }
+
+        simulateMidFlight();
+        LP.stopGame();
+        check(!stillMidFlight(), '潔淨度',
+            'LearningPath.stopGame() 會中止還在播的晉升動畫',
+            '玩家晉升後立刻離開青雲梯，動畫會繼續在背景播完、彈出獎狀蓋在別的畫面上');
+
+        simulateMidFlight();
+        LP.abandonSession();
+        check(!stillMidFlight(), '潔淨度',
+            'LearningPath.abandonSession() 會中止還在播的晉升動畫', '');
+
+        const EE = global.ExamEngine;
+        if (EE) {
+            EE._launching = false; // 確保不會被 forceStop() 的派題防線誤擋
+            simulateMidFlight();
+            EE.forceStop();
+            check(!stillMidFlight(), '潔淨度',
+                'ExamEngine.forceStop() 會中止還在播的晉升動畫',
+                '考試通過後的慶祝動畫是在 _finish() 已經把 _active／_sandbox／_overlay '
+                + '都清掉之後才播的，forceStop() 若只看「有沒有考試在進行」就會放過它');
+        }
+
+        PC.stop(true); // 收尾，避免殘留影響後面的章節
     })();
 }
 

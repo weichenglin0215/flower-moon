@@ -226,7 +226,7 @@
                     const container = document.getElementById('game10-container');
                     if (container) {
                         container.classList.remove('hidden');
-                        document.body.classList.add('overlay-active');
+                        window.FMGame.holdOverlayActive();
                     }
 
                     /* updateResponsiveLayout replaced */
@@ -337,8 +337,7 @@
             this.maxMistakes = settings.balls;
 
             this.container.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            document.body.classList.add('overlay-active');
+            window.FMGame.holdOverlayActive();
 
             if (window.updateResponsiveLayout) {
                 /* updateResponsiveLayout replaced */
@@ -366,12 +365,8 @@
         stopGame: function () {
             this.isActive = false;
             cancelAnimationFrame(this.animationFrameId);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             this.showOtherContents();
+            window.FMGame.stop(this);
         },
 
         // 重來本局：分數與失誤歸零，並將所有磚塊重設回初始血量與位置
@@ -402,6 +397,10 @@
         // 開新局：重置分數、重新產生詩詞敵陣，並重置回合狀態（球、撞擊條等）
         startNewGame: function (levelIndex) {
             cancelAnimationFrame(this.animationFrameId);
+            // ⚠️ 原本只有 retryGame() 會取消結算動畫（本作是鏡像版本的洞：
+            //    game8 等 17 款是漏在 retryGame，這款漏在 startNewGame）——
+            //    見 gameContract.js FMGame.stop() 開頭的說明。
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) {
                 this.currentLevelIndex = levelIndex;
                 this.isLevelMode = true;
@@ -1129,98 +1128,47 @@
             }
         },
 
-        // 處理勝利流程：停用互動、播放得分動畫與煙火特效，動畫結束後呼叫 gameOver 顯示結算畫面
+        // 處理勝利流程：停用互動、放煙火特效，交給 gameOver() 播結算動畫與訊息框
         handleWin: function () {
             this.isActive = false;
             cancelAnimationFrame(this.animationFrameId);
 
-            document.getElementById('game10-retryGame-btn').disabled = true;
-            document.getElementById('game10-newGame-btn').disabled = true;
-
-            ScoreManager.playWinAnimation({
-                game: this,
-                difficulty: this.difficulty,
-                gameKey: 'game10',
-                timerContainerId: 'game10-bricks-container', // 佔位用參數（此遊戲無需計時器容器，沿用磚塊容器 ID）
-                scoreElementId: 'game10-score',
-                heartsSelector: '#game10-hearts .heart:not(.empty)',
-                onComplete: (finalScore) => {
-                    this.score = finalScore;
-                    // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                    this.gameOver(true, '');
-                }
-            });
-
-            // 在其中一顆白球附近放置五個大型煙火
+            // 在其中一顆白球附近放置五個大型煙火（跟結算動畫並行，不必等它播完）
             const targetX = this.balls.length > 0 ? this.balls[0].x : wRem / 2;
             const targetY = this.balls.length > 0 ? this.balls[0].y : hRem / 2;
-
             for (let i = 0; i < 5; i++) {
                 setTimeout(() => {
                     this.createFirework(targetX + (Math.random() * 4 - 2), targetY + (Math.random() * 4 - 2));
                 }, i * 200);
             }
+
+            // 按鈕防呆與結算動畫改由 gameOver() → FMGame.gameOver() 統一處理
+            // （批次 3：原本的雙架構——這裡先播動畫、播完才呼叫 gameOver(true,'')
+            // 純記錄——已收斂成單一寫法）。
+            this.gameOver(true, '');
         },
 
         // 遊戲結束處理（勝利或失敗皆會呼叫）：記錄戰績、播放音效、顯示結算訊息，並設定確認後的下一步行為
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 10,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             cancelAnimationFrame(this.animationFrameId);
 
-            if (win) {
-                document.getElementById('game10-retryGame-btn').disabled = true;
-                document.getElementById('game10-newGame-btn').disabled = true;
-                if (window.SoundManager) window.SoundManager.playJoyfulTripleSlow();
-            } else {
-                document.getElementById('game10-retryGame-btn').disabled = false;
-                document.getElementById('game10-newGame-btn').disabled = false;
-                if (window.SoundManager) window.SoundManager.playSadTriple();
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "再試一次"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
+            window.FMGame.gameOver(this, win, reason || '再試一次', {
+                gameNo: 10,
+                gameKey: 'game10',
+                anim: {
+                    timerContainerId: 'game10-bricks-container', // 佔位用參數（此遊戲無需計時器容器，沿用磚塊容器 ID）
+                    scoreElementId: 'game10-score',
+                    heartsSelector: '#game10-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game10-retryGame-btn').disabled = win;
+                    document.getElementById('game10-newGame-btn').disabled = win;
+                    if (window.SoundManager) {
+                        if (win) window.SoundManager.playJoyfulTripleSlow();
+                        else window.SoundManager.playSadTriple();
+                    }
                 }
-            };
-
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.FMGame.completeLevel('game10', this);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game10', this.currentLevelIndex, () => showMessage(reason));
-                } else {
-                    showMessage(reason);
-                }
-            } else {
-                showMessage(reason);
-            }
+            });
         },
 
         // 將撞擊條、球、磚塊的邏輯座標 (rem) 換算為畫面像素，套用到對應 DOM 元素上

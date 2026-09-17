@@ -177,13 +177,9 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             // 恢复其他内容
             this.showOtherContents();
+            window.FMGame.stop(this);
         },
 
         // 開啟共用的難度選擇器元件，讓玩家選擇「小學～研究所」難度或指定關卡。
@@ -206,8 +202,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.updateResponsiveLayout) {
                         /* updateResponsiveLayout replaced */
                     }
@@ -618,23 +613,8 @@
                 this.renderQuestion();
 
                 if (this.currentInputIndex === this.targetChars.length) {
-                    clearInterval(this.timerInterval);
-                    document.getElementById('game2-retryGame-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                    document.getElementById('game2-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-
-                    ScoreManager.playWinAnimation({
-                        game: this,
-                        difficulty: this.difficulty,
-                        gameKey: 'game2',
-                        timerContainerId: 'game2-answer-grid-container',
-                        scoreElementId: 'game2-score',
-                        heartsSelector: '#game2-hearts .fm-heart:not(.empty)',
-                        onComplete: (finalScore) => {
-                            this.score = finalScore;
-                            // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                            this.gameOver(true, '');
-                        }
-                    });
+                    // 按鈕防呆與結算動畫改由 gameOver() → FMGame.gameOver() 統一處理。
+                    this.gameOver(true, '');
                 }
             } else {
                 // 答錯
@@ -767,66 +747,27 @@
         // 最後依是否為關卡模式、是否過關，決定顯示的訊息框與「下一步」行為
         // （關卡模式過關→下一關；一般模式過關→開新局；失敗→重來）。
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 2,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
-            // 僅在挑戰成功 win 時停用重來按鍵。失敗則維持可點擊。
-            if (win) {
-                document.getElementById('game2-retryGame-btn').disabled = true; //必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-                document.getElementById('game2-newGame-btn').disabled = true;//必須在得分表演之前就先禁用重來按鈕，避免答對又洗分數
-            } else {
-                document.getElementById('game2-retryGame-btn').disabled = false;
-                document.getElementById('game2-newGame-btn').disabled = false;
-            }
             clearInterval(this.timerInterval);
             this.isRevealed = true;
             if (win) this.updatePoemInfoVisibility(true);
             //取消顯示答案
             //this.renderQuestion();
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? this.score : 0,
-                        reason: win ? "" : reason,
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
+            window.FMGame.gameOver(this, win, reason || '', {
+                gameNo: 2,
+                gameKey: 'game2',
+                anim: {
+                    timerContainerId: 'game2-answer-grid-container',
+                    scoreElementId: 'game2-score',
+                    heartsSelector: '#game2-hearts .fm-heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    // 必須在得分表演之前就先禁用按鈕，避免答對又洗分數；
+                    // 失敗則維持可點擊。
+                    document.getElementById('game2-retryGame-btn').disabled = win;
+                    document.getElementById('game2-newGame-btn').disabled = win;
                 }
-            };
-
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.FMGame.completeLevel('game2', this);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game2', this.currentLevelIndex, showMessage);
-                } else {
-                    showMessage();
-                }
-            } else {
-                showMessage();
-            }
+            });
         },
 
         // 依文字長度動態調整字級：若字數超過 threshold（門檻字數），

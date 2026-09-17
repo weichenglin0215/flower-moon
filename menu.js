@@ -524,6 +524,29 @@
     function closeAllActiveOverlays() {
         console.log('[Menu] 正在執行全域清理...');
 
+        // ⚠️ 結算動畫（飛星）靠 requestAnimationFrame 自己跑完整趟軌跡，
+        //    光是把遊戲 stopGame() 藏起來擋不住它幾秒後降落、
+        //    呼叫 completeLevel／彈出「下一關」訊息框——那時玩家早已切走。
+        //    在關閉所有遊戲之前先斷開，讓飛行中的星星降落時變成無害的空跑。
+        try {
+            if (window.ScoreManager && typeof window.ScoreManager.cancelAnimation === 'function') {
+                window.ScoreManager.cancelAnimation();
+            }
+        } catch (e) { console.warn('[Menu] 取消結算動畫失敗', e); }
+
+        // ⚠️ 晉升動畫（PromotionCelebration）跟結算動畫是同一種洞：rAF＋
+        //    setTimeout 鏈可以長達 9 秒以上，播到一半玩家切走的話，它會繼續
+        //    在背景播完、彈出獎狀蓋在別的畫面上。stop(true) 會連內部的
+        //    onDone 一起清掉，不會再回頭呼叫任何回呼。
+        try {
+            if (window.PromotionCelebration && typeof window.PromotionCelebration.stop === 'function') {
+                window.PromotionCelebration.stop(true);
+            }
+            if (window.AchievementDialog && typeof window.AchievementDialog.forceCloseCert === 'function') {
+                window.AchievementDialog.forceCloseCert();
+            }
+        } catch (e) { console.warn('[Menu] 中止晉升動畫失敗', e); }
+
         ['Game1', 'Game2', 'Game3', 'Game4', 'Game5', 'Game6', 'Game7', 'Game8', 'Game9', 'Game10', 'Game11', 'Game12', 'Game13', 'Game14', 'Game15', 'Game16', 'Game17', 'Game19', 'Game20', 'Game21', 'Game22', 'Game23', 'Game24', 'Game25', 'Game26', 'Game27', 'Game28', 'Game29', 'Game30', 'Game31', 'Game32', 'Game33', 'Game34', 'Game35', 'Game36', 'Game37', 'Game38', 'Game39', 'Game40'].forEach(gameName => {
             try {
                 if (window[gameName] && typeof window[gameName].stopGame === 'function') {

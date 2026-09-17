@@ -1,6 +1,7 @@
 (function () {
     const Game8 = {
         isActive: false,
+        container: null,
         difficulty: '小學',
         currentLevelIndex: 1,
         isLevelMode: false,
@@ -161,8 +162,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -209,17 +209,17 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this);
         },
 
         retryGame: function () {
             if (!this.currentPoem) return;
+            // ⚠️ 原本只有 startNewGame() 會取消結算動畫，按「重來」時若上一局的
+            //    飛星還沒降落完，動畫會繼續在背景播、播完才憑空跳出結算——
+            //    見 gameContract.js FMGame.stop() 開頭的說明。
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             // 重置樂曲進度
             if (window.SoundManager && window.SoundManager.melodyPlayer) {
                 window.SoundManager.melodyPlayer.currentIndex = 0;
@@ -1376,83 +1376,27 @@
         },
 
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 8,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
+            // 這兩件事是本遊戲自己的收尾，FMGame.gameOver() 不知道它們的存在：
             clearInterval(this.timerInterval);
-
-            if (win) {
-                document.getElementById('game8-retryGame-btn').disabled = true;
-                document.getElementById('game8-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game8-retryGame-btn').disabled = false;
-                document.getElementById('game8-newGame-btn').disabled = false;
-            }
-
             const preview = document.getElementById('game8-char-preview');
             if (preview) preview.classList.add('hidden');
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "墨跡已散！"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game8', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game8', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game8',
+            // 贏了／輸了之後的共同流程（按鈕防呆 → 結算動畫 → 記分 →
+            // 即時成就彈窗 → 結算訊息框 → FMGame.advance）一律交給
+            // FMGame.gameOver()，見 gameContract.js 的說明。
+            window.FMGame.gameOver(this, win, reason || '墨跡已散！', {
+                gameNo: 8,
+                gameKey: 'game8',
+                anim: {
                     timerContainerId: 'game8-grid-wrapper',
                     scoreElementId: 'game8-score',
-                    heartsSelector: '#game8-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAchievementsAndShow();
-            }
+                    heartsSelector: '#game8-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game8-retryGame-btn').disabled = win;
+                    document.getElementById('game8-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

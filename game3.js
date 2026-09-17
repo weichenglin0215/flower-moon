@@ -150,8 +150,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.updateResponsiveLayout) {
                         /* updateResponsiveLayout 已由其他機制取代，此處不再需要呼叫 */
                     }
@@ -219,14 +218,9 @@
             if (this.animationId) {
                 cancelAnimationFrame(this.animationId);
             }
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
-            if (window.RuleNoteDialog) window.RuleNoteDialog.hide();
             // 恢復其他內容
             this.showOtherContents();
+            window.FMGame.stop(this); // 內含 RuleNoteDialog.hide()
         },
 
         // 重來（保留目前題目）：重置分數、速度、錯誤次數、每一行按鈕的位置與狀態，並重新開始動畫迴圈
@@ -287,38 +281,32 @@
         // 顯示開場規則說明對話框，等使用者按下「開始挑戰」後才真正啟動動畫迴圈
         showStartMessage: function () {
             this.isActive = false; // 先暫停循環
-            if (window.RuleNoteDialog) {
-                window.RuleNoteDialog.show({
-                    title: '字爬梯',
-                    lines: [
-                        '請依序點擊(用點的，不要拖曳)',
-                        '上升的文字方塊，',
-                        '組成優雅的詩句。',
-                        '　　',
-                        '綠色代表正確，紅色是錯誤。'
-                    ],
-                    btnText: '開始挑戰',
-                    styles: {
-                        top: '50%',
-                        left: '50%',
-                        width: '75%',
-                        height: '55%',
-                        bg: 'hsla(145, 60%, 25%, 0.8)',
-                        titleColor: 'hsl(145, 80%, 70%)',
-                        textColor: 'hsl(145, 30%, 90%)',
-                        btnBg: 'hsl(145, 70%, 75%)',
-                        btnColor: 'hsl(145, 60%, 33%)'
-                    },
-                    onConfirm: () => {
-                        this.isActive = true;
-                        if (this.animationId) cancelAnimationFrame(this.animationId);
-                        this.loop();
-                    }
-                });
-            } else {
+            window.FMGame.showRuleIntro(this, {
+                title: '字爬梯',
+                lines: [
+                    '請依序點擊(用點的，不要拖曳)',
+                    '上升的文字方塊，',
+                    '組成優雅的詩句。',
+                    '　　',
+                    '綠色代表正確，紅色是錯誤。'
+                ],
+                btnText: '開始挑戰',
+                styles: {
+                    top: '50%',
+                    left: '50%',
+                    width: '75%',
+                    height: '55%',
+                    bg: 'hsla(145, 60%, 25%, 0.8)',
+                    titleColor: 'hsl(145, 80%, 70%)',
+                    textColor: 'hsl(145, 30%, 90%)',
+                    btnBg: 'hsl(145, 70%, 75%)',
+                    btnColor: 'hsl(145, 60%, 33%)'
+                }
+            }, () => {
                 this.isActive = true;
+                if (this.animationId) cancelAnimationFrame(this.animationId);
                 this.loop();
-            }
+            });
         },
 
         // 開新局（換新題目）：可選傳入 levelIndex 進入指定關卡挑戰模式；
@@ -634,21 +622,8 @@
 
             if (this.currentRowIndex >= this.rows.length) {
                 this.isActive = false;
-                document.getElementById('game3-retryGame-btn').disabled = true;
-                document.getElementById('game3-newGame-btn').disabled = true;
-                ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game3',
-                    timerContainerId: null,
-                    scoreElementId: 'game3-score',
-                    heartsSelector: '#game3-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                        this.gameOver(true, '');
-                    }
-                });
+                // 按鈕防呆與結算動畫改由 gameOver() → FMGame.gameOver() 統一處理。
+                this.gameOver(true, '');
             } else {
                 const nextRowEl = this.rows[this.currentRowIndex].element;
                 Array.from(nextRowEl.querySelectorAll('button')).forEach(btn => {
@@ -669,21 +644,8 @@
                 this.currentRowIndex++;
                 if (this.currentRowIndex >= this.rows.length) {
                     this.isActive = false;
-                    document.getElementById('game3-retryGame-btn').disabled = true;
-                    document.getElementById('game3-newGame-btn').disabled = true;
-                    ScoreManager.playWinAnimation({
-                        game: this,
-                        difficulty: this.difficulty,
-                        gameKey: 'game3',
-                        timerContainerId: null,
-                        scoreElementId: 'game3-score',
-                        heartsSelector: '#game3-hearts .heart:not(.empty)',
-                        onComplete: (finalScore) => {
-                            this.score = finalScore;
-                            // 勝利時，第二參數請留空白，會自動帶入分數參數，副標題只顯示得分，不顯示情緒文字。
-                            this.gameOver(true, '');
-                        }
-                    });
+                    // 按鈕防呆與結算動畫改由 gameOver() → FMGame.gameOver() 統一處理。
+                    this.gameOver(true, '');
                     return;
                 }
                 const nextRow = this.rows[this.currentRowIndex];
@@ -828,23 +790,6 @@
         // 停止動畫、記錄失敗時的遊戲紀錄（勝利紀錄由 ScoreManager 負責）、
         // 標示所有未完成行的正確答案、組出結算用的詩句 HTML，最後顯示結算對話框
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-
-            // 失敗時寫入 game_logs（score=0，記錄本局時長）
-            // 過關時 LOG 已由 ScoreManager.saveScore 負責寫入
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 3,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             if (this.animationId) cancelAnimationFrame(this.animationId);
 
             this.rows.forEach(row => {
@@ -857,14 +802,6 @@
                     });
                 }
             });
-
-            if (win) {
-                document.getElementById('game3-retryGame-btn').disabled = true;
-                document.getElementById('game3-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game3-retryGame-btn').disabled = false;
-                document.getElementById('game3-newGame-btn').disabled = false;
-            }
 
             let resultHtml = '';
             if (this.currentPoem) {
@@ -897,38 +834,21 @@
                 resultHtml += `</div>`;
             }
 
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? this.score : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "挑戰結束"),
-                        //無論勝負都要顯示對與錯的詩句
-                        //customContent: win ? resultHtml : "",
-                        customContent: resultHtml,
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
+            window.FMGame.gameOver(this, win, reason || '挑戰結束', {
+                gameNo: 3,
+                gameKey: 'game3',
+                anim: {
+                    timerContainerId: null,
+                    scoreElementId: 'game3-score',
+                    heartsSelector: '#game3-hearts .heart:not(.empty)'
+                },
+                // 無論勝負都要顯示對與錯的詩句
+                message: { customContent: resultHtml },
+                setButtons: (win) => {
+                    document.getElementById('game3-retryGame-btn').disabled = win;
+                    document.getElementById('game3-newGame-btn').disabled = win;
                 }
-            };
-
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.FMGame.completeLevel('game3', this);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game3', this.currentLevelIndex, showMessage);
-                } else {
-                    showMessage();
-                }
-            } else {
-                showMessage();
-            }
+            });
         },
 
         // 依文字長度自動縮小字體：超過門檻字數時，字體會依比例縮小，避免文字溢出容器

@@ -222,8 +222,7 @@
                     this.currentLevelIndex = levelIndex || 1;
                     this.updateUIForMode();
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.startNewGame();
                 });
             } else {
@@ -251,9 +250,7 @@
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
             this._stopReelLoop();
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
+            window.FMGame.stop(this);
         },
 
         // ── 對外隱藏介面（等同 stopGame）──
@@ -305,33 +302,28 @@
                 this._startTimer();
                 this._startReelLoop();
             };
-            if (window.RuleNoteDialog) {
-                this._stopReelLoop();
-                if (this.timerInterval) clearInterval(this.timerInterval);
-                window.RuleNoteDialog.show({
-                    title: '轉輪覓詩',
-                    lines: [
-                        '轉動下方詩句轉輪，',
-                        '單擊正中央橫條就是提交一句猜測。',
-                        '　',
-                        '綠色＝字位置正確；藍色＝字在但位置錯；灰色＝字不存在。',
-                        '　',
-                        '也可點「手動輸入答案」直接鍵入答案。'
-                    ],
-                    btnText: '開始挑戰',
-                    styles: {
-                        top: '50%', left: '50%', width: '80%', height: '55%',
-                        bg: 'hsla(38, 60%, 90%, 0.96)',
-                        titleColor: 'hsl(28, 60%, 25%)',
-                        textColor: 'hsl(28, 40%, 20%)',
-                        btnBg: 'hsl(38, 80%, 55%)',
-                        btnColor: 'hsl(28, 60%, 15%)'
-                    },
-                    onConfirm: startPlaying   // ⚠️ RuleNoteDialog 用的是 onConfirm，非 onClose
-                });
-            } else {
-                startPlaying();
-            }
+            this._stopReelLoop();
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            window.FMGame.showRuleIntro(this, {
+                title: '轉輪覓詩',
+                lines: [
+                    '轉動下方詩句轉輪，',
+                    '單擊正中央橫條就是提交一句猜測。',
+                    '　',
+                    '綠色＝字位置正確；藍色＝字在但位置錯；灰色＝字不存在。',
+                    '　',
+                    '也可點「手動輸入答案」直接鍵入答案。'
+                ],
+                btnText: '開始挑戰',
+                styles: {
+                    top: '50%', left: '50%', width: '80%', height: '55%',
+                    bg: 'hsla(38, 60%, 90%, 0.96)',
+                    titleColor: 'hsl(28, 60%, 25%)',
+                    textColor: 'hsl(28, 40%, 20%)',
+                    btnBg: 'hsl(38, 80%, 55%)',
+                    btnColor: 'hsl(28, 60%, 15%)'
+                }
+            }, startPlaying);
         },
 
         /**
@@ -876,6 +868,11 @@
             const container = document.getElementById('game36-grid-viewport');
             if (!rect || !container) return;
             const w = container.offsetWidth, h = container.offsetHeight;
+            // ⚠️ .game36-grid-viewport 的尺寸定義在 game36.css（loadCSS() 動態載入），
+            //   青雲梯零延遲同步呼叫時該檔可能還在下載，量到 0 就整組跳過不畫，
+            //   等下一次 100ms tick 量到合理值再補上，避免把 SVG 環先設成 0×0
+            //   （詳見 game40.js renderBoard 的同類根因說明）。
+            if (!w || !h) return;
             const svg = document.getElementById('game36-timer-ring');
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
@@ -946,57 +943,23 @@
          *
          * 2026-09-11 由 _win() 更名（原本是私有函式，物件上看不出結算入口）。
          */
+        // ⚠️ 本作沒有失敗條件，全站只有一處呼叫點且固定傳 win=true（見 _submitGuess）。
         gameOver: function (win, reason) {
-            this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
             this._showPoemInfo(true);
-            document.getElementById('game36-newGame-btn').disabled = true;
 
-            if (window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game36',
+            window.FMGame.gameOver(this, win, reason || '', {
+                gameNo: 36,
+                gameKey: 'game36',
+                anim: {
                     timerContainerId: 'game36-grid-viewport',
                     scoreElementId: 'game36-score',
-                    heartsSelector: '#game36-no-hearts',   // 本作無紅心，選不到 → 直接跳過紅心加成
-                    onComplete: (finalScore) => { this.score = finalScore; this._showResult(); }
-                });
-            } else {
-                this._showResult();
-            }
-        },
-
-        // ── 結算收尾：關卡模式先結算成就與解鎖，再顯示勝利訊息彈窗（依模式提供「下一關」或「下一局」按鈕）──
-        _showResult: function () {
-            document.getElementById('game36-newGame-btn').disabled = false;
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。本作沒有失敗條件，
-                //    走到這裡必定是過關，因此 win 固定傳 true。
-                window.FMGame.advance(this, true);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: true,
-                        score: this.score,
-                        reason: '',
-                        btnText: this.isLevelMode ? '下一關' : '下一局',
-                        onConfirm: onConfirm
-                    });
+                    heartsSelector: '#game36-no-hearts'   // 本作無紅心，選不到 → 直接跳過紅心加成
+                },
+                setButtons: (win) => {
+                    document.getElementById('game36-newGame-btn').disabled = win;
                 }
-            };
-            if (this.isLevelMode && window.ScoreManager) {
-                const achId = window.FMGame.completeLevel('game36', this);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game36', this.currentLevelIndex, showMessage);
-                } else {
-                    showMessage();
-                }
-            } else {
-                showMessage();
-            }
+            });
         },
 
         // ========================================================

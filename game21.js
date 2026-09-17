@@ -215,8 +215,7 @@
                     this.timer = s.timeLimit;
                     this.updateUIForMode();
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     this.startNewGame();
                 });
             } else {
@@ -270,10 +269,8 @@
             if (this.hintTimer) { clearInterval(this.hintTimer); this.hintTimer = null; }
             if (this.hintDelayHandle) { clearTimeout(this.hintDelayHandle); this.hintDelayHandle = null; }
             this._hintSession = (this._hintSession || 0) + 1; // 讓殘留回呼一律失效
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             this.showOtherContents();
+            window.FMGame.stop(this);
         },
 
         // 「重來」：沿用同一首謎題詩，只重新打亂非固定（非 fix）直棒的位置，
@@ -943,19 +940,9 @@
             document.getElementById('game21-retryGame-btn').disabled = true;
             document.getElementById('game21-newGame-btn').disabled = true;
 
+            // 等亮字動畫與音效播完，才交給 gameOver() → FMGame.gameOver() 播結算動畫。
             setTimeout(() => {
-                ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game21',
-                    timerContainerId: 'game21-grid-container',
-                    scoreElementId: 'game21-score',
-                    heartsSelector: null,
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        this.gameOver(true, '');
-                    }
-                });
+                this.gameOver(true, '');
             }, cells.length * 180 + 400);
         },
 
@@ -1093,6 +1080,11 @@
             if (!rect || !container) return;
             const w = container.offsetWidth;
             const h = container.offsetHeight;
+            // ⚠️ .game21-grid-container 的尺寸定義在 game21.css（loadCSS() 動態載入），
+            //   青雲梯零延遲同步呼叫時該檔可能還在下載，量到 0 就整組跳過不畫，
+            //   等下一次 100ms tick 量到合理值再補上，避免把 SVG 環先設成 0×0
+            //   （詳見 game40.js renderBoard 的同類根因說明）。
+            if (!w || !h) return;
             const svg = document.getElementById('game21-timer-ring');
             svg.setAttribute('width', w);
             svg.setAttribute('height', h);
@@ -1122,9 +1114,6 @@
         // 負責：失敗時視需求標示錯誤棒、記錄失敗場次、切換按鈕可用狀態，
         // 並顯示結算訊息（GameMessage），依情境決定下一步（下一關/下一局/再試一次）。
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-
             // ⚠️ 規格：時間到（!win）之後，若難度啟用 showWrongOnTimeout，
             //   將所有「未正確歸位」的答案卡與混淆卡都以紅色顯示。判定：
             //     正確歸位 = 非 decoy、currentCol < puzzleLength、且中央列字元 = puzzleText[currentCol]
@@ -1148,56 +1137,19 @@
                 }
             }
 
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000)
-                    : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 21,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
-
-            if (win) {
-                document.getElementById('game21-retryGame-btn').disabled = true;
-                document.getElementById('game21-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game21-retryGame-btn').disabled = false;
-                document.getElementById('game21-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = () => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? this.score : 0,
-                        reason: win ? '' : reason,
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
+            window.FMGame.gameOver(this, win, reason || '', {
+                gameNo: 21,
+                gameKey: 'game21',
+                anim: {
+                    timerContainerId: 'game21-grid-container',
+                    scoreElementId: 'game21-score',
+                    heartsSelector: null
+                },
+                setButtons: (win) => {
+                    document.getElementById('game21-retryGame-btn').disabled = win;
+                    document.getElementById('game21-newGame-btn').disabled = win;
                 }
-            };
-
-            if (win && this.isLevelMode && window.ScoreManager) {
-                const achId = window.FMGame.completeLevel('game21', this);
-                if (achId && window.AchievementDialog) {
-                    window.AchievementDialog.showInstantAchievementPop(achId, 'game21', this.currentLevelIndex, showMessage);
-                } else {
-                    showMessage();
-                }
-            } else {
-                showMessage();
-            }
+            });
         }
     };
 

@@ -7,6 +7,7 @@
 (function () {
     const Game31 = {
         isActive: false,
+        container: null,   // 契約必備：FMGame.stop/nextLevel 要讀寫它
         difficulty: '小學',
         currentLevelIndex: 1,
         isLevelMode: false,
@@ -223,8 +224,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -264,15 +264,14 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this);
         },
 
         retryGame: function () {
             if (!this.currentPoem) return;
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.startGameProcess(true);
         },
 
@@ -1062,78 +1061,23 @@
 
         /* === 遊戲結束 === */
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 31,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             clearInterval(this.timerInterval);
             this.hideCandidates();
             this.hideLoreCard();
 
-            if (win) {
-                document.getElementById('game31-retryGame-btn').disabled = true;
-                document.getElementById('game31-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game31-retryGame-btn').disabled = false;
-                document.getElementById('game31-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? '' : (typeof reason === 'string' ? reason : '詩眼難辨！'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game31', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game31', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game31',
+            window.FMGame.gameOver(this, win, reason || '詩眼難辨！', {
+                gameNo: 31,
+                gameKey: 'game31',
+                anim: {
                     timerContainerId: 'game31-stage',
                     scoreElementId: 'game31-score',
-                    heartsSelector: '#game31-hearts .fm-heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAchievementsAndShow();
-            }
+                    heartsSelector: '#game31-hearts .fm-heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game31-retryGame-btn').disabled = win;
+                    document.getElementById('game31-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

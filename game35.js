@@ -82,6 +82,7 @@
 
     const Game35 = {
         isActive: false,
+        container: null,   // 契約必備：FMGame.stop/nextLevel 要讀寫它
         difficulty: '小學',
         currentLevelIndex: 1,
         isLevelMode: false,
@@ -239,8 +240,7 @@
                     this.updateUIForMode();
 
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -290,18 +290,15 @@
             this.isActive = false;
             clearInterval(this.timerInterval);
             this.stopSpeech();
-            if (this.container) {
-                this.container.classList.add('hidden');
-            }
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this);
         },
 
         // 重玩本局：沿用現有 this.questions（若尚未產生過題目則不動作）
         retryGame: function () {
             if (this.questions.length === 0) return;
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.startGameProcess(true);
         },
 
@@ -905,78 +902,22 @@
 
         // ---- 遊戲結束（同 game34 模板，挑戰關卡完整支援）----
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
             this.stopSpeech();
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 35,
-                    difficulty: this.difficulty || '',
-                    score: 0,
-                    isWin: false,
-                    durationS: durationS
-                });
-            }
             clearInterval(this.timerInterval);
 
-            if (win) {
-                document.getElementById('game35-retryGame-btn').disabled = true;
-                document.getElementById('game35-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game35-retryGame-btn').disabled = false;
-                document.getElementById('game35-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? "" : (typeof reason === 'string' ? reason : "未識其心！"),
-                        btnText: win ? (this.isLevelMode ? "下一關" : "下一局") : "再試一次",
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            const checkAchievementsAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game35', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game35', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game35',
+            window.FMGame.gameOver(this, win, reason || '未識其心！', {
+                gameNo: 35,
+                gameKey: 'game35',
+                anim: {
                     timerContainerId: 'game35-game-wrapper',
                     scoreElementId: 'game35-score',
-                    heartsSelector: '#game35-hearts .heart:not(.empty)',
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAchievementsAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAchievementsAndShow();
-            }
+                    heartsSelector: '#game35-hearts .heart:not(.empty)'
+                },
+                setButtons: (win) => {
+                    document.getElementById('game35-retryGame-btn').disabled = win;
+                    document.getElementById('game35-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

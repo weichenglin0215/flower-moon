@@ -103,6 +103,7 @@
 
     const Game32 = {
         isActive: false,
+        container: null,   // 契約必備：FMGame.stop/nextLevel 要讀寫它
         difficulty: '小學',
         currentLevelIndex: 1,
         isLevelMode: false,
@@ -281,8 +282,7 @@
 
                     this.updateUIForMode();
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -332,16 +332,14 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
-            // ⚠️ 必須隱藏 overlay：menu.js 全域清理只呼叫 stopGame()
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this);
         },
 
         // 重玩本局：沿用目前已選定的 roundLocations，重新計時與計分
         retryGame: function () {
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.startGameProcess(true);
         },
 
@@ -734,76 +732,21 @@
 
         // ----------------- 勝負結算 ------------------
         gameOver: function (win, reason) {
-            this.isActive = false;
-            this.isWin = win;
             clearInterval(this.timerInterval);
 
-            if (!win && window.SupabaseClient) {
-                const durationS = this.gameStartTime
-                    ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
-                window.SupabaseClient.logGame({
-                    gameNo: 32, difficulty: this.difficulty || '',
-                    score: 0, isWin: false, durationS: durationS
-                });
-            }
-
-            if (win) {
-                document.getElementById('game32-retryGame-btn').disabled = true;
-                document.getElementById('game32-newGame-btn').disabled = true;
-            } else {
-                document.getElementById('game32-retryGame-btn').disabled = false;
-                document.getElementById('game32-newGame-btn').disabled = false;
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? '' : (typeof reason === 'string' ? reason : '探索失敗！'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            const checkAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game32', this);
-                    if (achId && window.AchievementDialog) {
-                        window.AchievementDialog.showInstantAchievementPop(
-                            achId, 'game32', this.currentLevelIndex, () => showMessage(finalScore));
-                    } else {
-                        showMessage(finalScore);
-                    }
-                } else {
-                    showMessage(finalScore);
-                }
-            };
-
-            if (win && window.ScoreManager) {
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game32',
+            window.FMGame.gameOver(this, win, reason || '探索失敗！', {
+                gameNo: 32,
+                gameKey: 'game32',
+                anim: {
                     timerContainerId: 'game32-area',
                     scoreElementId: 'game32-score',
-                    heartsSelector: null,
-                    onComplete: (finalScore) => {
-                        this.score = finalScore;
-                        checkAndShow(finalScore);
-                    }
-                });
-            } else {
-                checkAndShow();
-            }
+                    heartsSelector: null
+                },
+                setButtons: (win) => {
+                    document.getElementById('game32-retryGame-btn').disabled = win;
+                    document.getElementById('game32-newGame-btn').disabled = win;
+                }
+            });
         }
     };
 

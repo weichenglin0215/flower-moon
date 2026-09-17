@@ -468,8 +468,7 @@
                     this.currentLevelIndex = levelIndex || 1;
                     this.updateUIForMode();
                     this.container.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('overlay-active');
+                    window.FMGame.holdOverlayActive();
                     if (window.SoundManager) window.SoundManager.init();
                     this.startNewGame();
                 });
@@ -497,15 +496,14 @@
             this.isActive = false;
             this.charging = false;
             if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
-            if (this.container) this.container.classList.add('hidden');
-            document.body.style.overflow = '';
-            document.body.classList.remove('overlay-active');
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
+            window.FMGame.stop(this);
         },
 
         retryGame: function () {
             if (!this.currentPoem) { this.startNewGame(); return; }
+            if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             this.startGameProcess();
         },
 
@@ -1532,69 +1530,33 @@
         // ========================================================
         gameOver: function (win, reason) {
             if (!this.isActive) return;
-            this.isActive = false;
-            this.isWin = win;
             this.charging = false;
 
-            if (!win && window.SupabaseClient) {
-                const dur = this.gameStartTime ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
-                window.SupabaseClient.logGame({ gameNo: 39, difficulty: this.difficulty || '', score: 0, isWin: false, durationS: dur });
-            }
-
-            document.getElementById('game39-retryGame-btn').disabled = !!win;
-            document.getElementById('game39-newGame-btn').disabled = !!win;
-            if (window.SoundManager) {
-                if (win) window.SoundManager.playJoyfulTripleSlow();
-                else window.SoundManager.playFailure();
-            }
-
-            const onConfirm = () => {
-                // ⚠️ 全 39 款共用同一份判斷（gameContract.js）。絕不可在這裡自行
-                //    currentLevelIndex++ —— 青雲梯只覆寫 startNextLevel，
-                //    寫在這裡等於繞過攔截點（接入規範 §4 №1）。
-                window.FMGame.advance(this, win);
-            };
-            const showMessage = (finalScore) => {
-                if (window.GameMessage) {
-                    window.GameMessage.show({
-                        isWin: win,
-                        score: win ? (finalScore || this.score) : 0,
-                        reason: win ? '' : (typeof reason === 'string' ? reason : '彈珠用盡'),
-                        btnText: win ? (this.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
-                    });
-                }
-            };
-
-            // 關卡挑戰過關：登錄通關紀錄，若因此解鎖成就則先跳成就彈窗再顯示結算
-            const recordLevelAndShow = (finalScore) => {
-                if (win && this.isLevelMode && window.ScoreManager) {
-                    const achId = window.FMGame.completeLevel('game39', this);
-                    if (achId && window.AchievementDialog && window.AchievementDialog.showInstantAchievementPop) {
-                        window.AchievementDialog.showInstantAchievementPop(achId, 'game39', this.currentLevelIndex, () => showMessage(finalScore));
-                        return;
-                    }
-                }
-                showMessage(finalScore);
-            };
-
-            if (win && window.ScoreManager) {
-                // 把「剩餘彈珠」當成「剩餘秒數」餵進去，沿用原生的飛星加分動畫
+            if (win) {
+                // 把「剩餘彈珠」當成「剩餘秒數」餵進去，沿用原生的飛星加分動畫。
+                // 必須在呼叫 FMGame.gameOver()（進而觸發 playWinAnimation）之前設好。
                 this.timer = this.ballsLeft;
                 this.maxTimer = this.maxBalls;
                 this.startTime = 0;
-                window.ScoreManager.playWinAnimation({
-                    game: this,
-                    difficulty: this.difficulty,
-                    gameKey: 'game39',
+            }
+
+            window.FMGame.gameOver(this, win, reason || '彈珠用盡', {
+                gameNo: 39,
+                gameKey: 'game39',
+                anim: {
                     timerContainerId: 'game39-board-wrapper',
                     scoreElementId: 'game39-score',
-                    heartsSelector: '.game39-no-hearts',   // 本作無紅心機制 —— 永不命中的 selector
-                    onComplete: (finalScore) => { this.score = finalScore; recordLevelAndShow(finalScore); }
-                });
-            } else {
-                showMessage();
-            }
+                    heartsSelector: '.game39-no-hearts'   // 本作無紅心機制 —— 永不命中的 selector
+                },
+                setButtons: (win) => {
+                    document.getElementById('game39-retryGame-btn').disabled = win;
+                    document.getElementById('game39-newGame-btn').disabled = win;
+                    if (window.SoundManager) {
+                        if (win) window.SoundManager.playJoyfulTripleSlow();
+                        else window.SoundManager.playFailure();
+                    }
+                }
+            });
         },
     };
 
