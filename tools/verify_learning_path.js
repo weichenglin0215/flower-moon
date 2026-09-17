@@ -268,6 +268,31 @@ function verifyGames() {
     const smSrc = env.readSource('scoreManager.js') || '';
     const dbViewer = env.readSource('tools/db_viewer.html') || '';
 
+    // ── 1.0 手機畫面鎖定（全站共用，不分遊戲）────────────────────────────
+    //
+    // 2026-09-17 確認的真正病因：iPhone 上頁面被放大後，screen_adaptive.js 用
+    // visualViewport 把舞台縮回剛好填滿畫面，看不出已經放大，但手指一拖就平移，
+    // 整個介面偏移並露出紅色底色（2026-09-14 修 overlay position 只讓機率變低）。
+    // 瀏覽器的縮放與觸控行為在 Node 裡驗不到，這裡只守住三道防線沒有被拿掉。
+    {
+        const saCss = stripComments(env.readSource('screen_adaptive.css') || '');
+        const lockJs = stripComments(env.readSource('viewportLock.js') || '');
+        check(/(^|\})\s*\*\s*\{[^}]*touch-action\s*:\s*pan-x\s+pan-y/.test(saCss), '畫面鎖定',
+            'screen_adaptive.css 以 * { touch-action: pan-x pan-y } 禁止瀏覽器縮放手勢',
+            '拿掉後 iPhone 上雙指縮放／點兩下放大會讓頁面偷偷放大，往左或往上一拖介面就偏移、露出紅色底色。'
+            + '必須寫在 * 上，只寫在 html 上時捲動區（青雲梯道路）裡點兩下仍會放大。');
+        check(/(^|\})\s*body\s*\{[^}]*position\s*:\s*relative/.test(saCss), '畫面鎖定',
+            'screen_adaptive.css 設定 body { position: relative }',
+            '拿掉後 #stage（absolute）不受 body 的 overflow:hidden 裁切，開機時未縮放的 500×850 舞台'
+            + '會把頁面撐得比手機寬，iOS 因此放寬禁止縮放的限制。');
+        check(/visualViewport/.test(lockJs) && /\.scale\b/.test(lockJs) && /user-scalable/.test(lockJs), '畫面鎖定',
+            'viewportLock.js 會在頁面被放大時還原縮放',
+            '頁面若已被放大，手指放開後要把 viewport meta 暫時拿掉 user-scalable=no 再改回，讓縮放夾回 1。');
+        check(/<script src="viewportLock\.js"><\/script>/.test(indexHtml), '畫面鎖定',
+            'index.html 有載入 viewportLock.js',
+            '要排在 screen_adaptive.js 之後、其他模組之前。');
+    }
+
     // ── 三個等級的要求 ─────────────────────────────────────────────────
     //   課程（★）：列入必通關卡，青雲梯會派它出場 → 契約全部必須成立（❌）
     //   複習     ：REVIEW_ONLY_GAMES，只出現在複習池與自由練習 → 只要共同項
