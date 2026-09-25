@@ -26,16 +26,15 @@
     display: none;
 }
 
-/* 頂部標題列 */
+/* 頂部標題列：三個 TAB 按鍵（一詩名山河／詩人旅圖／詩人故鄉）取代原本的單一標題 */
 .map-header {
     position: absolute;
     left: 0;
     top: 0;
     width: 500px;
-    height: 60px;
+    height: 50px;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
     background: hsla(0, 0%, 100%, 0.80);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
@@ -43,17 +42,44 @@
     z-index: 2105;
 }
 
-.map-title {
-    font-size: 24px;
+.map-tabs {
+    display: flex;
+    flex: 1;
+    padding-left: 50px;
+    /* 右側預留關閉鈕的位置，避免第三個 TAB 被蓋住 */
+    padding-right: 54px;
+}
+
+.map-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 22px;
     font-weight: bold;
-    color: hsl(0, 60%, 24%);
-    letter-spacing: 2px;
+    color: hsl(0, 40%, 30%);
+    opacity: 0.7;
+    cursor: pointer;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    border-left: 1px solid hsla(0, 40%, 30%, 0.4);
+    border-right: 1px solid hsla(0, 40%, 30%, 0.4);
+    border-bottom: 2px solid hsl(0, 40%, 30%);
+    transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.map-tab.active {
+    opacity: 1;
+    color: hsl(45, 12%, 90%);
+    background: hsl(0, 50%, 40%);
+    border-bottom: 5px solid hsl(45, 89%, 50%);
 }
 
 .map-close {
     position: absolute;
-    top: 10px;
-    right: 14px;
+    top: 5px;
+    right: 10px;
     width: 40px;
     height: 40px;
     line-height: 40px;
@@ -73,11 +99,13 @@
     transform: scale(1.08);
 }
 
-/* 地圖畫布（拖曳平移／縮放的可視區域） */
+/* 地圖畫布（拖曳平移／縮放的可視區域）
+   ⚠️ top 與高度由 map.js 的 _layout() 依 .map-header／.map-hint 的實際高度計算後設定，
+      調整標題列或提示列高度時不必改這裡，畫布會自動貼齊、不會露出空白條 */
 .map-canvas {
     position: absolute;
     left: 0;
-    top: 60px;
+    top: 50px;
     display: block;
     touch-action: none;
 }
@@ -100,13 +128,114 @@
     z-index: 2105;
 }
 
+/* 詩人旅圖：播放控制列（詩人選單／播放暫停鍵／時間軸＋下方事件與年齡年號），浮在畫布下方
+   bottom 由 map.js 依提示列高度設定 */
+.map-journey-bar {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 52px;
+    padding: 10px 14px;
+    background: hsla(0, 0%, 100%, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsla(0, 60%, 24%, 0.25);
+    border-radius: 14px;
+    box-shadow: 0 6px 24px hsla(0, 60%, 10%, 0.25);
+    z-index: 2107;
+}
+
+.map-journey-bar.hidden {
+    display: none;
+}
+
+.map-journey-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.map-journey-poet-select {
+    flex: 0 0 auto;
+    font-size: 15px;
+    font-weight: bold;
+    color: hsl(0, 60%, 24%);
+    background: hsla(0, 60%, 24%, 0.06);
+    border: 1px solid hsla(0, 60%, 24%, 0.3);
+    border-radius: 8px;
+    padding: 4px 6px;
+}
+
+.map-journey-playbtn {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    line-height: 34px;
+    text-align: center;
+    font-size: 15px;
+    color: #fdfaf6;
+    background: hsl(20, 55%, 38%);
+    border-radius: 50%;
+    cursor: pointer;
+    user-select: none;
+}
+
+.map-journey-playbtn:active {
+    background: hsl(20, 55%, 30%);
+}
+
+/* 事件＋年齡＋年號＋西元，例如「出蜀漫遊起點　25歲　開元十三年（西元725年）」 */
+.map-journey-info {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 16px;
+    line-height: 1.4;
+    color: hsl(0, 60%, 24%);
+}
+
+.map-journey-event {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.map-journey-slider {
+    flex: 1;
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: hsla(20, 55%, 38%, 0.3);
+    outline: none;
+}
+
+.map-journey-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: hsl(45, 90%, 50%);
+    border: 2px solid hsl(0, 62%, 30%);
+    cursor: pointer;
+}
+
+.map-journey-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: hsl(45, 90%, 50%);
+    border: 2px solid hsl(0, 62%, 30%);
+    cursor: pointer;
+}
+
 /* 地點彈窗：點選地標後由畫面下方浮起，列出該地相關詩詞 */
 .map-popup {
     position: absolute;
     left: 12px;
     right: 12px;
     bottom: 52px;
-    max-height: 520px;
+    max-height: 530px;
     background: hsla(0, 0%, 100%, 0.92);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -166,30 +295,51 @@
 }
 
 .map-popup-item-title {
-    font-size: 18px;
+    font-size: 22px;
     color: hsl(0, 60%, 24%);
     font-weight: bold;
 }
 
 .map-popup-item-author {
-    font-size: 14px;
+    font-size: 22px;
     font-weight: normal;
     opacity: 0.7;
     margin-left: 6px;
 }
 
 .map-popup-item-meta {
-    font-size: 13px;
+    font-size: 16px;
     color: hsl(0, 40%, 30%);
     opacity: 0.85;
     margin-top: 4px;
     line-height: 1.4;
 }
 
+/* 詩人旅圖彈窗：目前時間點所在的那一次造訪 */
+.map-popup-item.selected {
+    background: hsla(45, 90%, 50%, 0.18);
+    border-radius: 8px;
+}
+
+/* 詩人旅圖彈窗：該次造訪寫下的詩詞（可點擊開啟詩詞資料） */
+.map-popup-poem {
+    margin-top: 6px;
+    padding: 4px 8px;
+    font-size: 18px;
+    font-weight: bold;
+    color: hsl(0, 60%, 24%);
+    background: hsla(0, 60%, 24%, 0.06);
+    border-radius: 8px;
+}
+
+.map-popup-poem:active {
+    background: hsla(0, 60%, 24%, 0.16);
+}
+
 /* 關係/確定性標籤：紅底=實景或傳統箋注，橙底=延伸連結（呼應地圖上實心/虛線圓點的區分） */
 .map-tag {
     display: inline-block;
-    font-size: 12px;
+    font-size: 16px;
     padding: 1px 8px;
     border-radius: 10px;
     margin-right: 6px;
