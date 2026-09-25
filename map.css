@@ -1,0 +1,206 @@
+/* ============================================================================
+ * map.css — 詩路地圖 樣式
+ * 慣例：所有 class 加 map- 前綴；overlay 掛於 body 並由 JS 同步 stage 縮放。
+ * 依「資料類型介面設計規範」：基準色 hsl(0,60%,24%)、半透明底色 hsla(0,0%,100%,0.80)。
+ * ========================================================================== */
+
+/* 全螢幕覆蓋層（實際尺寸/位置由 JS registerOverlayResize 設定） */
+.map-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 500px;
+    height: 850px;
+    overflow: hidden;
+    /* ⚠️ 與其他「資料類」頁面（achievement/author_bio/collection）一致採用 2100，
+       必須低於 poem_dialog.css 的 3001/3002，點擊詩詞才能讓「詩詞資料」彈窗疊在最上層 */
+    z-index: 2100;
+    background: hsl(40, 20%, 90%);
+    /* 防止觸控時瀏覽器介入捲動/縮放，讓拖曳平移與雙指縮放順暢 */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.map-overlay.hidden {
+    display: none;
+}
+
+/* 頂部標題列 */
+.map-header {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 500px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsla(0, 0%, 100%, 0.80);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-bottom: 1px solid hsla(0, 60%, 24%, 0.2);
+    z-index: 2105;
+}
+
+.map-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: hsl(0, 60%, 24%);
+    letter-spacing: 2px;
+}
+
+.map-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 22px;
+    color: hsl(0, 60%, 24%);
+    background: hsla(0, 0%, 100%, 0.7);
+    border: 1px solid hsla(0, 60%, 24%, 0.3);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2110;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.map-close:hover {
+    background: hsla(0, 0%, 100%, 0.95);
+    transform: scale(1.08);
+}
+
+/* 地圖畫布（拖曳平移／縮放的可視區域） */
+.map-canvas {
+    position: absolute;
+    left: 0;
+    top: 60px;
+    display: block;
+    touch-action: none;
+}
+
+/* 底部手勢提示列 */
+.map-hint {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 500px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: hsl(0, 60%, 24%);
+    opacity: 0.85;
+    background: hsla(0, 0%, 100%, 0.80);
+    border-top: 1px solid hsla(0, 60%, 24%, 0.15);
+    z-index: 2105;
+}
+
+/* 地點彈窗：點選地標後由畫面下方浮起，列出該地相關詩詞 */
+.map-popup {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 52px;
+    max-height: 520px;
+    background: hsla(0, 0%, 100%, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsla(0, 60%, 24%, 0.25);
+    border-radius: 14px;
+    box-shadow: 0 6px 24px hsla(0, 60%, 10%, 0.25);
+    z-index: 2108;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.map-popup.hidden {
+    display: none;
+}
+
+.map-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid hsla(0, 60%, 24%, 0.15);
+    flex-shrink: 0;
+}
+
+.map-popup-place {
+    font-size: 20px;
+    font-weight: bold;
+    color: hsl(0, 60%, 24%);
+}
+
+.map-popup-close {
+    font-size: 18px;
+    color: hsl(0, 60%, 24%);
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.map-popup-list {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 14px 14px;
+}
+
+.map-popup-item {
+    padding: 10px 4px;
+    border-bottom: 1px solid hsla(0, 60%, 24%, 0.10);
+    cursor: pointer;
+}
+
+.map-popup-item:last-child {
+    border-bottom: none;
+}
+
+.map-popup-item:active {
+    background: hsla(0, 60%, 24%, 0.08);
+}
+
+.map-popup-item-title {
+    font-size: 18px;
+    color: hsl(0, 60%, 24%);
+    font-weight: bold;
+}
+
+.map-popup-item-author {
+    font-size: 14px;
+    font-weight: normal;
+    opacity: 0.7;
+    margin-left: 6px;
+}
+
+.map-popup-item-meta {
+    font-size: 13px;
+    color: hsl(0, 40%, 30%);
+    opacity: 0.85;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+/* 關係/確定性標籤：紅底=實景或傳統箋注，橙底=延伸連結（呼應地圖上實心/虛線圓點的區分） */
+.map-tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    margin-right: 6px;
+    color: hsla(0, 0%, 100%, 0.95);
+    vertical-align: middle;
+}
+
+.map-tag-real {
+    background: hsl(0, 55%, 45%);
+}
+
+.map-tag-symbolic {
+    background: hsl(30, 55%, 45%);
+}

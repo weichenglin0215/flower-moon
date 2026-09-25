@@ -61,6 +61,9 @@
         { page: 'leaderboard', label: '群英榜', image: 'images/Menu/群英榜_Menu256.jpg' },
         { page: 'author-biography', label: '名人列傳', image: 'images/Menu/名人列傳_Menu256.jpg' },
         { page: 'poem-data', label: '詩詞資料', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
+        // ⚠️ 選單縮圖尚未製作，暫時借用「詩詞資料集」的縮圖，
+        //    待美術補上 images/Menu/詩路地圖_Menu256.jpg 後改回。
+        { page: 'map', label: '詩路地圖', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRcode_Menu256.jpg' },
         { page: 'wordcloud', label: '文字雲', image: 'images/Menu/文字雲_Menu256.jpg' },
@@ -163,6 +166,7 @@
         'author-biography': { firework: false, smoke: true },   // 名人列傳
         'collection': { firework: false, smoke: true },   // 江南小院
         'poem-data': { firework: false, smoke: true },   // 詩詞資料
+        'map': { firework: false, smoke: false },   // 詩路地圖（滿版拖曳/縮放，關掉觸控特效）
 
         // ── 其他（對話框／動作）───────────────────────────────────────────
         'about': { firework: false, smoke: true },   // 關於花月
@@ -654,6 +658,12 @@
             }
         } catch (e) { console.warn('[Menu] 隱藏推波助瀾失敗', e); }
 
+        try {
+            if (window.PoemMap && typeof window.PoemMap.stopGame === 'function') {
+                window.PoemMap.stopGame();
+            }
+        } catch (e) { console.warn('[Menu] 隱藏詩路地圖失敗', e); }
+
         // 資料瀏覽類頁面群組（成就/群英榜/江南小院/名人列傳/文字雲）：同時只開一個
         try {
             if (window.LeaderboardDialog && typeof window.LeaderboardDialog.hide === 'function') {
@@ -1009,6 +1019,10 @@
                         } else {
                             console.error('[Menu] PoemDialog 未載入');
                         }
+                        break;
+                    case 'map':
+                        if (window.PoemMap) window.PoemMap.show();
+                        else window.location.href = 'index.html?page=map';
                         break;
                     case 'fullscreen':
                         toggleFullscreen();
