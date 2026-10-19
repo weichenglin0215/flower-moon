@@ -320,7 +320,7 @@
 }
 
 .fm-collection-shop-tier-下品 {
-    color: hsl(0, 0%, 40%);
+    color: hsl(40, 60%, 36%);
 }
 
 .fm-collection-shop-tier-中品 {
@@ -364,12 +364,12 @@
 .fm-collection-toast {
     position: absolute;
     left: 50%;
-    bottom: 60px;
+    bottom: 5px;
     transform: translateX(-50%);
     background: hsl(0, 60%, 26%);
     border-bottom: 3px solid hsl(40, 60%, 60%);
     color: #fdfaf6;
-    padding: 8px 16px;
+    padding: 5px 16px;
     border-radius: 999px;
     font-size: 18px;
     z-index: 300;
@@ -377,7 +377,7 @@
     opacity: 0;
     transition: opacity 0.3s;
     min-width: 400px;
-    max-width: 450px;
+    max-width: 480px;
     text-align: center;
 }
 
