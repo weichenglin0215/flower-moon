@@ -1,14 +1,16 @@
 /* ============================================================================
  * game36.js — 轉輪覓詩 (Verse Reel / Poetry Wordle)
  * ----------------------------------------------------------------------------
- * Wordle 式詩句猜謎：從「詩句轉輪」選取候選整句提交，逐格翻牌染三色（綠=位置對、
- * 藍=字在但位置錯、灰=字不存在）。無次數上限、無失敗，猜中即勝；時限只影響分數。
+ * Wordle 式詩句猜謎：候選詩句會由系統自動陸續送進上方題目區，逐格翻牌染三色
+ * （綠=位置對、藍=字在但位置錯、灰=字不存在）；玩家依線索推敲，再按「手動輸入答案」
+ * 自行鍵入整句答案。無次數上限、無失敗，答對即勝；時限只影響分數。
+ * （2026-10 取消下方的詩句轉輪：原本玩家轉輪挑句提交，改成候選池依序自動出現。）
  *
  * 依《note/game36_轉輪覓詩_企劃書與遊戲心得.md》實作，重點：
  *   - 候選池：複用 window.getSharedBarLine（逐字元反查詩句）+ 等長過濾；混淆句移植
  *     game21 的 pickDecoyLine（不含任何目標字），比例隨難度遞增（§5）
  *   - 顏色判定兩輪法，正確處理重複字（§5.6）
- *   - 判定網格可垂直捲動、隨猜測自動延伸新列（§2、§4）
+ *   - 判定網格（題目區）固定 8 格高、可垂直捲動，隨詩句出現自動延伸新列（§2、§4）
  *   - 美術完全沿用 game1 米白宣紙主題（theme_xuanzhi.css 的 --fm-* 變數）
  *
  * 慣例：class 加 game36- 前綴；overlay 掛 document.body；registerOverlayResize 縮放；
@@ -21,14 +23,11 @@
     const GRID_COLS = 7;         // 判定網格固定 7 欄（七言全填、五言左起填 5 格右留 2 空）
     const GRID_CELL = 54;        // 格子邊長（px，邏輯舞台）
     const GRID_GAP = 8;
-    const GRID_VISIBLE_ROWS = 4.5;   // 網格可視高度（列）— 留出一個字高給「正確答案區」
-    const PLACEHOLDER_ROWS = 5;      // 開局虛線佔位列數
+    const GRID_VISIBLE_ROWS = 8;     // 網格（題目區）可視高度：8 列
+    const PLACEHOLDER_ROWS = 8;      // 開局虛線佔位列數（剛好填滿 8 列可視高度）
 
-    const REEL_ITEM_H = 58;      // 轉輪每項高度（px，邏輯舞台）
-    const REEL_CENTER_Y = 105;   // 轉輪命中窗口中心 y
-    const REEL_VISIBLE = 1.45;   // 可見範圍（距中心幾格內才顯示）→ 僅中央 + 上下各 1，共 3 條
-    const TAP_MOVE_PX = 8;       // 位移超過此值視為拖曳
-    const TAP_TIME_MS = 320;     // 耗時超過此值不算點擊
+    const AUTO_FIRST_DELAY_MS = 800;     // 按下「開始挑戰」後，第一句詩出現的等待時間
+    const AUTO_LINE_INTERVAL_MS = 2000;  // 之後每隔多久自動送出下一句候選詩
     const FLIP_STEP_MS = 150;    // 逐格翻牌間隔
 
     const Game36 = {
@@ -48,10 +47,10 @@
         settings: null,
 
         // ── 進度 ──
-        guessedLines: null,   // Set<string>
-        tries: 0,
+        guessedLines: null,   // Set<string>（已出現在題目區的句子，自動與手動都記）
+        tries: 0,             // 玩家手動輸入答案的次數（自動出現的詩句不算）
         score: 0,
-        flipping: false,
+        finishing: false,     // 已答對、正在翻牌收尾 → 鎖住一切新提交與自動出句
         gameStartTime: null,
 
         // ── 計時（僅影響分數，不會失敗）──
@@ -60,13 +59,9 @@
         startTime: null,
         timerInterval: null,
 
-        // ── 轉輪狀態 ──
-        reelItems: [],
-        reelPos: 0,
-        reelVel: 0,
-        reelRaf: null,
-        _dragging: false,
-        _downY: 0, _lastY: 0, _downT: 0, _startPos: 0,
+        // ── 自動出句：候選池（pool）依序一句句送進題目區 ──
+        autoTimer: null,   // 下一句出現的 setTimeout ID
+        autoIndex: 0,      // 下一個要出現的 pool 索引
 
         // ── 正確答案區（頂端常駐 7 格摘要）──
         //   solvedGreen[i]：位置 i 已確認的綠字（含孤立字提示）；空字串代表未知
@@ -80,7 +75,7 @@
         container: null,
 
         // 難度設定（對照企劃書 §7）
-        // maxIsolatedChars: 每局最多容許幾個孤立字（無法透過轉輪找到，會以綠字提示補在正確答案區）
+        // maxIsolatedChars: 每局最多容許幾個孤立字（無法透過候選詩句找到，會以綠字提示補在正確答案區）
         difficultySettings: {
             '小學':   { wordLens: [5], poemMinRating: 6, poolSize: 16, decoyRatio: 0.15, timeLimit: 240, hint: 'title',   maxIsolatedChars: 2 },
             '中學':   { wordLens: [5], poemMinRating: 5, poolSize: 20, decoyRatio: 0.20, timeLimit: 210, hint: 'dynasty', maxIsolatedChars: 2 },
@@ -103,12 +98,11 @@
             }
         },
 
-        // ── 遊戲初始化：載入 CSS、建立 DOM（若尚未建立）、綁定所有按鈕與轉輪事件 ──
+        // ── 遊戲初始化：載入 CSS、建立 DOM（若尚未建立）、綁定所有按鈕事件 ──
         init: function () {
             this.loadCSS();
             if (!document.getElementById('game36-container')) {
                 this.createDOM();
-                this.bindReel();
             }
             this.container = document.getElementById('game36-container');
             document.getElementById('game36-newGame-btn').onclick = () => {
@@ -136,7 +130,7 @@
             this._setupGridMomentumScroll(document.getElementById('game36-grid-scroll'));
         },
 
-        // ── 建立遊戲整體 DOM 結構（頂部分數列、正確答案區、判定網格、詩句轉輪、手動輸入彈窗）並註冊縮放 ──
+        // ── 建立遊戲整體 DOM 結構（頂部分數列、正確答案區、判定網格、手動輸入按鈕與彈窗）並註冊縮放 ──
         createDOM: function () {
             const div = document.createElement('div');
             div.id = 'game36-container';
@@ -165,13 +159,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="game36-reel-area">
-                    <div id="game36-reel" class="game36-reel">
-                        <div class="game36-reel-window"></div>
-                        <div id="game36-reel-items" class="game36-reel-items"></div>
-                    </div>
-                    <div class="game36-hint">上下拖曳轉輪 · 點擊正中央提交</div>
+                <div class="game36-action-area">
                     <button id="game36-manual-btn" class="fm-nav-btn game36-manual-btn">手動輸入答案</button>
+                    <div class="game36-hint">詩句會自動陸續出現 · 依線索推敲後手動輸入答案</div>
                 </div>
                 <!-- 手動輸入彈窗（位於上半部，不遮蔽正確答案區）-->
                 <div id="game36-manual-overlay" class="game36-manual-overlay hidden">
@@ -212,7 +202,7 @@
         showDifficultySelector: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            this._stopReelLoop();
+            this._stopAutoLines();
             if (window.GameMessage) window.GameMessage.hide();
 
             if (window.DifficultySelector) {
@@ -245,11 +235,11 @@
             }
         },
 
-        // ── 停止遊戲：清計時器、停轉輪動畫、隱藏遊戲畫面並還原頁面捲動狀態 ──
+        // ── 停止遊戲：清計時器、停自動出句、隱藏遊戲畫面並還原頁面捲動狀態 ──
         stopGame: function () {
             this.isActive = false;
             if (this.timerInterval) clearInterval(this.timerInterval);
-            this._stopReelLoop();
+            this._stopAutoLines();
             window.FMGame.stop(this);
         },
 
@@ -259,7 +249,7 @@
         // ========================================================
         // 開局
         // ========================================================
-        // ── 開新局主流程：重置狀態 → 挑目標詩句 → 產生候選池 → 佈局網格與正確答案區 → 顯示規則彈窗後才開始計時與轉輪 ──
+        // ── 開新局主流程：重置狀態 → 挑目標詩句 → 產生候選池 → 佈局網格與正確答案區 → 顯示規則彈窗後才開始計時與自動出句 ──
         startNewGame: function (levelIndex) {
             if (window.ScoreManager) window.ScoreManager.cancelAnimation();
             if (levelIndex !== undefined) { this.currentLevelIndex = levelIndex; this.isLevelMode = true; }
@@ -269,7 +259,8 @@
             this.isActive = true;
             this.score = 0;
             this.tries = 0;
-            this.flipping = false;
+            this.finishing = false;
+            this.autoIndex = 0;
             this.guessedLines = new Set();
             this._closeManualDialog();
             document.getElementById('game36-score').textContent = '0';
@@ -287,32 +278,27 @@
             this.solvedBlue = new Array(GRID_COLS).fill(null).map(() => new Set());
             this._populateOrphans();     // 把孤立字直接填入 solvedGreen 作為免費提示
             this._renderSolvedRow();
-            this._renderReel();
-            this.reelPos = Math.floor(Math.random() * this.pool.length);
-            this.reelVel = 0;
-            this._updateReel();
             this._showPoemInfo(false);
 
             this.maxTimer = this.settings.timeLimit;
             this.timer = this.settings.timeLimit;
             this.gameStartTime = Date.now();
 
-            // 顯示開局提示畫面（RuleNoteDialog），玩家按下開始才啟動計時與轉輪
+            // 顯示開局提示畫面（RuleNoteDialog），玩家按下開始才啟動計時與自動出句
             const startPlaying = () => {
                 this._startTimer();
-                this._startReelLoop();
+                this._scheduleNextAutoLine(AUTO_FIRST_DELAY_MS);
             };
-            this._stopReelLoop();
+            this._stopAutoLines();
             if (this.timerInterval) clearInterval(this.timerInterval);
             window.FMGame.showRuleIntro(this, {
                 title: '轉輪覓詩',
                 lines: [
-                    '轉動下方詩句轉輪，',
-                    '單擊正中央橫條就是提交一句猜測。',
-                    '　',
+                    '詩句會自動陸續出現在上方題目區，',
                     '綠色＝字位置正確；藍色＝字在但位置錯；灰色＝字不存在。',
                     '　',
-                    '也可點「手動輸入答案」直接鍵入答案。'
+                    '依線索推敲，點「手動輸入答案」',
+                    '鍵入你猜的整句答案。'
                 ],
                 btnText: '開始挑戰',
                 styles: {
@@ -465,7 +451,7 @@
                 const j = Math.floor(Math.random() * (i + 1));
                 [pool[i], pool[j]] = [pool[j], pool[i]];
             }
-            // 從轉輪中移除正確答案，玩家無法直接在滾輪中找到正解（要求 §1）
+            // 從候選池移除正確答案，自動出現的詩句裡不會直接冒出正解（要求 §1）
             this.pool = pool.filter(l => l !== this.targetLine);
         },
 
@@ -516,16 +502,6 @@
             }
         },
 
-        // ── 檢查是否所有目標字位置都已在 solvedGreen 中填妥 ──
-        _isSolvedRowComplete: function () {
-            const padTarget = this._padCenter7(this.targetLine);
-            for (let i = 0; i < GRID_COLS; i++) {
-                if (padTarget[i] === ' ') continue;
-                if (this.solvedGreen[i] !== padTarget[i]) return false;
-            }
-            return true;
-        },
-
         // ── 混淆句選取：等長、不含任何目標字、評分加權隨機（移植 game21）──
         _pickDecoyLine: function (excludeSet, usedLines, N) {
             const candidates = [];
@@ -566,13 +542,13 @@
         // ========================================================
         _layoutGrid: function () {
             this._cell = GRID_CELL;
-            // 固定 7 欄寬、5.5 列高（不因五言/七言而改變）
+            // 固定 7 欄寬、8 列高（不因五言/七言而改變）
             const width = GRID_COLS * GRID_CELL + (GRID_COLS - 1) * GRID_GAP + 24;
             const height = Math.round(GRID_VISIBLE_ROWS * (GRID_CELL + GRID_GAP) + 16);
             const vp = document.getElementById('game36-grid-viewport');
             vp.style.width = width + 'px';
             vp.style.height = height + 'px';
-            // 開局預先渲染 PLACEHOLDER_ROWS 列虛線佔位，讓玩家清楚知道題目區在哪
+            // 開局預先渲染 PLACEHOLDER_ROWS（8）列虛線佔位，讓玩家清楚知道題目區在哪
             this._renderPlaceholders(PLACEHOLDER_ROWS);
         },
 
@@ -602,15 +578,18 @@
             return ' '.repeat(left) + s + ' '.repeat(right);
         },
 
-        // ── 提交一句猜測 ──
-        _submitGuess: function (line, reelEl) {
-            if (this.flipping || !this.isActive) return;
-            if (this.guessedLines.has(line)) return;   // 已猜過不可重複
+        // ── 把一句詩送進題目區並判定顏色 ──
+        //   isManual=false：系統自動出現的候選詩句（只給線索，不計次數、不會獲勝）
+        //   isManual=true ：玩家手動輸入的答案（計入嘗試次數；與目標句完全相同才獲勝）
+        _submitGuess: function (line, isManual) {
+            if (this.finishing || !this.isActive) return;
+            if (this.guessedLines.has(line)) return;   // 已出現過不可重複
             this.guessedLines.add(line);
-            if (reelEl) reelEl.classList.add('guessed');
-            this.tries++;
-            document.getElementById('game36-tries').textContent = `已嘗試 ${this.tries} 次`;
-            if (window.SoundManager) window.SoundManager.playConfirmItem();
+            if (isManual) {
+                this.tries++;
+                document.getElementById('game36-tries').textContent = `已嘗試 ${this.tries} 次`;
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+            }
 
             // 一律於「置中補空至 7 字寬」的空間中比對，
             // 讓玩家無法從答案卡長度反推題目字數（要求 §3、§4）
@@ -620,10 +599,13 @@
             // 把新綠字/藍字合併進頂端摘要
             this._mergeSolvedFromResult(padGuess, result);
             this._renderSolvedRow();
-            // 勝利判定：只要 solvedGreen 已集滿所有目標字位置即算贏
-            //   → 涵蓋 A（多次猜測累積至滿綠）與 B（一次手動輸入正確答案）兩條路徑
-            const winThis = this._isSolvedRowComplete();
-            this.flipping = true;
+            // 勝利判定：答案必須由玩家手動輸入，且與目標句完全相同。
+            //   自動出現的詩句即使把「正確答案」那排綠字湊齊，也不會替玩家過關。
+            const winThis = isManual && padGuess.join('') === padTarget.join('');
+            if (winThis) {
+                this.finishing = true;
+                this._stopAutoLines();
+            }
 
             // 建立新列（固定 7 格，五言居中填入：格 1 空、格 2-6 填五字、格 7 空）
             const grid = document.getElementById('game36-grid');
@@ -646,12 +628,18 @@
                 row.appendChild(c);
                 cells.push(c);
             }
+            // 插入新列前先看玩家是不是停在最底：手動輸入一律捲到最新列；
+            // 自動出現的詩句只在玩家本來就停在底部時才跟著捲，避免打斷正在往上翻看舊線索的人
+            const sc = document.getElementById('game36-grid-scroll');
+            const stickToBottom = isManual
+                || (sc.scrollHeight - sc.scrollTop - sc.clientHeight <= this._cell + GRID_GAP);
             // 移除一個佔位列（若有）、把新列插在剩餘佔位列之前
             const firstPh = grid.querySelector('.game36-row-placeholder');
             if (firstPh) firstPh.remove();
             const nextPh = grid.querySelector('.game36-row-placeholder');
             if (nextPh) grid.insertBefore(row, nextPh);
             else grid.appendChild(row);
+            if (stickToBottom) sc.scrollTop = sc.scrollHeight;   // 自動捲到最新列
 
             // 逐格翻牌染色（只翻有實字的格；空白格永遠保持中性空格外觀）
             for (let i = 0; i < GRID_COLS; i++) {
@@ -664,11 +652,9 @@
                 }, i * FLIP_STEP_MS);
             }
 
+            // 翻牌收尾：只有玩家手動輸入才播成功／失敗音效（自動出句每 2 秒一句，不加音效打擾）
             setTimeout(() => {
-                const sc = document.getElementById('game36-grid-scroll');
-                sc.scrollTop = sc.scrollHeight;   // 自動捲到最新列
-                this.flipping = false;
-                if (window.SoundManager) {
+                if (isManual && window.SoundManager) {
                     if (!winThis && result.every(r => r === 'gray')) {
                         if (window.SoundManager.playFailure) window.SoundManager.playFailure();
                     } else if (!winThis && result.some(r => r === 'green')) {
@@ -680,149 +666,34 @@
         },
 
         // ========================================================
-        // 轉輪
+        // 自動出句（取代舊的詩句轉輪）
         // ========================================================
-        // ── 依 this.pool 重新產生轉輪項目 DOM（每句候選一個 div）──
-        _renderReel: function () {
-            const box = document.getElementById('game36-reel-items');
-            box.innerHTML = '';
-            this.reelItems = [];
-            const frag = document.createDocumentFragment();
-            this.pool.forEach((line) => {
-                const el = document.createElement('div');
-                el.className = 'game36-reel-item';
-                el.textContent = line;
-                // 不綁 click：選取一律由 _reelUp → _handleTap 依「點擊位置」判定，
-                // 確保只有單擊正中央橫條才算提交，拖曳絕不觸發提交。
-                this.reelItems.push(el);
-                frag.appendChild(el);
-            });
-            box.appendChild(frag);
+        // ── 排程下一句候選詩出現；全部出完、已獲勝或遊戲停止就不再排程 ──
+        _scheduleNextAutoLine: function (delay) {
+            clearTimeout(this.autoTimer);
+            this.autoTimer = null;
+            if (!this.isActive || this.finishing || this.autoIndex >= this.pool.length) return;
+            this.autoTimer = setTimeout(() => this._autoTick(), delay === undefined ? AUTO_LINE_INTERVAL_MS : delay);
         },
 
-        // ── 依目前 reelPos（連續浮點值）重新計算每個候選項目的位置、縮放、透明度（越靠中央越大越清楚）──
-        _updateReel: function () {
-            const L = this.pool.length;
-            if (!L) return;
-            const pos = this.reelPos;
-            for (let k = 0; k < L; k++) {
-                const el = this.reelItems[k];
-                let raw = k - pos;
-                raw = ((raw % L) + L) % L;
-                if (raw > L / 2) raw -= L;
-                const dist = Math.abs(raw);
-                if (dist > REEL_VISIBLE) { el.style.display = 'none'; continue; }
-                el.style.display = '';
-                const y = REEL_CENTER_Y + raw * REEL_ITEM_H;
-                const sc = Math.max(0.3, 1 - dist * 0.26);
-                const op = Math.max(0.15, 1 - dist * 0.3);
-                el.style.top = y + 'px';
-                el.style.transform = `translate(-50%, -50%) scaleY(${sc.toFixed(3)})`;
-                el.style.opacity = op.toFixed(2);
-                el.style.zIndex = String(200 - Math.round(dist * 10));
-                el.classList.toggle('center', dist < 0.5);
-            }
-        },
-
-        // ── 啟動轉輪動畫迴圈（requestAnimationFrame 逐幀呼叫 _reelTick）──
-        _startReelLoop: function () {
-            if (this.reelRaf) return;
-            const loop = () => { this._reelTick(); this.reelRaf = requestAnimationFrame(loop); };
-            this.reelRaf = requestAnimationFrame(loop);
-        },
-        // ── 停止轉輪動畫迴圈 ──
-        _stopReelLoop: function () {
-            if (this.reelRaf) { cancelAnimationFrame(this.reelRaf); this.reelRaf = null; }
-        },
-
-        // ── 每幀更新轉輪：拖曳中不處理慣性；放開後依速度衰減滑動，速度趨近 0 時吸附至最近整數格 ──
-        _reelTick: function () {
-            if (!this._dragging) {
-                if (Math.abs(this.reelVel) > 0.0009) {
-                    this.reelPos += this.reelVel;
-                    this.reelVel *= 0.92;
-                } else {
-                    // 吸附至最近整數（候選置中）
-                    const target = Math.round(this.reelPos);
-                    const d = target - this.reelPos;
-                    if (Math.abs(d) > 0.001) this.reelPos += d * 0.2;
-                    else this.reelPos = target;
-                    this.reelVel = 0;
+        // ── 把候選池的下一句送進題目區（玩家已手動輸入過的句子直接略過；手動輸入視窗開著時暫停）──
+        _autoTick: function () {
+            this.autoTimer = null;
+            if (!this.isActive || this.finishing) return;
+            // 輸入視窗上的藍字線索是開窗當下的快照，視窗開著時題目區不該再變動，所以先暫停出句
+            if (!this.manualOpen) {
+                while (this.autoIndex < this.pool.length && this.guessedLines.has(this.pool[this.autoIndex])) {
+                    this.autoIndex++;
                 }
+                if (this.autoIndex >= this.pool.length) return;
+                this._submitGuess(this.pool[this.autoIndex++], false);
             }
-            this._updateReel();
+            this._scheduleNextAutoLine();
         },
 
-        // ── 綁定轉輪的滑鼠／觸控事件（down/move/up），統一轉呼叫 _reelDown/_reelMove/_reelUp ──
-        bindReel: function () {
-            const reel = document.getElementById('game36-reel');
-            reel.addEventListener('mousedown', (e) => { this._reelDown(e.clientY); });
-            window.addEventListener('mousemove', (e) => { if (this._downT) this._reelMove(e.clientY); });
-            window.addEventListener('mouseup', (e) => { if (this._downT) this._reelUp(e.clientY); });
-
-            reel.addEventListener('touchstart', (e) => {
-                this._reelDown(e.touches[0].clientY); e.preventDefault();
-            }, { passive: false });
-            reel.addEventListener('touchmove', (e) => {
-                if (this._downT) this._reelMove(e.touches[0].clientY); e.preventDefault();
-            }, { passive: false });
-            reel.addEventListener('touchend', (e) => {
-                if (this._downT) this._reelUp(e.changedTouches[0].clientY); e.preventDefault();
-            }, { passive: false });
-        },
-
-        // ── 按下／觸碰開始：記錄起始座標與時間，清空速度，準備判斷是否為拖曳 ──
-        _reelDown: function (y) {
-            this._downY = this._lastY = y;
-            this._downT = performance.now();
-            this._dragging = false;
-            this._startPos = this.reelPos;
-            this.reelVel = 0;
-        },
-        // ── 移動中：超過 TAP_MOVE_PX 視為拖曳，依位移量更新 reelPos 並估算瞬時速度（供放開後的慣性使用）──
-        _reelMove: function (y) {
-            const scale = window.stageScale || 1;
-            const dyTotal = (y - this._downY) / scale;
-            if (!this._dragging && Math.abs(dyTotal) > TAP_MOVE_PX) this._dragging = true;
-            if (this._dragging) {
-                this.reelPos = this._startPos - dyTotal / REEL_ITEM_H;
-                this.reelVel = -((y - this._lastY) / scale) / REEL_ITEM_H;
-                this._lastY = y;
-            }
-        },
-        // ── 放開／觸碰結束：若曾拖曳過就不提交（保留慣性滑動）；否則視為單擊，交給 _handleTap 判斷點擊位置 ──
-        _reelUp: function (y) {
-            const dt = performance.now() - this._downT;
-            const moved = Math.abs(y - this._downY);
-            this._downT = 0;
-            const wasDragging = this._dragging;
-            this._dragging = false;
-            // 拖曳（含拖到中央放開）一律不提交，避免浪費一次猜測
-            if (wasDragging) return;
-            if (moved < TAP_MOVE_PX && dt < TAP_TIME_MS) this._handleTap(y);
-        },
-
-        // 依「點擊落點」判定：只有單擊正中央橫條才提交；點上下條僅捲動至中央
-        _handleTap: function (clientY) {
-            if (this.flipping || !this.isActive) return;
-            const reel = document.getElementById('game36-reel');
-            const rect = reel.getBoundingClientRect();
-            const scale = window.stageScale || 1;
-            const localY = (clientY - rect.top) / scale;        // 換算回邏輯座標
-            const offset = Math.round((localY - REEL_CENTER_Y) / REEL_ITEM_H);
-            if (offset === 0) {
-                // 正中央 → 提交
-                if (Math.abs(this.reelVel) > 0.06) return;      // 仍在滑動則忽略
-                this.reelVel = 0;
-                this.reelPos = Math.round(this.reelPos);
-                const L = this.pool.length;
-                const idx = ((this.reelPos % L) + L) % L;
-                this._submitGuess(this.pool[idx], this.reelItems[idx]);
-            } else {
-                // 上/下條 → 捲動至中央（不提交）
-                this.reelVel = 0;
-                this.reelPos = Math.round(this.reelPos) + offset;
-            }
+        // ── 停止自動出句 ──
+        _stopAutoLines: function () {
+            if (this.autoTimer) { clearTimeout(this.autoTimer); this.autoTimer = null; }
         },
 
         // ========================================================
@@ -946,6 +817,7 @@
         // ⚠️ 本作沒有失敗條件，全站只有一處呼叫點且固定傳 win=true（見 _submitGuess）。
         gameOver: function (win, reason) {
             if (this.timerInterval) clearInterval(this.timerInterval);
+            this._stopAutoLines();
             this._showPoemInfo(true);
 
             window.FMGame.gameOver(this, win, reason || '', {
@@ -967,7 +839,7 @@
         // ========================================================
         // ── 開啟手動輸入彈窗：先渲染上排「藍字提示」（各位置目前已知的藍字集合），再顯示輸入框並聚焦 ──
         _openManualDialog: function () {
-            if (this.flipping || !this.isActive) return;
+            if (this.finishing || !this.isActive) return;
             this.manualOpen = true;
             // 上排：藍字提示（每格顯示位置 i 曾出現的藍字集合）
             const blueRow = document.getElementById('game36-manual-blue-row');
@@ -982,9 +854,10 @@
                 if (blues && blues.size) {
                     c.classList.add('g-blue');
                     const arr = Array.from(blues);
-                    c.textContent = arr.join('/');
-                    // 依字數縮字體
-                    const font = Math.round(GRID_CELL * (arr.length > 1 ? 0.42 : 0.85));
+                    c.textContent = arr.join('');
+                    // 依字數縮字體：1 字大字；2～4 字每行 2 字；5～6 字每行 3 字；更多再縮小
+                    const ratio = arr.length === 1 ? 0.85 : arr.length <= 4 ? 0.42 : arr.length <= 6 ? 0.30 : 0.26;
+                    const font = Math.round(GRID_CELL * ratio);
                     c.style.fontSize = font + 'px';
                 }
                 blueRow.appendChild(c);
@@ -1002,7 +875,7 @@
             if (ov) ov.classList.add('hidden');
         },
 
-        // ── 提交手動輸入的答案：去除標點/空白後，多於 7 字只取前 7 字，交由 _submitGuess 走與轉輪相同的判定流程 ──
+        // ── 提交手動輸入的答案：去除標點/空白後，多於 7 字只取前 7 字，交由 _submitGuess 走與自動出句相同的判定流程 ──
         _submitManualInput: function () {
             const input = document.getElementById('game36-manual-input');
             const raw = (input.value || '').trim();
@@ -1016,10 +889,10 @@
             // > 7 字取前 7 字；< 7 字交給 _padCenter7 補齊置中
             const guess = clean.length > 7 ? clean.slice(0, 7) : clean;
             this._closeManualDialog();
-            // 手動輸入視為一次滾輪輸入：走 _submitGuess 同樣的流程
-            // 若之前透過轉輪已猜過相同字串，仍算一次（先從 guessedLines 移除，避免被去重擋掉）
+            // 手動輸入走 _submitGuess 同樣的流程（isManual=true：計次、可獲勝）
+            // 若題目區已出現過相同字串（自動或先前手動），仍算一次（先從 guessedLines 移除，避免被去重擋掉）
             this.guessedLines.delete(guess);
-            this._submitGuess(guess, null);
+            this._submitGuess(guess, true);
         },
 
         // ========================================================

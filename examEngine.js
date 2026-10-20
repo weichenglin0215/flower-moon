@@ -402,8 +402,7 @@
                 + '<div class="exg-row"><span>及格</span><span>答對 ' + p.passCount
                 + ' 題（' + p.passRateText + '）</span></div>'
                 + strictNote + mockNote
-                + '<div class="exg-note">每題以「人事時地／丟三落一／字爬梯／步步驚心／步步為陣／作者是誰／'
-                + '眾裡尋他／打地詩」八款之一出題，過關即為答對。</div>'
+                + '<div class="exg-note">每題以「眾裡尋他／人事時地／作者是誰／丟三落一／詩眼覓蹤／字爬梯／步步驚心／步步為陣／一筆裁詩／打地詩」十款之一出題，過關即為答對。</div>'
                 + '<div class="exg-footer">'
                 + '<button class="exg-btn exg-btn-sub" id="exgQuit">先回家苦讀</button>'
                 + '<button class="exg-btn" id="exgGo">入場應試</button>'

@@ -75,26 +75,26 @@
             },
             '中學': {
                 cols: 4, rows: 3, minStayDuration: 1500, maxStayDuration: 2200, minDecoys: 1, maxDecoys: 2,
-                maxMissPerTarget: 0, maxMistakeCount: 7, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
+                maxMissPerTarget: 0, maxMistakeCount: 7, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 5, minLines: 4, maxLines: 6, minChars: 8, maxChars: 42, maxTargetCount: 1,
                 targetCharPreview: true   // 預覽正確字顯示橙色，方便辨別順序
             },
             '高中': {
                 cols: 4, rows: 4, minStayDuration: 1500, maxStayDuration: 2000, minDecoys: 2, maxDecoys: 3,
-                maxMissPerTarget: 0, maxMistakeCount: 6, hintMode: 'full', frenzyInterval: 9999999, frenzyDecoys: 1,
-                poemMinRating: 4, minLines: 4, maxLines: 8, minChars: 8, maxChars: 56, maxTargetCount: 2,
+                maxMissPerTarget: 0, maxMistakeCount: 6, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
+                poemMinRating: 4, minLines: 4, maxLines: 8, minChars: 8, maxChars: 56, maxTargetCount: 1,
                 targetCharPreview: true  // 正確字一律金色，玩家須自行判斷順序
             },
             '大學': {
-                cols: 5, rows: 4, minStayDuration: 2500, maxStayDuration: 2000, minDecoys: 2, maxDecoys: 4,
+                cols: 4, rows: 5, minStayDuration: 2500, maxStayDuration: 3500, minDecoys: 2, maxDecoys: 4,
                 maxMissPerTarget: 0, maxMistakeCount: 5, hintMode: 'sentence-first', frenzyInterval: 9999999, frenzyDecoys: 1,
                 poemMinRating: 3, minLines: 4, maxLines: 10, minChars: 8, maxChars: 70, maxTargetCount: 1,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             },
             '研究所': {
-                cols: 5, rows: 5, minStayDuration: 3000, maxStayDuration: 3000, minDecoys: 3, maxDecoys: 5,
+                cols: 5, rows: 5, minStayDuration: 3000, maxStayDuration: 4000, minDecoys: 3, maxDecoys: 5,
                 maxMissPerTarget: 0, maxMistakeCount: 4, hintMode: 'none', frenzyInterval: 9999999, frenzyDecoys: 1,
-                poemMinRating: 3, minLines: 4, maxLines: 12, minChars: 8, maxChars: 84, maxTargetCount: 2,
+                poemMinRating: 3, minLines: 4, maxLines: 12, minChars: 8, maxChars: 84, maxTargetCount: 1,
                 targetCharPreview: false  // 正確字一律金色，玩家須自行判斷順序
             }
         },

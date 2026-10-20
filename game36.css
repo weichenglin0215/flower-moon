@@ -64,7 +64,7 @@
     position: relative;
     box-sizing: border-box;
     margin: 0 auto;
-    /* height 由 JS 依 5.5 列動態設定 */
+    /* height 由 JS 依 8 列動態設定 */
 }
 
 .game36-grid-scroll {
@@ -114,7 +114,7 @@
     border: 2px dashed var(--fm-hairline, hsla(38, 50%, 31%, 0.16));
 }
 
-/* 開局預先渲染的 6 列虛線佔位（讓玩家一眼看到題目區）*/
+/* 開局預先渲染的 8 列虛線佔位（讓玩家一眼看到題目區）*/
 .game36-row-placeholder {
     opacity: 0.85;
 }
@@ -171,92 +171,36 @@
     transition: stroke-dashoffset 0.1s linear, stroke 0.3s ease;
 }
 
-/* ── 詩句轉輪區 ── */
-.game36-reel-area {
+/* ── 下方操作區：只剩一顆「手動輸入答案」大按鈕 + 提示文字 ──
+   （2026-10 取消詩句轉輪；詩句改由上方題目區自動陸續出現，玩家唯一要操作的就是這顆按鈕）
+   吃掉題目區以下的剩餘高度，把按鈕置中於其中。*/
+.game36-action-area {
+    flex: 1;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 4px;
-}
-
-.game36-reel {
-    position: relative;
-    width: 440px;
-    height: 210px;
-    overflow: hidden;
-    touch-action: none;   /* 完全接管垂直手勢，避免瀏覽器捲頁 */
-    /* 上下漸層遮罩，強化滾筒縱深 */
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
-}
-
-/* 命中窗口（中央高亮框）*/
-.game36-reel-window {
-    position: absolute;
-    left: 50%;
-    top: 105px;
-    transform: translate(-50%, -50%);
-    width: 430px;
-    height: 58px;
-    border: 2px solid var(--fm-border-strong, #b98e50);
-    border-radius: 10px;
-    background: var(--fm-veil, hsla(38, 50%, 31%, 0.06));
-    pointer-events: none;
-    z-index: 1;
-}
-
-.game36-reel-items {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-}
-
-.game36-reel-item {
-    position: absolute;
-    left: 50%;
-    top: 105px;
-    transform: translate(-50%, -50%);
-    white-space: nowrap;
-    font-size: 40px;
-    color: var(--fm-ink-soft, #4a3a26);
-    cursor: pointer;
-    padding: 4px 12px;
-    letter-spacing: 3px;
-    will-change: top, transform, opacity;
-}
-
-/* 命中窗口中的候選：最大最清晰，宣紙卡片浮起 */
-.game36-reel-item.center {
-    font-size: 54px;
-    font-weight: 700;
-    color: var(--fm-ink, #2e241b);
-    background: var(--fm-paper-card, #fbf5e6);
-    border: 2px solid var(--fm-border-strong, #b98e50);
-    border-radius: 10px;
-    box-shadow: var(--fm-shadow-soft, 0 2px 6px hsla(38, 50%, 31%, 0.2));
-}
-
-/* 已猜過的候選：右側硃紅勾銷標記 */
-.game36-reel-item.guessed::after {
-    content: '✓';
-    color: var(--fm-cinnabar, #c0392b);
-    margin-left: 8px;
-    font-size: 0.8em;
-    opacity: 0.85;
+    justify-content: center;
+    gap: 10px;
 }
 
 .game36-hint {
-    margin-top: 6px;
     font-size: 13px;
     color: var(--fm-ink-faint, #8a7550);
     user-select: none;
 }
 
-/* ── 手動輸入按鈕 ── */
+/* ── 手動輸入按鈕：寬度為整個介面（500px 舞台）的 80%，字大好點 ── */
 .game36-manual-btn {
-    margin-top: 4px;
-    font-size: 14px;
-    padding: 6px 18px;
+    width: 80%;
+    box-sizing: border-box;
+    padding: 18px 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    border-radius: 16px;
+    border-width: 2px;
+    box-shadow: var(--fm-shadow-soft, 0 2px 6px hsla(38, 50%, 31%, 0.2));
 }
 
 /* ── 手動輸入彈窗（掛在遊戲區上半，不遮蔽正確答案區與判定網格頂端）── */
@@ -298,6 +242,10 @@
 }
 .game36-manual-blue-cell {
     padding: 0;
+    /* 同一位置的藍字會越積越多（自動出句後常有 3～5 個），改成不加斜線、在格內自動換行縮字 */
+    word-break: break-all;
+    text-align: center;
+    overflow: hidden;
     line-height: 1;
     /* 空格顯示為 faint 虛線占位 */
     background: transparent;
