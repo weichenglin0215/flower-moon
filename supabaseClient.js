@@ -50,9 +50,269 @@
             return true;
         },
 
-        /** 取得目前綁定的引繼碼（模組外不必直接碰 localStorage） */
+        /**
+         * 取得目前綁定的玩家 id（模組外不必直接碰 localStorage）。
+         *
+         * ⚠️ 帳號制度改版後，id 只是「不可變的內部鍵」：玩家看到、輸入的是
+         *    「暱稱＋四位數密碼」，id 由伺服器產生（新玩家）或沿用舊的 李白#1234（舊玩家）。
+         *    其他資料表的 player_id 全靠它，所以暱稱可以改、id 不能改。
+         */
         getCurrentId: function () {
             try { return localStorage.getItem('flower_moon_id') || ''; } catch (e) { return ''; }
+        },
+
+        /** 綁定玩家 id（登入／註冊／認領成功後呼叫；模組外不要自己寫 localStorage） */
+        setCurrentId: function (id) {
+            try { localStorage.setItem('flower_moon_id', id); } catch (e) { /* 無痕模式等情況忽略 */ }
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // 離線遊玩防護
+        //
+        // 離線時 saveGameToCloud／logGame 都會失敗，必須解決兩件事：
+        //
+        //  1.「雲端為準」的啟動同步，不能把離線期間玩的進度蓋掉。
+        //     → 存檔因為連不上而失敗時，本機標記「有尚未上傳的進度」(dirty)；
+        //       下次啟動看到旗標就改成補傳，不再拿雲端覆蓋
+        //       （唯一的例外：雲端分數比本機高，代表別台裝置玩得更多，以雲端為準）。
+        //
+        //  2. 離線期間的遊戲紀錄（game_logs／silver_events）不能直接丟掉。
+        //     → 先排進本機佇列，連線後依序補送，排行榜與統計才不會少算。
+        //       每一筆都帶著原本的 player_id 與時間戳，補送時歸屬原帳號與原日期。
+        //
+        // ⚠️ 這兩個旗標存在本模組自己的 localStorage 鍵，不屬於玩家存檔：
+        //    切換帳號（套用雲端資料）只清 dirty，不清佇列。
+        // ──────────────────────────────────────────────────────────
+
+        _DIRTY_KEY: 'fm_cloud_dirty',
+        _QUEUE_KEY: 'fm_cloud_queue',
+        _QUEUE_MAX: 500,   // 佇列上限，超過時丟掉最舊的（避免離線很久把儲存空間塞爆）
+
+        /** 判斷錯誤是不是「連不上」（而不是資料庫真的回了拒絕或欄位錯誤） */
+        _isNetworkError: function (err) {
+            if (navigator.onLine === false) return true;
+            if (!err) return false;
+            const code = String(err.code || '');
+            const msg = String(err.message || err);
+            // supabase-js 的連線失敗：沒有資料庫錯誤碼，訊息是 Failed to fetch／Load failed／NetworkError…
+            return (code === '' || code === '0') && /fetch|network|load failed|timeout|abort|offline/i.test(msg);
+        },
+
+        /** 本機是否有尚未上傳到雲端的進度 */
+        isCloudDirty: function () {
+            try { return localStorage.getItem(this._DIRTY_KEY) === '1'; } catch (e) { return false; }
+        },
+
+        markCloudDirty: function (flag) {
+            try {
+                if (flag) localStorage.setItem(this._DIRTY_KEY, '1');
+                else localStorage.removeItem(this._DIRTY_KEY);
+            } catch (e) { /* 無痕模式等情況忽略 */ }
+        },
+
+        _readQueue: function () {
+            try {
+                const q = JSON.parse(localStorage.getItem(this._QUEUE_KEY) || '[]');
+                return Array.isArray(q) ? q : [];
+            } catch (e) { return []; }
+        },
+
+        _writeQueue: function (q) {
+            try {
+                if (q.length) localStorage.setItem(this._QUEUE_KEY, JSON.stringify(q));
+                else localStorage.removeItem(this._QUEUE_KEY);
+            } catch (e) { /* 儲存空間滿了：寧可少記一筆統計，也不能影響遊戲 */ }
+        },
+
+        _enqueue: function (table, payload) {
+            const q = this._readQueue();
+            q.push({ table: table, payload: payload });
+            while (q.length > this._QUEUE_MAX) q.shift();
+            this._writeQueue(q);
+        },
+
+        /** 還有幾筆紀錄等著補送（供離線狀態列顯示） */
+        pendingCount: function () {
+            return this._readQueue().length;
+        },
+
+        /**
+         * 補送所有離線期間累積的東西：先補傳存檔，再依序送出紀錄佇列。
+         * 連線一恢復（online 事件）與每次啟動都會呼叫；沒網路或沒東西要送時什麼都不做。
+         * @returns {Promise<boolean>} 是否已全部送完
+         */
+        flushPending: async function () {
+            if (this._flushing) return false;
+            if (navigator.onLine === false || !this.init()) return false;
+            this._flushing = true;
+            try {
+                // 1. 未上傳的存檔：失敗代表多半還是沒網路，後面的紀錄也不用試了
+                if (this.isCloudDirty() && this.getCurrentId() && window.ScoreManager) {
+                    const ok = await this.saveGameToCloud(window.ScoreManager.loadPlayerData());
+                    if (!ok && this.isCloudDirty()) return false;
+                }
+
+                // 2. 紀錄佇列。每送完一筆就「重新讀取」再移除隊首：
+                //    送出期間 logGame 可能又排進新的一筆，拿舊陣列整份寫回會把它覆蓋掉。
+                for (;;) {
+                    const head = this._readQueue()[0];
+                    if (!head) break;
+                    const r = head.table === 'game_logs'
+                        ? await this._insertGameLogWithFallback(head.payload)
+                        : await this._insertSimple(head.table, head.payload);
+                    if (r === 'retry') return false;   // 又斷線了，留待下次
+                    const cur = this._readQueue();     // 'ok' 或 'drop'（資料庫拒收，重送也沒用）都出列
+                    cur.shift();
+                    this._writeQueue(cur);
+                }
+                return true;
+            } finally {
+                this._flushing = false;
+            }
+        },
+
+        /** 寫入單純的一列。回傳 'ok'｜'drop'（資料庫拒收，重送無用）｜'retry'（連不上，值得重送） */
+        _insertSimple: async function (table, payload) {
+            try {
+                const { error } = await supabase.from(table).insert(payload);
+                if (!error) return 'ok';
+                if (this._isNetworkError(error)) return 'retry';
+                console.warn('[雲端] ' + table + ' 寫入失敗:', error.message);
+                return 'drop';
+            } catch (e) {
+                return this._isNetworkError(e) ? 'retry' : 'drop';
+            }
+        },
+
+        /** 有網路就直接送，送不出去（或明確離線）就排隊 */
+        _sendOrQueue: async function (table, payload) {
+            if (navigator.onLine === false || !this.init()) { this._enqueue(table, payload); return; }
+            const r = table === 'game_logs'
+                ? await this._insertGameLogWithFallback(payload)
+                : await this._insertSimple(table, payload);
+            if (r === 'retry') this._enqueue(table, payload);
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // 帳號（暱稱＋四位數密碼）— 對應 note/帳號密碼_SQL草案.sql
+        //
+        // ⚠️ 密碼的驗證、雜湊、錯誤鎖定「全部在資料庫端」的 fm_* 函式完成，
+        //    前端只負責傳送與顯示結果，絕對不要在前端比對密碼：
+        //    只有四位數字，前端比對等於把答案公開。
+        //
+        // 回傳格式統一為 { ok:boolean, reason?:string, ... }，reason 可能是：
+        //   伺服器回的：taken／bad_nickname／bad_pin／not_found／locked／no_pin／
+        //               no_player／already_set
+        //   本機判斷的：server_not_ready（SQL 還沒執行）／network（連不上）／no_sdk
+        // ──────────────────────────────────────────────────────────
+
+        /** 呼叫一支 RPC，並把「函式不存在」與「連線失敗」分開（兩者的處置完全不同） */
+        _rpc: async function (fn, args) {
+            if (!this.init()) return { ok: false, reason: 'no_sdk' };
+            try {
+                const { data, error } = await supabase.rpc(fn, args);
+                if (error) {
+                    const code = String(error.code || '');
+                    const msg = String(error.message || '');
+                    // PGRST202 = PostgREST 找不到函式；42883 = 資料庫層 undefined_function
+                    if (code === 'PGRST202' || code === '42883'
+                        || /could not find the function/i.test(msg)) {
+                        console.warn('[雲端] 找不到 ' + fn + '，請先執行 note/帳號密碼_SQL草案.sql');
+                        return { ok: false, reason: 'server_not_ready', error: error };
+                    }
+                    return { ok: false, reason: 'network', error: error };
+                }
+                return { ok: true, data: data };
+            } catch (e) {
+                return { ok: false, reason: 'network', error: e };
+            }
+        },
+
+        /** 把伺服器回的 jsonb 攤平成統一格式；連線層的失敗原樣回傳 */
+        _unwrap: function (r) {
+            if (!r.ok) return r;
+            const d = r.data;
+            return (d && typeof d === 'object') ? d : { ok: false, reason: 'network' };
+        },
+
+        /**
+         * 暱稱是否可用。
+         * @param {string} nickname
+         * @param {string} [selfId] 改名時傳入自己的 id（自己目前的暱稱不算被占用）
+         * @returns {Promise<boolean|null>} true 可用／false 已被使用或格式不合／null 無法判斷
+         */
+        checkNicknameAvailable: async function (nickname, selfId) {
+            const r = await this._rpc('fm_check_nickname',
+                { p_nickname: nickname, p_id: selfId || null });
+            return r.ok ? !!r.data : null;
+        },
+
+        /** 註冊新帳號。成功回 {ok:true,id}；本函式只建立帳號，不碰本機存檔 */
+        register: async function (nickname, pin) {
+            return this._unwrap(await this._rpc('fm_register',
+                { p_nickname: nickname, p_pin: pin }));
+        },
+
+        /** 以暱稱＋密碼登入。成功回 {ok:true,id}；失敗的 reason 見上方說明 */
+        login: async function (nickname, pin) {
+            return this._unwrap(await this._rpc('fm_login',
+                { p_nickname: nickname, p_pin: pin }));
+        },
+
+        /** 查詢某個 id 是否已設定密碼。查不到（離線／SQL 未執行）回 null，呼叫端應當作「不打擾」 */
+        getAccountStatus: async function (id) {
+            const r = await this._rpc('fm_account_status', { p_id: id });
+            return (r.ok && r.data && typeof r.data === 'object') ? r.data : null;
+        },
+
+        /**
+         * 舊玩家認領：以舊 id（李白#1234）為憑證，設定暱稱＋密碼。
+         * 若 player_saves 還沒有這一列（舊版曾在離線時只建本機 id），
+         * 先把本機進度上傳建立該列，再重試一次。
+         */
+        claimLegacy: async function (id, nickname, pin) {
+            const call = async () => this._unwrap(await this._rpc('fm_claim_legacy',
+                { p_id: id, p_nickname: nickname, p_pin: pin }));
+            let res = await call();
+            if (!res.ok && res.reason === 'no_player' && window.ScoreManager
+                && id === this.getCurrentId()) {
+                const saved = await this.saveGameToCloud(window.ScoreManager.loadPlayerData());
+                if (saved) res = await call();
+            }
+            return res;
+        },
+
+        /** 變更密碼（需舊密碼） */
+        changePin: async function (id, oldPin, newPin) {
+            return this._unwrap(await this._rpc('fm_change_pin',
+                { p_id: id, p_old: oldPin, p_new: newPin }));
+        },
+
+        /** 變更暱稱（同時更新 player_saves.nickname，排行榜讀的就是這欄） */
+        renameAccount: async function (id, nickname) {
+            return this._unwrap(await this._rpc('fm_rename',
+                { p_id: id, p_nickname: nickname }));
+        },
+
+        /**
+         * 啟動時檢查：本機有綁定 id、但這個帳號還沒設定密碼（舊玩家）→ 跳出強制設定視窗。
+         * 查不到狀態（離線、SQL 尚未執行）時完全不打擾，不能因為伺服器問題擋住玩家。
+         * @returns {Promise<boolean>} 是否有跳出視窗
+         */
+        promptPinSetupIfNeeded: async function () {
+            const id = this.getCurrentId();
+            if (!id || !window.CloudSaveDialog) return false;
+            const st = await this.getAccountStatus(id);
+            if (!st || st.has_pin) return false;
+            window.CloudSaveDialog.show({
+                mode: 'migrate',
+                onSuccess: () => {
+                    if (window.ScoreManager && window.ScoreManager.updateProfileUI) {
+                        window.ScoreManager.updateProfileUI(window.ScoreManager.loadPlayerData());
+                    }
+                }
+            });
+            return true;
         },
 
         // 供外部直接取得建立好的 supabase 實例
@@ -68,7 +328,7 @@
         /**
          * 讀取雲端存檔，並明確區分三種結果。
          *
-         * ⚠️ 為什麼不能沿用 loadGameFromCloud：
+         * ⚠️ 為什麼不能沿用舊的 loadGameFromCloud（已移除）：
          *    它在「查無此帳號」與「連線失敗」兩種情況都回傳 null，
          *    呼叫端無從分辨。但這兩者的正確處置完全相反 ——
          *    查無資料代表帳號已被重置（本機該跟著清空），
@@ -118,12 +378,37 @@
                 return false;
             }
 
+            // 本機有「尚未上傳」的進度（離線期間玩的，或註冊後第一次存檔沒成功）：
+            // 這時絕不能直接以雲端為準，否則離線玩的內容會被舊資料蓋掉。
+            const dirty = this.isCloudDirty();
+
+            if (!res.found && dirty) {
+                console.warn('[雲端] 雲端還沒有這個帳號的存檔，但本機有尚未上傳的進度，改為補傳:', currentId);
+                this.flushPending();
+                return false;
+            }
+
             if (!res.found) {
                 console.warn('[雲端] 查無此帳號（可能已被重置），依雲端優先原則清空本機:', currentId);
                 if (window.ScoreManager && typeof window.ScoreManager.resetAll === 'function') {
                     window.ScoreManager.resetAll({ cloud: false, keepId: true });
                 }
                 return false;
+            }
+
+            if (dirty && window.ScoreManager) {
+                // 本機有離線進度，與雲端比較誰比較新。總積分只增不減，拿它當判準：
+                // 本機 >= 雲端 → 本機是最新的，補傳；本機 < 雲端 → 別台裝置玩得更多，以雲端為準
+                // （此時下面的 applyCloudDataToLocal 會一併清掉 dirty 旗標）。
+                // ⚠️ 這是粗略的二選一，不是欄位合併：兩台裝置都離線各玩各的，較少的那邊會被取代。
+                const localScore = Number((window.ScoreManager.loadPlayerData() || {}).totalScore) || 0;
+                const cloudScore = Number(res.data && res.data.total_score) || 0;
+                if (localScore >= cloudScore) {
+                    console.warn('[雲端] 本機有離線期間的進度（' + localScore + ' ≥ 雲端 ' + cloudScore + '），改為補傳');
+                    this.flushPending();
+                    return false;
+                }
+                console.warn('[雲端] 雲端進度較新（' + cloudScore + ' > 本機 ' + localScore + '），以雲端為準');
             }
 
             try {
@@ -141,86 +426,44 @@
             }
         },
 
-        // 產生一組 4 碼的隨機大寫英數字
-        generateRandomSuffix: function () {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let result = '';
-            for (let i = 0; i < 4; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
-        },
-
-        // 隨機取得一位詩人名字
+        // 隨機取得一位詩人名字（註冊畫面的暱稱預設值；暱稱要全站唯一，撞名時玩家自己改）
+        //
+        // 已移除的舊函式：generateRandomSuffix（產生引繼碼後綴）、checkIdExists、
+        // loadGameFromCloud、updateNicknameOnly —— 引繼碼制度已由「暱稱＋密碼」取代，
+        // 讀取存檔統一用 fetchSave，改名統一用 renameAccount（見上方「帳號」一節）。
         getRandomAuthorName: function () {
             return DEFAULT_AUTHORS[Math.floor(Math.random() * DEFAULT_AUTHORS.length)];
         },
 
-        // 檢查該 ID 在資料庫是否已存在
-        checkIdExists: async function (id) {
-            if (!this.init()) return false;
-            try {
-                const { data, error } = await supabase
-                    .from('player_saves')
-                    .select('id')
-                    .eq('id', id)
-                    .single();
-                if (error && error.code !== 'PGRST116') { // PGRST116 是找不到資料
-                    console.error('查詢 ID 失敗:', error);
-                    return false;
-                }
-                return !!data;
-            } catch (e) {
-                console.error('查詢異常:', e);
-                return false;
-            }
-        },
-
-        // 從資料庫載入遊戲進度
-        loadGameFromCloud: async function (id) {
-            if (!this.init()) return null;
-            try {
-                const { data, error } = await supabase
-                    .from('player_saves')
-                    .select('*')
-                    .eq('id', id)
-                    .single();
-
-                if (error) {
-                    if (error.code !== 'PGRST116') console.error('載入存檔失敗:', error);
-                    return null; // 找不到檔案或發生錯誤
-                }
-                return data;
-            } catch (e) {
-                console.error('讀取異常:', e);
-                return null;
-            }
-        },
-
-        // 更新使用者的暱稱並保持紀錄 (不會更動 id 引繼碼)
-        updateNicknameOnly: async function (id, newNickname) {
-            if (!this.init()) return false;
-            try {
-                const { error } = await supabase
-                    .from('player_saves')
-                    .update({ nickname: newNickname, updated_at: new Date().toISOString() })
-                    .eq('id', id);
-                if (error) throw error;
-                return true;
-            } catch (e) {
-                console.error('更新暱稱失敗:', e);
-                return false;
-            }
-        },
-
-        // 將本地資料上傳至雲端覆蓋
+        /**
+         * 將本地資料上傳至雲端覆蓋。
+         * 成功 → 清掉「尚未上傳」旗標；因為連不上而失敗 → 標記旗標，等連線後補傳（見 flushPending）。
+         * 沒綁定帳號時什麼都不做（沒有帳號就沒有東西需要補傳）。
+         */
         saveGameToCloud: async function (localData) {
-            if (!this.init()) return false;
+            if (!this.getCurrentId()) return false;
+            this._lastSaveNetErr = false;
+            const ok = await this._saveGameToCloudRaw(localData);
+            if (ok) this.markCloudDirty(false);
+            else if (this._lastSaveNetErr) this.markCloudDirty(true);
+            return ok;
+        },
+
+        _saveGameToCloudRaw: async function (localData) {
+            if (!this.init()) { this._lastSaveNetErr = true; return false; }
             const currentId = localStorage.getItem('flower_moon_id');
             if (!currentId) return false;
 
-            // 從 "#" 分割取得 nickname 顯示部分
-            const nickname = currentId.split('#')[0] || localData.nickname || '訪客';
+            // 顯示用暱稱：以本機存檔的暱稱為準。
+            //
+            // ⚠️ 舊寫法是 currentId.split('#')[0]（從引繼碼硬切），會造成
+            //    「改暱稱只在當下有效、下一次存檔就被引繼碼的前半段蓋回去」。
+            //    新制 id 不再含暱稱（改名後兩者本來就會不同），所以改讀本機暱稱；
+            //    本機還是預設的「訪客」時，才退回舊 id 的前半段（舊玩家的過渡）。
+            const legacyName = currentId.indexOf('#') > 0 ? currentId.split('#')[0] : '';
+            const nickname = (localData.nickname && localData.nickname !== '訪客')
+                ? localData.nickname
+                : (legacyName || '訪客');
 
             // 關卡相關的三個欄位嵌入 achievements 一起存雲端
             // （沿用既有的 _levelCleared 慣例，避免再動 schema）
@@ -321,7 +564,10 @@
                     const msg = String(error.message || '');
                     const missingCol = (code === '42703' || code === 'PGRST204');
                     if (!missingCol) {
-                        console.error('備份存檔至雲端失敗:', error);
+                        this._lastSaveNetErr = this._isNetworkError(error);
+                        // 離線時失敗是預期中的事，用警告而不是錯誤，免得主控台一片紅
+                        if (this._lastSaveNetErr) console.warn('[雲端] 目前連不上雲端，進度先存在本機，連線後補傳');
+                        else console.error('備份存檔至雲端失敗:', error);
                         return false;
                     }
 
@@ -352,6 +598,7 @@
                 console.error('備份存檔至雲端失敗：剝除所有選配欄位後仍無法寫入');
                 return false;
             } catch (e) {
+                this._lastSaveNetErr = this._isNetworkError(e);
                 console.error('備份儲存異常:', e);
                 return false;
             }
@@ -498,7 +745,7 @@
                     station_name: stationName
                 };
 
-                await this._insertGameLogWithFallback(payload);
+                await this._sendOrQueue('game_logs', payload);
             } catch (e) {
                 console.warn('LOG 寫入失敗:', e);
             }
@@ -517,30 +764,40 @@
          *    「哪個缺就刪哪個再試」，而不是為每個欄位各寫一段幾乎重複的
          *    if 分支（那樣少加一段判斷，該欄位缺席時就會整局寫不進去）。
          */
+        //
+        // 回傳 'ok'｜'drop'（資料庫拒收，重送也沒用）｜'retry'（連不上，值得排隊重送）。
         _insertGameLogWithFallback: async function (payload) {
             const OPTIONAL_COLUMNS = ['station_name', 'poem_id', 'is_ranked'];
             let attempt = payload;
             for (let i = 0; i <= OPTIONAL_COLUMNS.length; i++) {
-                const { error } = await supabase.from('game_logs').insert(attempt);
-                if (!error) return;
+                let error = null;
+                try {
+                    ({ error } = await supabase.from('game_logs').insert(attempt));
+                } catch (e) {
+                    error = e;
+                }
+                if (!error) return 'ok';
+
+                if (this._isNetworkError(error)) return 'retry';
 
                 const code = String(error.code || '');
                 const msg = String(error.message || '');
                 const isMissingColumn = (code === '42703' || code === 'PGRST204');
                 if (!isMissingColumn) {
                     console.warn('LOG 寫入失敗:', msg);
-                    return;
+                    return 'drop';
                 }
                 const missing = OPTIONAL_COLUMNS.find(col => (col in attempt) && msg.indexOf(col) >= 0);
                 if (!missing) {
                     console.warn('LOG 寫入失敗（缺少欄位但無法辨識是哪一個）:', msg);
-                    return;
+                    return 'drop';
                 }
                 console.warn('[雲端] game_logs 尚無 ' + missing + ' 欄位，本次改存舊格式。'
                     + '請執行 note/排行榜彙總表_SQL草案.sql 相關章節。');
                 attempt = Object.assign({}, attempt);
                 delete attempt[missing];
             }
+            return 'drop';
         },
 
         /**
@@ -568,21 +825,16 @@
             if (!opts || !opts.amount) return;
 
             try {
-                // supabase-js 不會 throw，錯誤只會出現在回傳值裡，必須自己檢查。
-                // silver_events 尚未建立時這裡會持續告警，正好提醒 SQL 還沒跑。
-                const { error } = await supabase
-                    .from('silver_events')
-                    .insert({
-                        player_id:   currentId,
-                        occurred_at: new Date().toISOString(),
-                        amount:      Math.round(opts.amount),
-                        source:      opts.source || 'other',
-                        note:        opts.note || null
-                    });
-                if (error) {
-                    console.warn('[雲端] 文錢流水帳寫入失敗（不影響本機文錢餘額）:',
-                        error.message);
-                }
+                // supabase-js 不會 throw，錯誤只會出現在回傳值裡，_insertSimple 會自己檢查。
+                // silver_events 尚未建立時會持續告警，正好提醒 SQL 還沒跑；
+                // 連不上時則排進佇列，連線後補送（時間戳在這裡就定下，補送不會變成當下）。
+                await this._sendOrQueue('silver_events', {
+                    player_id:   currentId,
+                    occurred_at: new Date().toISOString(),
+                    amount:      Math.round(opts.amount),
+                    source:      opts.source || 'other',
+                    note:        opts.note || null
+                });
             } catch (e) {
                 console.warn('文錢流水帳寫入失敗:', e);
             }
@@ -590,5 +842,11 @@
     };
 
     window.SupabaseClient = SupabaseClient;
+
+    // 連線一恢復就補傳離線期間的存檔與紀錄。
+    // 延後幾秒：剛恢復連線時網路通常還不穩，立刻送容易又失敗一次。
+    window.addEventListener('online', function () {
+        setTimeout(function () { SupabaseClient.flushPending(); }, 2500);
+    });
 
 })();

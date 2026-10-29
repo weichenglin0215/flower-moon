@@ -497,9 +497,12 @@
             // 三種空狀態的提示各不相同，不可混為一談
             let emptyMsg = '';
             if (data._error) {
-                emptyMsg = '雲端連線不順，稍後再看看。';
+                // 離線時（含離線遊玩）要講清楚原因，不要讓玩家以為是壞掉了
+                emptyMsg = (navigator.onLine === false)
+                    ? '目前離線中，連上網路後才看得到雲端日曆。'
+                    : '雲端連線不順，稍後再看看。';
             } else if (!this.getMyId()) {
-                emptyMsg = '尚未綁定引繼碼，日曆還沒有東西可以記。';
+                emptyMsg = '尚未建立帳號，日曆還沒有東西可以記。';
             } else if (!Number(s.total_wins)) {
                 emptyMsg = this.isViewingCurrentMonth()
                     ? '這個月還沒有記錄，去青雲梯打一局試試？'

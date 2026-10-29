@@ -1,0 +1,153 @@
+/* ==========================================================================
+   離線狀態列、更新提示、「離線與安裝」頁面（offline.js／offlineDialog.js）
+   所有 class 都以 fm-off- 為前綴；按鈕與卡片沿用 installGuide.css 的 fm-ig-*。
+   ========================================================================== */
+
+/* ── 離線狀態列：畫面最上緣的小膠囊，不擋操作 ─────────────────── */
+.fm-off-pill {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 3px);
+    left: 50%;
+    transform: translate(-50%, -140%);
+    z-index: 44000;
+    padding: 3px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: "Noto Serif TC", serif;
+    color: #fff;
+    background: rgba(60, 60, 60, 0.88);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    pointer-events: none;            /* 只是提示，絕不能擋住底下的遊戲操作 */
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.fm-off-pill-show {
+    transform: translate(-50%, 0);
+    opacity: 1;
+}
+
+.fm-off-pill-ok {
+    background: rgba(40, 130, 70, 0.92);
+}
+
+/* ── 更新提示：右下角 ───────────────────────────────────────── */
+.fm-off-toast {
+    position: fixed;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    z-index: 44500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 8px 14px;
+    font-family: "Noto Serif TC", serif;
+    font-size: 14px;
+    color: #fff;
+    background: hsl(0, 60%, 24%);
+    border: 2px solid #d4af37;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.fm-off-toast-btn {
+    padding: 4px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: bold;
+    color: hsl(0, 60%, 24%);
+    background: #f3e6c4;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.fm-off-toast-x {
+    padding: 2px 6px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+/* ── 離線與安裝頁面 ─────────────────────────────────────────── */
+.fm-off-card {
+    max-width: 380px;
+}
+
+.fm-off-body {
+    text-align: left;
+    margin-bottom: 12px;
+}
+
+.fm-off-row {
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    padding: 9px 12px 10px;
+    margin-bottom: 8px;
+}
+
+.fm-off-row-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: hsl(30, 80%, 36%);
+    margin-bottom: 3px;
+}
+
+.fm-off-row-text {
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-line;
+}
+
+.fm-off-row .fm-off-btn {
+    margin-top: 8px;
+    margin-right: 8px;
+}
+
+.fm-off-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.fm-off-note {
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    color: hsl(0, 55%, 28%);
+    background: hsla(0, 60%, 24%, 0.1);
+    border-radius: 8px;
+}
+
+.fm-off-note-ok {
+    color: hsl(145, 60%, 25%);
+    background: hsla(145, 50%, 40%, 0.15);
+}
+
+/* 下載進度條 */
+.fm-off-bar {
+    height: 10px;
+    margin: 8px 0 4px;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.fm-off-bar-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(to right, #d4af37, #a88a53);
+    transition: width 0.25s ease;
+}
+
+.fm-off-foot {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}

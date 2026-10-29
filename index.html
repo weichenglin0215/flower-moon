@@ -10,10 +10,20 @@
     <meta name="apple-mobile-web-app-title" content="花月">
     <title>花月 Flower Moon</title>
 
+    <!-- 可安裝成 App（加到主畫面）與離線遊玩的必要宣告。
+         manifest 的圖示由 images/icons/ 提供；iOS 不讀 manifest 的圖示，要另外給 apple-touch-icon。 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#621818">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="images/icons/apple-touch-icon-180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="images/icons/icon-192.png">
+
     <!-- 版本檢查必須放在最前面、比任何其他資源都先請求，
          偵測到伺服器版本變動就立刻強制重整，避免玩家停留在瀏覽器
          快取住的舊版本。發布新版時記得同步更新 version.json。 -->
     <script src="versionCheck.js"></script>
+    <!-- 執行環境偵測（內建瀏覽器／iOS／主畫面模式），安裝引導與離線功能共用 -->
+    <script src="fmEnv.js"></script>
 
     <!-- 基礎樣式，screen_adaptive.css 必須在最前面，不要自作主張去調整順序 -->
     <link rel="stylesheet" href="screen_adaptive.css">
@@ -52,11 +62,17 @@
     <link rel="stylesheet" href="ruleNoteDialog.css">
     <link rel="stylesheet" href="cloudSaveDialog.css">
     <link rel="stylesheet" href="exam.css">
+    <link rel="stylesheet" href="installGuide.css">
+    <link rel="stylesheet" href="offlineDialog.css">
 
     <!-- 字體與外部庫 -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- crossorigin：讓 Service Worker 快取到的字體回應是 CORS 回應（可計算實際大小）。
+         沒加的話是 opaque 回應，Chrome 會把每個都當成約 7 MB 計入儲存空間配額，字體切片一多就爆。 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet" crossorigin="anonymous">
+    <!-- 農曆與 Supabase 函式庫改為自架（vendor/），離線時才不會整個壞掉。
+         版本與來源見 vendor/README.md；字體仍用 Google Fonts，由 Service Worker 在連線時快取。 -->
+    <script src="vendor/lunar.js"></script>
+    <script src="vendor/supabase.js"></script>
 </head>
 
 <body>
@@ -180,6 +196,10 @@
     <script src="learningPath.js"></script>
     <script src="menu.js"></script>
     <script src="qr-dialog.js"></script>
+    <!-- 加到主畫面的安裝引導、離線遊玩（Service Worker 註冊／離線狀態列）與「離線與安裝」頁面 -->
+    <script src="installGuide.js"></script>
+    <script src="offline.js"></script>
+    <script src="offlineDialog.js"></script>
     <!-- 舊版四選一問答考試。2026-08-28 起主要路徑改為 examEngine.js，
          這支只在新引擎未載入時作為降級退路，勿逕行刪除。 -->
     <script src="exam.js"></script>
@@ -318,7 +338,13 @@
                             window.AchievementDialog.renderData();
                         }
                     }
-                });
+                    // 離線期間累積的進度與遊戲紀錄，連線的當下補送（沒東西要送時什麼都不做）
+                    window.SupabaseClient.flushPending();
+                    // 帳號制度已改為「暱稱＋四位數密碼」：舊制玩家（有 李白#1234 卻沒密碼）
+                    // 在這裡被要求補設。必須排在同步之後 —— 先套用雲端進度、再問暱稱，
+                    // 預設暱稱才會是雲端上的那個。查不到狀態（離線等）時不會打擾。
+                    return window.SupabaseClient.promptPinSetupIfNeeded();
+                }).catch(e => console.warn('[雲端] 啟動流程失敗:', e));
             }
         });
     </script>

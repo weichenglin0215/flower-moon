@@ -65,6 +65,9 @@
         //    待美術補上 images/Menu/詩路地圖_Menu256.jpg 後改回。
         { page: 'map', label: '詩路地圖', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
+        // ⚠️ 選單縮圖尚未製作，暫時借用「全螢幕」的縮圖，待美術補上
+        //    images/Menu/離線與安裝_Menu256.jpg 後改回（新增檔案後要重跑 node tools/build_sw.js）。
+        { page: 'offline', label: '離線與安裝', image: 'images/Menu/全螢幕_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRcode_Menu256.jpg' },
         { page: 'wordcloud', label: '文字雲', image: 'images/Menu/文字雲_Menu256.jpg' },
         { page: 'zhexianren', label: '詩詞珠簾', image: 'images/Menu/詩詞珠簾_Menu256.jpg' },
@@ -170,6 +173,7 @@
 
         // ── 其他（對話框／動作）───────────────────────────────────────────
         'about': { firework: false, smoke: true },   // 關於花月
+        'offline': { firework: false, smoke: true },   // 離線與安裝
         'qrcode': { firework: false, smoke: true },   // QR Code
         'fullscreen': { firework: false, smoke: true },   // 全螢幕
     };
@@ -756,7 +760,7 @@
             applyTouchEffects(pageName);
 
             // 這些頁面只是覆蓋在現有遊戲/日曆/卡片上，不可摧毀底下狀態
-            const SKIP_CLEANUP_PAGES = ['about', 'poem-data', 'fullscreen', 'qrcode',
+            const SKIP_CLEANUP_PAGES = ['about', 'poem-data', 'fullscreen', 'qrcode', 'offline',
                 'achievements', 'leaderboard', 'collection', 'author-biography'];
             if (!SKIP_CLEANUP_PAGES.includes(pageName)) {
                 closeAllActiveOverlays();
@@ -1011,6 +1015,10 @@
                         break;
                     case 'qrcode':
                         if (window.QRDialog) window.QRDialog.show();
+                        break;
+                    case 'offline':
+                        if (window.OfflineDialog) window.OfflineDialog.show();
+                        else console.warn('[Menu] OfflineDialog 未載入');
                         break;
                     case 'poem-data':
                         if (window.PoemDialog) {

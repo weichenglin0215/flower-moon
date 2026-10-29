@@ -1141,6 +1141,11 @@ const ScoreManager = {
                         mode: 'initial',
                         onSuccess: () => {
                             if (options.onComplete) options.onComplete(fScore);
+                        },
+                        // 離線或連不上雲端時，視窗會出現「稍後再說」。略過等於這局先不綁定帳號，
+                        // 遊戲流程必須照常往下走，不能卡在視窗上（下一局結算時會再問一次）。
+                        onCancel: () => {
+                            if (options.onComplete) options.onComplete(fScore);
                         }
                     });
                 } else {

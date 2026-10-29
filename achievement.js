@@ -243,7 +243,7 @@
                                     <div class="ach-cloud-id-value" id="achCloudIdDisplay">載入中...</div>
                                     <div class="ach-cloud-id-actions">
                                     <button id="achBtnSyncId" class="ach-btn-small" style="background: linear-gradient(135deg, hsla(145, 63%, 42%, 1.00), hsla(145, 63%, 35%, 1.00));">同步(測試用)</button>
-                                    <button id="achBtnCopyId" class="ach-btn-small">顯示引繼碼</button>
+                                    <button id="achBtnCopyId" class="ach-btn-small">變更密碼</button>
                                         <button id="achBtnChangeId" class="ach-btn-small">變更暱稱</button>
                                     </div>
                                 </div>
@@ -518,86 +518,28 @@
                 });
             }
 
-            // 總覽/引繼碼按鈕綁定
+            // 帳號按鈕綁定：「變更密碼」「變更暱稱」開的是同一個帳號視窗，只是預設停在不同分頁。
+            // （帳號制度已改為「暱稱＋四位數密碼」，不再有可顯示、可複製的引繼碼。）
+            const openAccountDialog = (tab) => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                if (!window.CloudSaveDialog) return;
+                window.CloudSaveDialog.show({
+                    mode: 'change',
+                    tab: tab,
+                    onSuccess: () => {
+                        this.renderData(); // 重新整理成就面板
+                    }
+                });
+            };
 
             const btnCopy = document.getElementById('achBtnCopyId');
-
             if (btnCopy) {
-
-                btnCopy.addEventListener('click', () => {
-
-                    if (window.SoundManager) window.SoundManager.playConfirmItem();
-
-                    const data = window.ScoreManager.loadPlayerData();
-
-                    const cloudId = localStorage.getItem('flower_moon_id') || '未綁定';
-
-                    const display = document.getElementById('achCloudIdDisplay');
-
-
-
-                    if (btnCopy.textContent === '顯示引繼碼') {
-
-                        // 切換到顯示引繼碼並複製
-
-                        display.textContent = cloudId;
-
-                        btnCopy.textContent = '顯示暱稱';
-
-
-
-                        if (cloudId !== '未綁定') {
-
-                            navigator.clipboard.writeText(cloudId).then(() => {
-
-                                //this.showNotification('引繼碼已複製到剪貼簿');
-
-                            }).catch(err => console.error('複製失敗:', err));
-
-                        }
-
-                    } else {
-
-                        // 切換回顯示暱稱
-
-                        display.textContent = data.nickname || '訪客';
-
-                        btnCopy.textContent = '顯示引繼碼';
-
-                    }
-
-                });
-
+                btnCopy.addEventListener('click', () => openAccountDialog('changepin'));
             }
 
-
-
             const btnChange = document.getElementById('achBtnChangeId');
-
             if (btnChange) {
-
-                btnChange.addEventListener('click', () => {
-
-                    if (window.SoundManager) window.SoundManager.playConfirmItem();
-
-                    if (window.CloudSaveDialog) {
-
-                        window.CloudSaveDialog.show({
-
-                            mode: 'change',
-
-                            onSuccess: () => {
-
-                                this.renderData(); // 重新整理成就面板
-
-                            }
-
-                        });
-
-                    }
-
-                });
-
+                btnChange.addEventListener('click', () => openAccountDialog('rename'));
             }
 
 
@@ -966,7 +908,7 @@
 
             if (btnCopy) {
 
-                btnCopy.textContent = '顯示引繼碼';
+                btnCopy.textContent = '變更密碼';
 
             }
 

@@ -7,10 +7,17 @@
 (function () {
     'use strict';
 
-    const SHARE_URL = 'https://weichenglin0215.github.io/flower-moon/index.html';
+    // 顯示給人看的乾淨網址
+    const SITE_URL = 'https://weichenglin0215.github.io/flower-moon/index.html';
+    // 實際編進 QR Code、分享、複製的網址：多帶 openExternalBrowser=1。
+    // 這是 LINE 的慣例參數：LINE 看到它會改用手機預設瀏覽器（Safari／Chrome）開啟，
+    // 不進 LINE 內建瀏覽器。內建瀏覽器無法加到主畫面、儲存空間也跟一般瀏覽器分開，
+    // 玩家在裡面玩的進度換個瀏覽器就看不到。其他 App 與瀏覽器會直接忽略這個參數。
+    const SHARE_URL = SITE_URL + '?openExternalBrowser=1';
     const SHARE_TITLE = '花月・唐詩宋詞遊戲';
     const SHARE_TEXT = '推薦給你一個有趣的唐詩宋詞遊戲，快來一起玩！';
-    const QR_LIB_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    // 自架（vendor/），離線時也畫得出 QR Code；版本與來源見 vendor/README.md
+    const QR_LIB_SRC = 'vendor/qrcode.min.js';
     const QR_SIZE = 400;   // 80% of 500px stage width
 
     // 標準 iOS / Android 分享圖示 SVG（方框 + 向上箭頭）
@@ -98,6 +105,15 @@
             shareBtn.addEventListener('mouseover', () => { shareBtn.style.opacity = '0.8'; });
             shareBtn.addEventListener('mouseout', () => { shareBtn.style.opacity = '1'; });
 
+            /* ── 左上角「複製連結」按鈕（樣式與「分享」一致，只是靠左） ──
+               系統分享面板不一定有「複製」，而玩家最常見的需求是把連結貼到 LINE 對話裡，
+               所以另外給一顆一定能複製的按鈕。 */
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = '複製連結';
+            copyBtn.style.cssText = shareBtn.style.cssText.replace('right:18px', 'left:18px');
+            copyBtn.addEventListener('mouseover', () => { copyBtn.style.opacity = '0.8'; });
+            copyBtn.addEventListener('mouseout', () => { copyBtn.style.opacity = '1'; });
+
             /* ── 白色卡片 ── */
             const card = document.createElement('div');
             card.style.cssText = [
@@ -131,7 +147,7 @@
 
             /* 網址文字 */
             const urlEl = document.createElement('div');
-            urlEl.textContent = SHARE_URL;
+            urlEl.textContent = SITE_URL;   // 顯示乾淨網址；QR 與複製用的是帶參數的 SHARE_URL
             urlEl.style.cssText = [
                 'font-size:13px',
                 'color:#666',
@@ -156,6 +172,7 @@
             ].join(';');
 
             overlay.appendChild(shareBtn);
+            overlay.appendChild(copyBtn);
             overlay.appendChild(card);
             overlay.appendChild(hintEl);
             document.body.appendChild(overlay);
@@ -171,6 +188,12 @@
             shareBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this._share(shareBtn);
+            });
+            /* 複製連結按鈕：同樣不觸發關閉 */
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this._copyLink(copyBtn);
             });
         },
 
@@ -219,6 +242,13 @@
             }
 
             /* 備援：複製連結 */
+            this._copyLink(btn);
+        },
+
+        // ──────────────────────────────────────
+        // 複製連結（按鈕文字暫時變成「已複製」，之後還原）
+        // ──────────────────────────────────────
+        _copyLink: function (btn) {
             const orig = btn.innerHTML;
             const markCopied = () => {
                 btn.textContent = '✓ 已複製連結';

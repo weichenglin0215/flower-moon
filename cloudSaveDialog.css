@@ -24,9 +24,13 @@
     /* 移除 position: fixed; top: 0; left: 0; 等屬性，由父層 Flex 居中 */
     position: relative;
     width: 90%;
-    height: 90%;
+    /* 帳號改版後欄位數隨分頁變動（最多 暱稱＋兩次密碼），高度改由內容撐開，
+       只設上限；舊版固定 90% 高會在欄位較少的分頁留下一大片空白 */
+    height: auto;
     max-width: 22rem;
-    max-height: 30rem;
+    max-height: 95%;
+    overflow-y: auto;
+    box-sizing: border-box;
 
     /*background-size: cover;*/
     background-color: hsl(42, 50%, 85%);
@@ -56,23 +60,78 @@
     font-size: 1.8rem;
     color: hsl(30, 80%, 40%);
     font-weight: bold;
-    margin-bottom: 2rem;
+    margin-bottom: 0.8rem;
     text-shadow: 0px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+/*分頁列（新玩家／已有帳號、暱稱／密碼／切換帳號）*/
+.cloud-save-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-bottom: 0.9rem;
+}
+
+.cloud-save-tab {
+    flex: 1;
+    padding: 0.35rem 0.4rem;
+    font-size: 1rem;
+    font-family: inherit;
+    font-weight: bold;
+    color: hsl(30, 40%, 35%);
+    background: rgba(255, 255, 255, 0.45);
+    border: 2px solid #c9b383;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cloud-save-tab.active {
+    color: #fff;
+    background: linear-gradient(to bottom, #d4af37, #a88a53);
+    border-color: #a88a53;
+    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /*說明文字*/
 .cloud-save-desc {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: hsl(0, 0%, 25%);
-    margin-bottom: 2.0rem;
+    margin-bottom: 1.0rem;
     line-height: 1.5;
     white-space: pre-line;
 }
 
 /*輸入欄*/
 .cloud-save-input-group {
-    margin-bottom: 1.0rem;
+    margin-bottom: 0.7rem;
     position: relative;
+}
+
+/* 暱稱欄下方「這個暱稱可不可以用」的即時提示；沒內容時不佔高度，避免畫面跳動 */
+.cloud-save-nick-hint {
+    min-height: 0;
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+/* 密碼欄：數字置中、字距拉開，四位數看起來才像密碼 */
+.cloud-save-pin {
+    letter-spacing: 0.3em;
+}
+.cloud-save-pin::placeholder {
+    letter-spacing: normal;
+}
+
+/* 「顯示密碼」勾選 */
+.cloud-save-showpin {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 0.9rem;
+    color: hsl(0, 0%, 35%);
+    cursor: pointer;
+    user-select: none;
 }
 
 .cloud-save-input {
@@ -99,7 +158,7 @@
 .cloud-save-actions {
     display: flex;
     justify-content: center;
-    gap: 3rem;
+    gap: 2rem;
 }
 
 .cloud-save-btn {
@@ -137,9 +196,11 @@
 }
 
 .cloud-save-message {
-    margin-top: 1rem;
+    margin: 0.6rem 0 0.8rem;
     font-size: 1rem;
     min-height: 1.5rem;
+    line-height: 1.4;
+    white-space: pre-line;   /* 錯誤訊息裡的換行（例如切換帳號的提醒）要保留 */
 }
 
 .msg-error {

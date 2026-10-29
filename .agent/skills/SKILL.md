@@ -24,6 +24,18 @@ node tools/verify_learning_path.js
   - `note/青雲梯與獎勵企畫書/青雲梯遊戲接入規範與已知錯誤.md`
   - `note/青雲梯與獎勵企畫書/文位升等已知錯誤紀錄.md`
 
+# 修改程式、資料、圖片之後，發布前必跑（離線快取）
+```
+node tools/build_sw.js        # 重新產生離線快取清單 sw-manifest.js（有任何檔案新增／改動都要重跑）
+node tools/verify_sw.js       # 清單是否過期、manifest／圖示／vendor、並模擬執行 sw.js
+node tools/verify_offline_sync.js   # 只在改了 supabaseClient.js 的存檔／紀錄／同步時需要
+```
+- 花月是可離線遊玩的 PWA：玩家手機裡有一份由 Service Worker 管理的程式快取。
+  **忘記跑 `build_sw.js` = 玩家永遠拿到舊檔案**，而且你這邊重新整理看不到問題（開發網址預設不啟用 Service Worker）。
+- 新增、刪除、改名任何 `.js／.css／data／images` 都算「有改動」。`sw-manifest.js` 要一併提交。
+- 本機測試離線功能：網址加 `?sw=1`；測完加 `?sw=0` 清除。
+- 對應規範：`.agent/skills/花月開發常見錯誤與解法.md` §3.5。
+
 # AI(包括Claude code) 注意事項
 - 直接修改本地端程式碼，不要透過worktree。
 - 程式碼中加註大量繁體中文註解。
@@ -61,3 +73,6 @@ node tools/verify_learning_path.js
 - 不得在模組外直接呼叫 localStorage
 - 不得修改 screen_adaptive.js 的核心邏輯
 - 非經同意，禁止修改 difficultySettings: 的內容
+- 不得從 CDN 載入第三方腳本（離線時會整個壞掉）；第三方函式庫一律放 `vendor/` 並記錄於 `vendor/README.md`
+- 不得繞過 `SupabaseClient.saveGameToCloud`／`logGame`／`logSilverEvent` 直接寫 `player_saves`／`game_logs`／`silver_events`
+  （它們負責離線時的「尚未上傳」標記與排隊補送，繞過就會在離線時悄悄遺失進度）

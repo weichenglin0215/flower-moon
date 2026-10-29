@@ -34,6 +34,18 @@
                 return;
             }
 
+            // 有 Service Worker 接手時，強制重新整理沒有意義：重新整理拿到的仍是快取裡的舊檔案，
+            // 還會白白用掉下面的「只重整一次」額度。版本更新改由 offline.js 處理
+            // （新版在背景安裝，裝好後提示玩家更新，或下次開啟時自動套用），
+            // 這裡只負責記錄版本，並催一下瀏覽器去檢查 Service Worker 有沒有新版。
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                localStorage.setItem(KEY, latest);
+                navigator.serviceWorker.getRegistration().then(function (reg) {
+                    if (reg) reg.update();
+                }).catch(function () { });
+                return;
+            }
+
             // ⚠️ 同一分頁只因版本問題自動重整一次，避免 version.json
             //    本身讀取異常（例如格式壞掉）時陷入無窮重整迴圈。
             if (sessionStorage.getItem(RELOAD_GUARD)) return;

@@ -1,0 +1,20 @@
+{
+  "name": "花月 Flower Moon・唐詩宋詞遊戲",
+  "short_name": "花月",
+  "description": "在遊戲中記住唐詩宋詞：四十款玩法、青雲梯科舉升等、江南小院。",
+  "id": "./index.html",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "zh-Hant",
+  "dir": "ltr",
+  "background_color": "#621818",
+  "theme_color": "#621818",
+  "categories": ["education", "games"],
+  "icons": [
+    { "src": "images/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "images/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "images/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

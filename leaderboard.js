@@ -430,6 +430,11 @@
                 this.renderList(el, rows, valueLabel, extractor, rankMap);
             } catch (err) {
                 console.error('[Leaderboard] refresh 失敗', err);
+                // 離線遊玩時榜單本來就看不到，直接說明，不要丟出「Failed to fetch」嚇玩家
+                if (navigator.onLine === false) {
+                    el.innerHTML = '<div class="lb-empty">目前離線中，連上網路後才能查看群英榜。</div>';
+                    return;
+                }
                 el.innerHTML = '<div class="lb-empty">榜單讀取失敗，請稍後再試。<br>' +
                     '<span style="font-size:12px;color:#bbb">' + (err.message || err) + '</span></div>';
             }

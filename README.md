@@ -363,14 +363,51 @@
 
 ## 發布至GitHub Pages
 - **詳見'tools/發布至GitHub Pages.md'** 只需要跟著流程做一次，後續更新依照git commit與git push方式即可。
+- **⚠️ 每次 git commit 發布之前，依序執行（缺一不可）：**
+  1. 更新 `version.json`（見下一條）。
+  2. `node tools/build_sw.js` —— 重新產生離線快取清單 `sw-manifest.js`。**程式、樣式、資料、圖片有任何新增或改動都要重跑。**
+     忘記重跑的後果：玩家的 Service Worker 看不出有新檔案，會一直拿舊檔案給玩家。
+  3. `node tools/verify_sw.js`（離線／安裝功能）與 `node tools/verify_learning_path.js`，必須全數通過。
+  4. 發布時一併提交 `sw-manifest.js`。
 - **⚠️ 每次發布新版本，務必同步更新根目錄的 `version.json`（把 `version` 欄位改成與下方更新歷程表最新那一列相同的版本號，例如 `V0.49.1.0`），否則玩家的瀏覽器不會知道有新版本可以更新**。
   機制說明：`versionCheck.js` 是 `index.html` 裡最先載入的檔案，每次開啟頁面都會用 `cache:'no-store'` 去抓一次 `version.json`（不受瀏覽器快取影響，一定是最新內容），拿它跟玩家瀏覽器上次記住的版本號比對，不一樣就自動強制重新整理一次。這是專為「加到主畫面」的玩家設計的——這類殼子沒有下拉重整、也不會自己主動檢查更新，很容易長期停在舊版本毫無感覺。
+  **有 Service Worker 接手的玩家（一般瀏覽器與主畫面 App）不走這條路**：強制重新整理拿到的仍是快取裡的舊檔案，所以改由 `offline.js` 處理 —— 新版在背景安裝，裝好後右下角提示「有新版本」，或下次開啟時自動套用（見下方「安裝到主畫面與離線遊玩」）。
   注意這只保證 `index.html` 本身會重抓最新版，個別 `.js`／`.css` 若瀏覽器快取尚未過期仍可能延遲一小段時間（GitHub Pages 預設快取時間約數分鐘）才跟著更新，屬於已知的小落差，換取的是不必替近百個 `<script>`／`<link>` 標籤逐一加版本號查詢字串維護。
+
+## 🔐 帳號制度（暱稱＋四位數密碼）
+- 玩家自己取全站唯一的暱稱、自己設四位數密碼；任何手機／瀏覽器輸入同一組暱稱＋密碼，就能使用同一份進度。
+  （取代舊的「李白#1234」引繼碼——引繼碼存在各瀏覽器自己的 localStorage，換個瀏覽器就接不回來。）
+- 密碼驗證、雜湊（bcrypt）、錯誤 5 次鎖 15 分鐘，全部在 Supabase 資料庫端的 `fm_*` 函式完成，前端不比對密碼。
+  資料庫設定見 `note/帳號密碼_SQL草案.sql`（必須由人到 Supabase 後台執行）。
+- `player_saves.id` 仍是不可變的內部鍵（其他資料表的 `player_id` 都靠它），暱稱與密碼放在獨立的 `player_credentials` 表。
+- 舊制玩家下次開啟遊戲時會被要求補設暱稱與密碼；也可在登入欄輸入舊引繼碼來認領。
+- 畫面與流程在 `cloudSaveDialog.js`，與雲端溝通在 `supabaseClient.js`。
+- ⚠️ 忘記密碼沒有自助管道（沒有 email），只能由管理員到資料庫重設，見 SQL 草案第 6 節。
+
+## 📲 安裝到主畫面與離線遊玩
+**要解決的問題**：朋友掃 QR Code 玩過一次，之後找不到連結；沒有網路就不能玩。
+
+- **加到主畫面**：`manifest.json`＋`images/icons/`。`installGuide.js` 會先判斷環境（LINE／FB／IG 內建瀏覽器、iOS Safari、
+  iOS 的 Chrome、Android Chrome…），顯示對應的教學；一般環境只提醒一次，內建瀏覽器每 3 天再提醒。
+  選單的「離線與安裝」可以隨時重新看說明。
+- **LINE 內建瀏覽器**：無法加到主畫面，也無法離線，而且它的儲存空間跟 Safari／Chrome 是分開的。
+  QR Code 與分享網址因此帶有 `?openExternalBrowser=1`（LINE 的慣例參數，會改用手機預設瀏覽器開啟）。
+- **離線遊玩**：Service Worker（`sw.js`）把核心檔案（約 9 MB）快取在手機裡。預快取清單由 `tools/build_sw.js` 產生
+  （`sw-manifest.js`），清單變動玩家就會自動更新，且只下載有變的檔案。
+  獎狀、古地圖等大圖片（約 18 MB）放在「離線與安裝」頁面的「完整離線包」，玩家自己選擇要不要下載。
+- **離線期間的進度不會遺失**：存檔上傳失敗時本機會標記「尚未上傳」，下次啟動不再以雲端覆蓋；
+  遊戲紀錄（排行榜、文錢流水帳）先排隊，連線後補送。細節見 `supabaseClient.js`「離線遊玩防護」一節。
+- **本機開發預設不啟用 Service Worker**（否則改了程式存檔重整，看到的是快取裡的舊版）。
+  要在本機測試離線功能，網址加 `?sw=1`；不想測了加 `?sw=0`（會同時清掉殘留的 Service Worker 與快取）。
+- **第三方函式庫自架在 `vendor/`**（版本、來源、雜湊見 `vendor/README.md`），不再依賴 CDN。字體仍用 Google Fonts，連線時由 Service Worker 快取。
+- **驗證工具**：`node tools/verify_sw.js`（清單是否過期、manifest、圖示、vendor 完整性，並實際模擬執行 sw.js 的安裝／更新／離線行為）、
+  `node tools/verify_offline_sync.js`（離線補送邏輯）。
 
 ## 技術棧
 - **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+).
 - **Styling**: 中式水墨宣紙渲染風格。
-- **Library**: [lunar-javascript](https://github.com/6tail/lunar-javascript) (農曆轉換).
+- **Library**（自架於 `vendor/`）: [lunar-javascript](https://github.com/6tail/lunar-javascript) (農曆轉換)、supabase-js（雲端存檔）、qrcodejs（QR Code）。
+- **離線**: Service Worker＋Web App Manifest（可安裝為 PWA）。
 - **Architecture**: 響應式設計 (Responsive Design)，完美支援移動端與桌面端。
 
 ## 如何運行
