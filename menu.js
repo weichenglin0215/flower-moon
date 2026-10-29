@@ -67,7 +67,7 @@
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
         // ⚠️ 選單縮圖尚未製作，暫時借用「全螢幕」的縮圖，待美術補上
         //    images/Menu/離線與安裝_Menu256.jpg 後改回（新增檔案後要重跑 node tools/build_sw.js）。
-        { page: 'offline', label: '離線與安裝', image: 'images/Menu/全螢幕_Menu256.jpg' },
+        { page: 'offline', label: '安裝離線', image: 'images/Menu/離線與安裝_Menu256.jpg' },
         { page: 'qrcode', label: 'QR Code', image: 'images/Menu/花月QRcode_Menu256.jpg' },
         { page: 'wordcloud', label: '文字雲', image: 'images/Menu/文字雲_Menu256.jpg' },
         { page: 'zhexianren', label: '詩詞珠簾', image: 'images/Menu/詩詞珠簾_Menu256.jpg' },

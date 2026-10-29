@@ -11,7 +11,7 @@
     transform: translate(-50%, -140%);
     z-index: 44000;
     padding: 3px 14px;
-    font-size: 12px;
+    font-size: 20px;
     line-height: 1.5;
     font-family: "Noto Serif TC", serif;
     color: #fff;
@@ -19,7 +19,8 @@
     border-radius: 999px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     white-space: nowrap;
-    pointer-events: none;            /* 只是提示，絕不能擋住底下的遊戲操作 */
+    pointer-events: none;
+    /* 只是提示，絕不能擋住底下的遊戲操作 */
     opacity: 0;
     transition: transform 0.3s ease, opacity 0.3s ease;
 }
@@ -44,7 +45,7 @@
     gap: 8px;
     padding: 8px 10px 8px 14px;
     font-family: "Noto Serif TC", serif;
-    font-size: 14px;
+    font-size: 22px;
     color: #fff;
     background: hsl(0, 60%, 24%);
     border: 2px solid #d4af37;
@@ -54,7 +55,7 @@
 
 .fm-off-toast-btn {
     padding: 4px 12px;
-    font-size: 14px;
+    font-size: 22px;
     font-family: inherit;
     font-weight: bold;
     color: hsl(0, 60%, 24%);
@@ -66,7 +67,7 @@
 
 .fm-off-toast-x {
     padding: 2px 6px;
-    font-size: 14px;
+    font-size: 22px;
     color: rgba(255, 255, 255, 0.7);
     background: transparent;
     border: none;
@@ -75,7 +76,7 @@
 
 /* ── 離線與安裝頁面 ─────────────────────────────────────────── */
 .fm-off-card {
-    max-width: 380px;
+    max-width: 480px;
 }
 
 .fm-off-body {
@@ -91,14 +92,14 @@
 }
 
 .fm-off-row-title {
-    font-size: 15px;
+    font-size: 22px;
     font-weight: bold;
     color: hsl(30, 80%, 36%);
     margin-bottom: 3px;
 }
 
 .fm-off-row-text {
-    font-size: 14px;
+    font-size: 22px;
     line-height: 1.55;
     white-space: pre-line;
 }
@@ -114,7 +115,7 @@
 }
 
 .fm-off-note {
-    font-size: 14px;
+    font-size: 22px;
     line-height: 1.5;
     padding: 8px 12px;
     margin-bottom: 8px;

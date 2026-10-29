@@ -334,6 +334,14 @@
     gap: 10px;
 }
 
+/* 進度列右側的入口按鈕群（安裝離線／分享／遊戲日曆；按鈕樣式在 playerCalendar.css） */
+.lp-entry-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
 /* 進度條下方的文字說明（例如「還差 3 局晉升」） */
 .lp-progress-text {
     font-size: var(--lp-fs-xs);

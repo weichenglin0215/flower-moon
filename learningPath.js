@@ -704,6 +704,17 @@
             return window.FMGame ? window.FMGame.getSilver() : 0;
         },
 
+        /**
+         * 頂部列的文錢顯示：1 兩 = 1,000 文錢，1 千兩 = 1,000,000 文錢。
+         * 一律「捨去」而非四捨五入（3,560 → 3.5兩，12,345,678 → 12千兩），
+         * 避免顯示的數字比實際持有的還多。只影響顯示，餘額判斷仍用原始文錢。
+         */
+        formatSilver: function (n) {
+            if (n > 1000000) return Math.floor(n / 1000000).toLocaleString() + '千兩';
+            if (n > 1000) return (Math.floor(n / 100) / 10).toFixed(1) + '兩';
+            return n.toLocaleString();
+        },
+
         /** 取得總積分（僅供顯示與排行榜，不參與任何進度判定） */
         getTotalScore: function () {
             return window.FMGame ? window.FMGame.getScore() : 0;
@@ -744,17 +755,39 @@
                     <div class="lp-progress-bar"><div class="lp-progress-fill" id="lpProgFill"></div></div>
                     <div class="lp-progress-row">
                         <div class="lp-progress-text" id="lpProgText"></div>
-                        <button class="pc-entry-btn" id="lpBtnCalendar" title="遊戲日曆" aria-label="遊戲日曆">
-                            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-                                <rect x="3" y="5" width="18" height="16" rx="2.5"
-                                      fill="none" stroke="currentColor" stroke-width="2"/>
-                                <path d="M3 10 H21 M8 3 V7 M16 3 V7"
-                                      fill="none" stroke="currentColor" stroke-width="2"
-                                      stroke-linecap="round"/>
-                                <rect x="7" y="13" width="3.2" height="3.2" fill="currentColor"/>
-                                <rect x="13.8" y="13" width="3.2" height="3.2" fill="currentColor"/>
-                            </svg>
-                        </button>
+                        <div class="lp-entry-group">
+                            <button class="pc-entry-btn" id="lpBtnOffline" title="安裝離線" aria-label="安裝離線">
+                                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                                    <path d="M12 3 V15 M7 10.5 L12 15.5 L17 10.5"
+                                          fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M4 15 V19 Q4 20.5 5.5 20.5 H18.5 Q20 20.5 20 19 V15"
+                                          fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <button class="pc-entry-btn" id="lpBtnShare" title="分享" aria-label="分享">
+                                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                                    <circle cx="6" cy="12" r="2.6" fill="currentColor"/>
+                                    <circle cx="17.5" cy="5.5" r="2.6" fill="currentColor"/>
+                                    <circle cx="17.5" cy="18.5" r="2.6" fill="currentColor"/>
+                                    <path d="M8.2 10.8 L15.3 6.7 M8.2 13.2 L15.3 17.3"
+                                          fill="none" stroke="currentColor" stroke-width="1.8"
+                                          stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                            <button class="pc-entry-btn" id="lpBtnCalendar" title="遊戲日曆" aria-label="遊戲日曆">
+                                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                                    <rect x="3" y="5" width="18" height="16" rx="2.5"
+                                          fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M3 10 H21 M8 3 V7 M16 3 V7"
+                                          fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round"/>
+                                    <rect x="7" y="13" width="3.2" height="3.2" fill="currentColor"/>
+                                    <rect x="13.8" y="13" width="3.2" height="3.2" fill="currentColor"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="lp-notice hidden" id="lpNotice"></div>
@@ -796,6 +829,16 @@
                 if (!window.PlayerCalendar) return;
                 window.PlayerCalendar.clearCache();
                 window.PlayerCalendar.show();
+            });
+
+            // 安裝離線／分享入口：直接呼叫既有對話框（offlineDialog.js／qr-dialog.js）
+            overlay.querySelector('#lpBtnOffline').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                if (window.OfflineDialog) window.OfflineDialog.show();
+            });
+            overlay.querySelector('#lpBtnShare').addEventListener('click', () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                if (window.QRDialog) window.QRDialog.show();
             });
 
             this.overlay = overlay;
@@ -1053,7 +1096,7 @@
             this.overlay.querySelector('#lpRank').textContent = curStation ? curStation.name : '書僮';
             this.overlay.querySelector('#lpLearned').textContent = learned + ' / ' + totalPoems;
             this.overlay.querySelector('#lpRounds').textContent = this.getPathRounds().toLocaleString();
-            this.overlay.querySelector('#lpSilver').textContent = this.getSilver().toLocaleString();
+            this.overlay.querySelector('#lpSilver').textContent = this.formatSilver(this.getSilver());
 
             // 進度 = 目前文位還要打幾局才能晉級（改用玩家看得懂的「局數」）
             const prom = this.getPromotionProgress();

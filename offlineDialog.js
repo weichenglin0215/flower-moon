@@ -54,7 +54,7 @@
         var text = s.inApp
             ? '目前在「' + s.inApp + '」內建瀏覽器裡，無法加到主畫面，也無法離線遊玩。'
             : '還沒有加到主畫面。加了之後，點一下圖示就能玩，不必再找連結。';
-        var how = btn(s.inApp ? '怎麼辦？' : '加到主畫面', 'fm-ig-btn-primary fm-ig-btn-small', function () {
+        var how = btn(s.inApp ? '怎麼辦？' : '加到主畫面', 'fm-ig-btn-primary fm-ig-btn', function () {
             if (window.InstallGuide) window.InstallGuide.show();
         });
         return row('加到主畫面', text, how);
@@ -73,14 +73,14 @@
             var text = why === 'savedata'
                 ? '偵測到「省流量」模式，沒有自動下載遊戲檔案（約需 10 MB）。'
                 : '離線遊玩已停用。';
-            extra.push(btn('啟用離線遊玩', 'fm-ig-btn-primary fm-ig-btn-small', function () {
+            extra.push(btn('啟用離線遊玩', 'fm-ig-btn-primary fm-ig-btn', function () {
                 window.FMOffline.enable().then(function () { setTimeout(render, 1500); });
             }));
             return row(title, text, extra);
         }
 
         if (window.FMOffline.hasWaitingUpdate()) {
-            extra.push(btn('立即更新', 'fm-ig-btn-primary fm-ig-btn-small', function () {
+            extra.push(btn('立即更新', 'fm-ig-btn-primary fm-ig-btn', function () {
                 window.FMOffline.applyUpdate();
             }));
             return row(title, '新版本已經準備好了。', extra);
@@ -88,7 +88,7 @@
         if (s.coreReady) {
             return row(title, '✓ 已就緒（版本 ' + s.version + '）。沒有網路時也可以玩。');
         }
-        extra.push(btn('重新檢查', 'fm-ig-btn-secondary fm-ig-btn-small', render));
+        extra.push(btn('重新檢查', 'fm-ig-btn-secondary fm-ig-btn', render));
         return row(title, s.controlled
             ? '正在準備離線檔案，請稍候一下再回來看。'
             : '第一次開啟時會在背景下載遊戲檔案（約 10 MB），完成後就能離線遊玩。', extra);
@@ -105,7 +105,7 @@
         if (dl) {
             var bar = progressBar();
             var info = el('div', 'fm-off-row-text', '下載中… ' + dl.done + ' / ' + dl.total);
-            var cancel = btn('取消', 'fm-ig-btn-secondary fm-ig-btn-small', function () { dl.token.cancelled = true; });
+            var cancel = btn('取消', 'fm-ig-btn-secondary fm-ig-btn', function () { dl.token.cancelled = true; });
             var r = row(title, '', [bar, info, cancel]);
             // 進度更新時只改這兩個元素，不重畫整頁（否則按鈕會閃、進度條會從頭長）
             dl.bar = bar; dl.info = info;
@@ -116,7 +116,7 @@
         if (p.cached >= p.total) {
             return row(title, '✓ 已下載（' + p.total + ' 個檔案，' + fmt(p.bytesTotal) + '）。獎狀、古地圖等大圖片離線也看得到。');
         }
-        var go = btn('下載完整離線包（約 ' + fmt(remain) + '）', 'fm-ig-btn-primary fm-ig-btn-small', startDownload);
+        var go = btn('下載完整離線包（約 ' + fmt(remain) + '）', 'fm-ig-btn-primary fm-ig-btn', startDownload);
         if (!s.online) go.disabled = true;
         return row(title,
             '獎狀、古地圖等大圖片已下載 ' + p.cached + ' / ' + p.total + '。沒下載的圖片，離線時會看不到。' +
@@ -133,7 +133,7 @@
         }
         var extra = [];
         if ((s.pending > 0 || s.dirty) && s.online && window.SupabaseClient) {
-            extra.push(btn('立即同步', 'fm-ig-btn-secondary fm-ig-btn-small', function () {
+            extra.push(btn('立即同步', 'fm-ig-btn-secondary fm-ig-btn', function () {
                 window.SupabaseClient.flushPending().then(function () { render(); });
             }));
         }
@@ -172,8 +172,8 @@
                 // 結果訊息放在最上面，玩家不必捲動就看到
                 var msg = res.ok ? '✓ 離線包下載完成'
                     : res.quota ? '儲存空間不足，已停止下載。請清出空間後再試。'
-                    : res.cancelled ? '已取消下載，下載好的檔案會保留。'
-                    : '有 ' + res.failed.length + ' 個檔案下載失敗，請確認網路後再試一次。';
+                        : res.cancelled ? '已取消下載，下載好的檔案會保留。'
+                            : '有 ' + res.failed.length + ' 個檔案下載失敗，請確認網路後再試一次。';
                 var note = el('div', 'fm-off-note' + (res.ok ? ' fm-off-note-ok' : ''), msg);
                 if (body) body.insertBefore(note, body.firstChild);
             });
@@ -194,7 +194,7 @@
             });
 
             var foot = el('div', 'fm-off-foot');
-            foot.appendChild(btn('檢查更新', 'fm-ig-btn-secondary fm-ig-btn-small', function (e) {
+            foot.appendChild(btn('檢查更新', 'fm-ig-btn-secondary fm-ig-btn', function (e) {
                 var b = e.currentTarget;
                 b.textContent = '檢查中…';
                 window.FMOffline.checkUpdate().then(function () {
@@ -204,7 +204,7 @@
                     }, 1500);
                 });
             }));
-            foot.appendChild(btn('清除離線資料', 'fm-ig-btn-secondary fm-ig-btn-small', function () {
+            foot.appendChild(btn('清除離線資料', 'fm-ig-btn-secondary fm-ig-btn', function () {
                 if (!window.confirm('清除所有離線檔案並重新載入？\n（玩家的進度與帳號不會受影響，之後需要重新下載。）')) return;
                 window.FMOffline.reset();
             }));

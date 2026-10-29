@@ -150,8 +150,10 @@
             steps.push(['點瀏覽器的「分享」圖示 ', SHARE_SVG, '（方框加向上箭頭）']);
             steps.push('往下滑，選「加入主畫面」');
             steps.push('按右上角「加入」，主畫面就會出現「花月」圖示');
-            return { title: '把花月放到主畫面', intro: '加到主畫面後，下次點一下圖示就能玩，不必再找連結，也能離線遊玩。',
-                steps: steps, actions: actions, ordered: true };
+            return {
+                title: '把花月放到主畫面', intro: '加到主畫面後，下次點一下圖示就能玩，不必再找連結，也能離線遊玩。',
+                steps: steps, actions: actions, ordered: true
+            };
         }
 
         if (kind === 'ios-other') {
@@ -159,10 +161,12 @@
             steps.push(['點「' + br + '」網址列旁的「分享」圖示 ', SHARE_SVG]);
             steps.push('選「加入主畫面」');
             steps.push('按「加入」，主畫面就會出現「花月」圖示');
-            return { title: '把花月放到主畫面',
+            return {
+                title: '把花月放到主畫面',
                 intro: '加到主畫面後，下次點一下圖示就能玩，不必再找連結，也能離線遊玩。' +
                     '（需要 iOS 16.4 以上；找不到「加入主畫面」的話，請改用 Safari 開啟本頁。）',
-                steps: steps, actions: actions, ordered: true };
+                steps: steps, actions: actions, ordered: true
+            };
         }
 
         if (kind === 'native') {
@@ -171,15 +175,19 @@
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(function () { deferredPrompt = null; close(); });
             }));
-            return { title: '把花月放到主畫面', intro: '安裝後，下次點一下圖示就能玩，不必再找連結，也能離線遊玩。',
-                steps: steps, actions: actions };
+            return {
+                title: '把花月放到主畫面', intro: '安裝後，下次點一下圖示就能玩，不必再找連結，也能離線遊玩。',
+                steps: steps, actions: actions
+            };
         }
 
         if (kind === 'android-manual') {
             steps.push('點瀏覽器右上角的「⋮」選單');
             steps.push('選「安裝應用程式」或「加到主畫面」');
-            return { title: '把花月放到主畫面', intro: '加到主畫面後，下次點一下圖示就能玩，不必再找連結，也能離線遊玩。',
-                steps: steps, actions: actions, ordered: true };
+            return {
+                title: '把花月放到主畫面', intro: '加到主畫面後，下次點一下圖示就能玩，不必再找連結，也能離線遊玩。',
+                steps: steps, actions: actions, ordered: true
+            };
         }
 
         // desktop：只有手動開啟才會到這裡
@@ -204,7 +212,7 @@
             box.appendChild(el('div', 'fm-ig-account-title', '還沒有帳號'));
             box.appendChild(el('div', 'fm-ig-account-text',
                 '建立帳號後，換手機或瀏覽器也能用「暱稱＋密碼」接續進度。'));
-            box.appendChild(button('建立帳號', 'fm-ig-btn-secondary fm-ig-btn-small', function () {
+            box.appendChild(button('建立帳號', 'fm-ig-btn-secondary fm-ig-btn', function () {
                 close();
                 if (window.CloudSaveDialog) window.CloudSaveDialog.show({ mode: 'change' });
             }));
