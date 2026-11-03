@@ -406,13 +406,13 @@
     left: 50%;
     transform: translateX(-50%);
     /* 使用 CSS 變數來控制相對寬度 */
-    --msg-width-scale: 0.9;
-    width: 90%;
-    background: hsl(45, 30%, 85%);
+    --msg-width-scale: 0.96;
+    width: 96%;
+    background: hsl(45, 30%, 90%);
     border-radius: 20px;
     text-align: center;
     color: hsl(0, 0%, 30%);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8);
     /* ⚠ 此處刻意「不」設定 z-index。
        因為本元素是被 #common-game-message-wrapper 包住的 container，
        wrapper 才是直接 append 到 document.body 的根容器，stacking 是由 wrapper 的
@@ -465,7 +465,7 @@
     align-items: center;
     flex-wrap: nowrap;
     margin-bottom: 2px;
-    width: 90%;
+    width: 96%;
 }
 
 /* 標題 */
@@ -493,7 +493,7 @@
     transform: translateX(-50%);
     background: hsl(145, 68%, 36%);
     color: white;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.66);
     border: none;
     border-radius: 30px;
     padding: 4px 50px;

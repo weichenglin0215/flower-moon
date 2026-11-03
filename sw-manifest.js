@@ -1,7 +1,7 @@
 /* 自動產生，請勿手動編輯。重新產生：node tools/build_sw.js */
 self.FM_SW = {
  "version": "V0.61.0.0",
- "build": "9505df0168",
+ "build": "39060f67b9",
  "core": {
   "achievement.css": "b54cd1fa9d",
   "achievement.js": "f12bd5299d",
@@ -187,7 +187,7 @@ self.FM_SW = {
   "installGuide.css": "bf25d22696",
   "installGuide.js": "44f381853f",
   "introCard.css": "1a51ed58c3",
-  "introCard.js": "1f1273bf43",
+  "introCard.js": "cc38fcfc0e",
   "kaizhi.css": "05589bef52",
   "kaizhi.js": "3705c60729",
   "leaderboard.css": "df329551c4",
@@ -225,7 +225,7 @@ self.FM_SW = {
   "suiyuean.js": "684004d580",
   "supabaseClient.js": "766b3d28bb",
   "theme_dark.css": "72d5b85c03",
-  "theme_xuanzhi.css": "c522ff67cf",
+  "theme_xuanzhi.css": "e2ff387215",
   "touchInk.js": "433b56d142",
   "tuibo.css": "16868ea54d",
   "tuibo.js": "e08c5ed03a",

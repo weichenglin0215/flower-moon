@@ -62,6 +62,33 @@
             }
         },
 
+        /**
+         * 「更新：日期 版本號」一行的內容來自 version.json（唯一來源，發布時只改那一處）。
+         * 抓取成功就順手存進 localStorage，離線打不到時改用上次的紀錄；都沒有就整行隱藏。
+         */
+        loadVersion: function () {
+            const KEY = 'fm_version_info';
+            const el = this.overlay.querySelector('#introVersion');
+            const render = (info) => {
+                if (!info || !info.version) { el.style.display = 'none'; return; }
+                el.textContent = '更新：' + (info.date ? info.date + ' ' : '') + info.version;
+                el.style.display = '';
+            };
+
+            fetch('version.json?_=' + Date.now(), { cache: 'no-store' })
+                .then((r) => r.ok ? r.json() : null)
+                .then((info) => {
+                    if (!info || !info.version) throw new Error('bad version.json');
+                    try { localStorage.setItem(KEY, JSON.stringify(info)); } catch (e) { }
+                    render(info);
+                })
+                .catch(() => {
+                    let cached = null;
+                    try { cached = JSON.parse(localStorage.getItem(KEY)); } catch (e) { }
+                    render(cached);
+                });
+        },
+
         createDOM: function () {
             const overlay = document.createElement('div');
             overlay.id = 'introOverlay';
@@ -78,7 +105,7 @@
                         <div class="intro-text-block">
                             <p>賞花吟月，品味詩詞之美</p>
                             <p>寓教於樂，挑戰傳統文學</p>
-                            <p>更新：2026-09-25 V0.59.0.0</p>
+                            <p id="introVersion"></p>
                         </div>
                     </div>
                     
@@ -95,6 +122,7 @@
 
             document.body.appendChild(overlay);
             this.overlay = overlay;
+            this.loadVersion();
 
             /* 跟隨 stage 的位置與尺寸 */
             if (window.registerOverlayResize) {
