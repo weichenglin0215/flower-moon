@@ -65,6 +65,8 @@
         // ⚠️ 存在的理由見 forceStop()：遊戲自己的啟動流程有可能反過來
         //    觸發全域清理，那一瞬間絕不能讓考試被自己殺掉。
         _launching: false,
+        // 「作答完成後的停留」計時器（見 _patchGame 的 patchedOver）。null＝目前沒有在停留。
+        _holdTimer: null,
 
         // 這場考試「正在進行」的旗標：true 的區間＝ start() 到 _finish()。
         // ⚠️ 存在的理由：考試期間逐題實際玩的那五款遊戲，右上角原本會顯示
@@ -606,10 +608,32 @@
                 gameOver: trueOrig(GameObj.gameOver),
                 startNextLevel: trueOrig(GameObj.startNextLevel)
             };
+            // ── 作答完成後讓遊戲畫面停留一下，再切到 ✓／✗ 結果卡 ──
+            // 舊版這裡一被呼叫就立刻 stopGame（遊戲畫面瞬間消失）並跳出結果卡，
+            // 玩家來不及看清楚最後一步的盤面／正確答案（作者 2026-11 回報）。
+            // 現在無論對錯都先停留 EXAM_RESULT_HOLD_MS（預設 3 秒）：
+            //   · 替身（patchedNext）與這個 patchedOver 在停留期間仍留在遊戲身上，
+            //     所以遊戲的倒數計時若剛好又觸發一次 gameOver，只會被 `held` 擋掉，
+            //     不會漏到原版 FMGame.gameOver 去跳出過關訊息框；
+            //   · isActive 先設成 false，遊戲各自的輸入處理都以它判斷，凍結操作；
+            //   · 計時器記在 self._holdTimer，forceStop／棄考／_finish 走到 _unpatchGame 時一併取消，
+            //     不會在玩家離開考場後才冒出一張結果卡。
+            const C = window.FMExamConfig;
+            const holdMs = (C && C.EXAM_RESULT_HOLD_MS >= 0) ? C.EXAM_RESULT_HOLD_MS : 3000;
+            let held = false;
             const patchedOver = function (win) {
-                self._unpatchGame();
-                if (typeof GameObj.stopGame === 'function') GameObj.stopGame();
-                self._record(!!win);
+                if (held) return;           // 只認第一次（倒數歸零等情況可能再呼叫）
+                held = true;
+                GameObj.isActive = false;   // 凍結操作，但畫面照舊留著
+                const result = !!win;
+                self._holdTimer = setTimeout(function () {
+                    self._holdTimer = null;
+                    // 停留期間考試被中止（棄考／離開）→ 什麼都不做（_unpatchGame 已把計時器清掉，這裡是保險）
+                    if (self._aborted || !self._active || self._patchedGame !== saved) return;
+                    self._unpatchGame();
+                    if (typeof GameObj.stopGame === 'function') GameObj.stopGame();
+                    self._record(result);
+                }, holdMs);
             };
             const patchedNext = function () { /* 考試中不自動進下一關 */ };
             patchedOver.__fmOriginal = saved.gameOver;
@@ -620,6 +644,8 @@
         },
 
         _unpatchGame: function () {
+            // 還在「作答完成後的停留」中就被中止／換題：把還沒到時間的計時器一併取消
+            if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null; }
             const s = this._patchedGame;
             this._patchedGame = null;
             if (this._navLockedGameNo !== null) {

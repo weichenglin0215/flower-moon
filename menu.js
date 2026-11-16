@@ -65,6 +65,10 @@
         //    待美術補上 images/Menu/詩路地圖_Menu256.jpg 後改回。
         { page: 'map', label: '詩路地圖', image: 'images/Menu/詩詞資料集_Menu256.jpg' },
         { page: 'about', label: '關於花月', image: 'images/Menu/關於花月_Menu256.jpg' },
+        // 「提意見」：針對系統面或全面性的問題（針對單一遊戲的意見，在各遊戲結算彈窗的「提意見」按鈕）。
+        // ⚠️ 縮圖是用意見彈窗的畫面截圖暫代，美術有正式圖時直接覆蓋 images/Menu/提意見_Menu256.jpg 即可
+        //    （圖片要更新請換檔名，見 §3.5 第 3 點；新增檔案後要重跑 node tools/build_sw.js）。
+        { page: 'feedback', label: '提意見', image: 'images/Menu/提意見_Menu256.jpg' },
         // ⚠️ 選單縮圖尚未製作，暫時借用「全螢幕」的縮圖，待美術補上
         //    images/Menu/離線與安裝_Menu256.jpg 後改回（新增檔案後要重跑 node tools/build_sw.js）。
         { page: 'offline', label: '安裝離線', image: 'images/Menu/離線與安裝_Menu256.jpg' },
@@ -173,6 +177,7 @@
 
         // ── 其他（對話框／動作）───────────────────────────────────────────
         'about': { firework: false, smoke: true },   // 關於花月
+        'feedback': { firework: false, smoke: true },   // 提意見（與「關於花月」相同；彈窗關閉後 currentPage 仍是 feedback，要與首頁的設定一致）
         'offline': { firework: false, smoke: true },   // 離線與安裝
         'qrcode': { firework: false, smoke: true },   // QR Code
         'fullscreen': { firework: false, smoke: true },   // 全螢幕
@@ -760,7 +765,7 @@
             applyTouchEffects(pageName);
 
             // 這些頁面只是覆蓋在現有遊戲/日曆/卡片上，不可摧毀底下狀態
-            const SKIP_CLEANUP_PAGES = ['about', 'poem-data', 'fullscreen', 'qrcode', 'offline',
+            const SKIP_CLEANUP_PAGES = ['about', 'feedback', 'poem-data', 'fullscreen', 'qrcode', 'offline',
                 'achievements', 'leaderboard', 'collection', 'author-biography'];
             if (!SKIP_CLEANUP_PAGES.includes(pageName)) {
                 closeAllActiveOverlays();
@@ -1012,6 +1017,11 @@
                         break;
                     case 'about':
                         if (window.IntroCard) window.IntroCard.show();
+                        break;
+                    case 'feedback':
+                        // 系統面／全面性的意見；針對單一遊戲的意見在該遊戲結算彈窗的「提意見」
+                        if (window.FeedbackDialog) window.FeedbackDialog.show({ scope: 'system' });
+                        else console.warn('[Menu] FeedbackDialog 未載入');
                         break;
                     case 'qrcode':
                         if (window.QRDialog) window.QRDialog.show();

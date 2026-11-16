@@ -364,6 +364,266 @@
 
         /* （原「查詢筆數上限」輸入框的樣式已隨該欄位一併移除，
             改用彙總表 RPC 後不再有筆數上限，見統計頁的說明註解） */
+
+        /* ========== 玩家意見查閱頁（page-feedback）==========
+           資料來源：公開檢視表 player_feedback_public（不含 player_id），見 note/玩家意見_SQL草案.sql。
+           做法參考 FadingMemory 的 admin/feedback.html；配色與本頁其餘部分一致（宣紙底＋朱紅）。 */
+        #page-feedback {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        #page-feedback .fb-sub {
+            text-align: center;
+            color: #666;
+            margin: -8px 0 16px;
+            font-size: 1rem;
+        }
+
+        #page-feedback .fb-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .1);
+            padding: 12px 18px;
+            margin-bottom: 14px;
+        }
+
+        #page-feedback .fb-card h2 {
+            margin: 0 0 8px;
+            font-size: 1.2rem;
+            color: #5c4033;
+        }
+
+        #page-feedback .fb-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 12px;
+            margin: 8px 0;
+            font-size: 1.05rem;
+        }
+
+        #page-feedback .fb-row .fb-name {
+            min-width: 84px;
+            font-weight: bold;
+            font-size: 1.05rem;
+        }
+
+        #page-feedback .fb-note {
+            color: #777;
+            font-size: .95rem;
+        }
+
+        #page-feedback input[type=date],
+        #page-feedback input[type=number],
+        #page-feedback input[type=text],
+        #page-feedback select {
+            font: inherit;
+            font-size: 1.05rem;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            color: #333;
+        }
+
+        #page-feedback .fb-w-id {
+            width: 120px;
+        }
+
+        #page-feedback .fb-w-kw {
+            width: 220px;
+        }
+
+        #page-feedback .fb-w-prefix {
+            width: min(380px, 100%);
+        }
+
+        #page-feedback label.fb-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 1.05rem;
+        }
+
+        #page-feedback input[type=checkbox] {
+            width: 17px;
+            height: 17px;
+            accent-color: #8b0000;
+            cursor: pointer;
+        }
+
+        /* 最常用的勾選框（只顯示對象與意見）：加一圈朱紅外框，一眼找得到 */
+        #page-feedback label.fb-check.fb-emph {
+            padding: 3px 12px 3px 9px;
+            border: 1.5px solid #8b0000;
+            border-radius: 999px;
+            font-weight: bold;
+        }
+
+        #page-feedback .fb-btn {
+            padding: 4px 14px;
+            font-size: 1.05rem;
+            font-family: inherit;
+            border: 1px solid #c9b383;
+            border-radius: 4px;
+            background: #fff;
+            color: #5c4033;
+            cursor: pointer;
+        }
+
+        #page-feedback .fb-btn:hover:not(:disabled) {
+            border-color: #8b0000;
+        }
+
+        #page-feedback .fb-btn:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        #page-feedback .fb-btn.fb-primary {
+            background: #8b0000;
+            border-color: #8b0000;
+            color: #fff;
+        }
+
+        #page-feedback .fb-btn.fb-small {
+            padding: 2px 10px;
+            font-size: .95rem;
+        }
+
+        #page-feedback .fb-status {
+            margin: 0 0 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: #f4e8d3;
+            font-size: 1rem;
+        }
+
+        #page-feedback .fb-status.fb-error {
+            background: #fdecea;
+            color: #b42318;
+        }
+
+        #page-feedback .fb-status.fb-warn {
+            background: #fff4e5;
+            color: #93370d;
+        }
+
+        #page-feedback .fb-status.fb-ok {
+            background: #e8f6ee;
+            color: #067647;
+        }
+
+        #page-feedback .fb-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 16px;
+            margin: 8px 0 12px;
+        }
+
+        #page-feedback .fb-table-wrap {
+            overflow: auto;
+            max-height: 68vh;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        #page-feedback table {
+            box-shadow: none;
+            font-size: 1rem;
+        }
+
+        #page-feedback th,
+        #page-feedback td {
+            padding: 6px 9px;
+            vertical-align: top;
+        }
+
+        /* 標題下面的中文小字：用 ::after 畫出來（不是真的文字，複製表格時不會跟著進去） */
+        #page-feedback th[data-zh]::after {
+            content: attr(data-zh);
+            display: block;
+            font-size: .8rem;
+            font-weight: 400;
+            color: #8a7a6a;
+        }
+
+        #page-feedback th {
+            white-space: nowrap;
+        }
+
+        #page-feedback td.fb-col-id,
+        #page-feedback td.fb-col-created_at,
+        #page-feedback td.fb-col-target,
+        #page-feedback td.fb-col-app_version {
+            white-space: nowrap;
+        }
+
+        /* 意見內容：保留換行、再長的字串也會換行，不會把表格撐爆 */
+        #page-feedback td.fb-col-message {
+            min-width: 320px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        #page-feedback tr.fb-off td {
+            opacity: .38;
+        }
+
+        #page-feedback .fb-pick {
+            width: 38px;
+            text-align: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #page-feedback .fb-empty {
+            padding: 36px 12px;
+            text-align: center;
+            color: #888;
+        }
+
+        #page-feedback details.fb-how ol {
+            margin: 6px 0 0 20px;
+            padding: 0;
+        }
+
+        #page-feedback details.fb-how li {
+            margin: 3px 0;
+        }
+
+        #page-feedback details.fb-how summary {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* 右下角小提示（複製成功…） */
+        #fbToast {
+            position: fixed;
+            right: 22px;
+            bottom: 22px;
+            max-width: 420px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            background: #3b2a24;
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+            opacity: 0;
+            transform: translateY(8px);
+            pointer-events: none;
+            transition: opacity .18s, transform .18s;
+            z-index: 300;
+        }
+
+        #fbToast.show {
+            opacity: 1;
+            transform: none;
+        }
     </style>
 </head>
 
@@ -382,6 +642,7 @@
         <nav class="sidebar-nav">
             <a href="#" class="active" id="navPlayers" onclick="showPage('players')">&#128100; 玩家資料查詢</a>
             <a href="#" id="navStats" onclick="showPage('stats')">&#128202; 遊戲統計分析</a>
+            <a href="#" id="navFeedback" onclick="showPage('feedback')">&#128172; 玩家意見查閱</a>
         </nav>
     </div>
 
@@ -788,6 +1049,7 @@
                 document.getElementById('nav' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
                 toggleSidebar();
                 if (page === 'stats') { initStatsDates(); loadStats(); }
+                if (page === 'feedback') initFeedbackPage();   // 玩家意見查閱（見檔案最後面的 #page-feedback）
             }
 
             function initStatsDates() {
@@ -1336,6 +1598,517 @@
             </div>
         </div>
     </div>
+
+    <!-- 玩家意見查閱頁面：資料來自公開檢視表 player_feedback_public（見 note/玩家意見_SQL草案.sql） -->
+    <div class="page" id="page-feedback">
+        <h1>玩家意見查閱</h1>
+        <p class="fb-sub">資料表 player_feedback（各遊戲結算彈窗與漢堡選單的「提意見」）。這是給開發者在電腦上用的管理工具，不是遊戲的一部分。</p>
+
+        <!-- ═══ 一、查詢條件 ═══ -->
+        <form class="fb-card" id="fbFilterForm" autocomplete="off">
+            <h2>查詢條件</h2>
+            <div class="fb-row">
+                <label class="fb-name" for="fbFrom">時間範圍</label>
+                <input type="date" id="fbFrom">
+                <span>到</span>
+                <input type="date" id="fbTo">
+                <button type="button" class="fb-btn fb-small" id="fbBtnToday">今天</button>
+                <button type="button" class="fb-btn fb-small" id="fbBtn7">最近 7 天</button>
+                <button type="button" class="fb-btn fb-small" id="fbBtn30">最近 30 天</button>
+                <button type="button" class="fb-btn fb-small" id="fbBtnAllTime">不限時間</button>
+                <span class="fb-note" id="fbTzNote"></span>
+            </div>
+            <div class="fb-row">
+                <label class="fb-name" for="fbTarget">對象</label>
+                <select id="fbTarget"></select>
+                <label class="fb-name" for="fbKeyword" style="margin-left:14px;min-width:0">關鍵字</label>
+                <input type="text" id="fbKeyword" class="fb-w-kw" placeholder="意見內容裡有這些字">
+            </div>
+            <div class="fb-row">
+                <label class="fb-name" for="fbIdFrom">id 範圍</label>
+                <input type="number" id="fbIdFrom" class="fb-w-id" min="0" step="1" placeholder="起（含）">
+                <span>到</span>
+                <input type="number" id="fbIdTo" class="fb-w-id" min="0" step="1" placeholder="迄（含）">
+                <span class="fb-note">空白＝不限制</span>
+                <!-- 接續上次：貼給 Claude 之後，把「處理到哪個 id」記下來，下次一鍵只查新的意見 -->
+                <b style="margin-left:14px">接續上次</b>
+                <span id="fbSeenText" class="fb-note"></span>
+                <button type="button" class="fb-btn fb-small" id="fbBtnNext" hidden></button>
+                <button type="button" class="fb-btn fb-small" id="fbBtnMark" disabled title="貼給 Claude 之後按這個，下次就可以只查更新的意見">把目前結果的最大 id 記為已處理</button>
+                <button type="button" class="fb-btn fb-small" id="fbBtnClearSeen" hidden>清除記錄</button>
+            </div>
+            <div class="fb-row">
+                <label class="fb-name" for="fbOrder">排序</label>
+                <select id="fbOrder">
+                    <option value="desc">新的在前（id 由大到小）</option>
+                    <option value="asc">舊的在前（id 由小到大）</option>
+                </select>
+                <button type="submit" class="fb-btn fb-primary" id="fbBtnQuery">查詢</button>
+                <button type="button" class="fb-btn" id="fbBtnReset" title="時間範圍改回「30 天前到今天」，其餘條件清空">恢復預設</button>
+                <label class="fb-check fb-emph"><input type="checkbox" id="fbOnlyCore"> 只顯示 對象、意見內容</label>
+            </div>
+        </form>
+
+        <!-- ═══ 二、結果 ═══ -->
+        <section class="fb-card" id="fbResult">
+            <h2>查詢結果</h2>
+            <p class="fb-status" id="fbStatus" role="status">尚未查詢。</p>
+            <div class="fb-toolbar">
+                <button type="button" class="fb-btn fb-primary" id="fbBtnCopy" disabled>複製（0 列）</button>
+                <span id="fbPickInfo" class="fb-note"></span>
+                <label class="fb-check"><input type="checkbox" id="fbCopyHeader" checked> 複製時加上欄位名稱</label>
+                <label class="fb-check"><input type="checkbox" id="fbPrefixOn"> 複製時最前面加一句：</label>
+                <input type="text" id="fbPrefixText" class="fb-w-prefix" spellcheck="false">
+            </div>
+            <div class="fb-table-wrap" id="fbTableWrap"><div class="fb-empty">還沒有查詢。</div></div>
+        </section>
+
+        <details class="fb-card fb-how">
+            <summary>怎麼用</summary>
+            <ol>
+                <li>第一次切到這一頁會自動查「30 天前到今天」的意見。要看別的時間、對象（系統面／某款遊戲）、關鍵字，在「查詢條件」改完按「查詢」。時間用這台電腦的時區，「到」那一天整天都算。</li>
+                <li>「對象」＝系統面：漢堡選單「關於花月」右邊的「提意見」寫的，是介面、功能、操作這類全面性的意見；「對象」＝某款遊戲：那款遊戲結算彈窗的「提意見」寫的。</li>
+                <li>只想貼「對象與意見」給 Claude：勾「只顯示 對象、意見內容」。不想貼的列，把最左邊的勾勾取消。</li>
+                <li>按「複製」，到 Claude 的輸入框貼上。每一列一行、欄位用 Tab 隔開；意見裡的換行會變成「 ⏎ 」，這樣一則意見不會斷成好幾行。</li>
+                <li>貼完按「把目前結果的最大 id 記為已處理」；下次按「從 id N 開始查」，就只會看到新的意見。（記在這個瀏覽器裡。）</li>
+                <li>這一頁只能「讀」：用的是花月本來就公開的 publishable key，只讀公開檢視表 player_feedback_public（不含玩家內部 id），不能新增、修改或刪除任何東西。</li>
+                <li>出現「資料庫還沒有玩家意見…」代表還沒執行 <code>note/玩家意見_SQL草案.sql</code>：到 Supabase 的 SQL Editor 執行後再查詢。</li>
+            </ol>
+        </details>
+    </div>
+    <div id="fbToast" role="status"></div>
+
+    <script>
+        /* ═══════════════════════════════════════════════════════════════
+           玩家意見查閱：程式（對應上面的 #page-feedback）
+           做的事：
+             1. 用 supabase-js 讀公開檢視表 player_feedback_public（可依時間、id、對象、關鍵字篩選，分頁讀完）；
+             2. 把資料畫成表格；
+             3. 「複製」把畫面上顯示的欄位、勾選的列組成文字（Tab 分隔）放進剪貼簿，方便貼給 Claude。
+           做法參考 FadingMemory 的 admin/feedback.html。
+           安全：表格的文字一律用 textContent 放進去（不會被當成 HTML 執行），意見裡就算有 <script> 也只是一般文字。
+           ═══════════════════════════════════════════════════════════════ */
+        (function () {
+            'use strict';
+
+            // ───────── 一、設定 ─────────
+            const VIEW = 'player_feedback_public';   // 公開檢視表（不含 player_id）
+            const DEFAULT_DAYS = 30;                 // 第一次打開預設查「幾天前」到今天
+            const PAGE_SIZE = 1000;                  // 每次向資料庫要幾列（Supabase 預設單次最多 1000 列）
+            const MAX_ROWS = 5000;                   // 最多讀幾列；再多就停下來並提醒縮小範圍
+            const STORE_KEY = 'fm.fbview.v1';        // 存在瀏覽器 localStorage（只存查詢選項，不存任何金鑰）
+            // 欄位排列順序。target（對象）不是資料庫欄位，是由 scope／game_title／game_key 組出來的
+            const ORDER = ['id', 'created_at', 'target', 'nickname', 'app_version', 'message'];
+            const LABELS = { id: '編號', created_at: '時間', target: '對象', nickname: '暱稱', app_version: '版本', message: '意見內容' };
+            const CORE = ['target', 'message'];       // 勾「只顯示…」時留下的欄位
+            const DEFAULT_PREFIX = '請根據以下玩家意見建議去修改程式碼';   // 「複製時最前面加一句」的預設內容（可在畫面上改）
+
+            // ───────── 二、畫面元件與狀態 ─────────
+            const $ = (id) => document.getElementById(id);
+            const state = {
+                rows: [],          // 查回來的資料，每一列是一個物件
+                off: {},           // 被取消勾選的列：{ id: true }（沒有記錄＝要複製）
+                busy: false,       // 正在查詢中（避免連按好幾次）
+                inited: false      // 是否已經做過第一次初始化
+            };
+
+            // ───────── 三、小工具 ─────────
+            const pad2 = (n) => (n < 10 ? '0' + n : String(n));
+            // Date → 「2026-11-16 09:30:05」（這台電腦的時區）
+            const fmtDateTime = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' '
+                + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+            // Date → <input type="date"> 要的格式「2026-11-16」（本地日期，不能用 toISOString，那是 UTC 會差一天）
+            const toDateInput = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+            // 資料庫給的時間字串 → Date。Postgres 會給 6 位小數，瀏覽器只保證看得懂 3 位，先把多的砍掉
+            function parseDbTime(s) {
+                if (!s) return null;
+                const d = new Date(String(s).replace(/(\.\d{3})\d+/, '$1'));
+                return isNaN(d.getTime()) ? null : d;
+            }
+            // 意見針對的對象：系統面，或「〈遊戲名〉（gameN）」
+            function targetOf(row) {
+                if (row.scope === 'system') return '系統面';
+                return (row.game_title || '（未命名）') + '（' + (row.game_key || '?') + '）';
+            }
+            // 一個格子要顯示（也是要複製）的文字
+            function formatCell(col, row) {
+                if (col === 'target') return targetOf(row);
+                const v = row[col];
+                if (v === null || v === undefined) return '';
+                if (col === 'created_at') { const d = parseDbTime(v); return d ? fmtDateTime(d) : String(v); }
+                return String(v);
+            }
+            function loadSettings() {
+                try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
+            }
+            function saveSettings(patch) {
+                const s = loadSettings();
+                Object.keys(patch).forEach((k) => { s[k] = patch[k]; });
+                try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { /* 存不了就算了，不影響使用 */ }
+            }
+            // 狀態列：kind 可以是 'error'（紅）、'warn'（橘）、'ok'（綠）、不填（米色）
+            function setStatus(text, kind) {
+                const el = $('fbStatus');
+                el.textContent = text;
+                el.className = 'fb-status' + (kind ? ' fb-' + kind : '');
+            }
+            let toastTimer = null;
+            function toast(text) {
+                const el = $('fbToast');
+                el.textContent = text;
+                el.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+            }
+
+            // ───────── 四、讀取條件與向資料庫要資料 ─────────
+            // 讀畫面上的條件。不合理（例如起點比終點晚）就丟出錯誤，訊息會顯示在狀態列
+            function readFilters() {
+                const readId = (inputId, name) => {
+                    const v = $(inputId).value.trim();
+                    if (v === '') return null;
+                    if (!/^\d+$/.test(v)) throw new Error('id ' + name + '要填整數（0 以上）。');
+                    return parseInt(v, 10);
+                };
+                const f = {
+                    idFrom: readId('fbIdFrom', '起點'), idTo: readId('fbIdTo', '終點'),
+                    timeFrom: null, timeTo: null,
+                    target: $('fbTarget').value, keyword: $('fbKeyword').value.trim(),
+                    order: $('fbOrder').value === 'asc' ? 'asc' : 'desc'
+                };
+                if (f.idFrom !== null && f.idTo !== null && f.idFrom > f.idTo) throw new Error('id 的起點比終點大，請對調。');
+                // 日期：起點取當天本地時間 00:00:00、終點取當天 23:59:59.999（所以「到今天」會包含今天整天）；
+                // 再轉成 UTC 的 ISO 字串，才能和資料庫的 created_at（UTC）直接比大小
+                const a = $('fbFrom').value ? new Date($('fbFrom').value + 'T00:00:00') : null;
+                const b = $('fbTo').value ? new Date($('fbTo').value + 'T23:59:59.999') : null;
+                if ((a && isNaN(a.getTime())) || (b && isNaN(b.getTime()))) throw new Error('日期格式不對。');
+                if (a && b && a.getTime() > b.getTime()) throw new Error('日期的起點比終點晚，請對調。');
+                f.timeFrom = a ? a.toISOString() : null;
+                f.timeTo = b ? b.toISOString() : null;
+                return f;
+            }
+            // 要一頁資料（offset＝跳過前幾列，翻頁用）
+            function buildQuery(client, f, offset) {
+                let q = client.from(VIEW).select('*')
+                    .order('id', { ascending: f.order === 'asc' })
+                    .range(offset, offset + PAGE_SIZE - 1);
+                if (f.idFrom !== null) q = q.gte('id', f.idFrom);
+                if (f.idTo !== null) q = q.lte('id', f.idTo);
+                if (f.timeFrom) q = q.gte('created_at', f.timeFrom);
+                if (f.timeTo) q = q.lte('created_at', f.timeTo);
+                if (f.target === 'system') q = q.eq('scope', 'system');
+                else if (f.target === 'games') q = q.eq('scope', 'game');
+                else if (/^game\d+$/.test(f.target)) q = q.eq('game_key', f.target);
+                // 關鍵字：用 ilike（不分大小寫）；%、_、\ 在 like 裡有特殊意思，先加反斜線跳脫
+                if (f.keyword) q = q.ilike('message', '%' + f.keyword.replace(/[\\%_]/g, '\\$&') + '%');
+                return q;
+            }
+            // 一頁一頁要，直到要不到（拿到空頁）為止；伺服器給的筆數上限不一定等於 PAGE_SIZE，用「空頁」判斷結束最保險
+            async function fetchAll(client, f, onProgress) {
+                const all = [], seen = {};
+                let offset = 0, truncated = false;
+                for (let page = 0; page < 60; page++) {
+                    const { data, error } = await buildQuery(client, f, offset);
+                    if (error) throw error;
+                    if (!data || data.length === 0) break;
+                    data.forEach((r) => { if (!seen[r.id]) { seen[r.id] = true; all.push(r); } });   // 用 id 去重（翻頁途中剛好有新意見進來時不會出現兩次）
+                    offset += data.length;
+                    onProgress(all.length);
+                    if (all.length >= MAX_ROWS) { truncated = true; all.length = MAX_ROWS; break; }
+                }
+                return { rows: all, truncated: truncated };
+            }
+            // 把錯誤翻成看得懂的中文
+            function explainError(e) {
+                const code = String((e && e.code) || '');
+                const msg = String((e && (e.message || e.msg)) || e || '');
+                // 找不到檢視表、或沒有讀取權限：都代表資料庫還沒執行玩家意見的 SQL
+                if (code === 'PGRST205' || code === '42P01' || code === '42501' || /does not exist|could not find the table|permission denied/i.test(msg)) {
+                    return '資料庫還沒有玩家意見的資料：請到 Supabase 的 SQL Editor 執行 note/玩家意見_SQL草案.sql（會建立檢視表 ' + VIEW + '），執行完再按一次查詢。';
+                }
+                if (/fetch|network|load failed|timeout|abort/i.test(msg)) return '連不上 Supabase：請檢查網路。（' + msg + '）';
+                return '資料庫回報錯誤：' + (msg || '沒有說明') + (code ? '（' + code + '）' : '');
+            }
+
+            // ───────── 五、查詢 ─────────
+            function setBusy(b) {
+                state.busy = b;
+                $('fbBtnQuery').disabled = b;
+                $('fbBtnQuery').textContent = b ? '查詢中…' : '查詢';
+            }
+            function summaryText(r) {
+                const rows = r.rows;
+                if (!rows.length) return '沒有符合條件的意見。';
+                let minId = Infinity, maxId = -Infinity, first = null, last = null;
+                rows.forEach((x) => {
+                    if (typeof x.id === 'number') { if (x.id < minId) minId = x.id; if (x.id > maxId) maxId = x.id; }
+                    const d = parseDbTime(x.created_at);
+                    if (d) { if (!first || d < first) first = d; if (!last || d > last) last = d; }
+                });
+                let s = '共 ' + rows.length + ' 筆　id ' + minId + ' ～ ' + maxId;
+                if (first) s += '　時間 ' + fmtDateTime(first) + ' ～ ' + fmtDateTime(last);
+                if (r.truncated) s += '　（只讀了前 ' + MAX_ROWS + ' 筆，後面可能還有，請縮小時間或 id 範圍）';
+                return s;
+            }
+            async function runQuery() {
+                if (state.busy) return;
+                let f;
+                try { f = readFilters(); } catch (e) { setStatus(e.message, 'error'); return; }
+                const client = window.SupabaseClient && window.SupabaseClient.getClient();
+                if (!client) { setStatus('無法連線 Supabase：請確定 supabaseClient.js 已載入、網址與金鑰已設定。', 'error'); return; }
+                setBusy(true);
+                setStatus('查詢中…');
+                try {
+                    const r = await fetchAll(client, f, (n) => setStatus('查詢中…已讀到 ' + n + ' 筆'));
+                    state.rows = r.rows; state.off = {};
+                    renderAll();
+                    setStatus(summaryText(r), r.truncated ? 'warn' : (r.rows.length ? 'ok' : ''));
+                } catch (e) {
+                    state.rows = []; state.off = {};
+                    renderAll();
+                    setStatus(explainError(e), 'error');
+                } finally {
+                    setBusy(false);
+                }
+            }
+
+            // ───────── 六、畫表格 ─────────
+            // 目前要顯示（也是要複製）的欄位
+            function visibleColumns() {
+                return $('fbOnlyCore').checked ? CORE.slice() : ORDER.slice();
+            }
+            const isChecked = (row) => !state.off[row.id];
+            function checkedCount() { return state.rows.filter(isChecked).length; }
+
+            function renderTable() {
+                const wrap = $('fbTableWrap');
+                if (!state.rows.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'fb-empty';
+                    empty.textContent = '沒有資料。';
+                    wrap.replaceChildren(empty);
+                    return;
+                }
+                const cols = visibleColumns();
+                const table = document.createElement('table');
+                // 標題列
+                const hr = table.createTHead().insertRow();
+                const th0 = document.createElement('th');
+                th0.className = 'fb-pick';
+                const all = document.createElement('input');
+                all.type = 'checkbox'; all.id = 'fbPickAll'; all.title = '全選／全不選';
+                th0.appendChild(all);
+                hr.appendChild(th0);
+                cols.forEach((c) => {
+                    const th = document.createElement('th');
+                    th.textContent = c;                         // 標題只放英文欄位名稱（複製、選取時只會有這個）
+                    th.dataset.zh = LABELS[c] || '';            // 中文小字放在 data-zh，由 CSS ::after 畫出來（不會被選取或複製）
+                    hr.appendChild(th);
+                });
+                // 每一列資料：所有文字都用 textContent，不會被當成 HTML
+                const tb = table.createTBody();
+                state.rows.forEach((r) => {
+                    const tr = tb.insertRow();
+                    tr.dataset.id = String(r.id);
+                    if (!isChecked(r)) tr.className = 'fb-off';
+                    const td0 = tr.insertCell();
+                    td0.className = 'fb-pick';
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox'; cb.checked = isChecked(r); cb.title = '要複製這一列';
+                    td0.appendChild(cb);
+                    cols.forEach((c) => {
+                        const td = tr.insertCell();
+                        td.className = 'fb-col-' + c;
+                        td.textContent = formatCell(c, r);
+                    });
+                });
+                wrap.replaceChildren(table);
+                updatePickAll();
+            }
+            // 表頭的「全選」勾勾：全部勾＝打勾、都沒勾＝空白、一部分＝半勾
+            function updatePickAll() {
+                const all = $('fbPickAll');
+                if (!all) return;
+                const n = checkedCount(), total = state.rows.length;
+                all.checked = n === total && total > 0;
+                all.indeterminate = n > 0 && n < total;
+            }
+            // 複製按鈕上的數字、「已勾選 x / y 列」
+            function updateCounts() {
+                const n = checkedCount(), total = state.rows.length;
+                $('fbBtnCopy').textContent = '複製（' + n + ' 列）';
+                $('fbBtnCopy').disabled = n === 0;
+                $('fbPickInfo').textContent = total ? '已勾選 ' + n + ' / ' + total + ' 列' : '';
+            }
+            // 「接續上次」那一排：顯示記著的 id、決定哪些按鈕出現
+            function maxIdOfRows() {
+                let m = null;
+                state.rows.forEach((r) => { if (typeof r.id === 'number' && (m === null || r.id > m)) m = r.id; });
+                return m;
+            }
+            function updateSeenUI() {
+                const seen = loadSettings().seenId;
+                if (typeof seen === 'number') {
+                    $('fbSeenText').textContent = '已處理到 id ' + seen;
+                    $('fbBtnNext').hidden = false;
+                    $('fbBtnNext').textContent = '從 id ' + (seen + 1) + ' 開始查';
+                    $('fbBtnClearSeen').hidden = false;
+                } else {
+                    $('fbSeenText').textContent = '尚無記錄';
+                    $('fbBtnNext').hidden = true;
+                    $('fbBtnClearSeen').hidden = true;
+                }
+                const m = maxIdOfRows();
+                $('fbBtnMark').disabled = m === null;
+                $('fbBtnMark').textContent = m === null ? '把目前結果的最大 id 記為已處理' : '把目前結果的最大 id（' + m + '）記為已處理';
+            }
+            function renderAll() { renderTable(); updateCounts(); updateSeenUI(); }
+
+            // ───────── 七、複製 ─────────
+            // 一個格子複製出去的文字：換行改成「 ⏎ 」、Tab 改成空格，這樣一列一定只佔一行，貼到哪裡都不會亂
+            const cellForCopy = (col, row) => formatCell(col, row).replace(/\r\n|\r|\n/g, ' ⏎ ').replace(/\t/g, ' ');
+            // 組出要複製的整段文字：（最前面的一句話）＋（欄位名稱）＋ 每個勾選的列一行，欄位之間用 Tab 隔開
+            function buildCopyText() {
+                const cols = visibleColumns(), lines = [];
+                const prefix = $('fbPrefixText').value.trim();
+                if ($('fbPrefixOn').checked && prefix) lines.push(prefix);
+                if ($('fbCopyHeader').checked) lines.push(cols.join('\t'));
+                state.rows.forEach((r) => {
+                    if (!isChecked(r)) return;
+                    lines.push(cols.map((c) => cellForCopy(c, r)).join('\t'));
+                });
+                return lines.join('\n');
+            }
+            // 放進剪貼簿。新式做法（navigator.clipboard）不能用時，改用舊式做法（藏一個文字框 → 全選 → 複製）
+            async function copyToClipboard(text) {
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; }
+                } catch (e) { /* 被擋了，換舊式做法 */ }
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+                document.body.appendChild(ta);
+                ta.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                return ok;
+            }
+            async function doCopy() {
+                const n = checkedCount();
+                if (!n) return;
+                const ok = await copyToClipboard(buildCopyText());
+                toast(ok ? '已複製 ' + n + ' 列，可以直接貼到 Claude。' : '複製失敗：請用滑鼠選取表格的文字，再按 Ctrl+C。');
+            }
+
+            // ───────── 八、時間的快速按鈕 ─────────
+            // 設定時間範圍：從「n 天前」到「今天」（n=0 就是今天）；只改欄位，不查詢
+            function setDays(n) {
+                const now = new Date();
+                $('fbFrom').value = toDateInput(new Date(now.getFullYear(), now.getMonth(), now.getDate() - n));
+                $('fbTo').value = toDateInput(now);
+            }
+            const setRecentDays = (n) => { setDays(n); runQuery(); };
+
+            // ───────── 九、綁定事件與第一次初始化 ─────────
+            function bind() {
+                $('fbFilterForm').addEventListener('submit', (e) => { e.preventDefault(); runQuery(); });   // 按「查詢」或在欄位裡按 Enter
+                $('fbBtnToday').addEventListener('click', () => setRecentDays(0));
+                $('fbBtn7').addEventListener('click', () => setRecentDays(7));
+                $('fbBtn30').addEventListener('click', () => setRecentDays(30));
+                $('fbBtnAllTime').addEventListener('click', () => { $('fbFrom').value = ''; $('fbTo').value = ''; runQuery(); });
+                $('fbBtnReset').addEventListener('click', () => {        // 恢復預設：30 天前到今天，其餘條件清空
+                    setDays(DEFAULT_DAYS);
+                    $('fbIdFrom').value = ''; $('fbIdTo').value = ''; $('fbKeyword').value = '';
+                    $('fbTarget').value = 'all'; $('fbOrder').value = 'desc';
+                    runQuery();
+                });
+                // 接續上次
+                $('fbBtnNext').addEventListener('click', () => {
+                    const seen = loadSettings().seenId;
+                    if (typeof seen !== 'number') return;
+                    $('fbIdFrom').value = String(seen + 1);
+                    $('fbIdTo').value = '';
+                    runQuery();
+                });
+                $('fbBtnMark').addEventListener('click', () => {
+                    const m = maxIdOfRows();
+                    if (m === null) return;
+                    saveSettings({ seenId: m });
+                    updateSeenUI();
+                    toast('已記下：處理到 id ' + m + '。下次可以按「從 id ' + (m + 1) + ' 開始查」。');
+                });
+                $('fbBtnClearSeen').addEventListener('click', () => { saveSettings({ seenId: null }); updateSeenUI(); });
+                // 「只顯示…」與複製的選項：改了就記住，不用重新查詢
+                $('fbOnlyCore').addEventListener('change', () => { saveSettings({ onlyCore: $('fbOnlyCore').checked }); renderAll(); });
+                $('fbCopyHeader').addEventListener('change', () => saveSettings({ copyHeader: $('fbCopyHeader').checked }));
+                $('fbPrefixOn').addEventListener('change', () => saveSettings({ prefixOn: $('fbPrefixOn').checked }));
+                $('fbPrefixText').addEventListener('change', () => saveSettings({ prefixText: $('fbPrefixText').value }));
+                $('fbBtnCopy').addEventListener('click', doCopy);
+                // 表格裡的勾勾（事件委派：只在表格外層放一個監聽，不用每一列各放一個）
+                $('fbTableWrap').addEventListener('change', (e) => {
+                    const t = e.target;
+                    if (!t || t.type !== 'checkbox') return;
+                    if (t.id === 'fbPickAll') {                              // 表頭：全選／全不選
+                        state.off = {};
+                        if (!t.checked) state.rows.forEach((r) => { state.off[r.id] = true; });
+                        renderTable();
+                    } else {                                                 // 某一列
+                        const tr = t.closest('tr');
+                        if (!tr) return;
+                        const id = tr.dataset.id;
+                        if (t.checked) delete state.off[id]; else state.off[id] = true;
+                        tr.className = t.checked ? '' : 'fb-off';
+                        updatePickAll();
+                    }
+                    updateCounts();
+                });
+            }
+            // 「對象」下拉選單：全部／系統面／所有遊戲意見／各遊戲（名稱來自本頁統計區的 GAME_NAMES）
+            function fillTargetOptions() {
+                const sel = $('fbTarget');
+                const add = (value, label, parent) => {
+                    const o = document.createElement('option');
+                    o.value = value; o.textContent = label;
+                    (parent || sel).appendChild(o);
+                };
+                add('all', '全部');
+                add('system', '只看系統面（漢堡選單的提意見）');
+                add('games', '只看遊戲意見（全部遊戲）');
+                const names = (typeof GAME_NAMES !== 'undefined') ? GAME_NAMES : {};
+                const keys = Object.keys(names).map(Number).sort((a, b) => a - b);
+                if (keys.length) {
+                    const grp = document.createElement('optgroup');
+                    grp.label = '單一遊戲';
+                    keys.forEach((n) => add('game' + n, names[n], grp));
+                    sel.appendChild(grp);
+                }
+            }
+
+            // 第一次切到這一頁時呼叫（之後再切回來不重新初始化，保留上次的查詢結果；要更新就按「查詢」）
+            window.initFeedbackPage = function () {
+                if (state.inited) return;
+                state.inited = true;
+                const s = loadSettings();
+                fillTargetOptions();
+                bind();
+                $('fbOnlyCore').checked = !!s.onlyCore;
+                $('fbCopyHeader').checked = s.copyHeader !== false;          // 沒有記錄過＝預設勾選
+                $('fbPrefixOn').checked = !!s.prefixOn;
+                $('fbPrefixText').value = typeof s.prefixText === 'string' ? s.prefixText : DEFAULT_PREFIX;
+                // 時區說明：getTimezoneOffset 是「UTC 減當地」的分鐘數，台灣是 -480，所以前面要加負號
+                const off = -new Date().getTimezoneOffset(), sign = off >= 0 ? '+' : '-';
+                $('fbTzNote').textContent = '以這台電腦的時區計算（UTC' + sign + Math.floor(Math.abs(off) / 60)
+                    + (Math.abs(off) % 60 ? ':' + pad2(Math.abs(off) % 60) : '') + '）';
+                setDays(DEFAULT_DAYS);
+                renderAll();
+                runQuery();                                                  // 第一次打開就直接查
+            };
+
+            // 給自動測試／除錯用的後門；平常用不到
+            window.__FBV = { state: state, buildCopyText: buildCopyText, visibleColumns: visibleColumns, runQuery: runQuery, readFilters: readFilters, buildQuery: buildQuery, explainError: explainError, targetOf: targetOf };
+        })();
+    </script>
 
 </body>
 

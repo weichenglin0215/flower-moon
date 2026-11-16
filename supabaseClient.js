@@ -165,6 +165,12 @@
                     cur.shift();
                     this._writeQueue(cur);
                 }
+
+                // 3. 玩家意見（提意見）佇列。
+                //    刻意放在紀錄佇列「之後」且與它分開：意見補不補得上，不該影響上面
+                //    「紀錄已全部送完」的回傳值，也不該讓（SQL 還沒部署時）一直補不上的意見
+                //    卡住前面的遊戲紀錄。
+                await this._flushFeedback();
                 return true;
             } finally {
                 this._flushing = false;
@@ -313,6 +319,156 @@
                 }
             });
             return true;
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // 玩家意見（提意見）— 對應 note/玩家意見_SQL草案.sql
+        //
+        // 兩個入口（見 feedbackDialog.js）：
+        //   scope:'game'   每款遊戲結算彈窗的「提意見」，帶遊戲代號與名稱
+        //   scope:'system' 漢堡選單「關於花月」右邊的「提意見」，系統面／全面性的問題
+        //
+        // 寫入一律走資料庫函式 fm_submit_feedback（資料庫端清理內容、限次數、擋重複），
+        // 不直接 insert 資料表（資料表已鎖住）。
+        //
+        // 連不上網路（或資料庫還沒執行 SQL 草案、找不到函式）→ 先存在這支手機，
+        // 下次啟動／連線時由 flushPending 補送；資料庫明確拒絕的（格式不合、超過次數）才不重試。
+        // 佇列刻意與 game_logs 的佇列分開（見 flushPending 第 3 步的說明）。
+        // ──────────────────────────────────────────────────────────
+
+        _FB_QUEUE_KEY: 'fm_feedback_queue',
+        _FB_QUEUE_MAX: 5,                          // 最多留 5 則，超過丟最舊的（意見不是記錄，不需要囤積）
+        _FB_TTL_MS: 30 * 24 * 3600 * 1000,         // 補不上的意見最多留 30 天
+        FEEDBACK_MAX: 500,                         // 意見最多幾個字（資料庫的檢查也是 500）
+
+        /**
+         * 意見文字清理（純函式）：去掉控制字元（保留換行）、零寬字元、文字方向控制字元，
+         * 行內連續空白縮成一個，連續三個以上的換行縮成兩個，去頭尾空白，最多 FEEDBACK_MAX 個「字」。
+         * 用 Array.from 切字（不是 slice）：少見的漢字或 emoji 在 JS 字串裡佔兩個單位，直接 slice 會切成亂碼。
+         * 資料庫端會用同一套規則再清一次，這裡先清是為了字數統計與「太短不能送」的判斷跟資料庫一致。
+         */
+        cleanFeedbackText: function (raw) {
+            const s = String(raw == null ? '' : raw)
+                .replace(/\r\n?/g, '\n')
+                .replace(/[\u{0}-\u{8}\u{b}\u{c}\u{e}-\u{1f}\u{7f}-\u{9f}\u{200b}-\u{200f}\u{2028}-\u{202e}\u{2060}-\u{2064}\u{feff}]+/gu, ' ')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/ ?\n ?/g, '\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+            return Array.from(s).slice(0, this.FEEDBACK_MAX).join('').trim();
+        },
+
+        _readFbQueue: function () {
+            try {
+                const q = JSON.parse(localStorage.getItem(this._FB_QUEUE_KEY) || '[]');
+                return Array.isArray(q) ? q : [];
+            } catch (e) { return []; }
+        },
+
+        _writeFbQueue: function (q) {
+            try {
+                if (q.length) localStorage.setItem(this._FB_QUEUE_KEY, JSON.stringify(q));
+                else localStorage.removeItem(this._FB_QUEUE_KEY);
+            } catch (e) { /* 儲存空間滿了：意見送不出去也不能影響遊戲 */ }
+        },
+
+        _enqueueFeedback: function (args) {
+            const q = this._readFbQueue();
+            q.push({ qid: Date.now() + '-' + Math.random().toString(36).slice(2, 8), at: Date.now(), args: args });
+            while (q.length > this._FB_QUEUE_MAX) q.shift();
+            this._writeFbQueue(q);
+        },
+
+        /** 還有幾則意見等著補送（除錯／離線狀態用） */
+        pendingFeedbackCount: function () {
+            return this._readFbQueue().length;
+        },
+
+        /**
+         * 把一次 fm_submit_feedback 的回應翻成前端要的狀態。
+         * 回傳 'sent'｜'too-many'｜'rejected'｜'retry'（連不上，值得排隊重送）
+         */
+        _feedbackOutcome: function (r) {
+            if (r.ok) {
+                const d = r.data;
+                if (d && d.ok) return 'sent';                       // saved:true 與 duplicate:true 都算送出
+                if (d && d.error === 'too_many') return 'too-many';
+                return 'rejected';                                  // bad_args 等：資料庫明確拒絕，重送也沒用
+            }
+            // 沒有 SDK／函式還不存在（SQL 尚未部署）／連不上 → 值得排隊
+            if (r.reason === 'no_sdk' || r.reason === 'server_not_ready') return 'retry';
+            // _rpc 把其餘失敗一律標成 'network'，這裡再分一次：有資料庫錯誤碼而且不是連線問題＝被資料庫拒絕
+            const code = r.error && r.error.code;
+            if (code && !this._isNetworkError(r.error)) return 'rejected';
+            return 'retry';
+        },
+
+        /**
+         * 送出一則玩家意見。
+         * @param {object} opts
+         *   scope     {'game'|'system'}  意見針對某款遊戲、或系統面（預設 system）
+         *   gameKey   {string}           scope 為 game 時必填，例如 'game22'
+         *   gameTitle {string}           遊戲中文名稱（給後台看，選填）
+         *   message   {string}           意見內容（會先清理，少於 2 字不送）
+         *   version   {string}           目前版本號（選填，例如 version.json 的 version）
+         * @returns {Promise<{status:'sent'|'queued'|'too-many'|'rejected'|'skip'}>}
+         */
+        submitFeedback: async function (opts) {
+            const o = opts || {};
+            const scope = o.scope === 'game' ? 'game' : 'system';
+            const text = this.cleanFeedbackText(o.message);
+            if (Array.from(text).length < 2) return { status: 'skip' };
+            if (scope === 'game' && !/^game\d{1,3}$/.test(String(o.gameKey || ''))) return { status: 'skip' };
+
+            const args = {
+                p_scope: scope,
+                p_game_key: scope === 'game' ? o.gameKey : null,
+                p_game_title: scope === 'game' ? (o.gameTitle ? String(o.gameTitle).slice(0, 30) : null) : null,
+                // 有帳號就帶 id（資料庫由它帶入暱稱）；訪客傳空字串，資料庫當作匿名
+                p_player_id: this.getCurrentId() || '',
+                p_message: text,
+                p_version: o.version ? String(o.version).slice(0, 32) : null
+            };
+
+            // 明確離線或 SDK 沒就緒：直接排隊，不白等逾時
+            if (navigator.onLine === false || !this.init()) {
+                this._enqueueFeedback(args);
+                return { status: 'queued' };
+            }
+            const outcome = this._feedbackOutcome(await this._rpc('fm_submit_feedback', args));
+            if (outcome === 'retry') {
+                this._enqueueFeedback(args);
+                return { status: 'queued' };
+            }
+            return { status: outcome };
+        },
+
+        /**
+         * 補送之前沒送出去的意見：一則一則送，連不上就停；超過 30 天的丟掉。
+         * 失敗一律吞掉（不丟例外、不影響呼叫端 flushPending 的流程）。
+         */
+        _flushFeedback: async function () {
+            if (this._fbFlushing) return;
+            if (!this._readFbQueue().length) return;
+            if (navigator.onLine === false || !this.init()) return;
+            this._fbFlushing = true;
+            try {
+                const done = {};   // 已處理完（送出或被明確拒絕）、可以出列的 qid
+                const now = Date.now();
+                for (const it of this._readFbQueue()) {
+                    if (!it || !it.args || !it.qid) continue;
+                    if (now - (it.at || 0) > this._FB_TTL_MS) { done[it.qid] = true; continue; }
+                    const outcome = this._feedbackOutcome(await this._rpc('fm_submit_feedback', it.args));
+                    if (outcome === 'retry') break;           // 還是連不上：後面的也不用試了
+                    done[it.qid] = true;                       // sent／too-many／rejected 都不再重送
+                }
+                // 送出期間 submitFeedback 可能又排進新的一則：重新讀取再移除，不能拿舊陣列整份寫回
+                this._writeFbQueue(this._readFbQueue().filter(it => it && it.qid && !done[it.qid]));
+            } catch (e) {
+                console.warn('[雲端] 補送玩家意見失敗:', e);
+            } finally {
+                this._fbFlushing = false;
+            }
         },
 
         // 供外部直接取得建立好的 supabase 實例

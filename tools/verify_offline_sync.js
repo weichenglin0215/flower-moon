@@ -60,7 +60,8 @@ function makeEnv() {
                 })
             };
         },
-        rpc: async (fn) => {
+        rpc: async (fn, args) => {
+            cloud.calls.push(['rpc', fn, args]);
             if (cloud.mode === 'network') return { data: null, error: { message: 'TypeError: Failed to fetch', code: '' } };
             if (cloud.rpcResult) return cloud.rpcResult;
             return { data: { ok: true }, error: null };
@@ -289,6 +290,97 @@ async function main() {
         e.winListeners['online'][0]();
         await tick(2800);   // 實作延後 2.5 秒才補送（剛恢復連線時網路通常還不穩）
         ok(e.S.pendingCount() === 0, 'online 事件觸發後會自動補送');
+    }
+
+    section('10. 玩家意見（提意見）');
+    {
+        const e = makeEnv();
+        const fbCalls = () => e.cloud.calls.filter(c => c[0] === 'rpc' && c[1] === 'fm_submit_feedback');
+
+        // 內容清理：控制字元／零寬字元去掉、連續空白縮成一格、三個以上換行縮成兩個、最多 500 字（用「字」不是 UTF-16 單位）
+        ok(e.S.cleanFeedbackText('  甲​乙   丙\n\n\n\n丁\u0007 ') === '甲 乙 丙\n\n丁', '意見清理：零寬字元／控制字元／多餘空白與換行');
+        ok(Array.from(e.S.cleanFeedbackText('𠀀'.repeat(600))).length === 500, '意見最多 500 個「字」（罕用字不會被切成兩半）');
+
+        // 太短、缺遊戲代號：不送、不排隊
+        let r = await e.S.submitFeedback({ scope: 'system', message: '我' });
+        ok(r.status === 'skip' && fbCalls().length === 0 && e.S.pendingFeedbackCount() === 0, '少於 2 字：不送出也不排隊');
+        r = await e.S.submitFeedback({ scope: 'game', message: '沒有遊戲代號的意見' });
+        ok(r.status === 'skip' && fbCalls().length === 0, 'scope=game 沒有 gameKey：不送出');
+
+        // 正常送出（有帳號）：參數正確
+        e.S.setCurrentId('李白#1234');
+        e.cloud.rpcResult = { data: { ok: true, saved: true }, error: null };
+        r = await e.S.submitFeedback({ scope: 'game', gameKey: 'game22', gameTitle: '詩詞拼圖', message: '碎片太小了', version: 'V9.9.9.9' });
+        const a = fbCalls()[0] && fbCalls()[0][2];
+        ok(r.status === 'sent', '連線正常：回傳 sent');
+        ok(a && a.p_scope === 'game' && a.p_game_key === 'game22' && a.p_game_title === '詩詞拼圖'
+            && a.p_player_id === '李白#1234' && a.p_message === '碎片太小了' && a.p_version === 'V9.9.9.9', '遊戲意見：參數帶齊（範圍／遊戲／名稱／帳號／內容／版本）');
+
+        // 系統面意見、訪客：遊戲欄位為 null、player_id 為空字串（資料庫當匿名）
+        e.S.setCurrentId('');
+        await e.S.submitFeedback({ scope: 'system', gameKey: 'game22', gameTitle: '不該帶', message: '選單字太小' });
+        const b = fbCalls()[1][2];
+        ok(b.p_scope === 'system' && b.p_game_key === null && b.p_game_title === null && b.p_player_id === '', '系統意見：不帶遊戲欄位；訪客 player_id 為空字串');
+
+        // 重複送出（資料庫說 duplicate）也算送出
+        e.cloud.rpcResult = { data: { ok: true, saved: false, duplicate: true }, error: null };
+        r = await e.S.submitFeedback({ scope: 'system', message: '選單字太小' });
+        ok(r.status === 'sent', '資料庫回報重複：視為已送出');
+
+        // 資料庫明確拒絕／超過次數：不排隊
+        e.cloud.rpcResult = { data: { ok: false, error: 'too_many' }, error: null };
+        ok((await e.S.submitFeedback({ scope: 'system', message: '第三十一則' })).status === 'too-many', '超過次數：too-many');
+        e.cloud.rpcResult = { data: { ok: false, error: 'bad_args' }, error: null };
+        ok((await e.S.submitFeedback({ scope: 'system', message: '格式不對' })).status === 'rejected', '資料庫拒絕：rejected');
+        e.cloud.rpcResult = { data: null, error: { code: '23514', message: 'violates check constraint' } };
+        ok((await e.S.submitFeedback({ scope: 'system', message: '違反檢查' })).status === 'rejected', '有資料庫錯誤碼的非連線錯誤：rejected，不重送');
+        ok(e.S.pendingFeedbackCount() === 0, '被拒絕的意見不排隊');
+
+        // 連不上：排隊；函式還不存在（SQL 沒執行）：也排隊
+        e.cloud.rpcResult = null; e.cloud.mode = 'network';
+        ok((await e.S.submitFeedback({ scope: 'system', message: '離線時寫的意見' })).status === 'queued', '連不上：queued');
+        e.cloud.mode = 'ok';
+        e.cloud.rpcResult = { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.fm_submit_feedback' } };
+        ok((await e.S.submitFeedback({ scope: 'game', gameKey: 'game4', message: 'SQL 還沒執行時寫的意見' })).status === 'queued', '函式不存在：queued（SQL 部署後補送）');
+        e.nav.onLine = false;
+        ok((await e.S.submitFeedback({ scope: 'system', message: '明確離線' })).status === 'queued', 'navigator.onLine=false：直接排隊、不白等');
+        e.nav.onLine = true;
+        ok(e.S.pendingFeedbackCount() === 3, '三則意見在佇列裡');
+        ok(e.S.pendingCount() === 0, '意見佇列與遊戲紀錄佇列分開（pendingCount 不受影響）');
+
+        // 補送：還是連不上 → 全留著；恢復後一次送完且順序不變
+        e.cloud.rpcResult = null; e.cloud.mode = 'network';
+        await e.S._flushFeedback();
+        ok(e.S.pendingFeedbackCount() === 3, '補送時仍斷線：意見全部保留');
+        e.cloud.mode = 'ok';
+        const before = fbCalls().length;
+        await e.S._flushFeedback();
+        const sent = fbCalls().slice(before).map(c => c[2].p_message);
+        ok(e.S.pendingFeedbackCount() === 0, '連線恢復：全部補送完、佇列清空');
+        ok(JSON.stringify(sent) === JSON.stringify(['離線時寫的意見', 'SQL 還沒執行時寫的意見', '明確離線']), '補送順序與寫入順序相同');
+
+        // flushPending 也會順手補送意見，而且意見補不上不影響「紀錄已全部送完」的回傳值
+        e.S.setCurrentId('U123');
+        e.cloud.mode = 'network'; e.nav.onLine = false;
+        await e.S.submitFeedback({ scope: 'system', message: '給 flushPending 補送的意見' });
+        e.nav.onLine = true; e.cloud.mode = 'ok';
+        ok(await e.S.flushPending() === true && e.S.pendingFeedbackCount() === 0, 'flushPending 會一併補送意見');
+
+        // 佇列上限 5 則：超過丟最舊的
+        e.nav.onLine = false;
+        for (let i = 1; i <= 7; i++) await e.S.submitFeedback({ scope: 'system', message: '第 ' + i + ' 則意見' });
+        e.nav.onLine = true;
+        ok(e.S.pendingFeedbackCount() === 5, '意見佇列上限 5 則');
+        ok(e.S._readFbQueue()[0].args.p_message === '第 3 則意見', '超過上限時丟掉最舊的');
+
+        // 超過 30 天的意見補送時直接丟掉
+        e.cloud.mode = 'ok';
+        const q = e.S._readFbQueue();
+        q[0].at = Date.now() - 31 * 24 * 3600 * 1000;
+        e.S._writeFbQueue(q);
+        const calls0 = fbCalls().length;
+        await e.S._flushFeedback();
+        ok(fbCalls().length - calls0 === 4 && e.S.pendingFeedbackCount() === 0, '超過 30 天的意見不補送（其餘 4 則補送完）');
     }
 
     console.log('\n' + '='.repeat(60));

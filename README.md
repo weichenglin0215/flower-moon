@@ -374,6 +374,13 @@
   **有 Service Worker 接手的玩家（一般瀏覽器與主畫面 App）不走這條路**：強制重新整理拿到的仍是快取裡的舊檔案，所以改由 `offline.js` 處理 —— 新版在背景安裝，裝好後右下角提示「有新版本」，或下次開啟時自動套用（見下方「安裝到主畫面與離線遊玩」）。
   注意這只保證 `index.html` 本身會重抓最新版，個別 `.js`／`.css` 若瀏覽器快取尚未過期仍可能延遲一小段時間（GitHub Pages 預設快取時間約數分鐘）才跟著更新，屬於已知的小落差，換取的是不必替近百個 `<script>`／`<link>` 標籤逐一加版本號查詢字串維護。
 
+## 💬 玩家意見（提意見）
+- 入口兩處：①每款遊戲結算彈窗，「下一關／再試一次」左邊的「提意見」（針對該款遊戲）；②漢堡選單「關於花月」右邊的「提意見」（系統面或整體問題）。
+- 彈窗為 `feedbackDialog.js／feedbackDialog.css`，限 500 字；離線時先存在手機（`fm_feedback_queue`），連線後由 `SupabaseClient.flushPending()` 補送。
+- 後端為 `note/玩家意見_SQL草案.sql`（資料表 `player_feedback`、公開檢視表 `player_feedback_public`、寫入函式 `fm_submit_feedback`）；**需由管理者在 Supabase SQL Editor 執行**，執行前意見只會留在玩家手機。
+- 查閱：`tools/db_viewer.html` 左上漢堡選單「玩家意見查閱」，可依時間／對象／關鍵字篩選並複製。
+- 另有獨立程式 `SupabaseKeepAlive`（專案外，`C:D_prjVS_2022_prjSupabaseKeepAlive`）以 Windows 工作排程器每天讀取兩個 Supabase 專案，避免閒置一週被暫停。
+
 ## 🔐 帳號制度（暱稱＋四位數密碼）
 - 玩家自己取全站唯一的暱稱、自己設四位數密碼；任何手機／瀏覽器輸入同一組暱稱＋密碼，就能使用同一份進度。
   （取代舊的「李白#1234」引繼碼——引繼碼存在各瀏覽器自己的 localStorage，換個瀏覽器就接不回來。）

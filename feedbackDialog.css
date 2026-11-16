@@ -1,0 +1,96 @@
+/* ==========================================================================
+   「提意見」彈窗（feedbackDialog.js）— 本檔自己的 class 一律以 fm-fb- 為前綴
+   外層沿用 installGuide.css 的 fm-ig-overlay／fm-ig-card／fm-ig-btn*（宣紙底、金色邊框、
+   z-index 45000，高於結算訊息框 2050 與漢堡選單 30000）。
+   尺寸一律用 px：彈窗疊在整個視窗上（不是 500×850 舞台內），手機與電腦都要看得清楚。
+   ⚠️ 輸入框字級必須 ≥ 16px：iOS Safari 在輸入框字級小於 16px 時，聚焦會自動放大整個頁面，
+      而花月整個舞台是縮放過的，放大後介面會被推到角落（見 花月開發常見錯誤與解法 §1.3）。
+   ========================================================================== */
+
+.fm-fb-card {
+    max-width: 480px;
+}
+
+/* 標題下面的一行說明：「針對〈詩詞拼圖〉」 */
+.fm-fb-sub {
+    font-size: 24px;
+    line-height: 1.5;
+    color: hsl(30, 40%, 30%);
+    margin-bottom: 10px;
+}
+
+/* 意見輸入框 */
+.fm-fb-input {
+    display: block;
+    width: 100%;
+    height: 70%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    font-size: 24px;
+    /* ≥16px，避免 iOS 聚焦時自動放大頁面 */
+    line-height: 1.5;
+    font-family: inherit;
+    color: hsl(0, 0%, 18%);
+    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid #c9b383;
+    border-radius: 8px;
+    resize: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.fm-fb-input:focus {
+    outline: none;
+    border-color: #d4af37;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.3);
+}
+
+/* 字數計數：「12 / 500」 */
+.fm-fb-count {
+    margin: 4px 2px 0;
+    text-align: right;
+    font-size: 18px;
+    color: hsl(30, 20%, 40%);
+}
+
+/* 送出結果／錯誤提示（沒有內容時不佔高度） */
+.fm-fb-status {
+    min-height: 0;
+    font-size: 24px;
+    line-height: 1.5;
+}
+
+.fm-fb-status:not(:empty) {
+    margin-top: 6px;
+}
+
+.fm-fb-status-warn {
+    color: hsl(0, 60%, 36%);
+    font-weight: bold;
+}
+
+/* 「取消」「送出」左右並排，送出在右邊 */
+.fm-fb-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.fm-fb-btn {
+    flex: 1;
+    font-size: 20px;
+}
+
+.fm-fb-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* 送出後的一句話結果畫面 */
+.fm-fb-done {
+    font-size: 24px;
+    line-height: 1.7;
+    margin: 18px 4px 20px;
+    color: hsl(145, 55%, 26%);
+    font-weight: bold;
+}

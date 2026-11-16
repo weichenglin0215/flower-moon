@@ -293,6 +293,41 @@ function verifyGames() {
             '要排在 screen_adaptive.js 之後、其他模組之前。');
     }
 
+    // ── 1.0b 遊戲樣式表載入防閃爍（2026-11 詩詞拼圖「第一次進入介面擠在左上角」）────────
+    //
+    // game16 以後的 CSS 是各遊戲 loadCSS() 第一次進入時才動態插入 <link>（非同步），
+    // 青雲梯派局又會跳過難度選單、init 與顯示發生在同一個 JS 工作裡，
+    // 樣式表載完之前玩家看到的是沒有樣式的 DOM（所有元素堆在左上角約半秒）。
+    // gameContract.js 的 installGameCssPendingGuard() 監看 <head> 新插入的「gameN.css」，
+    // 載完之前讓 <html> 帶 fm-game-css-pending，theme_xuanzhi.css 據此把遊戲 overlay 藏起來。
+    // 瀏覽器的載入時序在 Node 裡驗不到，這裡守住兩件事：機制沒被拿掉、各遊戲的 CSS 檔名仍在它管得到的範圍。
+    {
+        const gcSrc = stripComments(env.readSource('gameContract.js') || '');
+        const themeCss = stripComments(env.readSource('theme_xuanzhi.css') || '');
+        check(/installGameCssPendingGuard/.test(gcSrc) && /fm-game-css-pending/.test(gcSrc) && /MutationObserver/.test(gcSrc),
+            '樣式防閃爍', 'gameContract.js 有 installGameCssPendingGuard（監看動態插入的 gameN.css）',
+            '拿掉後 game16 以後的遊戲第一次進入時，會在樣式表載完前閃出沒有樣式的介面（所有元素擠在左上角）。');
+        check(/html\.fm-game-css-pending\s+\[id\^="game"\][^{]*\{[^}]*visibility\s*:\s*hidden/.test(themeCss),
+            '樣式防閃爍', 'theme_xuanzhi.css 在 fm-game-css-pending 期間隱藏遊戲 overlay',
+            '只有 JS 加 class 而沒有對應的 CSS 規則就等於沒有防護。');
+        // 各遊戲動態插入的 <link>：檔名要嘛是 gameN.css（機制管得到），要嘛 index.html 已經靜態載好
+        // （例如 game24/37/38/39/40 共用的 theme_dark.css，動態那一份只是重複插入，畫面本來就有樣式）。
+        const badNames = [];
+        gameLoads.forEach(info => {
+            const src = stripComments(env.readSource('game' + info.no + '.js') || '');
+            const re = /\.href\s*=\s*'([^']+\.css[^']*)'/g;
+            let m;
+            while ((m = re.exec(src))) {
+                const file = m[1];
+                const guarded = /^game\d+\.css(\?.*)?$/.test(file);
+                const staticLinked = indexHtml.indexOf('<link rel="stylesheet" href="' + file + '"') >= 0;
+                if (!guarded && !staticLinked) badNames.push('game' + info.no + '.js → ' + file);
+            }
+        });
+        check(badNames.length === 0, '樣式防閃爍', '各遊戲動態載入的 CSS 都受防閃爍機制保護（gameN.css）或已在 index.html 靜態載入',
+            '其他名稱的動態 CSS 第一次載入時仍會閃出沒有樣式的介面：' + badNames.join('、'));
+    }
+
     // ── 三個等級的要求 ─────────────────────────────────────────────────
     //   課程（★）：列入必通關卡，青雲梯會派它出場 → 契約全部必須成立（❌）
     //   複習     ：REVIEW_ONLY_GAMES，只出現在複習池與自由練習 → 只要共同項
@@ -3061,6 +3096,69 @@ function verifyExamAbuse() {
                     EE._patchedGame = null;
                     LP.stopGame();
                 }
+            }
+        }
+
+        // ── 10.12b 作答完成後，遊戲畫面至少停留 EXAM_RESULT_HOLD_MS 才切到結果卡 ──
+        //
+        // 2026-11 玩家回報：每題作答完成（無論對錯），遊戲畫面立刻被 ✓／✗ 結果卡取代，
+        // 來不及看清楚最後一步的盤面與正確答案。考試替身（_patchGame 的 patchedOver）
+        // 因此改成：先凍結操作、停留 3 秒，時間到才收掉遊戲並記錄對錯。
+        //
+        // 這裡不真的等 3 秒：暫時換掉 setTimeout 記下「排了多久」，再手動觸發。
+        {
+            const C = global.FMExamConfig;
+            const no = COURSE_GAMES[0];
+            const hold = C && C.EXAM_RESULT_HOLD_MS;
+            check(typeof hold === 'number' && hold >= 3000, '考試',
+                '作答完成後的停留時間 ≥ 3 秒（EXAM_RESULT_HOLD_MS = ' + hold + '）',
+                '作者要求每題完成後至少停留三秒，examConfig.js 的 EXAM_RESULT_HOLD_MS 不可低於 3000');
+
+            const fake = { gameOver() { }, startNextLevel() { }, isActive: true, stopped: 0, stopGame() { this.stopped++; } };
+            const pristineOver = fake.gameOver;
+            const recorded = [];
+            const timers = [];
+            const realSet = global.setTimeout, realClear = global.clearTimeout;
+            const origRecord = EE._record;
+            const prev = { active: EE._active, aborted: EE._aborted };
+            try {
+                global.setTimeout = function (fn, ms) { timers.push({ fn: fn, ms: ms, cancelled: false }); return timers.length; };
+                global.clearTimeout = function (h) { if (timers[h - 1]) timers[h - 1].cancelled = true; };
+                EE._record = function (w) { recorded.push(w); };
+                EE._active = true; EE._aborted = false;
+
+                // ① 答對：不能立刻記錄／收畫面；只排一個 hold 毫秒的計時器；重複呼叫 gameOver 要被擋掉
+                EE._patchGame(fake, { poemId: 1, gameNo: no });
+                fake.gameOver(true);
+                fake.gameOver(false);
+                check(timers.length === 1 && timers[0].ms === hold && recorded.length === 0 && fake.stopped === 0,
+                    '考試', '答對後不立刻切到結果卡：只排一個停留計時器，且重複的 gameOver 被忽略',
+                    '考試替身一被呼叫就 stopGame／_record 的話，玩家來不及看清楚最後一步');
+                check(fake.isActive === false, '考試', '停留期間遊戲操作已凍結（isActive = false）');
+                timers[0].fn();
+                check(recorded.length === 1 && recorded[0] === true && fake.stopped === 1 && fake.gameOver === pristineOver,
+                    '考試', '停留時間到：才收掉遊戲、記錄答對，並把 gameOver 還原成原版');
+
+                // ② 答錯同樣要停留
+                recorded.length = 0; timers.length = 0; fake.stopped = 0; fake.isActive = true;
+                EE._patchGame(fake, { poemId: 1, gameNo: no });
+                fake.gameOver(false);
+                check(timers.length === 1 && timers[0].ms === hold && recorded.length === 0,
+                    '考試', '答錯也一樣先停留，不立刻切到結果卡');
+
+                // ③ 停留期間考試被中止（棄考／切頁）：計時器取消，之後就算誤觸發也不能再記錄
+                EE._unpatchGame();
+                check(timers[0].cancelled === true && EE._holdTimer === null,
+                    '考試', '停留期間被中止：停留計時器一併取消');
+                timers[0].fn();
+                check(recorded.length === 0 && fake.stopped === 0,
+                    '考試', '被取消的停留計時器就算誤觸發，也不會記錄對錯或收遊戲');
+            } finally {
+                global.setTimeout = realSet; global.clearTimeout = realClear;
+                EE._record = origRecord;
+                EE._active = prev.active; EE._aborted = prev.aborted;
+                EE._unpatchGame();
+                EE._patchedGame = null;
             }
         }
 

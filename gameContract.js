@@ -284,7 +284,9 @@
                         score: win ? Math.floor(game.score || 0) : 0,
                         reason: reason,
                         btnText: win ? (game.isLevelMode ? '下一關' : '下一局') : '再試一次',
-                        onConfirm: onConfirm
+                        onConfirm: onConfirm,
+                        // 結算框主按鈕左邊的「提意見」：意見記著是哪一款遊戲（見 gameMessage.js／feedbackDialog.js）
+                        feedbackGameKey: o.gameKey
                     }, o.message || {}));
                 };
                 // ⚠️ 通關紀錄必須在顯示結算訊息之前寫下去：青雲梯的進度
@@ -483,6 +485,75 @@
             return out;
         }
     };
+
+    // ═══════════════════════════════════════════════════════════════
+    //  五、遊戲樣式表尚未載完時，先把該遊戲的 overlay 藏起來（防「介面擠在左上角」）
+    // ═══════════════════════════════════════════════════════════════
+    //
+    // 【症狀】玩家第一次進入某款遊戲（尤其青雲梯自動派局），整個介面的所有項目
+    //        擠在畫面左上角，約半秒後才恢復正常。（2026-11 回報：詩詞拼圖）
+    //
+    // 【根因】index.html 只用 <link> 靜態載入 game1～game15 的 CSS，
+    //        game16 以後（含 game22）的 CSS 是各遊戲 `loadCSS()` 在 `init()` 時才動態插入。
+    //        動態插入的 <link> 是「非同步」的——樣式表下載完成前，遊戲的 DOM 已經建好、
+    //        `hidden` 也已經拿掉（青雲梯派局會跳過難度選單，init 與顯示發生在同一個
+    //        JS 工作裡），於是玩家看到的是**完全沒有樣式的 DOM**，所有元素都靜態堆在左上角，
+    //        直到樣式表載完才一次歸位。第二次進入時 <link> 已存在，所以只有「第一次」會發生。
+    //        瀏覽器越慢、網路越慢，閃的時間越長（離線快取也只是縮短，不是消除）。
+    //
+    // 【為什麼不是把 game16～40 的 CSS 全部改成 index.html 靜態載入】
+    //        其中 game19／27／34 的 CSS 含有沒加前綴的通用選擇器（.hearts／.heart／.poem-info 等），
+    //        全站一開機就載入會改變層疊順序、污染別款遊戲。保留「用到才載」。
+    //
+    // 【作法】集中在這裡處理，各遊戲 loadCSS() 完全不用改（也就不會有 25 份複製貼上）：
+    //        監看 <head> 新插入的「gameN.css」<link>，只要它還沒載完，就替 <html> 加上
+    //        `fm-game-css-pending`；theme_xuanzhi.css 在該狀態下把遊戲 overlay 設為
+    //        visibility:hidden（版面照算、只是看不見），載完（或失敗、或等了 4 秒）才拿掉。
+    //        玩家看到的是「前一個畫面多停留零點幾秒，然後遊戲直接以正確樣式出現」。
+    //
+    // ⚠️ MutationObserver 的回呼是微任務，一定早於瀏覽器下一次繪製，所以不會漏掉第一幀。
+    // ⚠️ 遊戲自己仍可能在樣式載完前就量測版面（量到 0）——那是各遊戲本來就有的防線
+    //    （見 game22.js updateTimerRing、game40.js renderBoard），本機制不改變這一點，只負責「看不見」。
+    (function installGameCssPendingGuard() {
+        if (typeof document === 'undefined' || typeof MutationObserver === 'undefined' || !document.head) return;
+
+        const CLS = 'fm-game-css-pending';
+        const GAME_CSS = /^game\d+\.css(\?.*)?$/;   // 只管遊戲自己的樣式表（不碰其他模組的 CSS）
+        const WATCHDOG_MS = 4000;                   // 樣式表遲遲不載完／不觸發事件時的保險
+        const pending = new Set();
+
+        function sync() {
+            try { document.documentElement.classList.toggle(CLS, pending.size > 0); } catch (e) { /* 非瀏覽器環境 */ }
+        }
+        function finish(link) { if (pending.delete(link)) sync(); }
+
+        function track(link) {
+            if (link.sheet) return;                              // 已經載好了
+            const href = link.getAttribute('href') || '';
+            if (!GAME_CSS.test(href)) return;
+            // game1～15 在 index.html 已經靜態載好，loadCSS() 因為靜態 <link> 沒有 id 又插了一份重複的；
+            // 重複的那份只是從快取再讀一次，畫面本來就有樣式，不需要藏。
+            const dup = Array.prototype.some.call(
+                document.querySelectorAll('link[rel="stylesheet"]'),
+                function (l) { return l !== link && l.sheet && l.getAttribute('href') === href; });
+            if (dup) return;
+
+            pending.add(link);
+            sync();
+            const done = function () { finish(link); };
+            link.addEventListener('load', done, { once: true });
+            link.addEventListener('error', done, { once: true });   // 載入失敗也要放行，不能讓遊戲永遠看不見
+            setTimeout(done, WATCHDOG_MS);
+        }
+
+        new MutationObserver(function (records) {
+            records.forEach(function (rec) {
+                Array.prototype.forEach.call(rec.addedNodes, function (n) {
+                    if (n && n.nodeType === 1 && n.tagName === 'LINK' && n.rel === 'stylesheet') track(n);
+                });
+            });
+        }).observe(document.head, { childList: true });
+    })();
 
     if (typeof window !== 'undefined') window.FMGame = FMGame;
     if (typeof module !== 'undefined' && module.exports) module.exports = FMGame;

@@ -21,7 +21,7 @@
 
 .fm-ig-card {
     width: 100%;
-    max-width: 360px;
+    max-width: 480px;
     max-height: 100%;
     overflow-y: auto;
     box-sizing: border-box;
@@ -36,7 +36,7 @@
 }
 
 .fm-ig-title {
-    font-size: 24px;
+    font-size: 36px;
     font-weight: bold;
     color: hsl(30, 80%, 40%);
     margin-bottom: 10px;
@@ -44,7 +44,7 @@
 }
 
 .fm-ig-intro {
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.6;
     margin-bottom: 12px;
 }

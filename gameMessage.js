@@ -32,11 +32,13 @@ const GameMessage = {
      * @param {string} options.customH2 - 自定義主題文字 (可選)
      * @param {string} options.btnText - 按鈕文字 (如 "下一關", "再試一次")
      * @param {Function} options.onConfirm - 點擊按鈕後的回調函數
+     * @param {string} options.feedbackGameKey - 遊戲代號（如 'game22'）。有給才會在主按鈕左邊顯示「提意見」，
+     *        點下去開 FeedbackDialog，意見會記著是哪一款遊戲（由 FMGame.gameOver 帶入 opts.gameKey）
      */
     show: function (options) {
         this.initDOM();
 
-        const { isWin, score, reason, customH2, btnText, onConfirm } = options;
+        const { isWin, score, reason, customH2, btnText, onConfirm, feedbackGameKey } = options;
 
         // 1. 決定標題文字 (h2)
         let titleText = customH2;
@@ -91,6 +93,21 @@ const GameMessage = {
             if (onConfirm) onConfirm();
         };
 
+        // 4b. 「提意見」：主按鈕左邊的次要按鈕。只在知道是哪一款遊戲、而且意見彈窗模組有載入時才顯示。
+        //     ⚠️ 點它「不」關閉結算訊息框、也不觸發 onConfirm：意見彈窗疊在上面，
+        //        玩家寫完（或取消）回來，仍可按「下一關／再試一次」。
+        const fbBtn = this.container.querySelector('.msg-feedback-btn');
+        if (feedbackGameKey && window.FeedbackDialog) {
+            fbBtn.classList.remove('hidden');
+            fbBtn.onclick = () => {
+                if (window.SoundManager) window.SoundManager.playOpenItem();
+                window.FeedbackDialog.show({ scope: 'game', gameKey: feedbackGameKey });
+            };
+        } else {
+            fbBtn.classList.add('hidden');
+            fbBtn.onclick = null;
+        }
+
         // 5. 顯示視窗
         this.wrapper.classList.remove('hidden');
     },
@@ -134,7 +151,10 @@ const GameMessage = {
                     <p></p>
                 </div>
                 <div class="extra-content hidden"></div>
-                <button class="nav-btn"></button>
+                <div class="msg-btn-row">
+                    <button class="msg-feedback-btn hidden">提意見</button>
+                    <button class="nav-btn"></button>
+                </div>
             `;
 
             this.wrapper.appendChild(this.container);

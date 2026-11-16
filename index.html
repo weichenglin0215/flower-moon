@@ -64,6 +64,8 @@
     <link rel="stylesheet" href="exam.css">
     <link rel="stylesheet" href="installGuide.css">
     <link rel="stylesheet" href="offlineDialog.css">
+    <!-- 「提意見」彈窗（feedbackDialog.js）。id 與 JS 內 loadCSS 防護的 id 相同，避免重複載入 -->
+    <link id="feedback-dialog-css" rel="stylesheet" href="feedbackDialog.css">
 
     <!-- 字體與外部庫 -->
     <!-- crossorigin：讓 Service Worker 快取到的字體回應是 CORS 回應（可計算實際大小）。
@@ -274,6 +276,8 @@
     <script src="supabaseClient.js"></script>
     <script src="cloudSaveDialog.js"></script>
     <script src="gameMessage.js"></script>
+    <!-- 玩家意見：結算彈窗（gameMessage.js）與漢堡選單（menu.js）都會呼叫 FeedbackDialog.show() -->
+    <script src="feedbackDialog.js"></script>
     <script src="introCard.js"></script>
     <script src="ruleNoteDialog.js"></script>
     <script src="scoreManager.js"></script>

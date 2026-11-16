@@ -485,12 +485,23 @@
     white-space: nowrap;
 }
 
-/* 按鈕樣式 */
-.common-game-message .nav-btn {
+/* 按鈕列：左邊「提意見」（次要）＋ 右邊主按鈕（下一關／再試一次）。
+   沒有「提意見」時列裡只有主按鈕，視覺上與舊版一樣置中。
+   （過去 .nav-btn 自己 absolute 定位；改成由 .msg-btn-row 定位、.nav-btn 回到一般流動排版） */
+.common-game-message .msg-btn-row {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    white-space: nowrap;
+}
+
+/* 按鈕樣式 */
+.common-game-message .nav-btn {
     background: hsl(145, 68%, 36%);
     color: white;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.66);
@@ -508,7 +519,34 @@
 }
 
 .common-game-message .nav-btn:active {
-    transform: translateX(-50%) scale(0.95);
+    transform: scale(0.95);
+}
+
+/* 「提意見」：宣紙色底＋赭色邊框的次要按鈕，不搶主按鈕的視覺（點它開 FeedbackDialog，不會關閉訊息框） */
+.common-game-message .msg-feedback-btn {
+    background: var(--fm-paper-card, hsl(43, 72%, 94%));
+    color: var(--fm-ink-soft, hsl(30, 25%, 23%));
+    border: 2px solid var(--fm-border-strong, hsl(35, 43%, 52%));
+    border-radius: 30px;
+    padding: 2px 20px;
+    font-size: 20px;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+    transition: filter 0.5s, transform 0.2s;
+    white-space: nowrap;
+}
+
+.common-game-message .msg-feedback-btn:hover {
+    filter: brightness(1.08);
+}
+
+.common-game-message .msg-feedback-btn:active {
+    transform: scale(0.95);
+}
+
+.common-game-message .msg-feedback-btn.hidden {
+    display: none !important;
 }
 
 /* 額外內容區域 (.extra-content) - 設為可捲動主體 */
@@ -545,4 +583,15 @@
         max-height: 95vh;
         overflow-y: auto;
     }
+}
+
+/* ── 5. 遊戲樣式表尚未載完時，先把遊戲 overlay 藏起來（防「介面擠在左上角」）──
+   game16 以後的遊戲 CSS 是第一次進入時才動態插入 <link>，載完之前 DOM 沒有任何樣式，
+   所有元素會靜態堆在左上角約半秒。gameContract.js 的 installGameCssPendingGuard()
+   在「gameN.css 還沒載完」期間替 <html> 加上 fm-game-css-pending，這裡據此隱藏。
+   · visibility:hidden 而不是 display:none：版面照常計算，遊戲啟動時量測尺寸的程式不受影響。
+   · 選擇器只命中遊戲最外層容器（id 為 gameN-container 且 class 含 -overlay），
+     不會誤傷內部的 gameN-grid-container 之類。 */
+html.fm-game-css-pending [id^="game"][id$="-container"][class*="-overlay"] {
+    visibility: hidden !important;
 }
