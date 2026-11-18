@@ -516,10 +516,14 @@
             const decoyMap = {};
             q.decoys.forEach(d => { decoyMap[d.charIdx] = d; });
 
+            // 新題目一律先清掉上一題殘留的「拖曳中」狀態（隱藏提示的 class），避免提示在新句裡不出現
+            verse.classList.remove('game31-dragging');
+
             for (let i = 0; i < line.length; i++) {
                 // 每個字為「垂直堆疊：字 + 向下箭頭」，箭頭提示玩家往下拖曳（避免手指遮住字）
                 const wrapper = document.createElement('span');
                 wrapper.className = 'game31-verse-cell';
+                let needDragHint = false;   // 這一格是否為「紅色提示字」（需要加上拖曳示範）
 
                 const span = document.createElement('span');
                 span.className = 'game31-verse-char';
@@ -534,7 +538,10 @@
                     // 該位置為未解替身 → 顯示替身字，並依難度決定是否高亮
                     span.textContent = d.decoy;
                     span.classList.add('game31-decoy');
-                    if (settings.showDecoyHint) span.classList.add('game31-decoy-hint');
+                    if (settings.showDecoyHint) {
+                        span.classList.add('game31-decoy-hint');
+                        needDragHint = true;
+                    }
                 } else {
                     // 一般字（非替身位置）
                     span.textContent = line[i];
@@ -547,8 +554,40 @@
                 arrow.setAttribute('aria-hidden', 'true');
                 wrapper.appendChild(arrow);
 
+                // 紅色提示字（僅小學、中學）：上方加「請往下拖曳」直排字，並放一隻手指從紅字往下滑示範
+                if (needDragHint) wrapper.appendChild(this.createDragHint());
+
                 verse.appendChild(wrapper);
             }
+        },
+
+        /* 建立「請往下拖曳」示範元件（掛在紅色提示字所在的格子裡，純視覺，不攔截點擊）：
+             - 直排文字「請往下拖曳」浮在紅字正上方
+             - 👆 手指從紅字位置往下滑到舞台下緣，再跳回紅字位置，循環播放（動畫全在 CSS）
+           ⚠️ 提示在玩家按住字拖曳時由 .game31-dragging 隱藏（見 onDragStart／onDragEnd），
+              答對／答錯後由 removeDragHints 移除。 */
+        createDragHint: function () {
+            const hint = document.createElement('span');
+            hint.className = 'game31-drag-hint';
+            hint.setAttribute('aria-hidden', 'true');
+
+            const text = document.createElement('span');
+            text.className = 'game31-drag-hint-text';
+            text.textContent = '請往下拖曳';
+            hint.appendChild(text);
+
+            const finger = document.createElement('span');
+            finger.className = 'game31-drag-hint-finger';
+            finger.textContent = '👆';
+            hint.appendChild(finger);
+            return hint;
+        },
+
+        /* 移除拖曳示範：scope 為某一格時只清該格（答對一個替身），省略則清整句（答錯、整句揭示） */
+        removeDragHints: function (scope) {
+            const root = scope || document.getElementById('game31-verse');
+            if (!root) return;
+            root.querySelectorAll('.game31-drag-hint').forEach(el => el.remove());
         },
 
         updateProgressText: function () {
@@ -590,6 +629,10 @@
             this.dragCharElement = target;
             this.dragCharIndex = charIdx;
             this.candidateOffset = 0;
+
+            // 玩家開始拖曳 → 暫時隱藏「請往下拖曳」示範（候選字會浮現在字的正上方，避免疊在一起）
+            const verseEl = document.getElementById('game31-verse');
+            if (verseEl) verseEl.classList.add('game31-dragging');
 
             const pt = this.getPointer(e);
             this.dragStartY = pt.y;
@@ -695,6 +738,10 @@
             if (!this.isDragging || !this.isActive) return;
             this.isDragging = false;
             if (this.dragCharElement) this.dragCharElement.classList.remove('game31-pressed');
+
+            // 放手 → 還原示範（若該句還有未解的紅字，提示會再次出現）
+            const verseEl = document.getElementById('game31-verse');
+            if (verseEl) verseEl.classList.remove('game31-dragging');
 
             // 點擊即判定（即使玩家沒有拖曳，也要判勝負；沒拖曳＝停在正中央候選字）
             const q = this.questions[this.currentQuestionIdx];
@@ -807,6 +854,8 @@
                 activeDecoy.solved = true;
 
                 if (this.dragCharElement) {
+                    // 這個替身已解開 → 只移除它那一格的示範（同句其他未解紅字的示範照舊）
+                    this.removeDragHints(this.dragCharElement.parentElement);
                     this.dragCharElement.textContent = activeDecoy.original;
                     this.dragCharElement.classList.remove('game31-decoy', 'game31-decoy-hint');
                     this.dragCharElement.classList.add('game31-reveal');
@@ -833,6 +882,7 @@
                 // 答錯（不論是按錯位置、還是按對位置但選錯原字）→ 扣心 + 揭示 + 進下一句
                 // ⚠️ 答錯情境仍需鎖住輸入：揭示動畫與扣心結算期間不應允許玩家繼續拖曳。
                 this.isAnimating = true;
+                this.removeDragHints();   // 該句剩餘替身即將全部揭示，示範一併收起
                 if (window.SoundManager) window.SoundManager.playFailure();
                 if (this.dragCharElement) {
                     this.dragCharElement.classList.add('game31-wrong');

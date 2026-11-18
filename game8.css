@@ -446,6 +446,120 @@
 
 /* .game8-message 樣式已移除，改用統一的 GameMessage 元件 */
 
+/* === 玩法提示：手指示範（由 game8.js startFingerHint 以 Web Animations 驅動）===
+   👆 72px，從第一個字開始依詩句順序滑動；left/top/opacity/transform 全由動畫的關鍵影格給，
+   這裡只管外觀。預設 opacity: 0，動畫取消後自然看不見。
+   ⚠️ pointer-events: none，絕不能擋住玩家在棋盤上畫線。 */
+.game8-finger-hint {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 4;
+    /* 高於格子(3)與路徑線(2)，低於計時外環(5) */
+    font-size: 72px;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+}
+
+/* === 玩法提示：小彈窗（畫面中央）===
+   非互動型（提示一次連完整首可得高分）：不擋操作、約 3 秒自動淡出。
+   強制型（全詩連線中途鬆手）：.game8-tip-modal，帶「確認」鈕，整層擋住棋盤。 */
+.game8-tip-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3500;
+    /* 高於文字預覽圓圈(3000) */
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+.game8-tip-layer.game8-tip-modal {
+    pointer-events: auto;
+    background: hsla(0, 0%, 0%, 0.45);
+}
+
+/* 淡出中（自動消失型） */
+.game8-tip-layer.game8-tip-leave {
+    opacity: 0;
+}
+
+.game8-tip-layer.game8-tip-in .game8-tip-box {
+    animation: game8-tip-pop 0.28s ease-out;
+}
+
+@keyframes game8-tip-pop {
+    0% {
+        transform: scale(0.7);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.game8-tip-box {
+    max-width: 488px;
+    box-sizing: border-box;
+    padding: 14px 14px 16px;
+    background: hsla(210, 35%, 14%, 0.96);
+    border: 2px solid hsl(36, 80%, 50%);
+    border-radius: 18px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    color: hsl(40, 50%, 92%);
+}
+
+/* 提示文字：字級至少 32px；nowrap 讓「若一次拖曳完整詩句 XX 字」維持在同一行 */
+.game8-tip-text {
+    font-size: 32px;
+    font-weight: bold;
+    /*字間距*/
+    letter-spacing: 8px;
+    line-height: 1.45;
+    white-space: nowrap;
+}
+
+/* 字數用金色標出；左右留一點縫隙代替空格（省寬度，40px 下整行才放得進 500px 的舞台） */
+.game8-tip-num {
+    color: hsl(36, 90%, 60%);
+    margin: 0 3px;
+}
+
+/* 「確認」鈕只有強制型彈窗才有 */
+.game8-tip-layer:not(.game8-tip-modal) .game8-tip-btn {
+    display: none;
+}
+
+.game8-tip-btn {
+    margin-top: 12px;
+    padding: 4px 44px;
+    font-family: inherit;
+    font-size: 30px;
+    font-weight: bold;
+    color: #fff;
+    background: hsl(145, 68%, 36%);
+    border: none;
+    border-radius: 30px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+
+.game8-tip-btn:hover {
+    filter: brightness(1.25);
+}
+
 /* 文字預覽圓圈 (解決手指遮擋問題) */
 .game8-char-preview {
     position: absolute;

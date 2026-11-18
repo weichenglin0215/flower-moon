@@ -51,6 +51,16 @@
 
         // ---- 拖曳狀態 ----
         drag: null,
+
+        // ---- 玩法提示（手指示範）----
+        //   fingerBar       示範對象＝含「謎題第一個字」的那根答案棒（每局開始時決定；null＝尚未挑選）
+        //   fingerHintDone  該棒已被放回正確位置 → 本局不再顯示
+        //   fingerAnim      Web Animations 動畫物件；_fingerRetry 為「版面尚未就緒」時的重試計時器
+        fingerBar: null,
+        fingerHintDone: false,
+        fingerAnim: null,
+        _fingerRetry: null,
+
         //timeLimit 時間限制
         // poemMinRating 詩詞評分
         // poemType 詩詞類型
@@ -174,6 +184,8 @@
                         </svg>
                         <div id="game21-grid" class="game21-grid"></div>
                     </div>
+                    <!-- 玩法提示：手指圖示（由 refreshFingerHint 以 Web Animations 驅動；放在 area 底層，不會被 renderGrid 清掉） -->
+                    <div id="game21-finger-hint" class="game21-finger-hint" aria-hidden="true">👆</div>
                 </div>
             `;
             document.body.appendChild(div);
@@ -200,6 +212,7 @@
         // 更新畫面狀態並開始新的一局。若找不到 DifficultySelector 模組則直接開局（保底）。
         showDifficultySelector: function () {
             this.isActive = false;
+            this.stopFingerHint();
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.hintTimer) clearInterval(this.hintTimer);
             if (window.GameMessage) window.GameMessage.hide();
@@ -265,6 +278,7 @@
         // 回呼失效，並還原頁面捲動與主內容顯示。
         stopGame: function () {
             this.isActive = false;
+            this.stopFingerHint();
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.hintTimer) { clearInterval(this.hintTimer); this.hintTimer = null; }
             if (this.hintDelayHandle) { clearTimeout(this.hintDelayHandle); this.hintDelayHandle = null; }
@@ -286,6 +300,9 @@
             // ⚠️ 重來只打亂非 fix 棒，fix bar 維持原位不動：
             //   防止玩家多次「重來」透過 fix bar 位置變化推敲正解。
             this.randomizeBarsKeepFixed();
+            // 手指示範重新開始（重來後各棒位置已重新打亂，要重新挑棒、重新對準）
+            this.fingerBar = null;
+            this.fingerHintDone = false;
             this.renderGrid();
             this.startHintReveal();
             this.startTimer();
@@ -307,6 +324,9 @@
             document.getElementById('game21-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
             this.gameStartTime = Date.now();
+            // 手指示範：新題目要重新挑棒；prepareChallenge 尾端的 renderGrid 會啟動示範
+            this.fingerBar = null;
+            this.fingerHintDone = false;
 
             this.prepareChallenge();
             this.startHintReveal();
@@ -722,6 +742,7 @@
 
             this.updateYellowRowHighlight();
             setTimeout(() => this.updateTimerRing(1), 0);
+            this.refreshFingerHint();   // 開局／重來：手指示範從頭開始
         },
 
         // 套用 bar 的視覺位置：left = currentCol * CELL_PX, top = offset * CELL_PX
@@ -782,6 +803,7 @@
                     origOffset: bar.offset
                 };
                 barEl.classList.add('dragging');
+                this.stopFingerHint();   // 玩家動手了：手指示範先收起，放開後再依新位置重新對準
                 if (window.SoundManager) window.SoundManager.playOpenItem();
                 if (barEl.setPointerCapture && e.pointerId !== undefined) {
                     try { barEl.setPointerCapture(e.pointerId); } catch (err) { }
@@ -862,6 +884,7 @@
                 barEl.classList.remove('dragging');
                 this.drag = null;
                 if (this.checkWin()) this.handleWin();
+                else this.refreshFingerHint();   // 沒過關：依這根棒放下後的新位置，手指示範重新對準
             };
             barEl.addEventListener('pointerdown', onDown);
             barEl.addEventListener('pointermove', onMove);
@@ -891,6 +914,7 @@
         handleWin: function () {
             if (!this.isActive) return;
             this.isActive = false;
+            this.stopFingerHint();
             // ⚠️ 勝利瞬間凍結所有棒：清掉進行中的拖曳、將每根棒標為 fixed
             //   （isFixed=true 會讓 onDown 直接 return；CSS 顯示 not-allowed 游標）
             this.drag = null;
@@ -944,6 +968,115 @@
             setTimeout(() => {
                 this.gameOver(true, '');
             }, cells.length * 180 + 400);
+        },
+
+        // ------------------------------------------------------------
+        // 玩法提示：手指示範（遊戲一開始，教玩家「直棒要拖到對的欄、對的高度」）
+        //   在「含謎題第一個字」的那根答案棒上出現 👆，從棒上「目標字」那一格出發，
+        //   慢慢拖到該棒的「正確位置」（正確欄位＋目標字落在黃金橫批列），再跳回起點，循環播放；
+        //   該棒被放回正確位置後，本局不再出現。
+        //   ‧ 手指指在「目標字」那一格：終點正好落在黃金橫批列，玩家一眼看出「這個字要放進黃框」
+        //   ‧ 目標字那格若現在（或放對後）跑到棋盤外（長棒溢出上下緣），改用離它最近、
+        //     起點與終點都看得到的字格
+        //   ‧ 玩家按住任何一根棒時先收起（避免疊在被拖曳的棒上），放開後依新位置重新對準
+        //   ‧ 鎖定棒（fix）拖不動，不會被選為示範對象
+        //   ‧ 座標全換算成「舞台邏輯 px」（相對 #game21-area），視窗縮放不影響
+        //   ‧ 開新局／重來時重新挑棒、重新開始（fingerBar / fingerHintDone 在那兩處重置）
+        // ------------------------------------------------------------
+
+        // 直棒是否已在「正確位置」：欄位＝該謎題字的順位，且目標字落在黃金橫批列
+        _isBarInPlace: function (bar) {
+            return bar.currentCol === bar.puzzleColIdx && bar.offset === MIDDLE_ROW - bar.targetIdx;
+        },
+
+        // 挑出手指示範的對象：含「第一個字」的那根（puzzleColIdx 最小的答案棒）。
+        // 若它是鎖定棒（玩家拖不動）或剛好已在正確位置（隨機巧合），順延到下一根「拖得動、還沒放對」的答案棒。
+        _pickFingerBar: function () {
+            return this.bars
+                .filter(b => !b.isDecoy && !b.isFixed)
+                .sort((a, b) => a.puzzleColIdx - b.puzzleColIdx)
+                .find(b => !this._isBarInPlace(b)) || null;
+        },
+
+        // 依示範棒「目前」的位置重新啟動手指示範（先收掉舊的）。
+        // renderGrid（開局／重來）與 onUp（放開一根棒、尚未過關）都會呼叫。
+        refreshFingerHint: function (retry) {
+            this.stopFingerHint();
+            if (!this.isActive || this.fingerHintDone || !this.bars.length) return;
+            if (this.drag) return;                              // 正在拖曳：放開後 onUp 會再呼叫
+            const finger = document.getElementById('game21-finger-hint');
+            const area = document.getElementById('game21-area');
+            if (!finger || !area || !this.gridEl || typeof finger.animate !== 'function') return;
+
+            if (!this.fingerBar) {
+                this.fingerBar = this._pickFingerBar();
+                if (!this.fingerBar) { this.fingerHintDone = true; return; }
+            }
+            const bar = this.fingerBar;
+            if (this._isBarInPlace(bar)) { this.fingerHintDone = true; return; }   // 已放對 → 教學完成
+
+            // 版面尚未就緒（game21.css 由 loadCSS() 動態載入，青雲梯零延遲呼叫時可能還在下載；
+            // 或容器仍是隱藏的）→ 量到的座標不可信，100ms 後重試，最多等 3 秒
+            const css = document.getElementById('game21-css');
+            const areaRect = area.getBoundingClientRect();
+            const gridRect = this.gridEl.getBoundingClientRect();
+            if ((css && !css.sheet) || !areaRect.width || !area.offsetWidth || !gridRect.width) {
+                const n = retry || 0;
+                if (n < 30) {
+                    this._fingerRetry = setTimeout(() => {
+                        this._fingerRetry = null;
+                        this.refreshFingerHint(n + 1);
+                    }, 100);
+                }
+                return;
+            }
+            const sc = areaRect.width / area.offsetWidth;       // 舞台縮放比（邏輯 px → 螢幕 px）
+            // 棋盤座標原點（gridEl 邊框內側，直棒的 left/top 以此為基準）換算成 area 內的邏輯座標
+            const ox = (gridRect.left - areaRect.left) / sc + this.gridEl.clientLeft;
+            const oy = (gridRect.top - areaRect.top) / sc + this.gridEl.clientTop;
+
+            // 挑手指壓的那一格（棒內第 k 個字）：先用「目標字」那格（放對時正好落在黃金橫批列）；
+            // 若目前或放對後有一頭跑到棋盤列 0~12 之外（被舞台裁掉看不見），就改用最近的看得到的字格
+            const L = bar.charString.length;
+            const finalTop = MIDDLE_ROW - bar.targetIdx;        // 放對時，棒的第 0 個字所在列
+            const lo = Math.max(0, -bar.offset, -finalTop);
+            const hi = Math.min(L - 1, GRID_ROWS - 1 - bar.offset, GRID_ROWS - 1 - finalTop);
+            const k = (lo <= hi) ? Math.max(lo, Math.min(hi, bar.targetIdx)) : bar.targetIdx;
+            const from = { x: ox + (bar.currentCol + 0.5) * CELL_PX, y: oy + (bar.offset + k + 0.5) * CELL_PX };
+            const to = { x: ox + (bar.puzzleColIdx + 0.5) * CELL_PX, y: oy + (finalTop + k + 0.5) * CELL_PX };
+
+            // 時間軸（毫秒）：出現 → 按下 → 拖向正確位置（距離越遠越久）→ 終點停留 → 淡出 → 隱形空檔（循環時跳回起點）
+            const dist = Math.hypot(to.x - from.x, to.y - from.y);
+            const APPEAR = 250, PRESS = 300, HOLD_END = 400, FADE = 250, GAP = 450;
+            const SLIDE = Math.round(Math.min(1400, Math.max(700, 400 + dist * 1.5)));
+            const total = APPEAR + PRESS + SLIDE + HOLD_END + FADE + GAP;
+            const frame = (t, p, opacity, scale, easing) => {
+                const f = {
+                    offset: t / total,
+                    opacity: opacity,
+                    // 指尖（emoji 頂端）對準目標點；按下時略縮小
+                    transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -12%) scale(${scale})`
+                };
+                if (easing) f.easing = easing;
+                return f;
+            };
+            const frames = [];
+            let t = 0;
+            frames.push(frame(0, from, 0, 1.5));
+            t += APPEAR; frames.push(frame(t, from, 1, 1.5));                    // 手指出現在直棒上
+            t += PRESS; frames.push(frame(t, from, 1, 0.88, 'ease-in-out'));    // 按下（接下來這段拖動走 ease-in-out）
+            t += SLIDE; frames.push(frame(t, to, 1, 0.88));                      // 拖到正確位置
+            t += HOLD_END; frames.push(frame(t, to, 1, 0.88));                   // 終點停一下
+            t += FADE; frames.push(frame(t, to, 0, 0.88));                       // 淡出
+            frames.push(frame(total, to, 0, 0.88));                              // 隱形空檔，之後回到起點重播
+
+            this.fingerAnim = finger.animate(frames, { duration: total, iterations: Infinity, easing: 'linear' });
+        },
+
+        // 收起手指示範（取消動畫後元素回到 CSS 預設的 opacity: 0，看不見）
+        stopFingerHint: function () {
+            if (this._fingerRetry) { clearTimeout(this._fingerRetry); this._fingerRetry = null; }
+            if (this.fingerAnim) { this.fingerAnim.cancel(); this.fingerAnim = null; }
         },
 
         // ------------------------------------------------------------
@@ -1114,6 +1247,7 @@
         // 負責：失敗時視需求標示錯誤棒、記錄失敗場次、切換按鈕可用狀態，
         // 並顯示結算訊息（GameMessage），依情境決定下一步（下一關/下一局/再試一次）。
         gameOver: function (win, reason) {
+            this.stopFingerHint();
             // ⚠️ 規格：時間到（!win）之後，若難度啟用 showWrongOnTimeout，
             //   將所有「未正確歸位」的答案卡與混淆卡都以紅色顯示。判定：
             //     正確歸位 = 非 decoy、currentCol < puzzleLength、且中央列字元 = puzzleText[currentCol]

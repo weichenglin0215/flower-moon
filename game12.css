@@ -227,6 +227,26 @@
     border-color: hsl(5, 63%, 35%);
 }
 
+/* 點錯後揭示的「正確答案格」（game12.js 在點錯 0.6 秒後加上 .answer-reveal）：
+   綠底白字，邊框以粗綠線與粗白線交替閃爍，提醒玩家答案在這裡 */
+.game12-tile.answer-reveal .game12-tile-back {
+    background: hsl(145, 63%, 34%) !important;
+    color: white !important;
+    border: 6px solid hsl(145, 100%, 45%);
+    animation: game12-answer-border 0.5s steps(1, end) infinite;
+}
+
+@keyframes game12-answer-border {
+
+    0% {
+        border-color: hsl(145, 100%, 45%);
+    }
+
+    50% {
+        border-color: white;
+    }
+}
+
 .game12-tile.error .game12-tile-inner {
     animation: game12-shake 0.4s;
 }

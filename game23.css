@@ -266,6 +266,25 @@
     }
 }
 
+/* === 玩法提示：手指示範（由 game23.js refreshFingerHint 以 Web Animations 驅動）===
+   遊戲一開始，👆 從「含主句第一個字的那一片」中央滑向它的正確位置，再跳回中央，循環播放。
+   位置（transform）與透明度全由動畫的關鍵影格給，這裡只管外觀；
+   預設 opacity: 0，動畫取消後自然看不見。
+   ⚠️ pointer-events: none，絕不能擋住玩家拖曳拼圖。
+   ⚠️ z-index 1500：要蓋過拼圖片（最高 200）與主句金框（900）；ghost 在 body 上（9999），仍在它之上。 */
+.game23-finger-hint {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 1500;
+    font-size: 96px;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+}
+
 .game23-piece {
     position: absolute;
     background: transparent;

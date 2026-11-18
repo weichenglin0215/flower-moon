@@ -700,9 +700,20 @@
 
                 this.isPlayerPhase = false; // 暫停點擊
                 const currentTurnAtWrong = this.turnId;
+                // 作答總倒數先停下：揭示動畫總共約 2 秒，若這時倒數剛好歸零，
+                // 玩家會在「已經答完、正在看答案」時被判時間到。重新進入作答階段時計時器本來就會重啟。
+                clearInterval(this.timerInterval);
+
+                // 0.6 秒後翻開「正確答案格」：綠底白字＋粗綠／粗白邊框交替閃爍，提醒玩家答案在哪裡
+                setTimeout(() => {
+                    if (this.turnId !== currentTurnAtWrong || !this.isActive) return;
+                    const answerEl = this.findAnswerTile(target.char);
+                    if (answerEl) answerEl.classList.add('flipped', 'answer-reveal');
+                }, 600);
 
                 setTimeout(() => {
-                    if (this.turnId !== currentTurnAtWrong) return;
+                    // isActive 為 false 代表這段期間已經結算或離開遊戲，不要再重開記憶階段
+                    if (this.turnId !== currentTurnAtWrong || !this.isActive) return;
                     tileEl.classList.remove('error');
                     if (this.mistakeCount >= this.difficultySettings[this.difficulty].maxMistakeCount) {
                         this.gameOver(false, "失誤次數過多");
@@ -715,15 +726,24 @@
 
                         const allTiles = document.querySelectorAll('.game12-tile');
                         allTiles.forEach(t => {
-                            t.classList.remove('flipped', 'correct', 'disabled', 'wrong-reveal');
+                            t.classList.remove('flipped', 'correct', 'disabled', 'wrong-reveal', 'answer-reveal');
                         });
 
                         setTimeout(() => {
                             if (this.turnId === currentTurnAtWrong) this.startMemoryPhase();
                         }, 800);
                     }
-                }, 1500); // 留點時間讓玩家看錯在哪
+                }, 2100); // 0.6 秒後才揭示正解，所以總停留 = 0.6 + 原本的 1.5 秒，讓玩家看清楚錯在哪、答案在哪
             }
+        },
+
+        // 找出「目前該點的答案格」的 DOM：同一個字可能同時是多個答案位置，優先挑還沒翻開的那一格
+        findAnswerTile: function (char) {
+            const cands = this.currentGridChars
+                .filter(g => g.isSolution && g.char === char)
+                .map(g => document.getElementById(`tile-${g.gridIdx}`))
+                .filter(Boolean);
+            return cands.find(el => !el.classList.contains('flipped')) || cands[0] || null;
         },
 
         // 啟動作答總倒數計時器，每 50ms 更新一次剩餘比例並刷新計時環；時間到則呼叫 onComplete

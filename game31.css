@@ -73,6 +73,8 @@
 
 /* 每個字的容器：字 + 下方向下箭頭（提示玩家往下拖） */
 .game31-verse-cell {
+    position: relative;
+    /* 「請往下拖曳」示範（.game31-drag-hint）以此格為定位基準 */
     display: inline-flex;
     flex-direction: column;
     align-items: center;
@@ -100,6 +102,90 @@
     50% {
         transform: translateY(4px);
         opacity: 1;
+    }
+}
+
+/* === 「請往下拖曳」操作示範（僅小學、中學的紅色提示字才會有；由 game31.js createDragHint 建立）===
+   - 紅字正上方：直排文字「請往下拖曳」
+   - 👆 手指：從紅字位置往下滑到舞台下緣，再跳回紅字位置，循環播放
+   ⚠️ 整塊 pointer-events: none，絕不能擋住玩家按住紅字的手勢；
+      滑到舞台下緣的部分由 .game31-stage 的 overflow: hidden 自然裁切。 */
+.game31-drag-hint {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 2;
+    /* 手指從紅字往下滑的距離（邏輯 px）：詩句垂直置中於 660px 高的舞台，
+       紅字約在舞台 300px 處，330px 剛好到舞台下緣；超出的部分被裁切 */
+    --game31-hint-travel: 220px;
+}
+
+/* 玩家按住字拖曳期間隱藏示範：候選字會浮現在字的正上方，不能與直排文字疊在一起 */
+.game31-dragging .game31-drag-hint {
+    visibility: hidden;
+}
+
+.game31-drag-hint-text {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    margin-bottom: 6px;
+    transform: translateX(-50%);
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    /* ⚠️ 必須 nowrap：直排＋bottom 錨定時，瀏覽器算出的可用行長是 0，
+       不加的話五個字會被逼成每字各佔一行（看起來變成橫排、順序顛倒） */
+    white-space: nowrap;
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1;
+    letter-spacing: 2px;
+    color: var(--fm-cinnabar-bright, #c94f3d);
+    /*text-shadow: var(--fm-text-shadow, 0 1px 2px hsla(38, 50%, 31%, 0.18));*/
+}
+
+.game31-drag-hint-finger {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 52px;
+    /* 指尖落在紅字下緣：看得到手指「按在字上」，又不會蓋住紅字 */
+    text-align: center;
+    font-size: 64px;
+    line-height: 1;
+    opacity: 0;
+    animation: game31-finger-drag 2.4s ease-in-out infinite;
+}
+
+/* 0~10% 手指出現在紅字位置 → 10~20% 按下 → 20~75% 往下拖到舞台下緣 → 75~85% 淡出 → 瞬間跳回紅字位置重播 */
+@keyframes game31-finger-drag {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 0;
+    }
+
+    10% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    20% {
+        transform: translateY(0) scale(0.88);
+        opacity: 1;
+    }
+
+    75% {
+        transform: translateY(var(--game31-hint-travel)) scale(0.88);
+        opacity: 1;
+    }
+
+    85%,
+    100% {
+        transform: translateY(var(--game31-hint-travel)) scale(0.88);
+        opacity: 0;
     }
 }
 

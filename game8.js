@@ -23,6 +23,12 @@
         phases: [],           // 遊戲階段定義：{ startIndex, length }
         successfulStrokes: [], // 已確認提交成功的筆畫路徑存檔
 
+        // --- 玩法提示（手指示範／小彈窗），每一局開始時重置 ---
+        firstLineDone: false,     // 玩家是否已完成第一句：完成後手指示範不再出現
+        oneStrokeTipShown: false, // 「一次拖曳完整詩句可獲得高分」小彈窗本局是否已出現過（每局只提示一次）
+        fingerAnim: null,         // 手指示範的 Web Animations 動畫物件（null = 目前沒有在播）
+        tipTimer: null,           // 自動消失型小彈窗的計時器
+
         // --- 計時器與進度控制 ---
         timer: 0,             // 剩餘時間百分比或數值
         timerInterval: null,  // 計時器節拍實例
@@ -103,9 +109,18 @@
                             <path id="game8-completed-path" class="game8-path"></path>
                         </svg>
                         <div id="game8-grid" class="game8-grid"></div>
+                        <!-- 玩法提示：手指沿詩句示範滑動（只在第一句完成前出現，位置由 startFingerHint 以百分比設定） -->
+                        <div id="game8-finger-hint" class="game8-finger-hint" aria-hidden="true">👆</div>
                     </div>
                 </div>
                 <div id="game8-char-preview" class="game8-char-preview hidden"></div>
+                <!-- 玩法提示小彈窗（畫面中央）：自動消失型不擋操作；有「確認」鈕的為強制型（見 showTip） -->
+                <div id="game8-tip-layer" class="game8-tip-layer hidden">
+                    <div class="game8-tip-box">
+                        <div id="game8-tip-text" class="game8-tip-text"></div>
+                        <button id="game8-tip-btn" class="game8-tip-btn">確認</button>
+                    </div>
+                </div>
             `;
             document.body.appendChild(div);
             if (window.registerOverlayResize) {
@@ -132,6 +147,10 @@
                 this.showDifficultySelector();
             };
             // 訊息按鈕的行為交由 GameMessage 元件統一處理
+            document.getElementById('game8-tip-btn').onclick = () => {
+                if (window.SoundManager) window.SoundManager.playConfirmItem();
+                this.hideTip();
+            };
 
             const gridWrapper = document.getElementById('game8-grid-wrapper');
             gridWrapper.addEventListener('mousedown', this.onDragStart.bind(this));
@@ -150,6 +169,8 @@
         showDifficultySelector: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
+            this.stopFingerHint();
+            this.hideTip();
             if (window.GameMessage) window.GameMessage.hide();
             this.hideOtherContents();
 
@@ -209,6 +230,8 @@
         stopGame: function () {
             this.isActive = false;
             clearInterval(this.timerInterval);
+            this.stopFingerHint();   // 手指示範的動畫與彈窗計時器都要收掉，否則離開遊戲後還在背景跑
+            this.hideTip();
             const el = document.getElementById('cardContainer');
             if (el) el.style.display = '';
             window.FMGame.stop(this);
@@ -262,6 +285,11 @@
             this.completedTargetIndex = 0;
             this.currentPhase = 0;
             this.successfulStrokes = [];
+            // 玩法提示：每一局（含「重來」）都從頭開始——手指示範重新出現、小彈窗各自重新計一次
+            this.firstLineDone = false;
+            this.oneStrokeTipShown = false;
+            this.stopFingerHint();
+            this.hideTip();
 
             document.getElementById('game8-score').textContent = this.score;
             if (window.GameMessage) window.GameMessage.hide();
@@ -283,6 +311,8 @@
 
             this.updateProgressText();
             this.applyHints();
+            // 格子與字都排好了，手指才知道要走哪幾格
+            this.startFingerHint();
             // 格子、提示、進度都準備完畢後才啟用重來按鈕
             document.getElementById('game8-retryGame-btn').disabled = false;
             document.getElementById('game8-newGame-btn').disabled = false;
@@ -963,6 +993,7 @@
 
             // 設定拖曳狀態為真，並初始化路徑
             this.isDragging = true;
+            this.stopFingerHint();   // 玩家開始自己畫線 → 手指示範先收起來，放手後若還沒完成第一句才會再出現
             this.currentPath = [{ row: cell.r, col: cell.c }];
             cell.el.classList.add('selected');
 
@@ -1014,6 +1045,7 @@
                     if (window.SoundManager) window.SoundManager.playMelodyNote((this.currentPath.length - 1) % 21);
                     this.updateCurrentPathDraw();
                     this.updateProgressText();
+                    this.checkFirstLineLearned();
 
                     // 自動判斷是否過關 (當連到全題目最後一個字且內容正確時)
                     this.checkAutoWin();
@@ -1045,6 +1077,10 @@
 
             const phase = this.phases[this.currentPhase];
             const settings = this.difficultySettings[this.difficulty];
+
+            // 大學／研究所（全詩一筆連完）：放手時還沒連滿全詩＝「中途鬆手」，稍後要跳提示彈窗。
+            // ⚠️ 必須在驗證前先記下來——驗證失敗後 currentPath 會被清空。
+            const releasedMidway = !settings.splitPath && this.currentPath.length < phase.length;
 
             // 驗證邏輯
             let isValid = false;
@@ -1122,6 +1158,16 @@
                 this.updateCurrentPathDraw();
                 this.updateProgressText();
             }
+
+            // 放手後的玩法提示（若這一放手已經結算，isActive 會被 FMGame.gameOver 設成 false，就什麼都不做）
+            if (this.isActive) {
+                // 還沒完成第一句 → 手指示範重新出現
+                if (!this.firstLineDone) this.startFingerHint();
+                // 全詩連線中途鬆手 → 提醒必須一次連完（強制型彈窗，要按「確認」）
+                if (releasedMidway) {
+                    this.showTip(`必須一次拖曳連線<span class="game8-tip-num">${this.fullPoemText.length}</span>字<br>不可中途鬆手`, true);
+                }
+            }
         },
 
         handlePhaseWin: function (phasesCompletedCount) {
@@ -1166,12 +1212,142 @@
             this.updateCurrentPathDraw();
             this.updateProgressText();
 
+            // 完成了第一句 → 手指示範從此不再出現
+            if (this.currentPhase >= 1) {
+                this.firstLineDone = true;
+                this.stopFingerHint();
+            }
+
             if (this.currentPhase >= this.phases.length) {
                 this.gameOver(true, '');
             } else {
                 this.applyHints();
+                // 小學～高中：這一筆只連完「一句」→ 提示一次連完整首可得高分（每局只提示一次）
+                // （一筆連兩句以上會把成績 ×2，見上方 points 的計算）
+                const settings = this.difficultySettings[this.difficulty];
+                if (settings.splitPath && phasesCompletedCount === 1 && !this.oneStrokeTipShown) {
+                    this.oneStrokeTipShown = true;
+                    this.showTip(`一次拖曳完整詩句<span class="game8-tip-num">${this.fullPoemText.length}</span>字<br>可獲得高分。`, false);
+                }
             }
             if (window.SoundManager) window.SoundManager.playSuccess();
+        },
+
+        /* ============ 玩法提示：手指示範與小彈窗 ============ */
+
+        /* 手指示範：👆 從第一個字的格子出發，依詩句順序一格一格滑動，到終點淡出後跳回第一個字，循環播放。
+             小學：滑到第一句的最後一個字；中學以上：只滑到第一句的第 3 個字。
+           ⚠️ 位置一律用「格子位置的百分比」（col+0.5)/7、(row+0.5)/9——棋盤是 7×9 等分，
+              不必量測像素，所以不受 overlay 縮放或 CSS 尚未載入影響。
+           ⚠️ 用 Web Animations API（el.animate）：關鍵影格的 left/top 直接給百分比，
+              迴圈時瞬間跳回第一格就是動畫自己的行為，不用另寫計時器。 */
+        startFingerHint: function () {
+            this.stopFingerHint();
+            if (this.firstLineDone || !this.isActive) return;
+            const el = document.getElementById('game8-finger-hint');
+            if (!el || typeof el.animate !== 'function') return;
+
+            const firstLen = this.poemLines[0] ? this.poemLines[0].length : 0;
+            const count = this.difficulty === '小學' ? firstLen : Math.min(3, firstLen);
+            if (count < 2) return;
+
+            // 依詩句順序找出每個字所在的格子（targetIndex ＝ 該字在全詩中的第幾個字）
+            const cells = [];
+            for (let i = 0; i < count; i++) {
+                let found = null;
+                for (let r = 0; r < 9 && !found; r++) {
+                    for (let c = 0; c < 7; c++) {
+                        const d = this.gridData[r] && this.gridData[r][c];
+                        if (d && d.isTarget && d.targetIndex === i) { found = { r, c }; break; }
+                    }
+                }
+                if (!found) return;
+                cells.push(found);
+            }
+
+            // 時間軸（毫秒）：出現 → 按下 → 逐格滑動 → 終點停留 → 淡出 → 隱形空檔（之後循環跳回第一格）
+            const APPEAR = 200, PRESS = 300, STEP = 250, HOLD_END = 150, FADE = 200, GAP = 300;
+            const total = APPEAR + PRESS + (count - 1) * STEP + HOLD_END + FADE + GAP;
+            const frames = [];
+            const push = (t, cell, opacity, scale) => frames.push({
+                offset: t / total,
+                left: ((cell.c + 0.5) / 7 * 100) + '%',
+                top: ((cell.r + 0.5) / 9 * 100) + '%',
+                opacity: opacity,
+                // 指尖（emoji 頂端）對準格子中心；按下時略縮小
+                transform: `translate(-50%, -12%) scale(${scale})`
+            });
+
+            let t = 0;
+            push(0, cells[0], 0, 1.5);
+            t += APPEAR; push(t, cells[0], 1, 1.5);        // 手指出現在第一個字
+            t += PRESS; push(t, cells[0], 1, 0.88);      // 按下
+            for (let k = 1; k < count; k++) {            // 依序滑過每一個字
+                t += STEP; push(t, cells[k], 1, 0.88);
+            }
+            t += HOLD_END; push(t, cells[count - 1], 1, 0.88);   // 終點停一下
+            t += FADE; push(t, cells[count - 1], 0, 0.88);       // 淡出
+            push(total, cells[count - 1], 0, 0.88);              // 隱形空檔，之後回到第一格重播
+
+            this.fingerAnim = el.animate(frames, { duration: total, iterations: Infinity, easing: 'linear' });
+        },
+
+        /* 收起手指示範（取消動畫後元素回到 CSS 預設的 opacity: 0，看不見） */
+        stopFingerHint: function () {
+            if (this.fingerAnim) {
+                this.fingerAnim.cancel();
+                this.fingerAnim = null;
+            }
+        },
+
+        /* 大學／研究所沒有「單獨完成第一句」這件事（只能整首一次連完），
+           改以「這一筆已正確連過第一句的字數」視為玩家已學會，手指示範就不再出現。
+           小學～高中則是在 handlePhaseWin 完成第一句時處理。 */
+        checkFirstLineLearned: function () {
+            if (this.firstLineDone) return;
+            if (this.difficultySettings[this.difficulty].splitPath) return;
+            const firstLen = this.poemLines[0] ? this.poemLines[0].length : 0;
+            if (firstLen === 0 || this.currentPath.length < firstLen) return;
+            for (let i = 0; i < firstLen; i++) {
+                const p = this.currentPath[i];
+                if (this.gridData[p.row][p.col].char !== this.fullPoemText[i]) return;
+            }
+            this.firstLineDone = true;
+        },
+
+        /* 畫面中央的小彈窗。
+             modal = false：提示型，約 3 秒自動淡出，不擋操作（pointer-events: none），玩家可以直接繼續畫線
+             modal = true ：強制型，帶「確認」鈕，按下才關閉，期間擋住棋盤操作
+           html 只可傳入程式自己組的字串（目前只有字數數字），不可放玩家輸入。 */
+        showTip: function (html, modal) {
+            const layer = document.getElementById('game8-tip-layer');
+            const text = document.getElementById('game8-tip-text');
+            if (!layer || !text) return;
+            clearTimeout(this.tipTimer);
+            text.innerHTML = html;
+            layer.classList.toggle('game8-tip-modal', !!modal);
+            layer.classList.remove('game8-tip-leave');
+            layer.classList.remove('hidden');
+            // 重播彈出動畫（移除 class → 強制重排 → 再加回）
+            layer.classList.remove('game8-tip-in');
+            void layer.offsetWidth;
+            layer.classList.add('game8-tip-in');
+            // 提示型彈窗出現時剛好接著播過關音效，不再疊音；只有強制型彈窗發出提示音
+            if (modal && window.SoundManager) window.SoundManager.playOpenItem();
+
+            if (!modal) {
+                this.tipTimer = setTimeout(() => {
+                    layer.classList.add('game8-tip-leave');                         // 淡出 0.4 秒
+                    this.tipTimer = setTimeout(() => this.hideTip(), 400);
+                }, 2800);
+            }
+        },
+
+        hideTip: function () {
+            clearTimeout(this.tipTimer);
+            this.tipTimer = null;
+            const layer = document.getElementById('game8-tip-layer');
+            if (layer) layer.classList.add('hidden');
         },
 
         // 自動過關檢測：判斷當前一筆劃是否正確畫到了全詩的最後一個字
@@ -1380,6 +1556,8 @@
             clearInterval(this.timerInterval);
             const preview = document.getElementById('game8-char-preview');
             if (preview) preview.classList.add('hidden');
+            this.stopFingerHint();
+            this.hideTip();
 
             // 贏了／輸了之後的共同流程（按鈕防呆 → 結算動畫 → 記分 →
             // 即時成就彈窗 → 結算訊息框 → FMGame.advance）一律交給

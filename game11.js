@@ -437,6 +437,9 @@
         setAllTilesState: function (isOpen) {
             this.tiles.forEach(t => {
                 t.isOpen = isOpen;
+                // 點錯時的揭示樣式（紅底／綠底）只屬於那一次錯誤，重置字塊時一併清掉，
+                // 否則下一輪展示階段翻開這些格子時還會帶著紅／綠底色
+                t.el.classList.remove('wrong-reveal', 'answer-reveal');
                 if (isOpen && t.charText) {
                     t.el.classList.add('flipped');
                 } else {
@@ -590,28 +593,46 @@
         // 處理錯誤點擊事件：播放錯誤動畫/音效、增加失誤次數，超過上限則遊戲結束，否則重新展示本輪
         handleWrongClick: function (idx) {
             const tile = this.tiles[idx];
+            const turn = this.turnId;   // 揭示期間若玩家按了重來／開新局，turnId 會變，舊的延遲動作就不該再執行
 
-            // 錯誤視覺效果：先移除再重新加上 class 以重新觸發動畫
+            // 錯誤視覺效果：先移除再重新加上 class 以重新觸發動畫（晃動＋潑墨）
             tile.el.classList.remove('error');
             void tile.el.offsetWidth;
             tile.el.classList.add('error');
+            // 同時翻開被點錯的那一格，紅底白字（沿用疏影橫斜的 wrong-reveal 配色）
+            tile.el.classList.add('flipped', 'wrong-reveal');
 
             if (window.SoundManager) window.SoundManager.playFailure();
 
             this.mistakes++;
             this.updateHearts();
 
+            // 揭示期間不再接受點擊（原本只有「還沒輸」的分支才鎖，現在最後一次失誤也要等揭示完才結算）
+            this.isPlayerPhase = false;
+
+            // 0.6 秒後翻開「正確答案格」：綠底白字＋粗綠／粗白邊框交替閃爍，提醒玩家答案在哪裡
+            const expectedItem = this.poemChars[this.playerProgress];
+            setTimeout(() => {
+                if (this.turnId !== turn || !this.isActive) return;
+                this.tiles[expectedItem.gridIdx].el.classList.add('flipped', 'answer-reveal');
+            }, 600);
+
             if (this.mistakes >= this.maxMistakes) {
-                this.gameOver(false, "失誤過多！");
+                // 最後一次失誤：一樣先讓玩家看到正確答案，再結算
+                setTimeout(() => {
+                    if (this.turnId !== turn) return;
+                    this.gameOver(false, "失誤過多！");
+                }, 1400);
             } else {
                 // Retry round
-                this.isPlayerPhase = false;
                 document.getElementById('game11-status').textContent = `第 ${this.currentStep} 輪，點錯了！再看一次...`;
 
+                // 0.6 秒後才揭示正解，所以總停留 = 0.6 + 約 1.2 秒，讓玩家看清楚錯在哪、答案在哪
                 setTimeout(() => {
+                    if (this.turnId !== turn || !this.isActive) return;
                     this.setAllTilesState(false);
                     this.startShowPhase();
-                }, 1000);
+                }, 1800);
             }
         },
         // 播放音調

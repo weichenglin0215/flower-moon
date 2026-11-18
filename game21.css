@@ -233,6 +233,26 @@
     z-index: 20;
 }
 
+/* === 玩法提示：手指示範（由 game21.js refreshFingerHint 以 Web Animations 驅動）===
+   遊戲一開始，👆 從「含謎題第一個字的那根直棒」的目標字上出發，拖向它的正確位置
+   （正確欄位＋目標字落在黃金橫批列），再跳回起點，循環播放。
+   位置（transform）與透明度全由動畫的關鍵影格給，這裡只管外觀；
+   預設 opacity: 0，動畫取消後自然看不見。
+   ⚠️ pointer-events: none，絕不能擋住玩家拖曳直棒。
+   ⚠️ z-index 1500：要蓋過直棒（最高 10）與黃金橫批列（20）。 */
+.game21-finger-hint {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 1500;
+    font-size: 96px;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+}
+
 /* 直棒：絕對定位，top 由 JS 設定（可為負值＝超出棋盤上緣） */
 .game21-bar {
     position: absolute;

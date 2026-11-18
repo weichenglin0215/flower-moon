@@ -99,6 +99,15 @@
         _emptyHintTimer: null,    // 顯示地圖空區域的計時器
         _showEmptyHintsFlag: false,// true = 空白格已顯示淡灰色提示
 
+        // 玩法提示（手指示範）：
+        //   fingerPieceId   示範對象＝含「主句第一個字」的那一片（每局開始時決定）
+        //   fingerHintDone  該片已被放回正確位置 → 本局不再顯示
+        //   fingerAnim      Web Animations 動畫物件；_fingerRetry 為「版面尚未就緒」時的重試計時器
+        fingerPieceId: null,
+        fingerHintDone: false,
+        fingerAnim: null,
+        _fingerRetry: null,
+
         // ---- 難度設定 ----
         // poemType       : '五言' 固定五言主句；'七言' 隨機五言或七言（同 game21）
         // mainOrient     : 'H' 橫向固定 / 'random' 隨機
@@ -211,6 +220,8 @@
                         <div class="game23-hold-label">暫存區 <span id="game23-hold-count">0</span></div>
                         <div id="game23-hold" class="game23-hold"></div>
                     </div>
+                    <!-- 玩法提示：手指圖示（由 refreshFingerHint 以 Web Animations 驅動；放在 area 底層，不會被 renderGrid 清掉） -->
+                    <div id="game23-finger-hint" class="game23-finger-hint" aria-hidden="true">👆</div>
                 </div>
             `;
             document.body.appendChild(div);
@@ -239,6 +250,7 @@
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.hintTimer) clearInterval(this.hintTimer);
             if (this.hintDelayHandle) clearTimeout(this.hintDelayHandle);
+            this.stopFingerHint();
             if (window.GameMessage) window.GameMessage.hide();
             this.hideOtherContents();
 
@@ -342,6 +354,7 @@
             if (this.hintTimer) { clearInterval(this.hintTimer); this.hintTimer = null; }
             if (this.hintDelayHandle) { clearTimeout(this.hintDelayHandle); this.hintDelayHandle = null; }
             this._hintSession++;
+            this.stopFingerHint();
             this.showOtherContents();
             window.FMGame.stop(this);
         },
@@ -363,6 +376,9 @@
             if (window.GameMessage) window.GameMessage.hide();
             this.gameStartTime = Date.now();
             this.history = [];
+            // 新局：手指示範重新開始（prepareChallenge 內的 renderAll 會挑出示範片並啟動動畫）
+            this.fingerPieceId = null;
+            this.fingerHintDone = false;
 
             this.prepareChallenge();
             this.startHintReveal();
@@ -385,6 +401,9 @@
             if (window.GameMessage) window.GameMessage.hide();
             this.history = [];
             this.scramblePieces();
+            // 打亂後各片位置全變了，手指示範重新挑片、重新開始
+            this.fingerPieceId = null;
+            this.fingerHintDone = false;
             this.renderAll();
             // ⚠️ Bug 修正：重來時也要重新啟動「空白格灰色提示」的計時器，
             //   否則點「重來」或失敗後再重來就完全看不到避免放置區。
@@ -983,6 +1002,8 @@
             this.renderHold();
             this.renderHint();
             setTimeout(() => this.updateTimerRing(1), 0);
+            // 任何一次重繪（開局／重來／放下拼圖／復原）後，手指示範都要依拼圖片的新位置重新對準
+            this.refreshFingerHint();
         },
 
         renderGrid: function () {
@@ -1239,6 +1260,9 @@
                 e.preventDefault();
                 // 每次按下前先清除可能殘留的上一次 ghost
                 this._clearDrag();
+                // 玩家一伸手操作，手指示範先收起，避免疊在被拖曳的拼圖上；
+                // 放下後 renderAll() 會依新位置重新對準（單純點一下沒拖動則在 onUp 補上）
+                this.stopFingerHint();
                 const scale = window.stageScale || 1;
                 const elRect = el.getBoundingClientRect();
                 const oxScreen = e.clientX - elRect.left;
@@ -1297,7 +1321,7 @@
                 this.drag = null;
                 if (d.ghost) { document.body.removeChild(d.ghost); d.ghost = null; }
                 el.style.opacity = '';
-                if (!d.moved) return;
+                if (!d.moved) { this.refreshFingerHint(); return; }   // 只是點了一下：手指示範恢復
 
                 const holdWrap = document.getElementById('game23-hold-wrap');
                 const holdRect = holdWrap.getBoundingClientRect();
@@ -1481,6 +1505,7 @@
         handleWin: function () {
             if (!this.isActive) return;
             this.isActive = false;
+            this.stopFingerHint();
             if (this.timerInterval) clearInterval(this.timerInterval);
             if (this.hintTimer) clearInterval(this.hintTimer);
 
@@ -1527,6 +1552,155 @@
             setTimeout(() => {
                 this.gameOver(true, '');
             }, cells.length * 60 + 500);
+        },
+
+        // ------------------------------------------------------------
+        // 玩法提示：手指示範（遊戲一開始，教玩家「拼圖片要拖到棋盤上的正確位置」）
+        //   在「含主句第一個字」的那一片正中央出現 👆，慢慢滑到該片的「正確位置」，
+        //   再跳回該片中央，循環播放；該片被放回正確位置後，本局不再出現。
+        //   ‧ 玩家按住任何拼圖時先收起（避免疊在被拖曳的 ghost 上），放下後依新位置重新對準
+        //   ‧ 該片若在暫存區，手指就從暫存區的小片中央出發
+        //   ‧ 座標全換算成「舞台邏輯 px」（相對 #game23-area），視窗縮放不影響
+        //   ‧ 開新局／重來時重新挑片、重新開始（fingerPieceId / fingerHintDone 在那兩處重置）
+        //   ‧ 與 game22 同一套做法（兩款拼圖的拖曳／渲染架構相同）
+        // ------------------------------------------------------------
+
+        // 拼圖片是否已在「正確位置」：在棋盤上，且錨點等於切割時的原始錨點
+        _isPieceInPlace: function (p) {
+            return !p.inHold && p.anchorRow === p.originRow && p.anchorCol === p.originCol;
+        },
+
+        // 挑出手指示範的對象：含「主句第一個字」（主句格由上而下、由左而右第一格；橫向主句＝最左字）的那一片。
+        // 若它打亂後剛好就在正確位置（隨機巧合），就沒有可示範的了，改挑第一片不在正確位置的。
+        _pickFingerPiece: function () {
+            let fr = -1, fc = -1;
+            for (let r = 0; r < GRID_ROWS && fr < 0; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    if (this.mainCells[r][c]) { fr = r; fc = c; break; }
+                }
+            }
+            const first = this.pieces.find(p => p.cells.some(([dr, dc]) =>
+                p.originRow + dr === fr && p.originCol + dc === fc));
+            if (first && !this._isPieceInPlace(first)) return first;
+            return this.pieces.find(p => !this._isPieceInPlace(p)) || null;
+        },
+
+        // 拼圖片的「視覺中心」：單位＝格，相對於該片外框左上角；同時回傳外框寬高（格）。
+        // 取各格中心的重心：直條、2×2 等對稱形狀＝外框正中央；L / T / Z 等彎曲片的外框中心會落在空角落，
+        // 重心則一定偏向有字的那一側。若重心仍不在片內（合併出來的不規則形），改取最近的一格中心。
+        _pieceVisualCenter: function (piece) {
+            let maxR = 0, maxC = 0, sx = 0, sy = 0;
+            for (const [dr, dc] of piece.cells) {
+                if (dr > maxR) maxR = dr;
+                if (dc > maxC) maxC = dc;
+                sx += dc + 0.5;
+                sy += dr + 0.5;
+            }
+            let x = sx / piece.cells.length, y = sy / piece.cells.length;
+            const inside = piece.cells.some(([dr, dc]) => x >= dc && x <= dc + 1 && y >= dr && y <= dr + 1);
+            if (!inside) {
+                let best = Infinity;
+                for (const [dr, dc] of piece.cells) {
+                    const d = Math.hypot(dc + 0.5 - x, dr + 0.5 - y);
+                    if (d < best) { best = d; sx = dc + 0.5; sy = dr + 0.5; }
+                }
+                x = sx; y = sy;
+            }
+            return { x, y, bw: maxC + 1, bh: maxR + 1 };
+        },
+
+        // 依拼圖片「目前」的位置重新啟動手指示範（先收掉舊的）。
+        // renderAll（開局／重來／放下拼圖／復原）與「只點了一下沒拖動」之後都會呼叫。
+        refreshFingerHint: function (retry) {
+            this.stopFingerHint();
+            if (!this.isActive || this.fingerHintDone || !this.pieces.length) return;
+            if (this.drag && this.drag.moved) return;          // 正在拖曳：放下後 renderAll 會再呼叫
+            const finger = document.getElementById('game23-finger-hint');
+            const area = document.getElementById('game23-area');
+            if (!finger || !area || !this.gridEl || typeof finger.animate !== 'function') return;
+
+            if (this.fingerPieceId == null) {
+                const p = this._pickFingerPiece();
+                if (!p) { this.fingerHintDone = true; return; }
+                this.fingerPieceId = p.id;
+            }
+            const piece = this.pieces.find(p => p.id === this.fingerPieceId);
+            if (!piece) return;
+            if (this._isPieceInPlace(piece)) { this.fingerHintDone = true; return; }   // 已放對 → 教學完成
+
+            // 版面尚未就緒（game23.css 由 loadCSS() 動態載入，青雲梯零延遲呼叫時可能還在下載；
+            // 或容器仍是隱藏的）→ 量到的座標不可信，100ms 後重試，最多等 3 秒
+            const css = document.getElementById('game23-css');
+            const el = piece._el;
+            const areaRect = area.getBoundingClientRect();
+            if ((css && !css.sheet) || !el || !el.isConnected || !areaRect.width || !area.offsetWidth) {
+                const n = retry || 0;
+                if (n < 30) {
+                    this._fingerRetry = setTimeout(() => {
+                        this._fingerRetry = null;
+                        this.refreshFingerHint(n + 1);
+                    }, 100);
+                }
+                return;
+            }
+            const sc = areaRect.width / area.offsetWidth;     // 舞台縮放比（邏輯 px → 螢幕 px）
+
+            // 暫存區可捲動：示範片若被捲到看不見的地方，先把它捲進可視範圍，手指才指得到
+            if (piece.inHold && this.holdEl) {
+                const h = this.holdEl.getBoundingClientRect();
+                const r0 = el.getBoundingClientRect();
+                if (r0.bottom > h.bottom) this.holdEl.scrollTop += (r0.bottom - h.bottom) / sc;
+                else if (r0.top < h.top) this.holdEl.scrollTop -= (h.top - r0.top) / sc;
+            }
+
+            // 起點＝示範片目前的視覺中心（棋盤上或暫存區皆直接量 DOM，縮小的暫存片也正確）
+            // 終點＝示範片在棋盤「正確位置」的視覺中心（棋盤座標原點＝gridEl 邊框內側）
+            const ctr = this._pieceVisualCenter(piece);
+            const elRect = el.getBoundingClientRect();
+            const gridRect = this.gridEl.getBoundingClientRect();
+            // 棋盤若比舞台寬，目標點可能落在可視範圍外（會被 area 裁到看不見）→ 夾回舞台內
+            // （本遊戲棋盤固定 9 欄 × 50px，正常不會超出，這裡只是與 game22 保持同一套做法）
+            const clampX = (v) => Math.max(24, Math.min(area.offsetWidth - 24, v));
+            const toLocal = (px, py) => ({ x: clampX((px - areaRect.left) / sc), y: (py - areaRect.top) / sc });
+            const from = toLocal(
+                elRect.left + elRect.width * ctr.x / ctr.bw,
+                elRect.top + elRect.height * ctr.y / ctr.bh);
+            const to = toLocal(
+                gridRect.left + (this.gridEl.clientLeft + (piece.originCol + ctr.x) * CELL_PX) * sc,
+                gridRect.top + (this.gridEl.clientTop + (piece.originRow + ctr.y) * CELL_PX) * sc);
+
+            // 時間軸（毫秒）：出現 → 按下 → 滑向正確位置（距離越遠越久）→ 終點停留 → 淡出 → 隱形空檔（循環時跳回起點）
+            const dist = Math.hypot(to.x - from.x, to.y - from.y);
+            const APPEAR = 250, PRESS = 300, HOLD_END = 400, FADE = 250, GAP = 450;
+            const SLIDE = Math.round(Math.min(1400, Math.max(700, 400 + dist * 1.5)));
+            const total = APPEAR + PRESS + SLIDE + HOLD_END + FADE + GAP;
+            const frame = (t, p, opacity, scale, easing) => {
+                const f = {
+                    offset: t / total,
+                    opacity: opacity,
+                    // 指尖（emoji 頂端）對準目標點；按下時略縮小
+                    transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -12%) scale(${scale})`
+                };
+                if (easing) f.easing = easing;
+                return f;
+            };
+            const frames = [];
+            let t = 0;
+            frames.push(frame(0, from, 0, 1.5));
+            t += APPEAR; frames.push(frame(t, from, 1, 1.5));                    // 手指出現在拼圖片中央
+            t += PRESS; frames.push(frame(t, from, 1, 0.88, 'ease-in-out'));    // 按下（接下來這段滑動走 ease-in-out）
+            t += SLIDE; frames.push(frame(t, to, 1, 0.88));                      // 滑到正確位置
+            t += HOLD_END; frames.push(frame(t, to, 1, 0.88));                   // 終點停一下
+            t += FADE; frames.push(frame(t, to, 0, 0.88));                       // 淡出
+            frames.push(frame(total, to, 0, 0.88));                              // 隱形空檔，之後回到起點重播
+
+            this.fingerAnim = finger.animate(frames, { duration: total, iterations: Infinity, easing: 'linear' });
+        },
+
+        // 收起手指示範（取消動畫後元素回到 CSS 預設的 opacity: 0，看不見）
+        stopFingerHint: function () {
+            if (this._fingerRetry) { clearTimeout(this._fingerRetry); this._fingerRetry = null; }
+            if (this.fingerAnim) { this.fingerAnim.cancel(); this.fingerAnim = null; }
         },
 
         // 啟動主句提示揭露流程：依難度設定的延遲秒數，於時間到後一次揭露 hintCharCount 個主句字。
@@ -1604,6 +1778,7 @@
         // 遊戲結束統一處理：輸的情況記錄遊戲記錄到後端（SupabaseClient），
         // 依勝負顯示對應訊息框；若為關卡模式且獲勝則呼叫 ScoreManager 記錄過關並可能彈出成就
         gameOver: function (win, reason) {
+            this.stopFingerHint();
             window.FMGame.gameOver(this, win, reason || '', {
                 gameNo: 23,
                 gameKey: 'game23',
